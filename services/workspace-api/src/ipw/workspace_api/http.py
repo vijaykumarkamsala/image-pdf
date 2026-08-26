@@ -3,11 +3,16 @@
 Thin on purpose: parse, delegate to :class:`WorkspaceService`, serialise. Every
 decision that matters lives in the service, which is testable without a socket.
 
-**Bound to localhost and nowhere else.** This is a developer and single-user
-application server, not a deployment. Binding to 0.0.0.0 would expose an
-unauthenticated image processor to the network, and authentication is explicitly
-out of POC scope - so the correct answer is to refuse the address, not to invent
-a login.
+**Localhost unless told otherwise, in writing.** This service has no
+authentication, so anything reachable beyond loopback is an image processor
+anybody can run at your expense. The default is 127.0.0.1 and opening it needs
+an explicit `IPW_ALLOW_PUBLIC_BIND` - see `config.py`, which refuses rather than
+assumes.
+
+Cloud Run forces the question: its proxy connects from outside the container, so
+a container bound to loopback accepts nothing and looks like a broken deploy.
+That is precisely when somebody types 0.0.0.0 without thinking about who else can
+reach it, which is why the flag exists and why startup says what it has done.
 """
 
 from __future__ import annotations
@@ -19,9 +24,10 @@ from pathlib import Path
 from typing import Any
 
 from ipw.contracts.operation import OperationKind
+from ipw.workspace_api.config import Settings, load_settings
 from ipw.workspace_api.server import ProcessRequest, WorkspaceService, print_plan
 
-__all__ = ["MAX_UPLOAD_BYTES", "WorkspaceHandler", "serve"]
+__all__ = ["MAX_UPLOAD_BYTES", "WorkspaceHandler", "build_server", "serve"]
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
 """Refuse a body larger than this before reading it into memory.
@@ -55,7 +61,19 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             self._json(200, self.service.ocr_availability())
             return
         if route == "/api/health":
-            self._json(200, {"ok": True, "service": "workspace-api"})
+            # Cloud Run reads this, and so does a person wondering which
+            # environment they are actually looking at. A misconfiguration
+            # should be visible from outside, not only in a log nobody opened.
+            settings = load_settings()
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "service": "workspace-api",
+                    "environment": settings.environment,
+                    "warnings": settings.warnings(),
+                },
+            )
             return
         super().do_GET()
 
@@ -388,7 +406,10 @@ class _ThreadedServer(socketserver.ThreadingTCPServer):
 
 
 def build_server(
-    app_root: Path, port: int = 8770, repo_root: Path | None = None
+    app_root: Path,
+    port: int = 8770,
+    repo_root: Path | None = None,
+    host: str = "127.0.0.1",
 ) -> _ThreadedServer:
     """Build the server without starting it.
 
@@ -411,14 +432,31 @@ def build_server(
         # claim more than is known.
         return handler(*args, directory=str(app_root), **kwargs)
 
-    return _ThreadedServer(("127.0.0.1", port), factory)
+    return _ThreadedServer((host, port), factory)
 
 
-def serve(app_root: Path, port: int = 8770, repo_root: Path | None = None) -> None:
-    """Serve the application on localhost."""
-    with build_server(app_root, port, repo_root) as httpd:
+def serve(
+    app_root: Path,
+    port: int | None = None,
+    repo_root: Path | None = None,
+    settings: Settings | None = None,
+) -> None:
+    """Serve the application, locally or in a container.
+
+    The banner prints what the configuration actually is rather than what it was
+    asked for. A deployment that is quietly listening to the world should say so
+    on its first line of output, not in a setting somebody has to go and read.
+    """
+    chosen = settings or load_settings()
+    bind_port = port if port is not None else chosen.port
+
+    with build_server(app_root, bind_port, repo_root, host=chosen.host) as httpd:
         actual = httpd.server_address[1]
-        print(f"Image & PDF Workspace  ->  http://127.0.0.1:{actual}/")
+        shown = "127.0.0.1" if chosen.host in ("0.0.0.0", "::") else chosen.host  # noqa: S104
+        print(f"Image & PDF Workspace [{chosen.environment}]  ->  http://{shown}:{actual}/")
         print(f"  serving {app_root}")
+        print(f"  listening on {chosen.host}:{actual}")
+        for warning in chosen.warnings():
+            print(f"  WARNING: {warning}")
         print("  Ctrl+C to stop")
         httpd.serve_forever()

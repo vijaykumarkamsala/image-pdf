@@ -1,0 +1,141 @@
+"""Configuration, and the refusal that matters.
+
+This service has no authentication. That is not an oversight - it is where the
+build has reached - but it means a process listening beyond loopback is an image
+processor anyone who can reach it may run at your expense.
+
+Cloud Run forces the question rather than allowing it to be deferred: its proxy
+connects from outside the container, so a container bound to 127.0.0.1 accepts
+nothing and looks like a broken deploy. That is exactly the moment somebody
+types 0.0.0.0 to make the error go away. These tests pin the refusal, so the
+decision has to be made in the open.
+"""
+
+# ruff: noqa: S104 - every "0.0.0.0" below is the input being refused, not a bind.
+# Flagging them here would mean the tests that prove the guard works cannot be
+# written, which inverts the rule.
+
+from __future__ import annotations
+
+import pytest
+
+from ipw.workspace_api.config import ENVIRONMENTS, Settings, load_settings
+
+
+class TestDefaults:
+    def test_nothing_set_means_localhost(self) -> None:
+        settings = load_settings({})
+        assert settings.host == "127.0.0.1"
+        assert settings.port == 8770
+        assert settings.environment == "local"
+        assert settings.binds_publicly is False
+
+    def test_a_bare_default_raises_no_warnings(self) -> None:
+        assert load_settings({}).warnings() == []
+
+
+class TestTheBindGuard:
+    @pytest.mark.parametrize("host", ["0.0.0.0", "::", "10.0.0.4", "example.internal"])
+    def test_binding_beyond_loopback_is_refused_without_acknowledgement(self, host: str) -> None:
+        with pytest.raises(ValueError, match="no authentication"):
+            load_settings({"IPW_HOST": host})
+
+    def test_the_refusal_says_what_to_do_about_it(self) -> None:
+        """An error that only says no sends somebody to read the source."""
+        with pytest.raises(ValueError, match="IPW_ALLOW_PUBLIC_BIND"):
+            load_settings({"IPW_HOST": "0.0.0.0"})
+
+        with pytest.raises(ValueError, match="no-allow-unauthenticated"):
+            load_settings({"IPW_HOST": "0.0.0.0"})
+
+    def test_an_explicit_acknowledgement_is_honoured(self) -> None:
+        settings = load_settings({"IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": "1"})
+        assert settings.host == "0.0.0.0"
+        assert settings.binds_publicly is True
+
+    @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])
+    def test_the_usual_ways_of_writing_yes_all_work(self, value: str) -> None:
+        assert load_settings({"IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": value})
+
+    @pytest.mark.parametrize("value", ["0", "false", "no", "", "maybe"])
+    def test_anything_else_is_not_consent(self, value: str) -> None:
+        with pytest.raises(ValueError, match="refusing to bind"):
+            load_settings({"IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": value})
+
+    @pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "::1"])
+    def test_loopback_never_needs_permission(self, host: str) -> None:
+        assert load_settings({"IPW_HOST": host}).binds_publicly is False
+
+    def test_a_public_bind_always_carries_the_warning(self) -> None:
+        """Consent is not the same as safety. It must still say what it did."""
+        settings = load_settings({"IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": "1"})
+        assert any("NO AUTHENTICATION" in warning for warning in settings.warnings())
+
+
+class TestPort:
+    def test_cloud_run_sets_its_own_port_variable(self) -> None:
+        assert load_settings({"PORT": "8080"}).port == 8080
+
+    def test_the_platform_variable_wins_over_ours(self) -> None:
+        """The platform's variable is the one the platform actually connects to."""
+        assert load_settings({"PORT": "8080", "IPW_PORT": "9999"}).port == 8080
+
+    def test_our_own_name_works_when_the_platform_sets_nothing(self) -> None:
+        assert load_settings({"IPW_PORT": "9000"}).port == 9000
+
+    @pytest.mark.parametrize("value", ["nonsense", "0", "70000", "-1"])
+    def test_an_unusable_port_is_refused_rather_than_defaulted(self, value: str) -> None:
+        """Silently falling back would bind a port nobody is connecting to,
+        which reads as a hung deploy rather than a configuration mistake."""
+        with pytest.raises(ValueError, match="PORT"):
+            load_settings({"PORT": value})
+
+    def test_an_empty_port_variable_falls_through_to_the_default(self) -> None:
+        assert load_settings({"PORT": ""}).port == 8770
+
+
+class TestEnvironments:
+    @pytest.mark.parametrize("name", ENVIRONMENTS)
+    def test_each_known_environment_is_accepted(self, name: str) -> None:
+        assert load_settings({"IPW_ENV": name}).environment == name
+
+    def test_an_unknown_environment_is_flagged_not_rejected(self) -> None:
+        """A typo should be visible without stopping a deploy that may be urgent."""
+        settings = load_settings({"IPW_ENV": "prodution"})
+        assert any("Unknown environment" in warning for warning in settings.warnings())
+
+    def test_production_says_when_it_has_no_database(self) -> None:
+        settings = load_settings({"IPW_ENV": "production"})
+        assert any("nothing will persist" in warning for warning in settings.warnings())
+
+    def test_production_says_when_it_has_no_bucket(self) -> None:
+        settings = load_settings({"IPW_ENV": "production"})
+        assert any("nowhere to live" in warning for warning in settings.warnings())
+
+    def test_a_fully_configured_production_is_quiet_apart_from_the_bind(self) -> None:
+        settings = load_settings(
+            {
+                "IPW_ENV": "production",
+                "IPW_HOST": "0.0.0.0",
+                "IPW_ALLOW_PUBLIC_BIND": "1",
+                "IPW_BUCKET": "ipw-prod",
+                "IPW_DATABASE_URL": "postgresql://…",
+            }
+        )
+        assert len(settings.warnings()) == 1
+        assert "NO AUTHENTICATION" in settings.warnings()[0]
+
+    def test_each_environment_gets_its_own_bucket(self) -> None:
+        """Three buckets, one per environment, so staging can never write into
+        production's objects."""
+        for name, bucket in (("dev", "ipw-dev"), ("staging", "ipw-staging")):
+            settings = load_settings({"IPW_ENV": name, "IPW_BUCKET": bucket})
+            assert settings.bucket == bucket
+
+
+class TestSettingsShape:
+    def test_settings_are_frozen(self) -> None:
+        """Configuration read once at startup should not drift while running."""
+        settings = Settings()
+        with pytest.raises(Exception, match="cannot assign"):
+            settings.host = "0.0.0.0"  # type: ignore[misc]

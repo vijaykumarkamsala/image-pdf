@@ -1,0 +1,49 @@
+# What must never reach the build context.
+#
+# The first entry is the one that matters: `data/corpus` holds the real
+# photographs from a customer and a 20.9 MB Illustrator file. They are excluded
+# from git for that reason and must be excluded from the image for the same one -
+# a container is copied to a registry, and a registry is a place other people
+# can pull from.
+
+data/corpus/
+data/reports/
+data/runs/
+
+# Weights are hundreds of megabytes and are fetched by the installer, not baked
+# in. An image carrying them is slow to pull on every cold start.
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.traineddata
+
+# Local development, none of which belongs in a runtime image.
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+.git/
+.github/
+.vscode/
+.idea/
+
+# Tests and their fixtures are not needed at runtime; they are run in CI against
+# the source, not against the image.
+**/tests/
+packages/schemas/
+packages/contracts-ts/
+apps/browser-lab/
+
+*.log
+*.zip
+.DS_Store
+Thumbs.db
