@@ -121,7 +121,7 @@ class TestEnvironments:
                 "IPW_HOST": "0.0.0.0",
                 "IPW_ALLOW_PUBLIC_BIND": "1",
                 "IPW_BUCKET": "ipw-prod",
-                "IPW_DATABASE_URL": "postgresql://…",
+                "IPW_DATABASE_URL": "postgresql://u:p@h:5432/db",
             }
         )
         assert len(settings.warnings()) == 1
@@ -231,3 +231,60 @@ class TestDotenv:
         from_file = load_dotenv(self._write(tmp_path, "IPW_ENV=dev\n"))
         merged = {**from_file, "IPW_ENV": "production"}
         assert load_settings(merged).environment == "production"
+
+
+class TestShapeChecks:
+    """Typos that would otherwise surface as a connection error.
+
+    A stray quote at the end of a database URL makes the database name read as
+    `mydb"`, and Postgres answers with an authentication or does-not-exist error
+    that says nothing about the real cause. This happened on the first real
+    configuration, which is why these exist.
+    """
+
+    def test_a_trailing_quote_is_named_precisely(self) -> None:
+        settings = load_settings({"IPW_DATABASE_URL": 'postgresql://u:p@h:5432/db"'})
+        problems = " ".join(settings.warnings())
+        assert "stray quote" in problems
+        assert "IPW_DATABASE_URL" in problems
+
+    def test_a_trailing_apostrophe_too(self) -> None:
+        settings = load_settings({"IPW_DATABASE_URL": "postgresql://u:p@h:5432/db'"})
+        assert any("stray quote" in warning for warning in settings.warnings())
+
+    def test_a_correct_url_is_quiet(self) -> None:
+        settings = load_settings({"IPW_DATABASE_URL": "postgresql://u:p@h:5432/db"})
+        assert settings.warnings() == []
+
+    def test_the_postgres_scheme_alias_is_accepted(self) -> None:
+        settings = load_settings({"IPW_DATABASE_URL": "postgres://u:p@h:5432/db"})
+        assert settings.warnings() == []
+
+    def test_another_database_is_reported(self) -> None:
+        settings = load_settings({"IPW_DATABASE_URL": "mysql://u:p@h/db"})
+        assert any("postgresql://" in warning for warning in settings.warnings())
+
+    def test_a_url_with_no_host_is_reported(self) -> None:
+        settings = load_settings({"IPW_DATABASE_URL": "postgresql://justadatabase"})
+        assert any("incomplete" in warning for warning in settings.warnings())
+
+    def test_a_password_containing_an_at_sign_is_not_mistaken_for_a_problem(self) -> None:
+        """Passwords contain @ and : more often than anything else does."""
+        settings = load_settings({"IPW_DATABASE_URL": "postgresql://u:p@ss@h:5432/db"})
+        assert settings.warnings() == []
+
+    def test_a_bucket_written_as_a_url_is_reported(self) -> None:
+        settings = load_settings({"IPW_BUCKET": "gs://my-bucket"})
+        assert any("bare bucket name" in warning for warning in settings.warnings())
+
+    def test_a_bucket_with_a_path_is_reported(self) -> None:
+        settings = load_settings({"IPW_BUCKET": "my-bucket/uploads"})
+        assert any("no path" in warning for warning in settings.warnings())
+
+    def test_a_plain_bucket_name_is_quiet(self) -> None:
+        settings = load_settings({"IPW_BUCKET": "yearshift-image-pdf-dev"})
+        assert settings.warnings() == []
+
+    def test_nothing_configured_reports_nothing(self) -> None:
+        """Absent is not the same as wrong. Local development sets neither."""
+        assert load_settings({}).warnings() == []

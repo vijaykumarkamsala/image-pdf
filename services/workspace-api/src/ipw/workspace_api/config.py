@@ -84,7 +84,52 @@ class Settings:
             notes.append(
                 f"Unknown environment {self.environment!r}; expected one of {list(ENVIRONMENTS)}."
             )
+        notes.extend(_database_url_problems(self.database_url))
+        notes.extend(_bucket_problems(self.bucket))
         return notes
+
+
+def _database_url_problems(url: str) -> list[str]:
+    """Catch the typos that otherwise surface as a connection error.
+
+    A stray quote at the end of the line is the common one - it makes the
+    database name read as `mydb"` and produces an authentication or
+    does-not-exist error that says nothing about the real cause. Checking the
+    shape here turns twenty minutes of confusion into one line at startup.
+
+    The shape is all that is checked, never the credentials: connecting to find
+    out would make starting the service depend on the database being reachable.
+    """
+    if not url:
+        return []
+
+    problems: list[str] = []
+    if url[-1] in "\"'":
+        problems.append(
+            f"IPW_DATABASE_URL ends with {url[-1]!r} - almost certainly a stray quote in the "
+            "environment file. The database name is being read with it attached."
+        )
+    if not url.startswith(("postgresql://", "postgres://")):
+        problems.append(
+            "IPW_DATABASE_URL does not start with postgresql:// - it will not be recognised."
+        )
+    elif "@" not in url:
+        problems.append("IPW_DATABASE_URL has no host section; it looks incomplete.")
+    return problems
+
+
+def _bucket_problems(bucket: str) -> list[str]:
+    """A bucket name is a name, not a URL."""
+    if not bucket:
+        return []
+    if bucket.startswith(("gs://", "http://", "https://")):
+        return [
+            f"IPW_BUCKET is {bucket!r} - it should be the bare bucket name, with no gs:// "
+            "prefix and no path."
+        ]
+    if "/" in bucket:
+        return [f"IPW_BUCKET is {bucket!r} - it should be the bucket name only, with no path."]
+    return []
 
 
 def load_dotenv(path: Path | None = None) -> dict[str, str]:
