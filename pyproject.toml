@@ -50,6 +50,11 @@ ignore = [
 # ambient nondeterminism may be read. Everything else must take it from RunContext.
 "packages/contracts/src/ipw/contracts/runtime.py" = ["TID251"]
 "services/benchmark-runner/src/ipw/benchmark_runner/environment.py" = ["TID251"]
+# An upload location is not a benchmark observation. The object name must be
+# unique and unguessable, and it has to exist *before* any bytes do - the browser
+# uploads straight to the bucket - so it cannot be content-addressed. The
+# determinism rule protects measurements; this is a filename.
+"services/workspace-api/src/ipw/workspace_api/storage.py" = ["TID251"]
 "**/tests/*" = ["TID251", "S108"]
 "tests/*" = ["TID251", "S108"]
 "conftest.py" = ["TID251"]

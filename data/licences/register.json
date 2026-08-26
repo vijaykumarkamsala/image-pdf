@@ -83,6 +83,22 @@
       "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
     },
     {
+      "component_id": "cryptography",
+      "display_name": "pyca/cryptography",
+      "kind": "dependency",
+      "disposition": "review_required",
+      "licence_id": "Apache-2.0 OR BSD-3-Clause",
+      "official_source": "https://github.com/pyca/cryptography",
+      "pinned_version": "50.0.1",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "reviewed_by": "APP-007",
+      "reviewed_on": "2026-08-26",
+      "evidence": "PRELIMINARY. pyca/cryptography states dual Apache-2.0 / BSD-3-Clause; the licence text has NOT been read against source. Recorded under D-038 before use. Needed for one thing only: RSA-SHA256 signing of Google Cloud Storage V4 URLs.",
+      "notes": "Chosen over google-cloud-storage, which would have added seventeen packages - protobuf, requests, urllib3 and the rest - to sign a URL. V4 signing is a fixed, deterministic algorithm and is implemented in ipw.workspace_api.storage; a mistake in it produces a signature Google rejects outright, so it fails loudly rather than quietly doing the wrong thing. Verified end to end against a real bucket: a 100 KB PUT and GET round-tripped byte-identical. The trade is roughly 120 lines of our code against sixteen fewer supply-chain entries.",
+      "depends_on": []
+    },
+    {
       "component_id": "div2k-dataset",
       "display_name": "DIV2K training dataset (ETH Zurich)",
       "kind": "dataset",
