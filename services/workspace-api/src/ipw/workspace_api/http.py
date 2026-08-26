@@ -27,6 +27,7 @@ from typing import Any
 from ipw.contracts.operation import OperationKind
 from ipw.workspace_api.config import Settings, load_settings
 from ipw.workspace_api.database import connect, migrate
+from ipw.workspace_api.licence_guard import enforce_licences
 from ipw.workspace_api.server import ProcessRequest, WorkspaceService, print_plan
 
 __all__ = [
@@ -537,13 +538,18 @@ def serve(
     chosen = settings or load_settings()
     bind_port = port if port is not None else chosen.port
 
-    # Before the socket, not after. A container that is accepting requests
-    # against a schema it has not finished migrating answers some of them
-    # wrongly, and Cloud Run will happily send it traffic the moment it binds.
+    # Both checks run before the socket, not after. A container that is
+    # accepting requests against a schema it has not finished migrating answers
+    # some of them wrongly, and Cloud Run will happily send it traffic the moment
+    # it binds. The licence check is first because it is the cheaper refusal:
+    # there is no point migrating a database for a service that must not serve.
+    licence_lines = enforce_licences(chosen)
     database_lines = prepare_database(chosen)
 
     with build_server(app_root, bind_port, repo_root, host=chosen.host) as httpd:
         for line in startup_banner(app_root, chosen, httpd.server_address[1]):
+            print(line)
+        for line in licence_lines:
             print(line)
         for line in database_lines:
             print(line)

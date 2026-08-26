@@ -33,6 +33,22 @@ omit =
     */ai_adapters/rrdbnet.py
     # Chooses and configures a device for inference.
     */ai_adapters/accelerator.py
+    # The libvips engine, which the Windows runner cannot load.
+    #
+    # libvips is a native library, not a wheel. On Linux apt provides it; on
+    # Windows the DLLs live in a gitignored .tools/vips that only a developer
+    # machine has, and the workflow deliberately leaves the Windows job without
+    # it so the engine-unavailable path gets exercised. That makes vips_engine
+    # unreachable there - 22% against 89% where the library exists - and a gate
+    # that averages the two environments is really asking the Windows job to
+    # cover code it is configured not to run.
+    #
+    # Omitted for both runners rather than for one, because a per-OS config file
+    # is a second copy of this list that nothing keeps in step. The Linux job
+    # still *runs* every libvips test, so a regression there still fails on its
+    # assertions; it simply stops being counted twice in a coverage average.
+    */standard/vips_engine.py
+    */standard/vips_runtime.py
     # Drives the Tesseract binary, which a runner does not have.
     #
     # Installing it from apt was tried and reverted, and the reason is worth
