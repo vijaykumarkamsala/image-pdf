@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "declaration": false,
+    "sourceMap": true,
+    "rootDir": "../..",
+    "outDir": "public/dist"
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../packages/contracts-ts/src/**/*.ts"
+  ]
+}

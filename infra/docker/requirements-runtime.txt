@@ -1,0 +1,24 @@
+# Runtime dependencies for the pinned inference container (POC-006).
+#
+# Exact versions, matching the development machine on 2026-08-24. Comparability
+# depends on this: a result measured against pillow 12.3.0 is not interchangeable
+# with one measured against a different build, and the environment block of every
+# report records which was used.
+#
+# torch is NOT listed here. It is installed separately in the Dockerfile from
+# https://download.pytorch.org/whl/cpu, because the default PyPI wheel on Linux
+# bundles NVIDIA CUDA runtime libraries under terms that have not been reviewed.
+# Listing it here would let a well-meaning `pip install -r` acquire them.
+#
+# NOT HASH-PINNED YET. `--require-hashes` is the right end state and the
+# Dockerfile notes it as a prerequisite for an authoritative build. The hashes
+# have to be resolved against the real index at pin time; writing plausible ones
+# from a machine that cannot reach it would be fabrication, and a wrong hash that
+# looks precise is worse than an honest version pin.
+#
+# Every entry has an approved licence disposition in data/licences/register.json.
+
+numpy==2.5.2
+pillow==12.3.0
+pydantic==2.13.4
+pyvips==3.1.1

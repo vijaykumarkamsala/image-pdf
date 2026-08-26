@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Image &amp; PDF Workspace</title>
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <h1>Image &amp; PDF Workspace</h1>
+      <p class="tag">Edit, enhance and prepare for print</p>
+    </div>
+  </div>
+  <div class="bar-actions">
+    <button id="btn-reset" class="ghost" hidden>Start over</button>
+    <button id="btn-download" class="primary" hidden>Download</button>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ------------------------------------------------------------- intake -->
+  <section id="intake" class="intake">
+    <div id="drop" class="drop" tabindex="0" role="button"
+         aria-label="Choose an image, or drag one here">
+      <div class="drop-inner">
+        <svg viewBox="0 0 48 48" class="drop-icon" aria-hidden="true">
+          <path d="M24 32V12m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor"
+                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 30v6a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4v-6" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <p class="drop-title">Drop an image or a PDF here</p>
+        <p class="drop-sub">or <span class="link">browse your files</span></p>
+        <p class="drop-formats">JPEG, PNG and PDF, up to 100 MB &middot; drop up to 50 at once</p>
+      </div>
+      <input id="file" type="file" accept="image/jpeg,image/png,application/pdf" multiple hidden />
+    </div>
+
+    <ul class="reassure">
+      <li>Your original is never modified.</li>
+      <li>Everything runs on this machine.</li>
+      <li>AI is only used when you ask for it.</li>
+      <li>PDF pages are combined, split and turned without re-rendering, so nothing loses quality.</li>
+    </ul>
+  </section>
+
+  <!-- ------------------------------------------------------------ working -->
+  <section id="workspace" class="workspace" hidden>
+
+    <div class="canvas-column">
+      <div class="canvas-head">
+        <div class="tabs" role="tablist">
+          <button class="tab is-active" data-view="result" role="tab">Result</button>
+          <button class="tab" data-view="original" role="tab">Original</button>
+          <button class="tab" data-view="split" role="tab">Compare</button>
+        </div>
+        <p id="canvas-meta" class="meta"></p>
+      </div>
+
+      <div id="stage" class="stage">
+        <img id="img-result" alt="Edited image" />
+        <img id="img-original" alt="Original image" hidden />
+        <div id="split" class="split" hidden>
+          <img id="split-a" alt="Original" />
+          <div id="split-b-wrap" class="split-b"><img id="split-b" alt="Edited" /></div>
+          <input id="split-range" type="range" min="0" max="100" value="50"
+                 aria-label="Compare before and after" />
+        </div>
+        <div id="busy" class="busy" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="busy-text">Working…</p>
+        </div>
+      </div>
+
+      <div id="history" class="history" hidden>
+        <span class="history-label">Applied</span>
+        <ol id="history-list"></ol>
+        <button id="btn-undo" class="ghost small">Undo last</button>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div id="facts" class="facts"></div>
+
+      <div class="print-card">
+        <h2>Print size</h2>
+        <p class="print-note">Tell it the size you need. It will say honestly whether
+          this image can reach it.</p>
+        <div class="print-inputs">
+          <label>Width
+            <span class="with-unit">
+              <input id="print-inches" type="number" min="1" max="200" step="0.5" value="18" />
+              <span class="unit">in</span>
+            </span>
+          </label>
+          <label>Quality
+            <select id="print-dpi">
+              <option value="150">150 DPI — fabric, banners</option>
+              <option value="300" selected>300 DPI — fine detail</option>
+              <option value="600">600 DPI — engraving</option>
+            </select>
+          </label>
+        </div>
+        <div id="print-verdict" class="verdict"></div>
+
+        <div class="pdf-block">
+          <h3>Make a PDF</h3>
+          <div class="print-inputs">
+            <label>Page
+              <select id="pdf-size">
+                <option value="">Match the image</option>
+                <option value="a4">A4</option>
+                <option value="a3">A3</option>
+                <option value="letter">Letter</option>
+                <option value="tabloid">Tabloid</option>
+                <option value="square">Square 8in</option>
+              </select>
+            </label>
+            <label>Margin
+              <span class="with-unit">
+                <input id="pdf-margin" type="number" min="0" max="50" step="1" value="0" />
+                <span class="unit">mm</span>
+              </span>
+            </label>
+          </div>
+          <button id="btn-pdf" class="ghost small" style="width:100%;margin-top:9px">
+            Export as PDF
+          </button>
+          <div id="pdf-result" class="pdf-result" hidden></div>
+        </div>
+      </div>
+
+      <div class="print-card">
+        <h2>Convert to vector</h2>
+        <p class="print-note">Turns a picture into shapes instead of pixels, so it stays
+          perfectly sharp at any size — a business card or a billboard. This is what a
+          vinyl cutter, laser, engraver or embroidery machine needs: they follow paths and
+          cannot read pixels at all.</p>
+
+        <div class="print-inputs">
+          <label>What is it
+            <select id="vec-mode">
+              <option value="flat_colour" selected>Logo or flat-colour artwork</option>
+              <option value="line_art">Line drawing, sketch or scan</option>
+              <option value="photographic">Photo — posterise for stencil/engraving</option>
+            </select>
+          </label>
+          <label>Colours
+            <input id="vec-colours" type="number" min="2" max="32" step="1" value="6" />
+          </label>
+        </div>
+
+        <div class="print-inputs">
+          <label>Detail
+            <select id="vec-detail">
+              <option value="0.6">Very tight — heavier file</option>
+              <option value="1" selected>Balanced</option>
+              <option value="2">Simplified — fewer points</option>
+              <option value="3.5">Very simple — stencils, signs</option>
+            </select>
+          </label>
+          <label>Corners
+            <select id="vec-smoothness">
+              <option value="25" selected>Smooth curves, sharp corners</option>
+              <option value="45">Rounder</option>
+              <option value="0">Keep every corner sharp (plans, pixel art)</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="print-inputs">
+          <label>Clean up first
+            <select id="vec-clean">
+              <option value="0" selected>Off — artwork is already clean</option>
+              <option value="1">Light — scans, screenshots</option>
+              <option value="3">Strong — photos, noisy fabric</option>
+            </select>
+          </label>
+        </div>
+
+        <button id="btn-vectorise" class="ghost small" style="width:100%;margin-top:9px">
+          Convert to vector
+        </button>
+        <div id="vec-result" class="vec-result" hidden></div>
+      </div>
+
+      <div id="tools"></div>
+    </aside>
+  </section>
+
+  <!-- ---------------------------------------------------------------- PDF -->
+  <section id="pdfspace" class="pdfspace" hidden>
+    <div id="pdf-summary" class="pdf-summary"></div>
+
+    <div class="pdf-bar">
+      <p id="pdf-selection" class="meta"></p>
+      <div class="pdf-buttons">
+        <button id="pdf-split" class="primary small">Keep only these pages</button>
+        <button id="pdf-delete" class="ghost small">Remove these pages</button>
+        <button id="pdf-rotate-left" class="ghost small" title="Turn anticlockwise">&#8630; Turn left</button>
+        <button id="pdf-rotate-right" class="ghost small" title="Turn clockwise">&#8631; Turn right</button>
+        <button id="pdf-extract" class="ghost small">Save the images inside</button>
+        <button id="pdf-apply-order" class="primary small" hidden>Save this new order</button>
+        <button id="pdf-clear" class="ghost small" hidden>Clear</button>
+      </div>
+    </div>
+
+    <div class="pdf-body">
+      <div id="pdf-grid" class="pdf-grid"></div>
+
+      <aside class="panel pdf-panel">
+        <div class="group">
+          <h3>Combine documents</h3>
+          <p class="hint">Add more PDFs and join them end to end. Pages are copied,
+             not re-rendered, so nothing loses quality.</p>
+          <button id="pdf-add" class="ghost small">Add another PDF…</button>
+          <button id="pdf-merge" class="ghost small">Combine them</button>
+          <input id="pdf-file" type="file" accept="application/pdf" multiple hidden />
+        </div>
+
+        <div class="group">
+          <h3>Stamp text over the pages</h3>
+          <p class="hint">Added as its own layer. The artwork underneath is never
+             rewritten, so a stamp cannot damage it.</p>
+          <input id="pdf-stamp-text" type="text" maxlength="40"
+                 placeholder="DRAFT, SAMPLE, CONFIDENTIAL…" />
+          <button id="pdf-stamp" class="ghost small">Add the stamp</button>
+        </div>
+
+        <div class="group">
+          <h3>Make a scan searchable</h3>
+          <p class="hint">A scan is a picture of words: nothing can search it, copy from it,
+             or redact a name in it. This reads the words and lays them invisibly over the
+             page, which looks exactly the same and can then be searched — and redacted by
+             typing a name instead of drawing a box on every page.</p>
+          <div id="pdf-ocr-status" class="meta subtle">Checking whether recognition is available…</div>
+          <button id="pdf-ocr" class="ghost small">Read the words</button>
+          <div id="pdf-ocr-result" class="redact-result" hidden></div>
+        </div>
+
+        <div class="group">
+          <h3>Make it smaller</h3>
+          <p class="hint">For a portal, a filing system or an email that will not take it.
+             Give the limit and it finds the best quality that fits, or tells you plainly
+             that it could not.</p>
+          <div class="print-inputs">
+            <label>Must be under
+              <span class="with-unit">
+                <input id="pdf-target" type="number" min="0.1" max="500" step="0.5" value="10" />
+                <span class="unit">MB</span>
+              </span>
+            </label>
+          </div>
+          <button id="pdf-compress" class="ghost small">Compress to fit</button>
+          <div id="pdf-compress-result" class="redact-result" hidden></div>
+        </div>
+
+        <div class="group group-danger">
+          <h3>Remove sensitive text</h3>
+          <p class="hint">This <strong>deletes</strong> the words. Most tools draw a black
+             box and leave the text underneath, where it can still be selected, copied
+             and found by search. Every removal here is checked by reading the finished
+             file back.</p>
+          <input id="pdf-redact-text" type="text" maxlength="120"
+                 placeholder="A name, account number, address…" />
+          <label class="check">
+            <input id="pdf-redact-case" type="checkbox" />
+            <span>Match capital letters exactly</span>
+          </label>
+          <button id="pdf-find" class="ghost small">Find it first</button>
+          <button id="pdf-redact" class="danger small">Remove it everywhere</button>
+          <div id="pdf-redact-result" class="redact-result" hidden></div>
+        </div>
+
+        <div class="group">
+          <h3>File size</h3>
+          <label class="check">
+            <input id="pdf-keep-private" type="checkbox" />
+            <span>Keep the original editable data</span>
+          </label>
+          <p class="hint">Design programs hide a second, editable copy of the artwork
+             inside the file. Leaving it out often makes the file far smaller and
+             what prints is identical - but you lose the ability to reopen it in
+             Illustrator with live objects. Tick this if that matters.</p>
+        </div>
+
+        <div class="group">
+          <h3>How pages are shown</h3>
+          <p class="hint">Each card shows a page's real measured size. There is no
+             picture of the page because drawing one means guessing at fonts and
+             colour, and a preview that differs from the print is worse than none.
+             Pages holding one full-page scan show that scan.</p>
+        </div>
+
+        <button id="pdf-undo" class="ghost small" hidden>Undo last change</button>
+      </aside>
+    </div>
+
+    <p id="pdf-note" class="pdf-note" hidden></p>
+    <div id="pdf-extracted" class="pdf-extracted" hidden></div>
+  </section>
+
+  <!-- -------------------------------------------------------------- batch -->
+  <section id="batchspace" class="batchspace" hidden>
+    <div id="batch-summary" class="batch-summary"></div>
+
+    <div class="batch-bar-row">
+      <label class="batch-pick">
+        <span>Do this to all of them</span>
+        <select id="batch-operation"></select>
+      </label>
+      <div id="batch-settings" class="batch-settings"></div>
+      <div class="batch-buttons">
+        <button id="batch-run" class="primary small">Run</button>
+        <button id="batch-cancel" class="ghost small" hidden>Stop</button>
+        <button id="batch-retry" class="ghost small" hidden>Retry the failed ones</button>
+        <button id="batch-download" class="ghost small" hidden>Download all as ZIP</button>
+      </div>
+    </div>
+
+    <div id="batch-grid" class="batch-grid"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

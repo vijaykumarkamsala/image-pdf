@@ -1,0 +1,780 @@
+{
+  "$defs": {
+    "AdjustSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "brightness_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Brightness Percent",
+          "type": "integer"
+        },
+        "contrast_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Contrast Percent",
+          "type": "integer"
+        },
+        "exposure_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Exposure Percent",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "adjust",
+          "default": "adjust",
+          "title": "Kind",
+          "type": "string"
+        },
+        "saturation_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Saturation Percent",
+          "type": "integer"
+        },
+        "white_balance": {
+          "default": "none",
+          "enum": [
+            "none",
+            "auto",
+            "daylight",
+            "tungsten"
+          ],
+          "title": "White Balance",
+          "type": "string"
+        }
+      },
+      "title": "AdjustSettings",
+      "type": "object"
+    },
+    "AiDenoiseSettings": {
+      "additionalProperties": false,
+      "description": "Learned denoising. Distinct from DenoiseSettings, which is a median filter.\n\n``noise_sigma`` is the noise level the weights were *trained* for, not a\nstrength dial. SwinIR publishes separate checkpoints for sigma 15, 25 and 50,\nand an adapter must refuse a level it has no weights for rather than\nsubstituting the nearest one - the same rule as native scale for\nsuper-resolution (benchmark plan section 7).",
+      "properties": {
+        "kind": {
+          "const": "ai_denoise",
+          "default": "ai_denoise",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "natural",
+          "enum": [
+            "natural",
+            "strong"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "noise_sigma": {
+          "default": 15,
+          "enum": [
+            15,
+            25,
+            50
+          ],
+          "title": "Noise Sigma",
+          "type": "integer"
+        }
+      },
+      "title": "AiDenoiseSettings",
+      "type": "object"
+    },
+    "BackgroundRemoveSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "feather_px": {
+          "default": 0,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Feather Px",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "background_remove",
+          "default": "background_remove",
+          "title": "Kind",
+          "type": "string"
+        },
+        "return_mask": {
+          "default": true,
+          "title": "Return Mask",
+          "type": "boolean"
+        }
+      },
+      "title": "BackgroundRemoveSettings",
+      "type": "object"
+    },
+    "BackgroundReplaceSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "background_replace",
+          "default": "background_replace",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "solid",
+            "image",
+            "generated"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "solid_colour": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Solid Colour"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "BackgroundReplaceSettings",
+      "type": "object"
+    },
+    "ColouriseSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "disclose_estimated_colour": {
+          "const": true,
+          "default": true,
+          "description": "D-010: colourisation must always be described as estimated colour, never as historical fact. The literal type makes disabling it impossible.",
+          "title": "Disclose Estimated Colour",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "colourise",
+          "default": "colourise",
+          "title": "Kind",
+          "type": "string"
+        },
+        "saturation_percent": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Saturation Percent",
+          "type": "integer"
+        }
+      },
+      "title": "ColouriseSettings",
+      "type": "object"
+    },
+    "ConvertSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "flatten_background": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required when converting transparency to a format without alpha.",
+          "title": "Flatten Background"
+        },
+        "kind": {
+          "const": "convert",
+          "default": "convert",
+          "title": "Kind",
+          "type": "string"
+        },
+        "quality": {
+          "default": 90,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Quality",
+          "type": "integer"
+        },
+        "target_media_type": {
+          "$ref": "#/$defs/MediaType"
+        }
+      },
+      "required": [
+        "target_media_type"
+      ],
+      "title": "ConvertSettings",
+      "type": "object"
+    },
+    "CropSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "crop",
+          "default": "crop",
+          "title": "Kind",
+          "type": "string"
+        },
+        "width": {
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "x": {
+          "minimum": 0,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "minimum": 0,
+          "title": "Y",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "title": "CropSettings",
+      "type": "object"
+    },
+    "DamageRepairSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "damage_repair",
+          "default": "damage_repair",
+          "title": "Kind",
+          "type": "string"
+        },
+        "strength_percent": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength Percent",
+          "type": "integer"
+        },
+        "targets": {
+          "default": [
+            "scratch"
+          ],
+          "items": {
+            "enum": [
+              "scratch",
+              "fold",
+              "stain",
+              "tear"
+            ],
+            "type": "string"
+          },
+          "title": "Targets",
+          "type": "array"
+        }
+      },
+      "title": "DamageRepairSettings",
+      "type": "object"
+    },
+    "DenoiseSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "denoise",
+          "default": "denoise",
+          "title": "Kind",
+          "type": "string"
+        },
+        "strength_percent": {
+          "default": 30,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength Percent",
+          "type": "integer"
+        }
+      },
+      "title": "DenoiseSettings",
+      "type": "object"
+    },
+    "FaceRestoreSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "apply_to_all_faces": {
+          "default": true,
+          "title": "Apply To All Faces",
+          "type": "boolean"
+        },
+        "fidelity_percent": {
+          "default": 70,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Fidelity Percent",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "face_restore",
+          "default": "face_restore",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "natural",
+          "enum": [
+            "natural",
+            "strong"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "title": "FaceRestoreSettings",
+      "type": "object"
+    },
+    "FlipSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "kind": {
+          "const": "flip",
+          "default": "flip",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "axis"
+      ],
+      "title": "FlipSettings",
+      "type": "object"
+    },
+    "InspectOnlySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "inspect_only",
+          "default": "inspect_only",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "InspectOnlySettings",
+      "type": "object"
+    },
+    "JpegArtifactRepairSettings": {
+      "additionalProperties": false,
+      "description": "Learned JPEG compression-artifact reduction.\n\n``quality_target`` is the JPEG quality the weights were trained against, in the\nsame sense as ``noise_sigma`` above: a property of the checkpoint, not a knob.",
+      "properties": {
+        "kind": {
+          "const": "jpeg_artifact_repair",
+          "default": "jpeg_artifact_repair",
+          "title": "Kind",
+          "type": "string"
+        },
+        "quality_target": {
+          "default": 10,
+          "enum": [
+            10,
+            20,
+            30,
+            40
+          ],
+          "title": "Quality Target",
+          "type": "integer"
+        }
+      },
+      "title": "JpegArtifactRepairSettings",
+      "type": "object"
+    },
+    "MediaType": {
+      "description": "Declared media types. The initial supported set is JPG and PNG.\n\nAdditional members exist so a manifest can *declare* an unsupported type and\nbe rejected with ``MANIFEST.UNSUPPORTED_MEDIA_TYPE`` rather than a generic\nschema error.",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/avif",
+        "image/bmp",
+        "image/gif"
+      ],
+      "title": "MediaType",
+      "type": "string"
+    },
+    "NoopSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "noop",
+          "default": "noop",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "NoopSettings",
+      "type": "object"
+    },
+    "OperationFamily": {
+      "description": "Standard (deterministic / non-generative) versus AI (may reconstruct).",
+      "enum": [
+        "standard",
+        "ai",
+        "inspection"
+      ],
+      "title": "OperationFamily",
+      "type": "string"
+    },
+    "OperationKind": {
+      "enum": [
+        "noop",
+        "inspect_only",
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "adjust",
+        "sharpen",
+        "denoise",
+        "convert",
+        "super_resolution",
+        "ai_denoise",
+        "jpeg_artifact_repair",
+        "face_restore",
+        "damage_repair",
+        "colourise",
+        "background_remove",
+        "background_replace"
+      ],
+      "title": "OperationKind",
+      "type": "string"
+    },
+    "ProcessingRoute": {
+      "description": "Where the work ran. Customer-facing wording is applied by the UI, not here.",
+      "enum": [
+        "browser_local",
+        "cloud_cpu",
+        "cloud_gpu",
+        "not_applicable"
+      ],
+      "title": "ProcessingRoute",
+      "type": "string"
+    },
+    "ProcessingVariant": {
+      "description": "The processing variants from benchmark plan section 7.",
+      "enum": [
+        "original_control",
+        "standard_browser_preview",
+        "standard_server_authoritative",
+        "ai_natural",
+        "ai_strong",
+        "ai_task_specific"
+      ],
+      "title": "ProcessingVariant",
+      "type": "string"
+    },
+    "ResizeSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "default": "lanczos",
+          "enum": [
+            "bicubic",
+            "lanczos",
+            "nearest"
+          ],
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "kind": {
+          "const": "resize",
+          "default": "resize",
+          "title": "Kind",
+          "type": "string"
+        },
+        "preserve_aspect_ratio": {
+          "default": true,
+          "title": "Preserve Aspect Ratio",
+          "type": "boolean"
+        },
+        "scale_denominator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Denominator"
+        },
+        "scale_numerator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Numerator"
+        },
+        "target_height": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Height"
+        },
+        "target_width": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Width"
+        }
+      },
+      "title": "ResizeSettings",
+      "type": "object"
+    },
+    "RotateSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "degrees": {
+          "enum": [
+            90,
+            180,
+            270
+          ],
+          "title": "Degrees",
+          "type": "integer"
+        },
+        "expand": {
+          "default": true,
+          "title": "Expand",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "rotate",
+          "default": "rotate",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "degrees"
+      ],
+      "title": "RotateSettings",
+      "type": "object"
+    },
+    "SharpenSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_percent": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Amount Percent",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "sharpen",
+          "default": "sharpen",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius_x100": {
+          "default": 100,
+          "minimum": 1,
+          "title": "Radius X100",
+          "type": "integer"
+        }
+      },
+      "title": "SharpenSettings",
+      "type": "object"
+    },
+    "SuperResolutionSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "super_resolution",
+          "default": "super_resolution",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "natural",
+          "enum": [
+            "natural",
+            "strong"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "native_scale": {
+          "default": true,
+          "description": "True when the model natively produces this scale. Benchmark plan section 7 forbids presenting post-resized output as equivalent to a native scale.",
+          "title": "Native Scale",
+          "type": "boolean"
+        },
+        "scale": {
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Scale",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scale"
+      ],
+      "title": "SuperResolutionSettings",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/operation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A fully specified unit of work: what to do, how, and under which variant.",
+  "properties": {
+    "family": {
+      "$ref": "#/$defs/OperationFamily"
+    },
+    "kind": {
+      "$ref": "#/$defs/OperationKind"
+    },
+    "route": {
+      "$ref": "#/$defs/ProcessingRoute",
+      "default": "not_applicable"
+    },
+    "settings": {
+      "discriminator": {
+        "mapping": {
+          "adjust": "#/$defs/AdjustSettings",
+          "ai_denoise": "#/$defs/AiDenoiseSettings",
+          "background_remove": "#/$defs/BackgroundRemoveSettings",
+          "background_replace": "#/$defs/BackgroundReplaceSettings",
+          "colourise": "#/$defs/ColouriseSettings",
+          "convert": "#/$defs/ConvertSettings",
+          "crop": "#/$defs/CropSettings",
+          "damage_repair": "#/$defs/DamageRepairSettings",
+          "denoise": "#/$defs/DenoiseSettings",
+          "face_restore": "#/$defs/FaceRestoreSettings",
+          "flip": "#/$defs/FlipSettings",
+          "inspect_only": "#/$defs/InspectOnlySettings",
+          "jpeg_artifact_repair": "#/$defs/JpegArtifactRepairSettings",
+          "noop": "#/$defs/NoopSettings",
+          "resize": "#/$defs/ResizeSettings",
+          "rotate": "#/$defs/RotateSettings",
+          "sharpen": "#/$defs/SharpenSettings",
+          "super_resolution": "#/$defs/SuperResolutionSettings"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NoopSettings"
+        },
+        {
+          "$ref": "#/$defs/InspectOnlySettings"
+        },
+        {
+          "$ref": "#/$defs/ResizeSettings"
+        },
+        {
+          "$ref": "#/$defs/CropSettings"
+        },
+        {
+          "$ref": "#/$defs/RotateSettings"
+        },
+        {
+          "$ref": "#/$defs/FlipSettings"
+        },
+        {
+          "$ref": "#/$defs/AdjustSettings"
+        },
+        {
+          "$ref": "#/$defs/SharpenSettings"
+        },
+        {
+          "$ref": "#/$defs/DenoiseSettings"
+        },
+        {
+          "$ref": "#/$defs/ConvertSettings"
+        },
+        {
+          "$ref": "#/$defs/SuperResolutionSettings"
+        },
+        {
+          "$ref": "#/$defs/FaceRestoreSettings"
+        },
+        {
+          "$ref": "#/$defs/DamageRepairSettings"
+        },
+        {
+          "$ref": "#/$defs/ColouriseSettings"
+        },
+        {
+          "$ref": "#/$defs/AiDenoiseSettings"
+        },
+        {
+          "$ref": "#/$defs/JpegArtifactRepairSettings"
+        },
+        {
+          "$ref": "#/$defs/BackgroundRemoveSettings"
+        },
+        {
+          "$ref": "#/$defs/BackgroundReplaceSettings"
+        }
+      ],
+      "title": "Settings"
+    },
+    "variant": {
+      "$ref": "#/$defs/ProcessingVariant"
+    }
+  },
+  "required": [
+    "kind",
+    "family",
+    "variant",
+    "settings"
+  ],
+  "title": "Operation",
+  "type": "object"
+}

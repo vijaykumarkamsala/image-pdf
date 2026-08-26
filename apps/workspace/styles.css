@@ -1,0 +1,487 @@
+/* Image & PDF Workspace.
+ *
+ * Two rules run through this file.
+ *
+ * The AI group is visually separated rather than merely labelled. A customer must
+ * be able to see, without reading, that they are about to use something that can
+ * invent detail (PRODUCT_REQUIREMENTS.md section 10, D-007).
+ *
+ * Nothing here reports a state it has not been given. Sizes, timings and warnings
+ * come from the API; the interface never guesses to fill a gap.
+ */
+
+:root {
+  --ink:            #16181d;
+  --ink-soft:       #5b6272;
+  --ink-faint:      #8b92a3;
+  --line:           #e3e6ec;
+  --line-strong:    #cdd2dc;
+  --bg:             #f6f7f9;
+  --surface:        #ffffff;
+  --brand:          #2f6df6;
+  --brand-dark:     #1e51c7;
+  --brand-wash:     #eef3ff;
+  --ai:             #7c3aed;
+  --ai-wash:        #f5f0ff;
+  --ai-line:        #ddd0fb;
+  --warn:           #b45309;
+  --warn-wash:      #fef4e6;
+  --bad:            #c0392b;
+  --bad-wash:       #fdeceb;
+  --good:           #15803d;
+  --good-wash:      #ecfbf1;
+  --radius:         12px;
+  --radius-lg:      16px;
+  --shadow:         0 1px 2px rgba(16,20,30,.06), 0 8px 24px rgba(16,20,30,.06);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+/* ------------------------------------------------------------------- bar -- */
+
+.bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 14px 24px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.mark {
+  width: 34px; height: 34px; border-radius: 9px; flex: none;
+  background: linear-gradient(135deg, var(--brand), var(--ai));
+}
+.bar h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.tag { margin: 1px 0 0; font-size: 12.5px; color: var(--ink-faint); }
+.bar-actions { display: flex; gap: 8px; }
+
+/* ---------------------------------------------------------------- buttons -- */
+
+.primary, .ghost {
+  border-radius: 9px; padding: 9px 16px; font-weight: 550; cursor: pointer;
+  border: 1px solid transparent; transition: background .13s, border-color .13s;
+}
+.primary { background: var(--brand); color: #fff; }
+.primary:hover { background: var(--brand-dark); }
+.ghost { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
+.ghost:hover { background: var(--bg); }
+.ghost.small { padding: 5px 11px; font-size: 13px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- intake -- */
+
+.intake { max-width: 660px; margin: 0 auto; padding: 56px 24px; }
+
+.drop {
+  border: 2px dashed var(--line-strong); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 56px 24px; text-align: center;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.is-over { border-color: var(--brand); background: var(--brand-wash); }
+.drop-icon { width: 46px; height: 46px; color: var(--brand); }
+.drop-title { margin: 14px 0 3px; font-size: 17px; font-weight: 600; }
+.drop-sub { margin: 0; color: var(--ink-soft); }
+.link { color: var(--brand); text-decoration: underline; }
+.drop-formats { margin: 14px 0 0; font-size: 12.5px; color: var(--ink-faint); }
+
+.reassure {
+  list-style: none; margin: 22px 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: center;
+  font-size: 13px; color: var(--ink-soft);
+}
+.reassure li::before { content: "✓ "; color: var(--good); font-weight: 700; }
+
+/* ------------------------------------------------------------- workspace -- */
+
+.workspace {
+  display: grid; grid-template-columns: minmax(0, 1fr) 348px;
+  gap: 20px; padding: 20px; align-items: start;
+}
+@media (max-width: 1000px) { .workspace { grid-template-columns: 1fr; } }
+
+.canvas-column {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden;
+}
+.canvas-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.tabs { display: flex; gap: 3px; background: var(--bg); padding: 3px; border-radius: 9px; }
+.tab {
+  border: 0; background: transparent; padding: 6px 13px; border-radius: 7px;
+  cursor: pointer; color: var(--ink-soft); font-size: 13.5px; font-weight: 520;
+}
+.tab.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.meta { margin: 0; font-size: 12.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+.stage {
+  position: relative; min-height: 380px; display: grid; place-items: center;
+  padding: 18px;
+  /* A checkerboard, so transparency reads as transparency rather than white. */
+  background-color: #fbfcfd;
+  background-image:
+    linear-gradient(45deg, #eef0f4 25%, transparent 25%, transparent 75%, #eef0f4 75%),
+    linear-gradient(45deg, #eef0f4 25%, transparent 25%, transparent 75%, #eef0f4 75%);
+  background-size: 18px 18px; background-position: 0 0, 9px 9px;
+}
+.stage img { max-width: 100%; max-height: 62vh; display: block; border-radius: 6px; }
+
+.split { position: relative; display: inline-block; max-width: 100%; }
+.split img { display: block; max-height: 62vh; }
+.split-b { position: absolute; inset: 0; width: 50%; overflow: hidden; border-right: 2px solid var(--brand); }
+.split-b img { max-width: none; height: 100%; }
+#split-range {
+  position: absolute; left: 0; right: 0; bottom: 12px; width: 100%; margin: 0;
+  accent-color: var(--brand);
+}
+
+.busy {
+  position: absolute; inset: 0; display: grid; place-content: center; gap: 12px;
+  justify-items: center; background: rgba(255,255,255,.86); backdrop-filter: blur(2px);
+}
+.spinner {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 3px solid var(--line-strong); border-top-color: var(--brand);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+.busy p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+
+.history {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--line); background: #fcfdfe;
+}
+.history-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); }
+.history ol { display: flex; gap: 6px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; flex: 1; }
+.history li {
+  font-size: 12.5px; background: var(--brand-wash); color: var(--brand-dark);
+  border-radius: 20px; padding: 3px 11px;
+}
+.history li.is-ai { background: var(--ai-wash); color: var(--ai); }
+
+/* ----------------------------------------------------------------- panel -- */
+
+.panel { display: flex; flex-direction: column; gap: 14px; }
+
+.facts, .print-card, .tool-group {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.facts { padding: 13px 15px; display: grid; gap: 7px; }
+.fact { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.fact dt { color: var(--ink-soft); }
+.fact dd { margin: 0; font-weight: 550; font-variant-numeric: tabular-nums; }
+
+.flagset { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
+.flag {
+  font-size: 12px; border-radius: 6px; padding: 3px 8px;
+  background: var(--warn-wash); color: var(--warn);
+}
+.flag.is-bad { background: var(--bad-wash); color: var(--bad); }
+
+/* ------------------------------------------------------------ print card -- */
+
+.print-card { padding: 14px 15px; }
+.print-card h2 { margin: 0 0 4px; font-size: 14px; font-weight: 620; }
+.print-note { margin: 0 0 11px; font-size: 12.5px; color: var(--ink-soft); }
+.print-inputs { display: grid; grid-template-columns: 96px 1fr; gap: 9px; }
+.print-inputs label { display: grid; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+.with-unit { position: relative; display: block; }
+.with-unit .unit {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; color: var(--ink-faint); pointer-events: none;
+}
+.print-inputs input, .print-inputs select {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--line-strong);
+  border-radius: 8px; background: var(--surface);
+}
+.print-inputs input { padding-right: 26px; }
+
+.verdict { margin-top: 11px; border-radius: 9px; padding: 10px 12px; font-size: 13px; }
+.verdict.is-ready, .verdict.is-ok { background: var(--good-wash); color: var(--good); }
+.verdict.is-needs_upscale { background: var(--warn-wash); color: var(--warn); }
+.verdict.is-too_small { background: var(--bad-wash); color: var(--bad); }
+.verdict strong { display: block; margin-bottom: 2px; }
+
+/* ----------------------------------------------------------------- tools -- */
+
+.tool-group { overflow: hidden; }
+.tool-group + .tool-group { margin-top: 0; }
+.group-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 12px 15px; background: transparent; border: 0;
+  cursor: pointer; text-align: left;
+}
+.group-head h2 { margin: 0; font-size: 14px; font-weight: 620; }
+.group-head .chev { color: var(--ink-faint); transition: transform .15s; }
+.tool-group.is-open .chev { transform: rotate(90deg); }
+.group-note { margin: 0; padding: 0 15px 11px; font-size: 12.5px; color: var(--ink-soft); }
+.group-body { padding: 0 15px 14px; display: grid; gap: 9px; }
+
+/* The AI group is different at a glance, not merely labelled. */
+.tool-group.is-ai { border-color: var(--ai-line); background: var(--ai-wash); }
+.tool-group.is-ai .group-head h2 { color: var(--ai); }
+.ai-badge {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  background: var(--ai); color: #fff; border-radius: 5px; padding: 2px 6px;
+}
+
+.tool {
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); padding: 11px 12px;
+}
+.tool-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tool-name { font-weight: 570; font-size: 13.5px; }
+.tool-summary { margin: 3px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.speed { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+.speed.is-slow { color: var(--warn); }
+
+.invents {
+  margin-top: 8px; font-size: 12px; color: var(--ai);
+  background: var(--ai-wash); border-radius: 7px; padding: 6px 9px;
+}
+.unavailable {
+  margin-top: 8px; font-size: 12px; color: var(--ink-faint);
+  background: var(--bg); border-radius: 7px; padding: 6px 9px;
+}
+.licence-note {
+  margin-top: 6px; font-size: 11.5px; color: var(--warn);
+  background: var(--warn-wash); border-radius: 7px; padding: 6px 9px;
+}
+
+.controls { display: grid; gap: 8px; margin-top: 10px; }
+.control { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+.control label { font-size: 12.5px; color: var(--ink-soft); }
+.control input[type="range"] { grid-column: 1 / -1; accent-color: var(--brand); }
+.control input[type="number"], .control select {
+  padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 7px;
+  background: var(--surface); min-width: 92px;
+}
+.control output { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.apply {
+  width: 100%; margin-top: 10px; padding: 8px; border-radius: 8px;
+  border: 1px solid var(--brand); background: var(--brand); color: #fff;
+  font-weight: 560; cursor: pointer;
+}
+.apply:hover { background: var(--brand-dark); }
+.tool.is-ai .apply { background: var(--ai); border-color: var(--ai); }
+.tool.is-ai .apply:hover { filter: brightness(.93); }
+
+/* ----------------------------------------------------------------- toast -- */
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: var(--ink); color: #fff; padding: 11px 17px; border-radius: 10px;
+  font-size: 13.5px; box-shadow: var(--shadow); z-index: 40; max-width: 88vw;
+}
+.toast.is-bad { background: var(--bad); }
+
+/* ------------------------------------------------------------------- pdf -- */
+
+.pdf-block { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); }
+.pdf-block h3 { margin: 0 0 9px; font-size: 13px; font-weight: 620; }
+.pdf-result { margin-top: 10px; font-size: 12.5px; border-radius: 9px; padding: 10px 12px;
+              background: var(--bg); color: var(--ink-soft); }
+.pdf-result.is-soft { background: var(--warn-wash); color: var(--warn); }
+.pdf-result.is-fine { background: var(--good-wash); color: var(--good); }
+.pdf-result strong { display: block; margin-bottom: 3px; }
+.pdf-result .quality-note { display: block; margin-top: 6px; opacity: .85; }
+
+
+/* ------------------------------------------------------------ PDF workspace */
+
+.pdfspace { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 28px; }
+
+.pdf-summary h2 { margin: 0 0 3px; font-size: 1.05rem; }
+.pdf-summary .subtle { opacity: .7; }
+
+/* What the file can and cannot do, side by side and equally prominent. Hiding
+   the limits under a "learn more" would make discovering them the customer's
+   job, and they are cheapest to learn before any work is done. */
+.caps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 4px; }
+.caps > div { border-radius: 8px; padding: 9px 11px; font-size: .82rem; }
+.caps-yes { background: #f0f7f1; border: 1px solid #cfe4d3; }
+.caps-no  { background: #f8f6f2; border: 1px solid #e4dcd0; }
+.caps strong { display: block; margin-bottom: 4px; font-size: .74rem;
+               text-transform: uppercase; letter-spacing: .05em; opacity: .75; }
+.caps ul { margin: 0; padding-left: 16px; }
+.caps li { margin: 1px 0; }
+
+.pdf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+           justify-content: space-between; border-top: 1px solid var(--line);
+           border-bottom: 1px solid var(--line); padding: 9px 0; }
+.pdf-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.pdf-body { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 18px;
+            align-items: start; }
+
+.pdf-grid { display: grid; gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)); }
+.pdf-grid.is-dragging .page-card { cursor: grabbing; }
+
+.page-card { cursor: pointer; border-radius: 9px; padding: 6px;
+             border: 2px solid transparent; background: var(--surface);
+             transition: border-color .12s, box-shadow .12s, transform .12s; }
+.page-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.09); }
+.page-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.page-card.is-chosen { border-color: var(--brand); background: var(--brand-wash); }
+/* A page that has been dragged elsewhere is called out, because a reorder is
+   the one operation whose mistake is only discovered at the printer. */
+.page-card.is-moved { border-color: #d9a441; background: #fdf7ea; }
+
+.page-face { position: relative; display: grid; place-items: center;
+             background: #fff; border: 1px solid var(--line); border-radius: 5px;
+             overflow: hidden; max-height: 190px; }
+.page-face img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.page-blank { font-size: 1.5rem; font-weight: 600; opacity: .22; }
+.page-badge { position: absolute; right: 4px; bottom: 4px; font-size: .6rem;
+              text-transform: uppercase; letter-spacing: .05em; padding: 1px 5px;
+              border-radius: 3px; background: rgba(0,0,0,.62); color: #fff; }
+
+.page-info { display: flex; flex-direction: column; gap: 1px; padding: 5px 3px 1px;
+             font-size: .72rem; line-height: 1.32; }
+.page-info strong { font-size: .8rem; }
+.page-info span { opacity: .7; }
+.page-info .rot { color: var(--warn); opacity: 1; }
+
+.pdf-panel .group + .group { margin-top: 14px; }
+.pdf-panel input[type="text"] { width: 100%; margin-bottom: 6px; }
+.pdf-panel button { width: 100%; }
+.pdf-panel button + button { margin-top: 6px; }
+.check { display: flex; align-items: center; gap: 7px; font-size: .85rem;
+         margin-bottom: 5px; cursor: pointer; }
+.check input { width: auto; margin: 0; }
+
+.pdf-note { margin: 0; padding: 10px 12px; border-radius: 8px; font-size: .84rem;
+            background: #f0f7f1; border: 1px solid #cfe4d3; }
+
+.pdf-extracted .shots { display: grid; gap: 12px; margin-top: 8px;
+                        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.pdf-extracted figure { margin: 0; }
+.pdf-extracted img { width: 100%; border: 1px solid var(--line); border-radius: 6px;
+                     background: #fff; }
+.pdf-extracted figcaption { font-size: .7rem; line-height: 1.4; opacity: .8;
+                            margin-top: 4px; }
+.pdf-extracted .good { color: #2c7a41; opacity: 1; }
+
+@media (max-width: 880px) {
+  .pdf-body { grid-template-columns: minmax(0, 1fr); }
+  .caps { grid-template-columns: 1fr; }
+}
+
+/* A consequence the customer should see before acting, not after. */
+.warn-note { background: #fdf7ea; border: 1px solid #ecd9ae; border-radius: 7px;
+             padding: 8px 10px; margin: 8px 0 0; font-size: .82rem; color: #6b4c12; }
+
+/* ----------------------------------------------------------- vector result */
+
+.vec-result { margin-top: 10px; }
+
+/* The SVG is shown as an SVG, not as a rendered bitmap: what the customer sees
+   is the file they are about to download, at whatever size the box happens to
+   be - which is the point being demonstrated. */
+.vec-preview { border: 1px solid var(--line); border-radius: 8px; padding: 8px;
+               background: repeating-conic-gradient(#f2f3f5 0% 25%, #ffffff 0% 50%)
+                           50% / 14px 14px; }
+.vec-preview svg { width: 100%; height: auto; display: block; }
+
+.vec-advice { font-size: .8rem; line-height: 1.45; margin: 8px 0 0; }
+
+.vec-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px;
+             margin: 8px 0 0; font-size: .78rem; }
+.vec-stats div { display: flex; justify-content: space-between; gap: 8px;
+                 border-bottom: 1px dotted var(--line); padding-bottom: 2px; }
+.vec-stats dt { color: var(--ink-soft); margin: 0; }
+.vec-stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.vec-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.swatch { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line-strong); }
+
+.vec-downloads { display: flex; gap: 6px; margin-top: 10px; }
+.vec-downloads a { flex: 1; text-align: center; text-decoration: none;
+                   padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line-strong);
+                   background: var(--surface); color: var(--ink); font-size: .82rem; }
+.vec-downloads a:hover { border-color: var(--brand); color: var(--brand); }
+
+/* Redaction is irreversible and the interface should feel that way. */
+.group-danger { border: 1px solid #f0d5d5; background: #fdf6f6; border-radius: 8px;
+                padding: 10px 11px; }
+.group-danger h3 { color: #8c2b2b; }
+button.danger { background: #a32828; border-color: #8c2b2b; color: #fff; }
+button.danger:hover { background: #8c2b2b; }
+button.danger:disabled { background: #d8b4b4; border-color: #d8b4b4; }
+
+.redact-result { margin-top: 9px; font-size: .8rem; line-height: 1.45; }
+.redact-ok   { background: #f0f7f1; border: 1px solid #cfe4d3; border-radius: 7px; padding: 8px 10px; }
+.redact-warn { background: #fdf1f1; border: 1px solid #e9c2c2; border-radius: 7px; padding: 8px 10px;
+               color: #7d2020; }
+.redact-count { font-weight: 600; }
+
+/* ---------------------------------------------------------- batch workspace */
+
+.batchspace { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 28px; }
+.batch-summary h2 { margin: 0 0 3px; font-size: 1.05rem; }
+
+.batch-bar-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
+                 border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+                 padding: 10px 0; }
+.batch-pick { display: flex; flex-direction: column; gap: 4px; font-size: .8rem;
+              color: var(--ink-soft); min-width: 240px; }
+.batch-settings { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; flex: 1; }
+.batch-settings .control { min-width: 110px; }
+.batch-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+
+/* Progress is measured, not animated: it moves one image at a time because the
+   loop really does complete one image at a time. */
+.batch-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden;
+             margin-top: 7px; }
+.batch-bar span { display: block; height: 100%; background: var(--brand);
+                  transition: width .18s ease; }
+
+.batch-grid { display: grid; gap: 12px;
+              grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+.batch-card { margin: 0; border: 2px solid transparent; border-radius: 9px; padding: 6px;
+              background: var(--surface); }
+.batch-card.is-processing { border-color: var(--brand); }
+.batch-card.is-completed  { border-color: #cfe4d3; }
+.batch-card.is-failed     { border-color: #e9c2c2; background: #fdf6f6; }
+
+.batch-thumb { aspect-ratio: 4/3; display: grid; place-items: center; overflow: hidden;
+               border: 1px solid var(--line); border-radius: 5px; background: #fff; }
+.batch-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.batch-card.is-queued .batch-thumb img { opacity: .5; }
+
+.batch-card figcaption { display: flex; flex-direction: column; gap: 1px;
+                         padding: 5px 3px 1px; font-size: .72rem; line-height: 1.35; }
+.batch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.batch-state { color: var(--ink-soft); }
+.batch-card.is-completed .batch-state { color: #2c7a41; }
+.batch-card.is-failed .batch-state { color: #a32828; font-weight: 600; }
+.batch-size { color: var(--ink-faint); }
+/* A failure says what went wrong on the card itself. Making someone open a log
+   to find out which of fifty files broke is how a batch tool gets abandoned. */
+.batch-error { color: #7d2020; margin-top: 2px; }
+
+/* A document card carries no picture. Inventing one would mean rendering the
+   page, and a preview that differs from the print is worse than none. */
+.batch-doc { background: repeating-linear-gradient(135deg, #f7f8fa 0 8px, #fff 8px 16px);
+             color: var(--ink-faint); font-size: .8rem; letter-spacing: .12em;
+             font-weight: 600; }
+.batch-settings textarea { width: 100%; min-width: 220px; font: inherit; font-size: .82rem;
+                           padding: 6px 8px; border: 1px solid var(--line-strong);
+                           border-radius: 6px; resize: vertical; }

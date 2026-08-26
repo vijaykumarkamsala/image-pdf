@@ -1,0 +1,509 @@
+{
+  "$defs": {
+    "FailureCategory": {
+      "description": "The ten normalised categories from USER_FLOWS_AND_EDGE_CASES.md section 18.",
+      "enum": [
+        "invalid_input",
+        "unsupported_format",
+        "unsupported_feature",
+        "safety_limit",
+        "entitlement_required",
+        "queue_capacity",
+        "processor_unavailable",
+        "processor_quality_failure",
+        "temporary_infrastructure",
+        "permanent_processing",
+        "cancelled"
+      ],
+      "title": "FailureCategory",
+      "type": "string"
+    },
+    "FailureCode": {
+      "description": "Stable failure codes.\n\nCodes are namespaced by the subsystem that raises them and are part of the\npublic contract: tests, reports and (later) the browser lab assert on these\nexact strings, so a code is never renamed, only deprecated.",
+      "enum": [
+        "MANIFEST.UNREADABLE",
+        "MANIFEST.FILE_TOO_LARGE",
+        "MANIFEST.NOT_JSON",
+        "MANIFEST.SCHEMA_INVALID",
+        "MANIFEST.UNKNOWN_FIELD",
+        "MANIFEST.MISSING_FIELD",
+        "MANIFEST.SCHEMA_VERSION_UNSUPPORTED",
+        "MANIFEST.DUPLICATE_ASSET_ID",
+        "MANIFEST.CONTENT_TYPE_MISMATCH",
+        "MANIFEST.UNSUPPORTED_MEDIA_TYPE",
+        "MANIFEST.DIMENSIONS_EXCEEDED",
+        "MANIFEST.BYTES_EXCEEDED",
+        "MANIFEST.MISSING_PROVENANCE",
+        "MANIFEST.INVALID_PATH",
+        "MANIFEST.ASSET_FILE_MISSING",
+        "MANIFEST.HASH_MISMATCH",
+        "MANIFEST.DECLARED_BYTES_MISMATCH",
+        "MANIFEST.GROUND_TRUTH_UNRESOLVED",
+        "MANIFEST.DEGRADATION_RECIPE_REQUIRED",
+        "PROCESSOR.OPERATION_UNSUPPORTED",
+        "PROCESSOR.SETTINGS_UNSUPPORTED",
+        "PROCESSOR.UNAVAILABLE",
+        "PROCESSOR.INTERNAL_ERROR",
+        "PROCESSOR.TIMEOUT",
+        "PROCESSOR.CANCELLED",
+        "PROCESSOR.QUALITY_GATE_FAILED",
+        "SAFETY.PIXELS_EXCEEDED",
+        "SAFETY.BYTES_EXCEEDED",
+        "SAFETY.DECOMPRESSION_BOMB",
+        "SAFETY.MEMORY_EXCEEDED",
+        "SAFETY.ORIGINAL_MUTATED",
+        "LICENCE.NOT_APPROVED",
+        "LICENCE.BLOCKED",
+        "LICENCE.REFERENCE_ONLY",
+        "LICENCE.COMPONENT_NOT_REGISTERED",
+        "LICENCE.SUPPLY_CHAIN_INCOMPLETE",
+        "LICENCE.DEPENDENCY_CYCLE",
+        "LICENCE.DEPENDENCY_NOT_REGISTERED",
+        "LICENCE.NO_APPROVED_FALLBACK",
+        "LICENCE.UNKNOWN_DISPOSITION",
+        "RIGHTS.BENCHMARK_USE_NOT_PERMITTED",
+        "RIGHTS.PUBLIC_DEMO_NOT_PERMITTED",
+        "RIGHTS.SENSITIVE_CONTENT",
+        "RIGHTS.PROVENANCE_MISSING"
+      ],
+      "title": "FailureCode",
+      "type": "string"
+    },
+    "HandlingClass": {
+      "description": "Routing class assigned by inspection (PRODUCT_REQUIREMENTS.md section 14).\n\n``EXTREME_CUSTOM`` is deliberately not ``INVALID``: D-022 requires an\nactionable professional or custom path rather than a blunt rejection, while\nhard safety ceilings still apply above it.",
+      "enum": [
+        "standard",
+        "professional",
+        "extreme_custom",
+        "invalid"
+      ],
+      "title": "HandlingClass",
+      "type": "string"
+    },
+    "MediaType": {
+      "description": "Declared media types. The initial supported set is JPG and PNG.\n\nAdditional members exist so a manifest can *declare* an unsupported type and\nbe rejected with ``MANIFEST.UNSUPPORTED_MEDIA_TYPE`` rather than a generic\nschema error.",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/avif",
+        "image/bmp",
+        "image/gif"
+      ],
+      "title": "MediaType",
+      "type": "string"
+    },
+    "NextAction": {
+      "description": "What the caller (ultimately, the customer) can do about a failure.",
+      "enum": [
+        "change_settings",
+        "retry",
+        "alternate_route",
+        "wait",
+        "purchase_capacity",
+        "contact_support",
+        "none"
+      ],
+      "title": "NextAction",
+      "type": "string"
+    },
+    "NormalizedFailure": {
+      "additionalProperties": false,
+      "description": "A machine-actionable failure.\n\n``message`` is safe to log and to show: it must never contain image bytes,\nabsolute paths, credentials or personal metadata (AGENTS.md security rules).\nUse ``pointer`` to locate the offending field and ``context`` for redacted,\nscalar-only detail.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FailureCategory"
+        },
+        "code": {
+          "$ref": "#/$defs/FailureCode"
+        },
+        "context": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "description": "Redacted scalar detail. Never contains bytes, paths or personal data.",
+          "title": "Context",
+          "type": "object"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "next_action": {
+          "$ref": "#/$defs/NextAction"
+        },
+        "pointer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC 6901 JSON Pointer to the offending field, when applicable.",
+          "title": "Pointer"
+        },
+        "remediation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short operator-facing hint on how to resolve the failure.",
+          "title": "Remediation"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "error"
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "retryable",
+        "next_action",
+        "message"
+      ],
+      "title": "NormalizedFailure",
+      "type": "object"
+    },
+    "Orientation": {
+      "additionalProperties": false,
+      "description": "EXIF orientation, normalised **as metadata** - the original is never touched.\n\nPOC-003 records the tag, derives the true display dimensions and states the\ntransform a later stage must apply. It does not rotate pixels: that is a\nPOC-004 processing step, and doing it here would mean writing to an original.\n\nCovers the ``USER_FLOWS_AND_EDGE_CASES.md`` section 5 case \"orientation\nmetadata conflicts with pixels: normalize preview without mutating original\".",
+      "properties": {
+        "exif_tag": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exif Tag"
+        },
+        "mirrored": {
+          "default": false,
+          "description": "Whether a horizontal flip is also required.",
+          "title": "Mirrored",
+          "type": "boolean"
+        },
+        "rotate_degrees": {
+          "default": 0,
+          "description": "Clockwise rotation to apply: 0/90/180/270.",
+          "title": "Rotate Degrees",
+          "type": "integer"
+        },
+        "swaps_axes": {
+          "default": false,
+          "description": "True when the transform exchanges width and height, so stored dimensions are not display dimensions.",
+          "title": "Swaps Axes",
+          "type": "boolean"
+        }
+      },
+      "title": "Orientation",
+      "type": "object"
+    },
+    "RiskFlag": {
+      "description": "Detected input risks. Recorded even when the asset is still accepted.",
+      "enum": [
+        "decompression_bomb",
+        "extension_signature_mismatch",
+        "declared_metadata_mismatch",
+        "unsupported_bit_depth",
+        "unsupported_channel_count",
+        "unsupported_colour_profile",
+        "unsupported_encoding",
+        "malformed_metadata",
+        "orientation_metadata_present",
+        "orientation_metadata_conflict",
+        "excessive_pixels",
+        "excessive_bytes",
+        "excessive_working_memory",
+        "transparency_present",
+        "animated_content",
+        "interlaced",
+        "progressive",
+        "truncated"
+      ],
+      "title": "RiskFlag",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "error",
+        "warning"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/inspection-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Metadata and safety decision for one input asset.\n\n``sha256`` is recomputed from the bytes actually read, never copied from the\nmanifest. A mismatch against the manifest is what proves an original has not\nbeen altered in storage.",
+  "properties": {
+    "asset_id": {
+      "description": "Stable, human-readable asset identifier, unique within a manifest.",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "colour_profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Colour Profile"
+    },
+    "compressed_bytes": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Compressed Bytes",
+      "type": "integer"
+    },
+    "decision": {
+      "$ref": "#/$defs/HandlingClass"
+    },
+    "decoded_bit_depth": {
+      "anyOf": [
+        {
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decoded Bit Depth"
+    },
+    "decoded_channels": {
+      "anyOf": [
+        {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decoded Channels"
+    },
+    "decoded_height": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decoded Height"
+    },
+    "decoded_pixels": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Decoded Pixels",
+      "type": "integer"
+    },
+    "decoded_width": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decoded Width"
+    },
+    "detected_encoding": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Sub-format actually found, e.g. 'jpeg-baseline', 'png'.",
+      "title": "Detected Encoding"
+    },
+    "detected_media_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MediaType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "display_height": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Display Height"
+    },
+    "display_width": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Width after orientation normalisation. May swap with height.",
+      "title": "Display Width"
+    },
+    "estimated_working_memory_bytes": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Estimated Working Memory Bytes",
+      "type": "integer"
+    },
+    "expansion_ratio": {
+      "default": 0,
+      "description": "Estimated decoded bytes divided by compressed bytes, as an integer.",
+      "minimum": 0,
+      "title": "Expansion Ratio",
+      "type": "integer"
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NormalizedFailure"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "has_alpha": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Has Alpha"
+    },
+    "header_bytes_read": {
+      "default": 0,
+      "description": "How many bytes were parsed to reach this decision.",
+      "minimum": 0,
+      "title": "Header Bytes Read",
+      "type": "integer"
+    },
+    "inspected_without_decoding": {
+      "default": false,
+      "description": "True when only manifest-declared metadata was examined, with no file read. POC-001 set this True; POC-003 reads real bytes and sets it False.",
+      "title": "Inspected Without Decoding",
+      "type": "boolean"
+    },
+    "orientation": {
+      "$ref": "#/$defs/Orientation",
+      "default": {
+        "exif_tag": null,
+        "mirrored": false,
+        "rotate_degrees": 0,
+        "swaps_axes": false
+      }
+    },
+    "pixels_decoded": {
+      "default": false,
+      "description": "Whether any pixel buffer was allocated. POC-003 always reports False: it parses headers only, so an oversized image is rejected before allocation.",
+      "title": "Pixels Decoded",
+      "type": "boolean"
+    },
+    "risk_flags": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RiskFlag"
+      },
+      "title": "Risk Flags",
+      "type": "array"
+    },
+    "sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/NormalizedFailure"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "asset_id",
+    "sha256",
+    "decision"
+  ],
+  "title": "InspectionResult",
+  "type": "object"
+}

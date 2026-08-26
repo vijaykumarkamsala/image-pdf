@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "manifest_id": "invalid-unsupported-media-type",
+  "name": "Invalid: media type outside the supported set",
+  "description": "Expects MANIFEST.UNSUPPORTED_MEDIA_TYPE. JPG and PNG only until open decision O-007 resolves.",
+  "assets": [
+    {
+      "asset_id": "corpus-large-professional-001",
+      "category": "large_professional",
+      "external_ref": {
+        "storage": "corpus-private",
+        "key": "large-professional/sample-001.jpg"
+      },
+      "sha256": "ded9634d14adf94559be1ccf7082dbd460017ec168c61c0bdf228169b3aa1bc0",
+      "declared_media_type": "image/tiff",
+      "declared_extension": ".tif",
+      "declared_bytes": 41943040,
+      "declared_width": 8000,
+      "declared_height": 6000,
+      "declared_channels": 3,
+      "declared_bit_depth": 8,
+      "ground_truth": "unpaired",
+      "provenance": {
+        "source": "product-owner-supplied (pending)",
+        "owner": "Product owner",
+        "licence": "Pending written confirmation",
+        "permitted_benchmark_use": true,
+        "public_demo_permitted": false,
+        "contains_people": false,
+        "contains_sensitive_information": false,
+        "acquired_on": "2026-08-24",
+        "notes": "Placeholder. Benchmark plan section 18 requires product-owner samples before a production decision."
+      },
+      "notes": "PLACEHOLDER entry demonstrating the protected-storage pattern. sha256 is sha256('PLACEHOLDER-AWAITING-PRODUCT-OWNER-CORPUS') and MUST be replaced with the real digest when the asset is supplied. Large and private assets are never committed to Git."
+    }
+  ]
+}

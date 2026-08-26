@@ -1,0 +1,649 @@
+{
+  "$defs": {
+    "AssetCategory": {
+      "description": "Evaluation corpus categories from the benchmark plan section 5.1.",
+      "enum": [
+        "modern_mobile_photo",
+        "old_photograph",
+        "face_portrait",
+        "document_screenshot",
+        "product_catalogue",
+        "illustration_anime",
+        "low_light_noisy",
+        "background_removal",
+        "large_professional",
+        "synthetic_fixture"
+      ],
+      "title": "AssetCategory",
+      "type": "string"
+    },
+    "AssetInventory": {
+      "additionalProperties": false,
+      "description": "What the manifest contains, counted.",
+      "properties": {
+        "by_category": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/AssetCategory"
+          },
+          "title": "By Category",
+          "type": "object"
+        },
+        "external_references": {
+          "default": 0,
+          "minimum": 0,
+          "title": "External References",
+          "type": "integer"
+        },
+        "local_fixtures": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Local Fixtures",
+          "type": "integer"
+        },
+        "total": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "total_declared_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Declared Bytes",
+          "type": "integer"
+        },
+        "total_declared_pixels": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Declared Pixels",
+          "type": "integer"
+        }
+      },
+      "title": "AssetInventory",
+      "type": "object"
+    },
+    "Disposition": {
+      "description": "Commercial standing of one component.\n\n``UNKNOWN`` is the default and is deliberately *not* a synonym for \"probably\nfine\": it permits research but blocks every commercial purpose.",
+      "enum": [
+        "approved",
+        "review_required",
+        "non_commercial",
+        "unknown",
+        "blocked"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "EnvironmentRecord": {
+      "additionalProperties": false,
+      "description": "Runtime, dependency and hardware description for one run.",
+      "properties": {
+        "contract_version": {
+          "default": "unknown",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "dependency_versions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Installed versions of the declared runtime dependencies.",
+          "title": "Dependency Versions",
+          "type": "object"
+        },
+        "hardware": {
+          "$ref": "#/$defs/HardwareRecord",
+          "default": {
+            "gpu_driver": null,
+            "gpu_name": null,
+            "gpu_vram_bytes": null,
+            "logical_cpus": 0,
+            "machine": "unknown",
+            "processor": "unknown",
+            "total_memory_bytes": null
+          }
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "os_name": {
+          "default": "unknown",
+          "title": "Os Name",
+          "type": "string"
+        },
+        "os_release": {
+          "default": "unknown",
+          "title": "Os Release",
+          "type": "string"
+        },
+        "platform": {
+          "default": "unknown",
+          "title": "Platform",
+          "type": "string"
+        },
+        "python_implementation": {
+          "default": "unknown",
+          "title": "Python Implementation",
+          "type": "string"
+        },
+        "python_version": {
+          "default": "unknown",
+          "title": "Python Version",
+          "type": "string"
+        }
+      },
+      "title": "EnvironmentRecord",
+      "type": "object"
+    },
+    "GroundTruthRelationship": {
+      "enum": [
+        "paired",
+        "unpaired",
+        "reference"
+      ],
+      "title": "GroundTruthRelationship",
+      "type": "string"
+    },
+    "GroundTruthSummary": {
+      "additionalProperties": false,
+      "description": "Paired versus unpaired split (benchmark plan section 5.2).",
+      "properties": {
+        "by_relationship": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/GroundTruthRelationship"
+          },
+          "title": "By Relationship",
+          "type": "object"
+        },
+        "with_degradation_recipe": {
+          "default": 0,
+          "minimum": 0,
+          "title": "With Degradation Recipe",
+          "type": "integer"
+        }
+      },
+      "title": "GroundTruthSummary",
+      "type": "object"
+    },
+    "HardwareRecord": {
+      "additionalProperties": false,
+      "description": "Hardware description. GPU fields stay ``None`` until POC-006.",
+      "properties": {
+        "gpu_driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Driver"
+        },
+        "gpu_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Name"
+        },
+        "gpu_vram_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Vram Bytes"
+        },
+        "logical_cpus": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Logical Cpus",
+          "type": "integer"
+        },
+        "machine": {
+          "default": "unknown",
+          "title": "Machine",
+          "type": "string"
+        },
+        "processor": {
+          "default": "unknown",
+          "title": "Processor",
+          "type": "string"
+        },
+        "total_memory_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Memory Bytes"
+        }
+      },
+      "title": "HardwareRecord",
+      "type": "object"
+    },
+    "LicenceSummary": {
+      "additionalProperties": false,
+      "description": "Licence posture of the register at report time (POC-002).\n\nRecorded in the deterministic identity section so that a report can be\naudited long after the fact: what was registered, what was approved, and\nwhich advertised operations had no approved fallback (D-040).",
+      "properties": {
+        "by_disposition": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Disposition"
+          },
+          "title": "By Disposition",
+          "type": "object"
+        },
+        "component_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Component Count",
+          "type": "integer"
+        },
+        "components_with_supply_chain_gaps": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Components With Supply Chain Gaps",
+          "type": "integer"
+        },
+        "operations_without_approved_fallback": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Operations Without Approved Fallback",
+          "type": "array"
+        },
+        "reference_only_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Reference Only Count",
+          "type": "integer"
+        },
+        "register_name": {
+          "default": "none",
+          "title": "Register Name",
+          "type": "string"
+        }
+      },
+      "title": "LicenceSummary",
+      "type": "object"
+    },
+    "OperationKind": {
+      "enum": [
+        "noop",
+        "inspect_only",
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "adjust",
+        "sharpen",
+        "denoise",
+        "convert",
+        "super_resolution",
+        "ai_denoise",
+        "jpeg_artifact_repair",
+        "face_restore",
+        "damage_repair",
+        "colourise",
+        "background_remove",
+        "background_replace"
+      ],
+      "title": "OperationKind",
+      "type": "string"
+    },
+    "ProcessingVariant": {
+      "description": "The processing variants from benchmark plan section 7.",
+      "enum": [
+        "original_control",
+        "standard_browser_preview",
+        "standard_server_authoritative",
+        "ai_natural",
+        "ai_strong",
+        "ai_task_specific"
+      ],
+      "title": "ProcessingVariant",
+      "type": "string"
+    },
+    "ReportIdentity": {
+      "additionalProperties": false,
+      "description": "Fully deterministic report content, derived from validated metadata only.",
+      "properties": {
+        "ground_truth": {
+          "$ref": "#/$defs/GroundTruthSummary",
+          "default": {
+            "by_relationship": {},
+            "with_degradation_recipe": 0
+          }
+        },
+        "inventory": {
+          "$ref": "#/$defs/AssetInventory",
+          "default": {
+            "by_category": {},
+            "external_references": 0,
+            "local_fixtures": 0,
+            "total": 0,
+            "total_declared_bytes": 0,
+            "total_declared_pixels": 0
+          }
+        },
+        "licences": {
+          "$ref": "#/$defs/LicenceSummary",
+          "default": {
+            "by_disposition": {},
+            "component_count": 0,
+            "components_with_supply_chain_gaps": 0,
+            "operations_without_approved_fallback": [],
+            "reference_only_count": 0,
+            "register_name": "none"
+          }
+        },
+        "manifest_digest": {
+          "description": "Content-addressed identifier produced by ipw.benchmark_runner.ids.",
+          "pattern": "^(run|res|rep|mfst|pol|rt|ast)_[a-z2-7]{32}$",
+          "title": "Manifest Digest",
+          "type": "string"
+        },
+        "manifest_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Manifest Id",
+          "type": "string"
+        },
+        "manifest_name": {
+          "title": "Manifest Name",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "planned_variants": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProcessingVariant"
+          },
+          "title": "Planned Variants",
+          "type": "array"
+        },
+        "policy_digest": {
+          "description": "Content-addressed identifier produced by ipw.benchmark_runner.ids.",
+          "pattern": "^(run|res|rep|mfst|pol|rt|ast)_[a-z2-7]{32}$",
+          "title": "Policy Digest",
+          "type": "string"
+        },
+        "rights": {
+          "$ref": "#/$defs/RightsSummary",
+          "default": {
+            "contains_people": 0,
+            "contains_sensitive_information": 0,
+            "missing_provenance": 0,
+            "permitted_benchmark_use": 0,
+            "public_demo_permitted": 0
+          }
+        },
+        "runs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RunReference"
+          },
+          "title": "Runs",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.5.0",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "validation_failure_codes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Validation Failure Codes",
+          "type": "array"
+        },
+        "validation_passed": {
+          "default": true,
+          "title": "Validation Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "manifest_id",
+        "manifest_name",
+        "manifest_digest",
+        "manifest_sha256",
+        "policy_digest"
+      ],
+      "title": "ReportIdentity",
+      "type": "object"
+    },
+    "RightsSummary": {
+      "additionalProperties": false,
+      "description": "Rights posture of the corpus.\n\nRecorded from POC-001 so that the corpus approval conversation can happen\nbefore models exist. POC-002 turns these counts into gates.",
+      "properties": {
+        "contains_people": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Contains People",
+          "type": "integer"
+        },
+        "contains_sensitive_information": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Contains Sensitive Information",
+          "type": "integer"
+        },
+        "missing_provenance": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Missing Provenance",
+          "type": "integer"
+        },
+        "permitted_benchmark_use": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Permitted Benchmark Use",
+          "type": "integer"
+        },
+        "public_demo_permitted": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Public Demo Permitted",
+          "type": "integer"
+        }
+      },
+      "title": "RightsSummary",
+      "type": "object"
+    },
+    "RunPurpose": {
+      "description": "What a run is for. This is the axis the gate turns on (D-038).",
+      "enum": [
+        "local_research",
+        "internal_benchmark",
+        "public_demo",
+        "staging",
+        "production"
+      ],
+      "title": "RunPurpose",
+      "type": "string"
+    },
+    "RunReference": {
+      "additionalProperties": false,
+      "description": "A run included in this report. Empty in POC-001: nothing has been processed.",
+      "properties": {
+        "operation_kind": {
+          "$ref": "#/$defs/OperationKind"
+        },
+        "processor_name": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Processor Name",
+          "type": "string"
+        },
+        "run_id": {
+          "description": "Content-addressed identifier produced by ipw.benchmark_runner.ids.",
+          "pattern": "^(run|res|rep|mfst|pol|rt|ast)_[a-z2-7]{32}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "summary": {
+          "$ref": "#/$defs/RunSummary",
+          "default": {
+            "cancelled": 0,
+            "failed": 0,
+            "skipped": 0,
+            "succeeded": 0,
+            "total": 0
+          }
+        }
+      },
+      "required": [
+        "run_id",
+        "processor_name",
+        "operation_kind"
+      ],
+      "title": "RunReference",
+      "type": "object"
+    },
+    "RunSummary": {
+      "additionalProperties": false,
+      "description": "Per-state counts. Proves batch isolation at a glance.",
+      "properties": {
+        "cancelled": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cancelled",
+          "type": "integer"
+        },
+        "failed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "skipped": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "succeeded": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Succeeded",
+          "type": "integer"
+        },
+        "total": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "RunSummary",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/benchmark-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The document written by ``bench report``.",
+  "properties": {
+    "default_purpose": {
+      "$ref": "#/$defs/RunPurpose",
+      "default": "internal_benchmark"
+    },
+    "deterministic": {
+      "default": false,
+      "title": "Deterministic",
+      "type": "boolean"
+    },
+    "environment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EnvironmentRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "identity": {
+      "$ref": "#/$defs/ReportIdentity"
+    },
+    "identity_digest": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Identity Digest",
+      "type": "string"
+    },
+    "report_id": {
+      "description": "Content-addressed identifier produced by ipw.benchmark_runner.ids.",
+      "pattern": "^(run|res|rep|mfst|pol|rt|ast)_[a-z2-7]{32}$",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.5.0",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "tool_version": {
+      "title": "Tool Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_id",
+    "tool_version",
+    "identity",
+    "identity_digest",
+    "generated_at"
+  ],
+  "title": "BenchmarkReport",
+  "type": "object"
+}

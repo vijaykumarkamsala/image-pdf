@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipw-processors"
+version = "0.1.0"
+description = "Processor adapters and boundary guards for the Image & PDF Workspace POC."
+requires-python = ">=3.11"
+license = "MIT"
+
+# POC-004 (D-045): the deterministic baseline needs real decoders. Both entered
+# the register through the POC-002 gates with pinned versions and dispositions.
+#
+#   Pillow  HPND        permissive, no obligations
+#   pyvips  MIT         binding only; the native libvips is LGPL-2.1+ and is
+#                       NOT installed by pip - see tools/install_libvips.py
+#
+# POC-006 (D-051): the AI adapter needs an inference runtime.
+#
+#   torch   BSD-3-Clause  CPU build only. A CUDA build bundles NVIDIA-licensed
+#                         runtime libraries that have NOT been reviewed.
+#   numpy   BSD-3-Clause  the array hand-off between Pillow and torch
+#
+# Confined by test: only modules under ipw/processors/ai_adapters may import
+# them, so the standard baseline stays provably free of a tensor runtime.
+#
+# The official `realesrgan` package is deliberately NOT here: it hard-depends on
+# gfpgan (face restoration), which POC-006 forbids from a general
+# super-resolution path. The generator architecture is reimplemented instead.
+#
+# No model, inference or provider library may be added here without an approved
+# task and a licence disposition record.
+dependencies = [
+  "ipw-contracts==0.1.0",
+  "Pillow>=11,<14",
+  "pyvips>=2.2,<4",
+  "torch>=2.13,<3",
+  "numpy>=2.3,<3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ipw*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ipw.processors" = ["py.typed"]

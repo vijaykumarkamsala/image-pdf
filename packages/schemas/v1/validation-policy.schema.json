@@ -1,0 +1,107 @@
+{
+  "$defs": {
+    "MediaType": {
+      "description": "Declared media types. The initial supported set is JPG and PNG.\n\nAdditional members exist so a manifest can *declare* an unsupported type and\nbe rejected with ``MANIFEST.UNSUPPORTED_MEDIA_TYPE`` rather than a generic\nschema error.",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/avif",
+        "image/bmp",
+        "image/gif"
+      ],
+      "title": "MediaType",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/validation-policy.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Configurable limits applied to declared manifest metadata.",
+  "properties": {
+    "allow_external_refs": {
+      "default": true,
+      "title": "Allow External Refs",
+      "type": "boolean"
+    },
+    "allowed_media_types": {
+      "default": [
+        "image/jpeg",
+        "image/png"
+      ],
+      "items": {
+        "$ref": "#/$defs/MediaType"
+      },
+      "title": "Allowed Media Types",
+      "type": "array"
+    },
+    "extension_media_types": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MediaType"
+      },
+      "title": "Extension Media Types",
+      "type": "object"
+    },
+    "max_declared_bytes": {
+      "default": 104857600,
+      "minimum": 1,
+      "title": "Max Declared Bytes",
+      "type": "integer"
+    },
+    "max_declared_pixels": {
+      "default": 400000000,
+      "minimum": 1,
+      "title": "Max Declared Pixels",
+      "type": "integer"
+    },
+    "max_manifest_bytes": {
+      "default": 2097152,
+      "minimum": 1,
+      "title": "Max Manifest Bytes",
+      "type": "integer"
+    },
+    "name": {
+      "default": "default",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "professional_max_bytes": {
+      "default": 104857600,
+      "minimum": 1,
+      "title": "Professional Max Bytes",
+      "type": "integer"
+    },
+    "require_provenance": {
+      "default": true,
+      "title": "Require Provenance",
+      "type": "boolean"
+    },
+    "require_rights_decision": {
+      "default": true,
+      "title": "Require Rights Decision",
+      "type": "boolean"
+    },
+    "standard_max_bytes": {
+      "default": 26214400,
+      "minimum": 1,
+      "title": "Standard Max Bytes",
+      "type": "integer"
+    },
+    "verify_local_declared_bytes": {
+      "default": true,
+      "title": "Verify Local Declared Bytes",
+      "type": "boolean"
+    },
+    "verify_local_hashes": {
+      "default": true,
+      "title": "Verify Local Hashes",
+      "type": "boolean"
+    }
+  },
+  "title": "ValidationPolicy",
+  "type": "object"
+}

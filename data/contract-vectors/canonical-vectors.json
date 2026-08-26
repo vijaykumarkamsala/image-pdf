@@ -1,0 +1,318 @@
+{
+  "identities": [
+    {
+      "id": "run_ye3gn2wggzulz7u6sky4biiiifhtlzdt",
+      "identity_document": {
+        "_id_kind": "run",
+        "_schema_version": "1.5.0",
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      },
+      "kind": "run",
+      "payload": {
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      }
+    },
+    {
+      "id": "res_jw2kitk7fnvzylofnqj6p44p6dkabtgc",
+      "identity_document": {
+        "_id_kind": "result",
+        "_schema_version": "1.5.0",
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      },
+      "kind": "result",
+      "payload": {
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      }
+    },
+    {
+      "id": "rep_xolfnrsjjkq4rhu46ztzbbldxll277fo",
+      "identity_document": {
+        "_id_kind": "report",
+        "_schema_version": "1.5.0",
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      },
+      "kind": "report",
+      "payload": {
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      }
+    },
+    {
+      "id": "mfst_snjztdshv5x3hadoqnzuajr56xmbt3px",
+      "identity_document": {
+        "_id_kind": "manifest",
+        "_schema_version": "1.5.0",
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      },
+      "kind": "manifest",
+      "payload": {
+        "identity": {
+          "example": "value",
+          "n": 7
+        }
+      }
+    }
+  ],
+  "note": "Cross-language canonicalisation vectors. Both the Python benchmark runner and the TypeScript browser lab verify against this file, so agreement between the two implementations is proved rather than assumed. Regenerate with tools/make_canonical_vectors.py after any change to the canonicalisation rules, and expect the TypeScript tests to fail until that side is updated too.",
+  "reject": [
+    {
+      "input": {
+        "n": 1.5
+      },
+      "name": "float",
+      "why": "non-integer numbers are the largest source of cross-platform drift"
+    },
+    {
+      "input": {
+        "n": 0.5
+      },
+      "name": "float-zero",
+      "why": "even 0.5 must be refused, not rounded"
+    },
+    {
+      "input": {
+        "clé": 1
+      },
+      "name": "non-ascii-key",
+      "why": "key ordering would differ between the languages"
+    },
+    {
+      "input": {
+        "📷": 1
+      },
+      "name": "emoji-key",
+      "why": "same reason, above the basic plane"
+    },
+    {
+      "input": {
+        "n": 9007199254740992
+      },
+      "name": "integer-too-large",
+      "why": "beyond exact representation in a JS number"
+    },
+    {
+      "input": {
+        "n": -9007199254740992
+      },
+      "name": "integer-too-small",
+      "why": "the negative counterpart"
+    },
+    {
+      "input": {
+        "": 1
+      },
+      "name": "empty-key",
+      "why": "an empty key is not addressable"
+    }
+  ],
+  "schema_version": "1.5.0",
+  "valid": [
+    {
+      "canonical_byte_length": 2,
+      "canonical_bytes_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "canonical_text": "{}",
+      "input": {},
+      "name": "empty-object",
+      "why": "the degenerate case"
+    },
+    {
+      "canonical_byte_length": 12,
+      "canonical_bytes_sha256": "eef46741adfc3a9f76294d3b78f37a45f113092ac9d44ee77c7a038a88ff09a1",
+      "canonical_text": "{\"items\":[]}",
+      "input": {
+        "items": []
+      },
+      "name": "empty-array",
+      "why": "an empty list is not null"
+    },
+    {
+      "canonical_byte_length": 36,
+      "canonical_bytes_sha256": "ce59fe5c41a6ef2ec814ed3f9a3f89146a3148654cd8f9d2d41156e6fef6f839",
+      "canonical_text": "{\"a\":1,\"b\":true,\"c\":null,\"d\":\"text\"}",
+      "input": {
+        "a": 1,
+        "b": true,
+        "c": null,
+        "d": "text"
+      },
+      "name": "flat",
+      "why": "plain scalars"
+    },
+    {
+      "canonical_byte_length": 53,
+      "canonical_bytes_sha256": "ddb48af62d6a60e97b6f10f750547d00ae2f1d86809cc4d49414869aa08e37f4",
+      "canonical_text": "{\"0digit\":5,\"Mango\":3,\"_under\":4,\"alpha\":2,\"zebra\":1}",
+      "input": {
+        "0digit": 5,
+        "Mango": 3,
+        "_under": 4,
+        "alpha": 2,
+        "zebra": 1
+      },
+      "name": "key-order",
+      "why": "declaration order must not affect output"
+    },
+    {
+      "canonical_byte_length": 39,
+      "canonical_bytes_sha256": "0e9d371186fde21c74aff956de131bc13b350acfdb41d6767fa4a3825b2b7ca3",
+      "canonical_text": "{\"a-b\":1,\"a.b\":3,\"aB\":4,\"a_b\":2,\"ab\":5}",
+      "input": {
+        "a-b": 1,
+        "a.b": 3,
+        "aB": 4,
+        "a_b": 2,
+        "ab": 5
+      },
+      "name": "key-order-punctuation",
+      "why": "keys whose ASCII order differs from a naive alphabetical order"
+    },
+    {
+      "canonical_byte_length": 35,
+      "canonical_bytes_sha256": "2d473a2d419f8f8d81704a02a6343ada8c449e98a7ea6a398cf18c69008c7b9b",
+      "canonical_text": "{\"outer\":{\"a\":3,\"z\":{\"a\":2,\"y\":1}}}",
+      "input": {
+        "outer": {
+          "a": 3,
+          "z": {
+            "a": 2,
+            "y": 1
+          }
+        }
+      },
+      "name": "nested",
+      "why": "nesting must sort at every level"
+    },
+    {
+      "canonical_byte_length": 23,
+      "canonical_bytes_sha256": "283b5dce7ae440ecd04f1acac708497ee021ecee6316642accf2b682f3e463ff",
+      "canonical_text": "[{\"a\":2,\"b\":1},{\"d\":3}]",
+      "input": [
+        {
+          "a": 2,
+          "b": 1
+        },
+        {
+          "d": 3
+        }
+      ],
+      "name": "array-of-objects",
+      "why": "arrays keep order; their objects sort"
+    },
+    {
+      "canonical_byte_length": 43,
+      "canonical_bytes_sha256": "2c94976a5419a37e61093c89e04772ce50c87ba9dfc421685a394a6a39dc54c9",
+      "canonical_text": "{\"big\":9007199254740991,\"neg\":-42,\"zero\":0}",
+      "input": {
+        "big": 9007199254740991,
+        "neg": -42,
+        "zero": 0
+      },
+      "name": "integers",
+      "why": "integer edges"
+    },
+    {
+      "canonical_byte_length": 23,
+      "canonical_bytes_sha256": "d49d713821fc149f81ef6ca8054beeba696f5da052f0ab3e2d773808c5a9d625",
+      "canonical_text": "{\"n\":-9007199254740991}",
+      "input": {
+        "n": -9007199254740991
+      },
+      "name": "integer-min",
+      "why": "the negative edge"
+    },
+    {
+      "canonical_byte_length": 70,
+      "canonical_bytes_sha256": "e9fc7ecbe357e0c2773c55901d74e27e33aeff270140b218df97d4c8a5a02e89",
+      "canonical_text": "{\"city\":\"München\",\"cjk\":\"画像\",\"emoji\":\"photo 📷\",\"name\":\"café\"}",
+      "input": {
+        "city": "München",
+        "cjk": "画像",
+        "emoji": "photo 📷",
+        "name": "café"
+      },
+      "name": "unicode-values",
+      "why": "non-ASCII values must not be escaped by either language"
+    },
+    {
+      "canonical_byte_length": 35,
+      "canonical_bytes_sha256": "7bf4d7e5d1883d4a558823afd0d40d7d04b6e00e7fff1a17369861fb50921d7e",
+      "canonical_text": "{\"composed\":\"é\",\"decomposed\":\"é\"}",
+      "input": {
+        "composed": "é",
+        "decomposed": "é"
+      },
+      "name": "unicode-nfc",
+      "why": "a decomposed sequence must normalise to the composed form"
+    },
+    {
+      "canonical_byte_length": 71,
+      "canonical_bytes_sha256": "53e2bbb41714146f487a0d9cbc1fd9cb657a85c4dd4f69745f87f9305880ac62",
+      "canonical_text": "{\"backslash\":\"a\\\\b\",\"newline\":\"a\\nb\",\"quote\":\"say \\\"hi\\\"\",\"tab\":\"a\\tb\"}",
+      "input": {
+        "backslash": "a\\b",
+        "newline": "a\nb",
+        "quote": "say \"hi\"",
+        "tab": "a\tb"
+      },
+      "name": "escapes",
+      "why": "quotes, backslashes and control characters"
+    },
+    {
+      "canonical_byte_length": 71,
+      "canonical_bytes_sha256": "ba152f7640b18913400c8eae3c6ab19908adea172f214da44d4c36cc6235c360",
+      "canonical_text": "{\"bell\":\"\\u0007\",\"esc\":\"\\u001b\",\"nul\":\"\\u0000\",\"vertical_tab\":\"\\u000b\"}",
+      "input": {
+        "bell": "\u0007",
+        "esc": "\u001b",
+        "nul": "\u0000",
+        "vertical_tab": "\u000b"
+      },
+      "name": "control-chars",
+      "why": "control characters below 0x20 have exactly one correct escape spelling"
+    },
+    {
+      "canonical_byte_length": 437,
+      "canonical_bytes_sha256": "b835d0d6c763d8e57c72e0185728267f1dbe8bd86132076f7f051444b0a0452a",
+      "canonical_text": "{\"asset_id\":\"fixture-synthetic-gradient-64\",\"effective_settings\":{\"algorithm\":\"lanczos\",\"kind\":\"resize\",\"preserve_aspect_ratio\":true,\"scale_denominator\":null,\"scale_numerator\":null,\"target_height\":32,\"target_width\":32},\"input_sha256\":\"ab8dbedf1a0e3bb82496203c6b9f8a1239dca680884f318012bc99d45e0ab5fd\",\"operation_kind\":\"resize\",\"run_id\":\"run_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"schema_version\":\"1.1.0\",\"variant\":\"standard_browser_preview\"}",
+      "input": {
+        "asset_id": "fixture-synthetic-gradient-64",
+        "effective_settings": {
+          "algorithm": "lanczos",
+          "kind": "resize",
+          "preserve_aspect_ratio": true,
+          "scale_denominator": null,
+          "scale_numerator": null,
+          "target_height": 32,
+          "target_width": 32
+        },
+        "input_sha256": "ab8dbedf1a0e3bb82496203c6b9f8a1239dca680884f318012bc99d45e0ab5fd",
+        "operation_kind": "resize",
+        "run_id": "run_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "schema_version": "1.1.0",
+        "variant": "standard_browser_preview"
+      },
+      "name": "realistic-result-identity",
+      "why": "the shape an actual result identity takes"
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+# Monorepo root: shared tool configuration only.
+#
+# This file deliberately declares no [project]. Each workspace owns its own
+# pyproject.toml with its own dependencies, so the dependency direction
+# (benchmark-runner -> processors -> contracts) is real and not merely a
+# convention. Ruff, mypy, pytest and coverage read their settings from here so
+# every workspace is held to the same standard.
+#
+# Install everything (see README.md):
+#   python -m pip install -c requirements-dev.lock.txt -r requirements-dev.txt \
+#     -e packages/contracts -e packages/processors -e services/benchmark-runner
+
+# ---------------------------------------------------------------- ruff -------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = [
+  "packages/contracts/src",
+  "packages/processors/src",
+  "packages/metrics/src",
+  "packages/pdf/src",
+  "packages/vector/src",
+  "services/benchmark-runner/src",
+  "services/workspace-api/src",
+]
+# Vendored third-party source is excluded on purpose (D-056). Formatting or
+# relinting code we copied verbatim would destroy the diff against upstream, and
+# that diff is the only cheap way to re-verify the copy after an upstream change.
+# The exclusion is stylistic only: tests/test_scope_and_artifacts.py still asserts
+# that vendored files import nothing forbidden and carry their attribution.
+extend-exclude = [
+  "apps",
+  "infra",
+  "packages/contracts-ts",
+  "packages/schemas",
+  "packages/processors/src/ipw/processors/ai_adapters/vendor",
+]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "I", "N", "UP", "B", "S", "A", "C4", "PT",
+  "RET", "SIM", "TID", "PTH", "ERA", "RUF", "BLE", "SLF",
+]
+ignore = [
+  "S101",  # bare asserts are the point in tests and in the conformance suite
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The clock, seeding and environment probes are the ONLY sanctioned places where
+# ambient nondeterminism may be read. Everything else must take it from RunContext.
+"packages/contracts/src/ipw/contracts/runtime.py" = ["TID251"]
+"services/benchmark-runner/src/ipw/benchmark_runner/environment.py" = ["TID251"]
+"**/tests/*" = ["TID251", "S108"]
+"tests/*" = ["TID251", "S108"]
+"conftest.py" = ["TID251"]
+"tools/check.py" = ["S603", "S607"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"random".msg = "Nondeterministic. Take randomness from RunContext.seed."
+"time.time".msg = "Nondeterministic. Take the clock from RunContext.clock."
+"time.time_ns".msg = "Nondeterministic. Take the clock from RunContext.clock."
+"datetime.datetime.now".msg = "Nondeterministic. Take the clock from RunContext.clock."
+"datetime.datetime.utcnow".msg = "Nondeterministic. Take the clock from RunContext.clock."
+"uuid.uuid4".msg = "Nondeterministic. Identifiers must be content-addressed."
+"pickle".msg = "Unsafe deserialisation is forbidden (AGENTS.md security rules)."
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ---------------------------------------------------------------- mypy -------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+files = [
+  "packages/contracts/src",
+  "packages/metrics/src",
+  "packages/pdf/src",
+  "packages/pdf/tests",
+  "packages/vector/src",
+  "packages/vector/tests",
+  "packages/contracts/tests",
+  "packages/processors/src",
+  "packages/processors/tests",
+  "services/benchmark-runner/src",
+  "services/benchmark-runner/tests",
+  "services/workspace-api/src",
+  "services/workspace-api/tests",
+  "tests",
+  "tools",
+  "conftest.py",
+]
+warn_unreachable = true
+disallow_any_unimported = true
+explicit_package_bases = true
+mypy_path = "packages/contracts/src:packages/processors/src:packages/metrics/src:packages/pdf/src:packages/vector/src:services/benchmark-runner/src:services/workspace-api/src"
+# Vendored upstream source: not ours to annotate, and reformatting or retyping it
+# would destroy the diff that makes the copy verifiable (D-056).
+exclude = ["packages/processors/src/ipw/processors/ai_adapters/vendor/"]
+
+[[tool.mypy.overrides]]
+# Neither ships type stubs. Their surfaces are wrapped by narrow adapter classes
+# (PillowImage, VipsImage) so the untyped area stays contained.
+module = ["jsonschema.*", "pyvips.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# NumPy ships stubs written in 3.12+ syntax (PEP 695 `type` statements). This
+# project type-checks at 3.11, its declared floor, and analysing a third-party
+# stub we do not control is not what that check is for. Skipping the stub bodies
+# does not weaken checking of our own code: numpy appears in exactly one function,
+# converting a PIL image to a tensor, and torch is already wrapped behind Any at
+# the adapter boundary.
+#
+# Raising python_version to 3.12 would silence this too, and would be the wrong
+# fix - it would stop catching syntax our declared floor cannot run.
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
+
+[[tool.mypy.overrides]]
+# The metrics package returns numpy arrays in its signatures. numpy's stubs are
+# skipped (see above: they are written in 3.12+ syntax and this project checks at
+# its 3.11 floor), which makes those return types Any and trips
+# disallow_any_unimported. The alternative - annotating every signature `Any` by
+# hand - would lose more information than it gains.
+module = ["ipw.metrics.*"]
+disallow_any_unimported = false
+
+[[tool.mypy.overrides]]
+# The vector package takes numpy masks and PIL images in its signatures, and
+# neither is followed here: numpy's stubs are skipped (above) and Pillow ships
+# none. That makes those parameters Any and trips disallow_any_unimported.
+#
+# Same trade as ipw.metrics: the alternative is annotating every signature Any by
+# hand, which loses the information a reader actually wants - that this function
+# takes a mask, not that it takes something unknown.
+module = ["ipw.vector.*"]
+disallow_any_unimported = false
+
+[[tool.mypy.overrides]]
+# Vendored upstream source is excluded from checking (D-056), so calls into it
+# are calls to untyped functions. The adapter that wraps it is checked normally;
+# this only exempts the boundary crossing into code we did not write.
+module = [
+  "ipw.processors.ai_adapters.swinir",
+  "ipw.processors.ai_adapters.vendor.*",
+]
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# Deliberately platform-conditional: it reads the process peak through psapi on
+# Windows and getrusage elsewhere. mypy analyses one platform at a time and so
+# reports the other branch as unreachable. Both branches are real and both ship.
+module = ["ipw.processors.standard.measure"]
+warn_unreachable = false
+
+[tool.pydantic-mypy]
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# -------------------------------------------------------------- pytest -------
+[tool.pytest.ini_options]
+testpaths = [
+  "packages/contracts/tests",
+  "packages/metrics/tests",
+  "packages/pdf/tests",
+  "packages/processors/tests",
+  "packages/vector/tests",
+  "services/benchmark-runner/tests",
+  "services/workspace-api/tests",
+  "tests",
+]
+addopts = """
+  -q --strict-markers --strict-config
+  --cov=ipw --cov-report=term-missing --cov-fail-under=90
+"""
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["ipw"]
+# Vendored upstream source is excluded for the same reason it is excluded from
+# ruff and mypy (D-056): it is not our code, and measuring our test coverage of
+# someone else's file produces a number that means nothing. Worse, it creates
+# pressure to write tests for branches this repository never executes - SwinIR's
+# pixelshuffle upsamplers, its flops() estimator - which would be tests of
+# upstream rather than of the adapter.
+#
+# What we do assert about it lives in tests/test_scope_and_artifacts.py: it is
+# attributed, it names its commit and digest, and it imports nothing forbidden.
+omit = ["*/ai_adapters/vendor/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  # A Protocol declares a shape; its method bodies are `...` and there is nothing
+  # to execute. Counting them as uncovered would measure the type system, not the
+  # tests. Conformance to a Protocol is proved by the implementations passing
+  # their own tests and the conformance suite.
+  'class .*\(Protocol\)',
+  'class .*\(Protocol\[',
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  '^\s*\.\.\.\s*$',
+]

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipw-workspace-api"
+version = "0.1.0"
+description = "Local application service for the Image & PDF Workspace."
+requires-python = ">=3.11"
+license = "MIT"
+
+# Deliberately no third-party dependency. The HTTP layer is http.server from the
+# standard library; a web framework would be more comfortable and would also be a
+# permanent licence-register entry (Gate A) for six routes.
+dependencies = [
+  "ipw-contracts==0.1.0",
+  "ipw-processors==0.1.0",
+  "ipw-benchmark-runner==0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ipw*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ipw.workspace_api" = ["py.typed"]

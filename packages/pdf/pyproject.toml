@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipw-pdf"
+version = "0.1.0"
+description = "PDF authoring for the Image & PDF Workspace. Standard library only."
+requires-python = ">=3.11"
+license = "MIT"
+
+# Pillow is used only to decode formats PDF cannot carry directly; a JPEG never
+# passes through it. No PDF library is a dependency - see objects.py for the
+# tested reasoning rather than an assertion.
+dependencies = [
+  "Pillow>=11,<14",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ipw*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ipw.pdf" = ["py.typed"]

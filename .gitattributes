@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+
+packages/schemas/v1/*.json     text eol=lf
+data/manifests/**/*.json   text eol=lf
+data/reports/example/*     text eol=lf
+data/fixtures/FIXTURES.sha256 text eol=lf

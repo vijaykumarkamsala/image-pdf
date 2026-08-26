@@ -1,0 +1,251 @@
+{
+  "$defs": {
+    "ComponentKind": {
+      "description": "What is being licensed. Each is reviewed separately, never together.",
+      "enum": [
+        "code",
+        "weights",
+        "dependency",
+        "dataset",
+        "service"
+      ],
+      "title": "ComponentKind",
+      "type": "string"
+    },
+    "Disposition": {
+      "description": "Commercial standing of one component.\n\n``UNKNOWN`` is the default and is deliberately *not* a synonym for \"probably\nfine\": it permits research but blocks every commercial purpose.",
+      "enum": [
+        "approved",
+        "review_required",
+        "non_commercial",
+        "unknown",
+        "blocked"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "WeightFormat": {
+      "description": "Serialisation format of a weight file.\n\n``PICKLE`` covers ``.pth``/``.pt``/``.ckpt``: loading one executes arbitrary\ncode. Permitted only inside an isolated container with no network (D-039).\n\n``TRAINEDDATA`` is Tesseract's own container - an indexed bundle of a\ncharacter set, dictionaries and LSTM weights. It is listed separately rather\nthan folded into ``NOT_APPLICABLE`` because it *is* a weight file and its\nprovenance matters exactly as much as any other model's; and separately from\n``PICKLE`` because parsing one does not execute code, so it does not carry\nthat format's isolation requirement.",
+      "enum": [
+        "safetensors",
+        "onnx",
+        "pickle",
+        "traineddata",
+        "not_applicable"
+      ],
+      "title": "WeightFormat",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/licence-disposition.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One reviewed component: its commercial standing and its supply chain.",
+  "properties": {
+    "accepted_terms_reference": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Accepted Terms Reference"
+    },
+    "commercial_permission_reference": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Where written commercial permission is recorded, when the licence itself does not grant it.",
+      "title": "Commercial Permission Reference"
+    },
+    "component_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Component Id",
+      "type": "string"
+    },
+    "depends_on": {
+      "default": [],
+      "description": "Component ids whose dispositions this component inherits. A component is never more permissive than the least permissive component it executes.",
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "title": "Depends On",
+      "type": "array"
+    },
+    "display_name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "disposition": {
+      "$ref": "#/$defs/Disposition",
+      "default": "unknown"
+    },
+    "download_requires_terms_acceptance": {
+      "default": false,
+      "description": "True for gated downloads. Accepting the terms IS entering the licence, so what was accepted must be recorded in accepted_terms_reference.",
+      "title": "Download Requires Terms Acceptance",
+      "type": "boolean"
+    },
+    "evidence": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Where the reviewer read the terms. Auditable, not hearsay.",
+      "title": "Evidence"
+    },
+    "kind": {
+      "$ref": "#/$defs/ComponentKind"
+    },
+    "licence_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "SPDX identifier where one exists, e.g. 'BSD-3-Clause'.",
+      "title": "Licence Id"
+    },
+    "licence_text_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Licence Text Url"
+    },
+    "network_disabled_at_inference": {
+      "default": true,
+      "description": "Gate B requires inference-time network access to be disabled unless the operation explicitly needs it.",
+      "title": "Network Disabled At Inference",
+      "type": "boolean"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    },
+    "official_source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Official repository or vendor URL. Never a mirror.",
+      "title": "Official Source"
+    },
+    "pinned_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Exact released version, tag or commit SHA.",
+      "title": "Pinned Version"
+    },
+    "reference_only": {
+      "default": false,
+      "description": "Executable for research comparison but never eligible for a commercial recommendation, regardless of disposition. SUPIR is the motivating case.",
+      "title": "Reference Only",
+      "type": "boolean"
+    },
+    "required_notices": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Notices",
+      "type": "array"
+    },
+    "reviewed_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewed By"
+    },
+    "reviewed_on": {
+      "anyOf": [
+        {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewed On"
+    },
+    "weight_format": {
+      "$ref": "#/$defs/WeightFormat",
+      "default": "not_applicable"
+    },
+    "weights_sha256": {
+      "anyOf": [
+        {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Weights Sha256"
+    }
+  },
+  "required": [
+    "component_id",
+    "display_name",
+    "kind"
+  ],
+  "title": "LicenceDisposition",
+  "type": "object"
+}

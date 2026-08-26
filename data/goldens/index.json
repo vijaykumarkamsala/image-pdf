@@ -1,0 +1,337 @@
+{
+  "engines": {
+    "libvips": {
+      "adjust-brighter": {
+        "bytes": 6418,
+        "file": "data/goldens/libvips/adjust-brighter.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "93327f7aab541c928e6379e97816d379be52eb4ce7fdefa80c1a871e6e799662",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "adjust-contrast": {
+        "bytes": 5359,
+        "file": "data/goldens/libvips/adjust-contrast.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "f11a7cfae154d26b974510852acb0385ef666457cec480aa3c8d20f37131dc23",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "adjust-saturation": {
+        "bytes": 6896,
+        "file": "data/goldens/libvips/adjust-saturation.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "6de3dcd9c3bb73cc2fbf345ceb0c166b9a75559eac6f9da6c727e03bcb77aa28",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "adjust-white-balance-auto": {
+        "bytes": 7945,
+        "file": "data/goldens/libvips/adjust-white-balance-auto.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "4eedef0b5f08205cb051f7ffe02ed36dccc936a2f2b927954a05ffe13c921b88",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "convert-to-jpeg-q90": {
+        "bytes": 893,
+        "file": "data/goldens/libvips/convert-to-jpeg-q90.jpg",
+        "height": 64,
+        "media_type": "image/jpeg",
+        "sha256": "49f679715438623e8ebb31f6d4f9a9fc9bf62672eabdf649e166605ff5924981",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "convert-to-png": {
+        "bytes": 8511,
+        "file": "data/goldens/libvips/convert-to-png.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "9d7d45dc2287e4c01407be9f547599700aeb2e20b31be3ac230d3f7a84c870d7",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "crop-centre-32": {
+        "bytes": 2148,
+        "file": "data/goldens/libvips/crop-centre-32.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "407ee0d1e433273b422f7b08eab8bbee1de0b24be6045ca26cbca36da3d36a6e",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "denoise-moderate": {
+        "bytes": 12034,
+        "file": "data/goldens/libvips/denoise-moderate.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "4860f3644d8f4fa6b0ae4f135b96e252b2b504969b1612e786ac07e1dc28e17d",
+        "source": "data/fixtures/images/synthetic-noise-64.png",
+        "width": 64
+      },
+      "flip-horizontal": {
+        "bytes": 8545,
+        "file": "data/goldens/libvips/flip-horizontal.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "77c526fa7edc512d700652d5b6bdc7fed31f4386463a4ff190eb8c84f7797c16",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "flip-vertical": {
+        "bytes": 8511,
+        "file": "data/goldens/libvips/flip-vertical.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "22df0380b6d15c886e760b32dfe19e418bbfcea271b4d5e1fbb86b7660cf4bcb",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "resize-bicubic-32": {
+        "bytes": 2393,
+        "file": "data/goldens/libvips/resize-bicubic-32.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "15c28df63403260fd3d978068b75a4d55721924fffcff967e1b41322eed71e63",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "resize-lanczos-128-upscale": {
+        "bytes": 36802,
+        "file": "data/goldens/libvips/resize-lanczos-128-upscale.png",
+        "height": 128,
+        "media_type": "image/png",
+        "sha256": "7db2c48572293cb620589d4d8169390fad9cd20818f68a6a99ac274f3a64228d",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 128
+      },
+      "resize-lanczos-32": {
+        "bytes": 2435,
+        "file": "data/goldens/libvips/resize-lanczos-32.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "4de29cc6ef0dd46005bf8f36078d4eb21479fa44d785022a290b439e9937365c",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "resize-scale-half": {
+        "bytes": 2393,
+        "file": "data/goldens/libvips/resize-scale-half.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "15c28df63403260fd3d978068b75a4d55721924fffcff967e1b41322eed71e63",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "rotate-180": {
+        "bytes": 8540,
+        "file": "data/goldens/libvips/rotate-180.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "8a9010ca58d2eb299c38a02185898efe3e6638da62b8f2fa891c4d0ee5eeca80",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "rotate-270": {
+        "bytes": 8511,
+        "file": "data/goldens/libvips/rotate-270.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "49402041c9ed3891592ccc425c502b4790bf1972272170536d95597b1d2590f3",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "rotate-90": {
+        "bytes": 8550,
+        "file": "data/goldens/libvips/rotate-90.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "a648ba5a7281e86b7dbb00488ebdda378eff3ba0bfbe261f530a14e6efe577c1",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "sharpen-moderate": {
+        "bytes": 12085,
+        "file": "data/goldens/libvips/sharpen-moderate.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "7e37589fbc6529de3fe642d3d8948e224b895168488cc003a4d34508dc60cd55",
+        "source": "data/fixtures/images/synthetic-noise-64.png",
+        "width": 64
+      }
+    },
+    "pillow": {
+      "adjust-brighter": {
+        "bytes": 234,
+        "file": "data/goldens/pillow/adjust-brighter.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "0c1c7e5217e1dd6f890b433d4a8427a2d13bbc90bddb457533ae530155c6bb19",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "adjust-contrast": {
+        "bytes": 231,
+        "file": "data/goldens/pillow/adjust-contrast.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "c6435986c4920a8e2c5404863a91f46ba10ffa7b677ed38f1390fe05d9ae63bf",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "adjust-saturation": {
+        "bytes": 2184,
+        "file": "data/goldens/pillow/adjust-saturation.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "6ded859e3cf3d9e3669a26024878ad5b05289200127fb3d759a404d19a00c1f7",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "adjust-white-balance-auto": {
+        "bytes": 208,
+        "file": "data/goldens/pillow/adjust-white-balance-auto.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "d7eb88baa3b913e31010e5dc25360de32a7f787a6a2e644d2cc845c70c466ba7",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "convert-to-jpeg-q90": {
+        "bytes": 911,
+        "file": "data/goldens/pillow/convert-to-jpeg-q90.jpg",
+        "height": 64,
+        "media_type": "image/jpeg",
+        "sha256": "0c6c51794de112814c90b230060501287e1909df315e5687b1252eedf096b74d",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "convert-to-png": {
+        "bytes": 176,
+        "file": "data/goldens/pillow/convert-to-png.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "06b6a3a7c9aee61b84aa7a59a37ea32acbcdf308e6cc5ee83bb2113276c7b177",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "crop-centre-32": {
+        "bytes": 128,
+        "file": "data/goldens/pillow/crop-centre-32.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "89cde6006d3a704fac72fa50989353a417396c65d50b1f2d5e2d981f124c3250",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "denoise-moderate": {
+        "bytes": 7770,
+        "file": "data/goldens/pillow/denoise-moderate.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "c7de3721aed7b2631d2ccdcc931ebb53568863fe2c7cb6b55ac99902a0101b76",
+        "source": "data/fixtures/images/synthetic-noise-64.png",
+        "width": 64
+      },
+      "flip-horizontal": {
+        "bytes": 178,
+        "file": "data/goldens/pillow/flip-horizontal.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "07aace57d2bfd7388b4eef7a9ddd22e8648530042903fca4fc3aeca534b42d17",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "flip-vertical": {
+        "bytes": 177,
+        "file": "data/goldens/pillow/flip-vertical.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "97de69c6810fdd8d6262cf2b677b74989cde6efcb5685a1f513c0941d689ed6b",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "resize-bicubic-32": {
+        "bytes": 230,
+        "file": "data/goldens/pillow/resize-bicubic-32.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "5d1072596895a9d694f5a9ef3c4278bcad7d2e9c8ca771916807336c9d20d976",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "resize-lanczos-128-upscale": {
+        "bytes": 916,
+        "file": "data/goldens/pillow/resize-lanczos-128-upscale.png",
+        "height": 128,
+        "media_type": "image/png",
+        "sha256": "a385ada9362d5bf2496713f98f2ebc9131129223dd390c95c30dbfeba36ac08f",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 128
+      },
+      "resize-lanczos-32": {
+        "bytes": 280,
+        "file": "data/goldens/pillow/resize-lanczos-32.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "f8b2f36de5a7094c9de90c60cc1b6acae8e4c40675647313ef10692c0a5bb3ad",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "resize-scale-half": {
+        "bytes": 230,
+        "file": "data/goldens/pillow/resize-scale-half.png",
+        "height": 32,
+        "media_type": "image/png",
+        "sha256": "5d1072596895a9d694f5a9ef3c4278bcad7d2e9c8ca771916807336c9d20d976",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 32
+      },
+      "rotate-180": {
+        "bytes": 178,
+        "file": "data/goldens/pillow/rotate-180.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "6b92c072a9764ea52a3f6d994a89e72bbf163e87d81132cdeb4a49bcebd7a465",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "rotate-270": {
+        "bytes": 177,
+        "file": "data/goldens/pillow/rotate-270.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "ad90ae2681d19df22c1b022eb1cc3d8588f99163257cd58494723a219f01b1cb",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "rotate-90": {
+        "bytes": 177,
+        "file": "data/goldens/pillow/rotate-90.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "47f6e221c1f6f37e99323036c33cc39268bc24b56fef3a75b275e2d02f55d7c5",
+        "source": "data/fixtures/images/synthetic-gradient-64.png",
+        "width": 64
+      },
+      "sharpen-moderate": {
+        "bytes": 11906,
+        "file": "data/goldens/pillow/sharpen-moderate.png",
+        "height": 64,
+        "media_type": "image/png",
+        "sha256": "cce840f12444828e6e62341db8018b7615f484776d8b9d90b993b55013c2c101",
+        "source": "data/fixtures/images/synthetic-noise-64.png",
+        "width": 64
+      }
+    }
+  },
+  "note": "Exact-hash goldens (D-046). Each engine has its own set: Pillow and libvips implement different resampling and encoders, so their bytes differ by design. Regenerate deliberately on a pinned-version bump and review the visual diff.",
+  "sources": {
+    "data/fixtures/images/synthetic-gradient-64.png": "ab8dbedf1a0e3bb82496203c6b9f8a1239dca680884f318012bc99d45e0ab5fd",
+    "data/fixtures/images/synthetic-noise-64.png": "0ca81e1ff7c212668e7b4a83d05874cfa2e0da759f7deb974eb4df2ae7a24d58"
+  }
+}

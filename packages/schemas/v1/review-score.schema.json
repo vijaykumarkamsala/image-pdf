@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "CriticalFailure": {
+      "description": "The eight automatic failures from benchmark plan section 8.3.\n\nA separate channel from scores, and dominant over them.",
+      "enum": [
+        "identity_changed",
+        "text_or_logo_changed",
+        "content_added_or_removed",
+        "severe_tiling_seams",
+        "broken_transparency",
+        "orientation_corrupted",
+        "silent_colour_space_conversion",
+        "worse_than_baseline_unwarned"
+      ],
+      "title": "CriticalFailure",
+      "type": "string"
+    },
+    "ReviewDimension": {
+      "description": "The ten dimensions from benchmark plan section 8.2, scored 1 to 5.\n\nNot every dimension applies to every result - identity preservation means\nnothing on a product photograph - so a score sheet carries the dimensions it\nwas asked for rather than all ten, and the aggregation never invents a score\nfor a dimension nobody was shown.",
+      "enum": [
+        "overall_usefulness",
+        "natural_appearance",
+        "detail_improvement",
+        "identity_preservation",
+        "text_logo_accuracy",
+        "colour_faithfulness",
+        "artifact_level",
+        "edge_halo_quality",
+        "tiling_seam_visibility",
+        "preference_over_baseline"
+      ],
+      "title": "ReviewDimension",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/review-score.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One reviewer's assessment of one item.",
+  "properties": {
+    "critical_failures": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CriticalFailure"
+      },
+      "title": "Critical Failures",
+      "type": "array"
+    },
+    "label": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Label",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    },
+    "reviewer_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Reviewer Id",
+      "type": "string"
+    },
+    "scores": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/ReviewDimension"
+      },
+      "title": "Scores",
+      "type": "object"
+    }
+  },
+  "required": [
+    "label",
+    "reviewer_id"
+  ],
+  "title": "ReviewScore",
+  "type": "object"
+}

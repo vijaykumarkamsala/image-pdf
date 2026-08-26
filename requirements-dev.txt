@@ -1,0 +1,10 @@
+# Development toolchain for the Image & PDF Workspace monorepo.
+# Exact versions are pinned by requirements-dev.lock.txt, which is passed as a
+# pip constraints file. Keep this list short: every entry is a licence-register
+# entry (AGENTS.md commercial licence rules).
+
+pytest
+pytest-cov
+ruff
+mypy
+jsonschema

@@ -1,0 +1,16 @@
+{
+  "name": "ipw-browser-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Device capability and local-processing measurement harness (POC-005).",
+  "license": "MIT",
+  "dependencies": {
+    "ipw-contracts-ts": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

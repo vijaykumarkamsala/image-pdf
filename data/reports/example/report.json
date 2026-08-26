@@ -1,0 +1,74 @@
+{
+  "default_purpose": "internal_benchmark",
+  "deterministic": true,
+  "environment": null,
+  "generated_at": "1970-01-01T00:00:00+00:00",
+  "identity": {
+    "ground_truth": {
+      "by_relationship": {
+        "unpaired": 2
+      },
+      "with_degradation_recipe": 0
+    },
+    "inventory": {
+      "by_category": {
+        "large_professional": 1,
+        "synthetic_fixture": 1
+      },
+      "external_references": 1,
+      "local_fixtures": 1,
+      "total": 2,
+      "total_declared_bytes": 41955460,
+      "total_declared_pixels": 48004096
+    },
+    "licences": {
+      "by_disposition": {
+        "approved": 17,
+        "non_commercial": 7,
+        "review_required": 6,
+        "unknown": 16
+      },
+      "component_count": 46,
+      "components_with_supply_chain_gaps": 13,
+      "operations_without_approved_fallback": [
+        "ai_denoise",
+        "background_remove",
+        "background_replace",
+        "colourise",
+        "damage_repair",
+        "face_restore",
+        "super_resolution"
+      ],
+      "reference_only_count": 3,
+      "register_name": "licence-register"
+    },
+    "manifest_digest": "mfst_4gcdjvwdena4dh6jh6otsw64j2soramb",
+    "manifest_id": "example-corpus",
+    "manifest_name": "Example evaluation corpus",
+    "manifest_sha256": "8bd497580e54f3f27ded3b2c7dbf4376c23fae145ee987bf5ff58a39ca3972e6",
+    "planned_variants": [
+      "original_control",
+      "standard_browser_preview",
+      "standard_server_authoritative",
+      "ai_natural",
+      "ai_strong",
+      "ai_task_specific"
+    ],
+    "policy_digest": "pol_rxw7dmjqmxviymoc3vt7jdcme2iybkra",
+    "rights": {
+      "contains_people": 0,
+      "contains_sensitive_information": 0,
+      "missing_provenance": 0,
+      "permitted_benchmark_use": 2,
+      "public_demo_permitted": 1
+    },
+    "runs": [],
+    "schema_version": "1.5.0",
+    "validation_failure_codes": [],
+    "validation_passed": true
+  },
+  "identity_digest": "93c9f2f12b0ed5e49745ef625ae26970ab5949aa4f7055a01e0f082af9929588",
+  "report_id": "rep_izr77p3bkyocey2b6mtz6mgh2twinjcm",
+  "schema_version": "1.5.0",
+  "tool_version": "0.1.0"
+}

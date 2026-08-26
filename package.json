@@ -1,0 +1,22 @@
+{
+  "name": "ipw-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "Image & PDF Workspace - npm workspace root. Python workspaces are managed separately by pip; see README.md.",
+  "workspaces": [
+    "packages/contracts-ts",
+    "apps/browser-lab"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
+  }
+}

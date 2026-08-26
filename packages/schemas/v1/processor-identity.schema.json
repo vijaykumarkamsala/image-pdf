@@ -1,0 +1,303 @@
+{
+  "$defs": {
+    "OperationFamily": {
+      "description": "Standard (deterministic / non-generative) versus AI (may reconstruct).",
+      "enum": [
+        "standard",
+        "ai",
+        "inspection"
+      ],
+      "title": "OperationFamily",
+      "type": "string"
+    },
+    "OperationKind": {
+      "enum": [
+        "noop",
+        "inspect_only",
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "adjust",
+        "sharpen",
+        "denoise",
+        "convert",
+        "super_resolution",
+        "ai_denoise",
+        "jpeg_artifact_repair",
+        "face_restore",
+        "damage_repair",
+        "colourise",
+        "background_remove",
+        "background_replace"
+      ],
+      "title": "OperationKind",
+      "type": "string"
+    },
+    "RuntimeIdentity": {
+      "additionalProperties": false,
+      "description": "Exact runtime a processor executes in.\n\nRecorded per AGENTS.md reproducibility rules: \"Runtime and dependency\nversions\". Two results are only comparable when this matches or the\ndifference is stated.",
+      "properties": {
+        "container_digest": {
+          "anyOf": [
+            {
+              "description": "Lower-case hexadecimal SHA-256 digest.",
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Container Digest"
+        },
+        "container_image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Container Image"
+        },
+        "dependency_lock_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Digest of the pinned dependency set actually installed.",
+          "title": "Dependency Lock Digest"
+        },
+        "framework": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Framework"
+        },
+        "framework_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Framework Version"
+        },
+        "language": {
+          "default": "python",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "language_version": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Language Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "language_version"
+      ],
+      "title": "RuntimeIdentity",
+      "type": "object"
+    },
+    "WeightsIdentity": {
+      "additionalProperties": false,
+      "description": "Exact model weights. Never optional for an AI processor.",
+      "properties": {
+        "licence_ref": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Licence Ref"
+        },
+        "name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "pinned_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pinned Commit"
+        },
+        "pinned_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pinned Version"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "source_url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "sha256",
+        "source_url"
+      ],
+      "title": "WeightsIdentity",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/processor-identity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Everything needed to reproduce and to licence-check a processor.",
+  "properties": {
+    "deterministic_output": {
+      "default": false,
+      "description": "False means output may vary between identical runs. Such results must be labelled nondeterministic in every report (AGENTS.md reproducibility rules).",
+      "title": "Deterministic Output",
+      "type": "boolean"
+    },
+    "family": {
+      "$ref": "#/$defs/OperationFamily"
+    },
+    "licence_ref": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Licence Ref"
+    },
+    "name": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Name",
+      "type": "string"
+    },
+    "precision": {
+      "default": "na",
+      "pattern": "^(fp32|fp16|bf16|int8|na)$",
+      "title": "Precision",
+      "type": "string"
+    },
+    "requires_network": {
+      "default": false,
+      "description": "Gate B requires inference-time network access to be disabled unless explicitly required. POC-001 records the declaration; POC-006 enforces it.",
+      "title": "Requires Network",
+      "type": "boolean"
+    },
+    "runtime": {
+      "$ref": "#/$defs/RuntimeIdentity"
+    },
+    "supported_operations": {
+      "items": {
+        "$ref": "#/$defs/OperationKind"
+      },
+      "minItems": 1,
+      "title": "Supported Operations",
+      "type": "array"
+    },
+    "tile_overlap": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tile Overlap"
+    },
+    "tile_size": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tile Size"
+    },
+    "version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "weights": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WeightsIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "family",
+    "runtime",
+    "supported_operations"
+  ],
+  "title": "ProcessorIdentity",
+  "type": "object"
+}

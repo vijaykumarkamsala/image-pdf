@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "manifest_id": "invalid-missing-provenance",
+  "name": "Invalid: no provenance record",
+  "description": "Expects MANIFEST.MISSING_PROVENANCE. Rights and source must be declared before benchmarking.",
+  "assets": [
+    {
+      "asset_id": "fixture-synthetic-gradient-64",
+      "category": "synthetic_fixture",
+      "relative_path": "data/fixtures/images/synthetic-gradient-64.png",
+      "sha256": "ab8dbedf1a0e3bb82496203c6b9f8a1239dca680884f318012bc99d45e0ab5fd",
+      "declared_media_type": "image/png",
+      "declared_extension": ".png",
+      "declared_bytes": 12420,
+      "declared_width": 64,
+      "declared_height": 64,
+      "declared_channels": 3,
+      "declared_bit_depth": 8,
+      "ground_truth": "unpaired",
+      "notes": "Committed rights-cleared fixture. Reproduce with: python data/fixtures/tools/make_fixtures.py --check"
+    }
+  ]
+}

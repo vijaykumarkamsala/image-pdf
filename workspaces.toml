@@ -1,0 +1,144 @@
+# Monorepo manifest — Image & PDF Workspace
+#
+# The presence of this file marks the repository root (see
+# ipw.benchmark_runner.workspace.find_repo_root).
+#
+# Every directory that holds code or data is declared here with its lifecycle
+# `stage`. That field is the mechanism behind D-036 ("keep the POC separate from
+# the production application"): a `production` workspace may never import from a
+# `poc` workspace, and tests/test_workspaces.py enforces it. Promoting code is
+# therefore an explicit, reviewable move between workspaces rather than a quiet
+# import.
+#
+# Stages:
+#   poc         validated before architecture approval; not production code
+#   shared      language-neutral generated artifacts; safe for any consumer
+#   production  post-architecture-approval application code (none yet)
+#   tooling     developer tooling; never shipped
+
+[repo]
+name = "image-pdf-workspace"
+description = "Standalone image and PDF workspace — technical POC and, later, the product."
+default_python = ">=3.11"
+
+# ---------------------------------------------------------------- packages ----
+
+[[workspace]]
+path = "packages/contracts"
+name = "ipw-contracts"
+language = "python"
+stage = "poc"
+task = "POC-001"
+role = "Source of truth for the benchmark contract. Depends on nothing in this repo."
+
+[[workspace]]
+path = "packages/processors"
+name = "ipw-processors"
+language = "python"
+stage = "poc"
+task = "POC-001"
+role = "Processor adapters and the guards wrapping every processor call."
+depends_on = ["ipw-contracts"]
+
+[[workspace]]
+path = "packages/schemas"
+name = "ipw-schemas"
+language = "json"
+stage = "shared"
+task = "POC-001"
+role = "JSON Schema generated from ipw-contracts. Language-neutral; do not hand-edit."
+
+[[workspace]]
+path = "packages/contracts-ts"
+name = "ipw-contracts-ts"
+language = "typescript"
+stage = "poc"
+task = "POC-005"
+role = "TypeScript view of the contract: generated types plus hand-written canonicalisation and digest code, verified against the same vectors as the Python implementation."
+depends_on = ["ipw-schemas"]
+
+[[workspace]]
+path = "packages/pdf"
+name = "ipw-pdf"
+language = "python"
+stage = "poc"
+task = "APP-002"
+role = "PDF authoring. Standard library only; a JPEG is embedded byte-for-byte rather than re-encoded, so a design loses no quality on the way to print."
+depends_on = ["ipw-contracts"]
+
+[[workspace]]
+path = "packages/vector"
+name = "ipw-vector"
+language = "python"
+stage = "poc"
+task = "APP-003"
+role = "Raster-to-vector tracing. Boundary following, curve fitting and SVG/PDF emission are implemented here rather than taken from potrace or autotrace, both of which are GPL and would decide the licence of the whole product."
+depends_on = ["ipw-contracts"]
+
+[[workspace]]
+path = "packages/metrics"
+name = "ipw-metrics"
+language = "python"
+stage = "poc"
+task = "POC-007"
+role = "Quality metric implementations. PSNR and SSIM landed at POC-007 for the model comparison; LPIPS, OCR and IoU arrive with the tasks that need them and each requires its own review."
+
+# ---------------------------------------------------------------- services ----
+
+[[workspace]]
+path = "services/benchmark-runner"
+name = "ipw-benchmark-runner"
+language = "python"
+stage = "poc"
+task = "POC-001"
+role = "Validation, identifiers, reporting, orchestration, model comparison, blinded review and the `bench` CLI."
+depends_on = ["ipw-contracts", "ipw-processors"]
+
+[[workspace]]
+path = "services/workspace-api"
+name = "ipw-workspace-api"
+language = "python"
+stage = "poc"
+task = "APP-001"
+role = "Local application service. Exposes the same processors the benchmark measures to the workspace UI, over the standard library HTTP server. No third-party dependency."
+depends_on = ["ipw-contracts", "ipw-processors", "ipw-benchmark-runner"]
+
+# -------------------------------------------------------------------- apps ----
+
+[[workspace]]
+path = "apps/workspace"
+name = "ipw-workspace"
+language = "javascript"
+stage = "poc"
+task = "APP-001"
+role = "The customer-facing application. Plain ES modules, no build step: it renders what the API reports and never computes a measurement of its own."
+depends_on = ["ipw-workspace-api"]
+
+[[workspace]]
+path = "apps/browser-lab"
+name = "ipw-browser-lab"
+language = "typescript"
+stage = "poc"
+task = "POC-005"
+role = "Device capability and local-processing measurement harness. Measures decode, operation and encode timings off the main thread, and decides local versus cloud routing."
+depends_on = ["ipw-contracts-ts"]
+
+# ------------------------------------------------------------------- infra ----
+
+[[workspace]]
+path = "infra/docker"
+name = "ipw-infra-docker"
+language = "dockerfile"
+stage = "poc"
+task = "POC-006"
+role = "Pinned CPU inference runtime image for the AI adapter. Written at POC-006; NOT yet built, because Docker is not installed on the development machine."
+
+# -------------------------------------------------------------------- data ----
+# Not a workspace: benchmark corpus manifests, rights-cleared fixtures and
+# generated reports. Referenced by path from every workspace so that a manifest
+# path means the same thing in Python and in TypeScript.
+
+[data]
+manifests = "data/manifests"
+fixtures = "data/fixtures"
+reports = "data/reports"

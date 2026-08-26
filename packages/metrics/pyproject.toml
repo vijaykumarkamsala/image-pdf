@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipw-metrics"
+version = "0.1.0"
+description = "Quality metric implementations for the Image & PDF Workspace benchmark."
+requires-python = ">=3.11"
+license = "MIT"
+
+# POC-007: PSNR and SSIM need array arithmetic and nothing else. numpy already
+# entered the register at POC-006 for the inference path; this is a second, much
+# smaller use of the same approved dependency, not a new one.
+#
+# Deliberately NOT here: scipy, scikit-image, torchmetrics, lpips. Each would
+# bring a large transitive surface for two functions that are a page of code, and
+# lpips additionally needs pretrained weights - a model, with a model's licence
+# review (O-016).
+dependencies = [
+  "numpy>=2.3,<3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ipw*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ipw.metrics" = ["py.typed"]

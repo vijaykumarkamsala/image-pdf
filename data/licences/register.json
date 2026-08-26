@@ -1,0 +1,743 @@
+{
+  "schema_version": "1.0.0",
+  "name": "licence-register",
+  "description": "Commercial licence register. Every component that executes in any environment is recorded here with its disposition, supply-chain data and the evidence a reviewer actually read. Third-party model candidates carry PRELIMINARY evidence: transcribed from the approved benchmark plan, not reviewed, with no version pinned and no weight hash recorded, so Gate B blocks them from execution at every purpose level until a real review completes.",
+  "components": [
+    {
+      "component_id": "annotated-types",
+      "display_name": "annotated-types",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://pypi.org/project/annotated-types/",
+      "pinned_version": "0.7.0",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Licence text at annotated_types-0.7.0.dist-info/licenses/LICENSE. The wheel declares no License-Expression; the shipped text is the MIT licence."
+    },
+    {
+      "component_id": "basicsr",
+      "display_name": "BasicSR (executed dependency)",
+      "kind": "dependency",
+      "disposition": "review_required",
+      "official_source": "https://github.com/XPixelGroup/BasicSR",
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "Enters the executed inference path for Real-ESRGAN and GFPGAN. AGENTS.md requires dependency-path review, not only top-level licence review."
+    },
+    {
+      "component_id": "bsd500-dataset",
+      "display_name": "Berkeley Segmentation Dataset (BSDS500)",
+      "kind": "dataset",
+      "disposition": "unknown",
+      "official_source": "https://www2.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/resources.html",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Named in the SwinIR README as part of DFWB. The official Berkeley resources page was reachable but states no licence grant, no commercial-use permission and no terms of use for the imagery. Absence of a grant is not a grant."
+    },
+    {
+      "component_id": "cffi",
+      "display_name": "cffi (C foreign function interface, pyvips dependency)",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT-0",
+      "official_source": "https://pypi.org/project/cffi/",
+      "pinned_version": "2.1.1",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Installed distribution metadata declares License-Expression: MIT-0 (MIT No Attribution); licence text at cffi-2.1.1.dist-info/licenses/LICENSE. Permissive with no attribution requirement."
+    },
+    {
+      "component_id": "codeformer",
+      "display_name": "CodeFormer (composite candidate)",
+      "kind": "service",
+      "disposition": "non_commercial",
+      "depends_on": [
+        "codeformer-code",
+        "codeformer-weights"
+      ],
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "Remains blocked from commercial purposes until commercial terms are approved and recorded in commercial_permission_reference."
+    },
+    {
+      "component_id": "codeformer-code",
+      "display_name": "CodeFormer (repository code)",
+      "kind": "code",
+      "disposition": "non_commercial",
+      "licence_id": "LicenseRef-NTU-S-Lab-1.0",
+      "official_source": "https://github.com/sczhou/CodeFormer",
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "NTU S-Lab License 1.0. Plan section 6.3 marks it licence-gated: commercial terms require explicit review and, if granted, a recorded permission."
+    },
+    {
+      "component_id": "codeformer-weights",
+      "display_name": "CodeFormer pretrained weights",
+      "kind": "weights",
+      "disposition": "non_commercial",
+      "official_source": "https://github.com/sczhou/CodeFormer/releases",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "div2k-dataset",
+      "display_name": "DIV2K training dataset (ETH Zurich)",
+      "kind": "dataset",
+      "disposition": "non_commercial",
+      "licence_id": "LicenseRef-DIV2K-Academic-Research-Only",
+      "licence_text_url": "https://data.vision.ee.ethz.ch/cvl/DIV2K/",
+      "official_source": "https://data.vision.ee.ethz.ch/cvl/DIV2K/",
+      "pinned_version": "2017",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read the licence statement on the official DIV2K page: 'Please notice that this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' Two restrictions, not one: research-only use, and third-party copyright in the underlying images.",
+      "notes": "Not executed by us. Registered because Real-ESRGAN's published weights are derived from it, and Gate A requires dataset-derived restrictions to be investigated. Its disposition propagates to anything trained on it."
+    },
+    {
+      "component_id": "fake-processor",
+      "display_name": "Fake processor (contract reference, non-production)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "this repository (packages/processors/src/ipw/processors/fake)",
+      "pinned_version": "0.1.0",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-001",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Written in this repository. Performs no image processing and ships nowhere."
+    },
+    {
+      "component_id": "flickr2k-dataset",
+      "display_name": "Flickr2K training dataset",
+      "kind": "dataset",
+      "disposition": "unknown",
+      "official_source": "https://github.com/limbee/NTIRE2017",
+      "pinned_version": "2017",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Named in Real-ESRGAN docs/Training.md as part of the DF2K training set. No single licence governs it: the images are sourced from Flickr and carry individual, varying terms. Unknown is the accurate disposition, not a placeholder."
+    },
+    {
+      "component_id": "gfpgan",
+      "display_name": "GFPGAN (composite candidate)",
+      "kind": "service",
+      "disposition": "review_required",
+      "depends_on": [
+        "gfpgan-code",
+        "gfpgan-weights",
+        "basicsr"
+      ],
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "gfpgan-code",
+      "display_name": "GFPGAN (repository code)",
+      "kind": "code",
+      "disposition": "review_required",
+      "licence_id": "Apache-2.0",
+      "official_source": "https://github.com/TencentARC/GFPGAN",
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "Plan section 6.3: the repository states Apache-2.0 but lists third-party components carrying additional terms. Include only after executed dependency-path review."
+    },
+    {
+      "component_id": "gfpgan-weights",
+      "display_name": "GFPGAN pretrained weights",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/TencentARC/GFPGAN/releases",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "kair-code",
+      "display_name": "KAIR (Kai Zhang) - upstream of the vendored architecture",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "licence_text_url": "https://github.com/cszn/KAIR/blob/master/LICENSE",
+      "official_source": "https://github.com/cszn/KAIR",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "pinned_version": "master",
+      "required_notices": [
+        "Retain the MIT licence text and copyright notice.",
+        "Copyright (c) 2019 Kai Zhang."
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read the LICENSE file at the official repository and confirmed via the GitHub licence API as SPDX MIT, 'Copyright (c) 2019 Kai Zhang'. Registered for the same reason as swin-transformer-code: SwinIR's README directs users to follow it. No weights from this project are used."
+    },
+    {
+      "component_id": "libvips",
+      "display_name": "libvips (native image processing library)",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "LGPL-2.1-or-later",
+      "official_source": "https://github.com/libvips/build-win64-mxe/releases/download/v8.18.5/vips-dev-x64-web-8.18.5.zip",
+      "pinned_version": "8.18.5",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Provide the LGPL-2.1 licence text with any distribution.",
+        "State that libvips is used and that it may be modified and relinked.",
+        "Make the libvips source available, or point to the upstream repository."
+      ],
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read the LICENSE file shipped in the official prebuilt archive (.tools/vips/LICENSE): GNU Lesser General Public License, Version 2.1, February 1999. Archive SHA-256 0b31bf577de68b2a97b38ade77023fbe63053a256d39e6f07bc439719f0fe0b6, 11,324,620 bytes, verified on download and pinned in tools/install_libvips.py.",
+      "notes": "COMMERCIALLY USABLE SERVER-SIDE, WITH A CONDITION WORTH KNOWING. LGPL obligations attach on DISTRIBUTION. A hosted service distributes no binaries to customers, so for the web product the practical duty is notice and attribution only, and dynamic linking keeps our own code unaffected. This analysis CHANGES if a native desktop or mobile application ships libvips to end users (blueprint section 23 keeps that option open): relink and source-availability duties would then apply. Flag for re-review before any native app is distributed."
+    },
+    {
+      "component_id": "numpy",
+      "display_name": "NumPy",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "licence_text_url": "https://github.com/numpy/numpy/blob/main/LICENSE.txt",
+      "official_source": "https://pypi.org/project/numpy/",
+      "pinned_version": "2.5.2",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the BSD-3-Clause copyright notice and disclaimer.",
+        "Copyright (c) 2005-2025, NumPy Developers.",
+        "Retain the notices of the vendored components covered by 0BSD, MIT, Zlib and CC0-1.0."
+      ],
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read from the installed distribution metadata: numpy 2.5.2 declares 'BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0'. NumPy's own code is BSD-3-Clause; the remaining terms cover vendored components. All permissive, attribution only.",
+      "notes": "Enters the register at POC-006. Used for exactly one thing: handing pixel data between Pillow and torch without a Python-level copy. Confined to the AI adapter package by test."
+    },
+    {
+      "component_id": "ost-dataset",
+      "display_name": "OutdoorSceneTraining (OST) dataset",
+      "kind": "dataset",
+      "disposition": "unknown",
+      "official_source": "https://github.com/xinntao/SFTGAN",
+      "pinned_version": "2018",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Named in Real-ESRGAN docs/Training.md as part of the training set. Released alongside the SFTGAN paper with no explicit licence grant located."
+    },
+    {
+      "component_id": "pillow",
+      "display_name": "Pillow (Python Imaging Library fork)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT-CMU",
+      "official_source": "https://pypi.org/project/pillow/",
+      "pinned_version": "12.3.0",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the copyright notice and permission notice in all copies and in supporting documentation (MIT-CMU / HPND).",
+        "Copyright (c) 1997-2011 Secret Labs AB; 1995-2011 Fredrik Lundh and contributors; 2010 Jeffrey A. Clark and contributors."
+      ],
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read the full licence text shipped with the installed wheel at pillow-12.3.0.dist-info/licenses/LICENSE. Declared License-Expression is MIT-CMU. Permissive: use, copy, modify and distribute for any purpose without fee, conditional only on notice retention. No commercial restriction, no copyleft, no field-of-use limitation.",
+      "notes": "Primary decoder for the POC-004 deterministic baseline. Note for operations: Pillow's C decoders process untrusted input and have a non-trivial CVE history. Mitigated by POC-003 header inspection rejecting hostile inputs before Pillow sees them, by Image.MAX_IMAGE_PIXELS, by the pinned version, and from POC-006 by container isolation."
+    },
+    {
+      "component_id": "pycparser",
+      "display_name": "pycparser (cffi dependency)",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "BSD-3-Clause",
+      "official_source": "https://pypi.org/project/pycparser/",
+      "pinned_version": "3.0",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Installed distribution metadata declares License-Expression: BSD-3-Clause; licence text at pycparser-3.0.dist-info/licenses/LICENSE.",
+      "required_notices": [
+        "Retain the BSD-3-Clause copyright notice and disclaimer."
+      ]
+    },
+    {
+      "component_id": "pydantic",
+      "display_name": "pydantic (contract validation)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://pypi.org/project/pydantic/",
+      "pinned_version": "2.13.4",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "pydantic-core",
+        "annotated-types",
+        "typing-extensions"
+      ],
+      "required_notices": [
+        "Retain the MIT copyright and permission notice."
+      ],
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Installed distribution metadata declares License-Expression: MIT; licence text at pydantic-2.13.4.dist-info/licenses/LICENSE. Recorded during POC-004 after the runtime-dependency licence guard flagged that this component had been in use since POC-001 with no disposition on file.",
+      "notes": "The only runtime dependency of ipw-contracts, so it reaches every workspace."
+    },
+    {
+      "component_id": "pydantic-core",
+      "display_name": "pydantic-core (Rust validation core)",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://pypi.org/project/pydantic-core/",
+      "pinned_version": "2.46.4",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Installed metadata declares License-Expression: MIT; text at pydantic_core-2.46.4.dist-info/licenses/LICENSE."
+    },
+    {
+      "component_id": "pyvips",
+      "display_name": "pyvips (libvips Python binding)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://pypi.org/project/pyvips/",
+      "pinned_version": "3.1.1",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "libvips",
+        "cffi",
+        "pycparser"
+      ],
+      "required_notices": [
+        "Retain the MIT copyright and permission notice."
+      ],
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Installed distribution metadata declares License: MIT with the OSI MIT classifier; licence text at pyvips-3.1.1.dist-info/licenses/LICENSE.txt. This is the BINDING ONLY. The native library it loads is a separate component with a different licence, registered as 'libvips' - a wrapper licence never covers what it wraps."
+    },
+    {
+      "component_id": "real-esrgan",
+      "display_name": "Real-ESRGAN (composite candidate)",
+      "kind": "service",
+      "disposition": "review_required",
+      "depends_on": [
+        "real-esrgan-code",
+        "real-esrgan-weights-x4plus",
+        "real-esrgan-weights-x2plus",
+        "torch",
+        "numpy"
+      ],
+      "weight_format": "not_applicable",
+      "evidence": "Composite of the reviewed parts. Its effective disposition is computed by inheritance, not asserted: the weights resolve to unknown because no weight licence is stated and their training data is research-only, so the composite resolves to unknown too. That is the inheritance rule doing its job on a real candidate - a permissive code licence does not launder restricted weights.",
+      "notes": "Baseline candidate only (D-011). Permitted for local_research and internal_benchmark under D-038, with results marked. Blocked from public_demo, staging and production until the weight and dataset questions are answered by the product owner.",
+      "official_source": "https://github.com/xinntao/Real-ESRGAN",
+      "pinned_version": "v0.3.0",
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24"
+    },
+    {
+      "component_id": "real-esrgan-code",
+      "display_name": "Real-ESRGAN (repository code)",
+      "kind": "code",
+      "disposition": "review_required",
+      "licence_id": "BSD-3-Clause",
+      "official_source": "https://github.com/xinntao/Real-ESRGAN",
+      "weight_format": "not_applicable",
+      "evidence": "Read the LICENSE file at the official repository: 'BSD 3-Clause License, Copyright (c) 2021, Xintao Wang'. Confirmed via the GitHub licence API as SPDX BSD-3-Clause. The CODE licence is permissive and commercially usable; it says nothing about the released weights, which are registered separately.",
+      "notes": "Disposition remains review_required rather than approved because the component that matters commercially is the weights, and the architecture we execute is reimplemented rather than vendored - see real-esrgan-adapter. The official PyPI package is NOT used: it hard-depends on gfpgan (face restoration), which POC-006 forbids from a general super-resolution path.",
+      "licence_text_url": "https://github.com/xinntao/Real-ESRGAN/blob/master/LICENSE",
+      "pinned_version": "v0.3.0",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the BSD-3-Clause copyright notice, condition list and disclaimer.",
+        "Copyright (c) 2021, Xintao Wang. All rights reserved.",
+        "Do not use the author's name to endorse or promote derived products without prior written permission (BSD-3-Clause third clause)."
+      ],
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24"
+    },
+    {
+      "component_id": "real-esrgan-weights-x2plus",
+      "display_name": "Real-ESRGAN x2plus generator weights",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
+      "pinned_version": "v0.2.1",
+      "weight_format": "pickle",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "ost-dataset"
+      ],
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Located as a release asset on the official repository at tag v0.2.1. NO SEPARATE WEIGHT LICENCE IS STATED anywhere in the repository, the README, or the release notes - the BSD-3-Clause LICENSE file addresses the source code. AGENTS.md is explicit that a code licence may not be assumed to cover downloaded weights, so the disposition is unknown rather than inherited. WEIGHTS DERIVE FROM A RESEARCH-ONLY DATASET. Real-ESRGAN docs/Training.md states the models were trained on DF2K (DIV2K + Flickr2K) + OST. The DIV2K page at ETH Zurich states verbatim: 'this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' Whether trained weights inherit a training dataset's licence restrictions is legally unsettled and varies by jurisdiction. It is a decision for the product owner and, if the answer matters commercially, for counsel - not something an engineer may wave through. Research and internal benchmark use is unaffected (D-038).",
+      "notes": "PyTorch pickle format. Loaded with torch.load(weights_only=True) so unpickling is restricted to tensors and arbitrary code cannot execute (D-039). SHA-256 recorded on first download and pinned thereafter. Verified 67,105,069 bytes on first fetch (2026-08-24) and pinned in tools/install_model_weights.py.",
+      "weights_sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb"
+    },
+    {
+      "component_id": "real-esrgan-weights-x4plus",
+      "display_name": "Real-ESRGAN x4plus generator weights",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
+      "pinned_version": "v0.1.0",
+      "weight_format": "pickle",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "ost-dataset"
+      ],
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Located as a release asset on the official repository at tag v0.1.0. NO SEPARATE WEIGHT LICENCE IS STATED anywhere in the repository, the README, or the release notes - the BSD-3-Clause LICENSE file addresses the source code. AGENTS.md is explicit that a code licence may not be assumed to cover downloaded weights, so the disposition is unknown rather than inherited. WEIGHTS DERIVE FROM A RESEARCH-ONLY DATASET. Real-ESRGAN docs/Training.md states the models were trained on DF2K (DIV2K + Flickr2K) + OST. The DIV2K page at ETH Zurich states verbatim: 'this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' Whether trained weights inherit a training dataset's licence restrictions is legally unsettled and varies by jurisdiction. It is a decision for the product owner and, if the answer matters commercially, for counsel - not something an engineer may wave through. Research and internal benchmark use is unaffected (D-038).",
+      "notes": "PyTorch pickle format. Loaded with torch.load(weights_only=True) so unpickling is restricted to tensors and arbitrary code cannot execute (D-039). SHA-256 recorded on first download and pinned thereafter. Verified 67,040,989 bytes on first fetch (2026-08-24) and pinned in tools/install_model_weights.py.",
+      "weights_sha256": "4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1"
+    },
+    {
+      "component_id": "rembg-code",
+      "display_name": "rembg (wrapper)",
+      "kind": "code",
+      "disposition": "review_required",
+      "licence_id": "MIT",
+      "official_source": "https://github.com/danielgatis/rembg",
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "Plan section 6.4: the wrapper is MIT, but each selected model and weight file requires its own review. A wrapper licence is not weight approval."
+    },
+    {
+      "component_id": "rembg-u2net",
+      "display_name": "rembg + U2-Net (composite candidate)",
+      "kind": "service",
+      "disposition": "review_required",
+      "depends_on": [
+        "rembg-code",
+        "u2net-weights"
+      ],
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "standard-libvips",
+      "display_name": "Standard processing engine (libvips)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "this repository (packages/processors/src/ipw/processors/standard)",
+      "pinned_version": "0.1.0",
+      "weight_format": "not_applicable",
+      "depends_on": [
+        "pyvips"
+      ],
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Written in this repository under the repository MIT licence. Inherits the LGPL-2.1 disposition of libvips through pyvips, which permits commercial server-side use subject to the recorded notices.",
+      "notes": "Performance comparator (D-045). Faster and far lower memory on large images than the Pillow engine; that advantage is what POC-012 tiling will measure. Reports PROCESSOR.UNAVAILABLE rather than failing on hosts without the native library."
+    },
+    {
+      "component_id": "standard-pillow",
+      "display_name": "Standard processing engine (Pillow)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "this repository (packages/processors/src/ipw/processors/standard)",
+      "pinned_version": "0.1.0",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "reviewed_by": "POC-002",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Written in this repository under the repository MIT licence. No third-party code, no weights, no dataset-derived restrictions.",
+      "notes": "The authoritative deterministic standard-processing path. Serves as the approved fallback (D-040) for every standard operation. Its identifier matches ProcessorIdentity.name so a run record and the register name the same thing.",
+      "depends_on": [
+        "pillow"
+      ]
+    },
+    {
+      "component_id": "supir",
+      "display_name": "SUPIR (reference-only)",
+      "kind": "service",
+      "disposition": "non_commercial",
+      "reference_only": true,
+      "depends_on": [
+        "supir-code",
+        "supir-weights"
+      ],
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "supir-code",
+      "display_name": "SUPIR (repository code)",
+      "kind": "code",
+      "disposition": "non_commercial",
+      "reference_only": true,
+      "official_source": "https://github.com/Fanghua-Yu/SUPIR",
+      "weight_format": "not_applicable",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "AGENTS.md: SUPIR is reference-only unless documented commercial permission is supplied. Research comparison is permitted; commercial use is not."
+    },
+    {
+      "component_id": "supir-weights",
+      "display_name": "SUPIR weights",
+      "kind": "weights",
+      "disposition": "non_commercial",
+      "reference_only": true,
+      "official_source": "https://github.com/Fanghua-Yu/SUPIR",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "swin-transformer-code",
+      "display_name": "Swin Transformer (Microsoft) - upstream of the vendored architecture",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "licence_text_url": "https://github.com/microsoft/Swin-Transformer/blob/main/LICENSE",
+      "official_source": "https://github.com/microsoft/Swin-Transformer",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "pinned_version": "main",
+      "required_notices": [
+        "Retain the MIT licence text and copyright notice.",
+        "Copyright (c) Microsoft Corporation."
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read the LICENSE file at the official repository and confirmed via the GitHub licence API as SPDX MIT, 'Copyright (c) Microsoft Corporation'. Registered because SwinIR's README directs users to follow this licence too, and the vendored architecture is derived from it. No weights from this project are used."
+    },
+    {
+      "component_id": "swinir",
+      "display_name": "SwinIR (composite candidate)",
+      "kind": "service",
+      "disposition": "review_required",
+      "depends_on": [
+        "swinir-code",
+        "swinir-weights-realsr-m-x4-gan",
+        "swinir-weights-realsr-m-x2-gan",
+        "swinir-weights-colordn-noise15",
+        "swinir-weights-colorcar-jpeg10",
+        "torch",
+        "numpy"
+      ],
+      "weight_format": "not_applicable",
+      "evidence": "Composite of the reviewed parts, resolved by inheritance rather than asserted. The CODE chain is genuinely clean and approved - Apache-2.0 over MIT over MIT, with an express patent grant - which is a better position than Real-ESRGAN's. The composite still resolves to 'unknown' because the weights do, and the weights do because their training data is research-only. THIS IS THE POC-007 FINDING: the restriction is upstream of the model, so replacing one model with another does not replace it. Both candidates for super-resolution now sit in the same place for the same reason.",
+      "official_source": "https://github.com/JingyunLiang/SwinIR",
+      "pinned_version": "6545850fbf8df298df73d81f3e8cba638787c8bd",
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "notes": "Comparator candidate (D-011). Permitted for local_research and internal_benchmark under D-038 with results marked; blocked from public_demo, staging and production until the weight and dataset questions are answered (O-013). Covers three advertised-or-candidate operations: super_resolution, ai_denoise and jpeg_artifact_repair."
+    },
+    {
+      "component_id": "swinir-code",
+      "display_name": "SwinIR (repository code, vendored architecture)",
+      "kind": "code",
+      "disposition": "approved",
+      "licence_id": "Apache-2.0",
+      "official_source": "https://github.com/JingyunLiang/SwinIR",
+      "weight_format": "not_applicable",
+      "evidence": "Read the LICENSE file at the official repository: Apache License 2.0, 201 lines, confirmed by the GitHub licence API as SPDX Apache-2.0. The README's 'License and Acknowledgement' section states: 'This project is released under the Apache 2.0 license. The codes are based on Swin Transformer and KAIR. Please also follow their licenses.' Both upstreams were therefore read as well: microsoft/Swin-Transformer is MIT (Copyright (c) Microsoft Corporation) and cszn/KAIR is MIT (Copyright (c) 2019 Kai Zhang). The whole executed code chain is permissive and commercially usable, with attribution obligations only. There is no NOTICE file in the repository, so Apache-2.0 section 4(d) does not apply; sections 4(a) and 4(b) do, and the notices are recorded above. Apache-2.0 also carries an express patent grant, which BSD-3-Clause does not - a point in SwinIR's favour, not against it.",
+      "licence_text_url": "https://github.com/JingyunLiang/SwinIR/blob/main/LICENSE",
+      "pinned_version": "6545850fbf8df298df73d81f3e8cba638787c8bd",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "swin-transformer-code",
+        "kair-code"
+      ],
+      "required_notices": [
+        "Retain the Apache-2.0 licence text and attribution for SwinIR.",
+        "SwinIR: Image Restoration Using Swin Transformer - Ze Liu (original), modified by Jingyun Liang.",
+        "State that the vendored file has been modified (Apache-2.0 section 4(b)).",
+        "Retain the MIT notice of Swin-Transformer, Copyright (c) Microsoft Corporation.",
+        "Retain the MIT notice of KAIR, Copyright (c) 2019 Kai Zhang."
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "notes": "APPROVED, and this is the first third-party source code vendored into the repository (D-056). models/network_swinir.py is 867 lines of Swin Transformer implementation; reimplementing it from scratch would risk a silent numerical error that strict state-dict loading cannot catch, which is a worse outcome than an attributed copy. Apache-2.0 expressly permits reproduction in source form with notices retained and modifications stated. The timm dependency of the original is removed rather than added: the three helpers it imports are reimplemented locally."
+    },
+    {
+      "component_id": "swinir-weights-colorcar-jpeg10",
+      "display_name": "SwinIR weights - 006_colorCAR_DFWB_s126w7_SwinIR-M_jpeg10.pth",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/006_colorCAR_DFWB_s126w7_SwinIR-M_jpeg10.pth",
+      "pinned_version": "v0.0",
+      "weight_format": "pickle",
+      "weights_sha256": "0005b707e0e6f75b4d13c7447e2f184858ddbdcec95aa7eb8c07e8afa1d26bd9",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "wed-dataset",
+        "bsd500-dataset"
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Colour JPEG compression-artifact reduction, trained for quality 10 on DFWB (DIV2K + Flickr2K + WED + BSD500). Downloaded from the official release asset at tag v0.0 and hashed on first fetch: sha256 0005b707e0e6f75b4d13c7447e2f184858ddbdcec95aa7eb8c07e8afa1d26bd9, 102,873,665 bytes. NO SEPARATE WEIGHT LICENCE IS STATED - the repository's Apache-2.0 LICENSE addresses the source code, and AGENTS.md forbids assuming a code licence covers downloaded weights. WEIGHTS DERIVE FROM A RESEARCH-ONLY DATASET. The SwinIR README names the training sets: DIV2K, DF2K (DIV2K+Flickr2K), DFO (DF2K+OST) and DFWB (DF2K+WED+BSD500). Every one is DIV2K-derived, and the DIV2K page at ETH Zurich states: 'this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' SwinIR's Apache-2.0 code licence is clean and does not reach the training data. Whether trained weights inherit a dataset's restrictions is legally unsettled - the same question already raised for Real-ESRGAN, and the same answer is required (O-013).",
+      "notes": "PyTorch pickle. Loaded with torch.load(weights_only=True) so unpickling cannot execute code, and the SHA-256 above is verified before the file reaches the unpickler (D-039)."
+    },
+    {
+      "component_id": "swinir-weights-colordn-noise15",
+      "display_name": "SwinIR weights - 005_colorDN_DFWB_s128w8_SwinIR-M_noise15.pth",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/005_colorDN_DFWB_s128w8_SwinIR-M_noise15.pth",
+      "pinned_version": "v0.0",
+      "weight_format": "pickle",
+      "weights_sha256": "917cd972f7ba80786871add249ad43e4477ce2db59b4ad63e2fa446f7221d013",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "wed-dataset",
+        "bsd500-dataset"
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Colour denoising, trained for Gaussian noise sigma 15 on DFWB (DIV2K + Flickr2K + WED + BSD500). Downloaded from the official release asset at tag v0.0 and hashed on first fetch: sha256 917cd972f7ba80786871add249ad43e4477ce2db59b4ad63e2fa446f7221d013, 122,905,743 bytes. NO SEPARATE WEIGHT LICENCE IS STATED - the repository's Apache-2.0 LICENSE addresses the source code, and AGENTS.md forbids assuming a code licence covers downloaded weights. WEIGHTS DERIVE FROM A RESEARCH-ONLY DATASET. The SwinIR README names the training sets: DIV2K, DF2K (DIV2K+Flickr2K), DFO (DF2K+OST) and DFWB (DF2K+WED+BSD500). Every one is DIV2K-derived, and the DIV2K page at ETH Zurich states: 'this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' SwinIR's Apache-2.0 code licence is clean and does not reach the training data. Whether trained weights inherit a dataset's restrictions is legally unsettled - the same question already raised for Real-ESRGAN, and the same answer is required (O-013).",
+      "notes": "PyTorch pickle. Loaded with torch.load(weights_only=True) so unpickling cannot execute code, and the SHA-256 above is verified before the file reaches the unpickler (D-039)."
+    },
+    {
+      "component_id": "swinir-weights-realsr-m-x2-gan",
+      "display_name": "SwinIR weights - 003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x2_GAN.pth",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x2_GAN.pth",
+      "pinned_version": "v0.0",
+      "weight_format": "pickle",
+      "weights_sha256": "f397408977a3e07eb06afb7238d453a12ef35ebab7328a54241f307860dbe342",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "ost-dataset"
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Real-world super-resolution, GAN-trained, native x2. Trained on DFO (DIV2K + Flickr2K + OST) with BSRGAN degradations. Downloaded from the official release asset at tag v0.0 and hashed on first fetch: sha256 f397408977a3e07eb06afb7238d453a12ef35ebab7328a54241f307860dbe342, 66,974,517 bytes. NO SEPARATE WEIGHT LICENCE IS STATED - the repository's Apache-2.0 LICENSE addresses the source code, and AGENTS.md forbids assuming a code licence covers downloaded weights. WEIGHTS DERIVE FROM A RESEARCH-ONLY DATASET. The SwinIR README names the training sets: DIV2K, DF2K (DIV2K+Flickr2K), DFO (DF2K+OST) and DFWB (DF2K+WED+BSD500). Every one is DIV2K-derived, and the DIV2K page at ETH Zurich states: 'this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' SwinIR's Apache-2.0 code licence is clean and does not reach the training data. Whether trained weights inherit a dataset's restrictions is legally unsettled - the same question already raised for Real-ESRGAN, and the same answer is required (O-013).",
+      "notes": "PyTorch pickle. Loaded with torch.load(weights_only=True) so unpickling cannot execute code, and the SHA-256 above is verified before the file reaches the unpickler (D-039)."
+    },
+    {
+      "component_id": "swinir-weights-realsr-m-x4-gan",
+      "display_name": "SwinIR weights - 003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth",
+      "pinned_version": "v0.0",
+      "weight_format": "pickle",
+      "weights_sha256": "b9afb61e65e04eb7f8aba5095d070bbe9af28df76acd0c9405aeb33b814bcfc6",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "ost-dataset"
+      ],
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Real-world super-resolution, GAN-trained, native x4. Trained on DFO (DIV2K + Flickr2K + OST) with BSRGAN degradations. Downloaded from the official release asset at tag v0.0 and hashed on first fetch: sha256 b9afb61e65e04eb7f8aba5095d070bbe9af28df76acd0c9405aeb33b814bcfc6, 67,129,861 bytes. NO SEPARATE WEIGHT LICENCE IS STATED - the repository's Apache-2.0 LICENSE addresses the source code, and AGENTS.md forbids assuming a code licence covers downloaded weights. WEIGHTS DERIVE FROM A RESEARCH-ONLY DATASET. The SwinIR README names the training sets: DIV2K, DF2K (DIV2K+Flickr2K), DFO (DF2K+OST) and DFWB (DF2K+WED+BSD500). Every one is DIV2K-derived, and the DIV2K page at ETH Zurich states: 'this dataset is made available for academic research purpose only. All the images are collected from the Internet, and the copyright belongs to the original owners.' SwinIR's Apache-2.0 code licence is clean and does not reach the training data. Whether trained weights inherit a dataset's restrictions is legally unsettled - the same question already raised for Real-ESRGAN, and the same answer is required (O-013).",
+      "notes": "PyTorch pickle. Loaded with torch.load(weights_only=True) so unpickling cannot execute code, and the SHA-256 above is verified before the file reaches the unpickler (D-039)."
+    },
+    {
+      "component_id": "tesseract",
+      "display_name": "Tesseract OCR engine",
+      "kind": "code",
+      "disposition": "review_required",
+      "licence_id": "Apache-2.0",
+      "official_source": "https://github.com/tesseract-ocr/tesseract",
+      "pinned_version": "5.4.0.20240606",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "reviewed_by": "APP-005",
+      "reviewed_on": "2026-08-26",
+      "evidence": "Version 5.4.0.20240606 installed on this host from the UB-Mannheim build via winget, which verified the installer hash against its manifest. Apache-2.0 is what the project states publicly; the licence text has NOT been read against source. Recorded under D-038 so the engine may be evaluated locally with results marked, not so it may be recommended commercially. Gate A needs the real review.",
+      "notes": "Chosen over RapidOCR, EasyOCR and Surya for provenance rather than accuracy. Its models are trained on synthetic renderings of fonts rather than scraped documents, so the failure behind O-013 - permissive code, research-only training data - does not arise by construction. Surya was excluded outright for revenue conditions, the same trap as CodeFormer. The cost of this choice is a system binary rather than a wheel, and weaker accuracy on photographs and skewed pages. See O-018.",
+      "depends_on": [
+        "tesseract-tessdata"
+      ]
+    },
+    {
+      "component_id": "tesseract-tessdata",
+      "display_name": "Tesseract trained language data",
+      "kind": "weights",
+      "disposition": "review_required",
+      "licence_id": "Apache-2.0",
+      "official_source": "https://github.com/tesseract-ocr/tessdata",
+      "pinned_version": "eng.traineddata as shipped with 5.4.0.20240606",
+      "weight_format": "traineddata",
+      "network_disabled_at_inference": true,
+      "reviewed_by": "APP-005",
+      "reviewed_on": "2026-08-26",
+      "evidence": "The English language file shipped with the pinned engine build; its digest is recorded above so a changed model cannot pass unnoticed. The tessdata repository states Apache-2.0; NOT verified against source. The training corpus is understood to be synthetic renderings of fonts over public text - the reason this engine was preferred over RapidOCR and EasyOCR - but that understanding is unverified and is exactly what a real review has to establish.",
+      "notes": "The models are the part that decides commercial usability, not the engine code - the lesson of O-013, where Apache-2.0 code was trained on a research-only dataset. A pinned language file plus its digest is required before Gate B can pass.",
+      "depends_on": [],
+      "weights_sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+    },
+    {
+      "component_id": "torch",
+      "display_name": "PyTorch (inference runtime)",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND MIT",
+      "official_source": "https://download.pytorch.org/whl/cpu",
+      "pinned_version": "2.13.0+cpu",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the BSD-3-Clause copyright notice and disclaimer.",
+        "Copyright (c) 2016-present, Facebook Inc. and affiliates.",
+        "Retain the notices of the vendored components covered by Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSL-1.0 and MIT; the wheel ships them in torch/_C and third_party."
+      ],
+      "reviewed_by": "POC-006",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Read from the installed distribution metadata rather than assumed from the repository LICENSE file. torch 2.13.0 declares 'Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND MIT'. PyTorch's own code is BSD-3-Clause; the additional terms belong to vendored third-party components inside the wheel. All are permissive and impose attribution obligations only, so the disposition is approved - but the attribution obligation is real and is recorded in required_notices. IMPORTANT: this applies to the CPU build. A CUDA build additionally bundles NVIDIA runtime libraries under the NVIDIA Software Licence Agreement, which is NOT permissive and has NOT been reviewed. Moving to GPU requires a new disposition before it may run.",
+      "notes": "Enters the register at POC-006 as the inference runtime. CPU build only - the '+cpu' local version tag is part of the pin, not decoration.\n\nACQUISITION: install from https://download.pytorch.org/whl/cpu explicitly. On Windows the default PyPI wheel is already CPU-only, but on Linux the default PyPI wheel bundles NVIDIA CUDA runtime libraries under the NVIDIA Software Licence Agreement. A plain 'pip install torch' in a Linux container would therefore pull unreviewed, non-permissive components without anyone deciding to. infra/docker pins the CPU index for exactly this reason.\n\nConfined by test to ipw/processors/ai_adapters so the standard baseline cannot acquire a tensor runtime by accident."
+    },
+    {
+      "component_id": "typing-extensions",
+      "display_name": "typing-extensions",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "PSF-2.0",
+      "official_source": "https://pypi.org/project/typing-extensions/",
+      "pinned_version": "4.15.0",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-004",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Installed metadata declares License-Expression: PSF-2.0; text at typing_extensions-4.15.0.dist-info/licenses/LICENSE. Permissive."
+    },
+    {
+      "component_id": "u2net-weights",
+      "display_name": "U2-Net weights (via rembg)",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/danielgatis/rembg/releases",
+      "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006.",
+      "notes": "Selected segmentation weights. Licence and dataset restrictions unreviewed."
+    },
+    {
+      "component_id": "wed-dataset",
+      "display_name": "Waterloo Exploration Database (WED)",
+      "kind": "dataset",
+      "disposition": "unknown",
+      "official_source": "https://ece.uwaterloo.ca/~k29ma/exploration/",
+      "weight_format": "not_applicable",
+      "reviewed_by": "POC-007",
+      "reviewed_on": "2026-08-24",
+      "evidence": "Named in the SwinIR README as part of DFWB, the denoise and JPEG-artifact training set. The official University of Waterloo page returned HTTP 404 at review time, so its terms could NOT be read. 'Unknown' is the accurate disposition and is not a placeholder: an unreadable licence is an unknown licence, and guessing that an academic database is permissive is precisely the assumption these gates exist to prevent."
+    }
+  ],
+  "approved_fallback": {
+    "resize": "standard-pillow",
+    "crop": "standard-pillow",
+    "rotate": "standard-pillow",
+    "flip": "standard-pillow",
+    "adjust": "standard-pillow",
+    "sharpen": "standard-pillow",
+    "denoise": "standard-pillow",
+    "convert": "standard-pillow"
+  }
+}

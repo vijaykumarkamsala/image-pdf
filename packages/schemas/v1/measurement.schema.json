@@ -1,0 +1,385 @@
+{
+  "$defs": {
+    "CostBreakdown": {
+      "additionalProperties": false,
+      "description": "Direct job cost components from the benchmark plan section 13.\n\nAll amounts are exact decimal strings. Money is never a float.",
+      "properties": {
+        "basis": {
+          "default": "not_estimated",
+          "description": "How the figures were derived, e.g. 'not_estimated', 'list_price_2026_08'.",
+          "title": "Basis",
+          "type": "string"
+        },
+        "compute": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Compute",
+          "type": "string"
+        },
+        "currency": {
+          "default": "USD",
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        },
+        "external_provider_fee": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "External Provider Fee",
+          "type": "string"
+        },
+        "model_load_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Model Load Allocation",
+          "type": "string"
+        },
+        "output_bandwidth": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Output Bandwidth",
+          "type": "string"
+        },
+        "payment_overhead_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Payment Overhead Allocation",
+          "type": "string"
+        },
+        "retained_storage_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Retained Storage Allocation",
+          "type": "string"
+        },
+        "temporary_storage": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Temporary Storage",
+          "type": "string"
+        },
+        "total": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Total",
+          "type": "string"
+        }
+      },
+      "title": "CostBreakdown",
+      "type": "object"
+    },
+    "MemoryUsage": {
+      "additionalProperties": false,
+      "description": "Memory observed during a single processing call.\n\nTwo figures, because on a shared process neither is trustworthy alone.\n``peak_rss_bytes`` is a **process-lifetime high-water mark**: it includes\nnative allocations, which dominate image work, but it never decreases. Run an\nAI model and a resize in one process and both report the model's peak - which\nis true of the process and false of the resize.\n\n``python_peak_delta_bytes`` is the mirror image: genuinely per-call, but blind\nto whatever a C library allocated. Read together they bracket the answer. A\nsingle trustworthy per-call number needs process isolation, which is what the\ncontainerised runtime exists to provide.",
+      "properties": {
+        "measurement_method": {
+          "default": "not_measured",
+          "description": "How the peak was obtained, e.g. 'tracemalloc', 'resource.getrusage', 'nvml'.",
+          "title": "Measurement Method",
+          "type": "string"
+        },
+        "peak_rss_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Peak Rss Bytes",
+          "type": "integer"
+        },
+        "peak_vram_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Peak video memory. None means no accelerator was present to measure, which is a different claim from zero VRAM used.",
+          "title": "Peak Vram Bytes"
+        },
+        "python_peak_delta_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Python-attributable peak allocation for this call alone. Unlike peak_rss_bytes this is not contaminated by earlier work in the same process, but it excludes native allocations. None means it was not measured.",
+          "title": "Python Peak Delta Bytes"
+        }
+      },
+      "title": "MemoryUsage",
+      "type": "object"
+    },
+    "ThermalState": {
+      "enum": [
+        "cold",
+        "warm",
+        "unknown"
+      ],
+      "title": "ThermalState",
+      "type": "string"
+    },
+    "TilingRecord": {
+      "additionalProperties": false,
+      "description": "The tiling decision made for one call, and why (POC-012).\n\nRecorded per *result*, not per processor. ``ProcessorIdentity.tile_size`` is\nthe configured budget and feeds the run digest, which is correct - it\ndescribes how the processor was set up. The tile actually used depends on the\nimage, so putting it in the identity would give two images processed by the\nsame processor two different processor identities.\n\nEvery field is an integer or a string. Tiling changes output (POC-006\nmeasured 54% of subpixels differing at tile 32/overlap 8), so this record is\npart of explaining a result, and a float would make it platform-dependent.",
+      "properties": {
+        "budget_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Budget Bytes",
+          "type": "integer"
+        },
+        "columns": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "estimated_peak_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Estimated Peak Bytes",
+          "type": "integer"
+        },
+        "exceeds_budget": {
+          "default": false,
+          "description": "True when the minimum safe tile still exceeds the budget. The job ran above its configured budget, and its memory figures should be read knowing that rather than discovering it later.",
+          "title": "Exceeds Budget",
+          "type": "boolean"
+        },
+        "overlap": {
+          "minimum": 0,
+          "title": "Overlap",
+          "type": "integer"
+        },
+        "reason": {
+          "default": "whole_image",
+          "description": "Why this size was chosen: whole_image, budget, max_tile or floor.",
+          "title": "Reason",
+          "type": "string"
+        },
+        "rows": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "scale": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Scale",
+          "type": "integer"
+        },
+        "tile_count": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Tile Count",
+          "type": "integer"
+        },
+        "tile_size": {
+          "minimum": 1,
+          "title": "Tile Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tile_size",
+        "overlap"
+      ],
+      "title": "TilingRecord",
+      "type": "object"
+    },
+    "Timing": {
+      "additionalProperties": false,
+      "description": "Wall-clock phase durations in integer nanoseconds.",
+      "properties": {
+        "cold_or_warm": {
+          "$ref": "#/$defs/ThermalState",
+          "default": "unknown"
+        },
+        "cold_start_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cold Start Ns",
+          "type": "integer"
+        },
+        "inference_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Inference Ns",
+          "type": "integer"
+        },
+        "postprocess_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Postprocess Ns",
+          "type": "integer"
+        },
+        "preprocess_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Preprocess Ns",
+          "type": "integer"
+        },
+        "queue_wait_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Queue Wait Ns",
+          "type": "integer"
+        },
+        "total_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Ns",
+          "type": "integer"
+        }
+      },
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/measurement.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Everything observed about one processing call.",
+  "properties": {
+    "cost": {
+      "$ref": "#/$defs/CostBreakdown",
+      "default": {
+        "basis": "not_estimated",
+        "compute": "0",
+        "currency": "USD",
+        "external_provider_fee": "0",
+        "model_load_allocation": "0",
+        "output_bandwidth": "0",
+        "payment_overhead_allocation": "0",
+        "retained_storage_allocation": "0",
+        "temporary_storage": "0",
+        "total": "0"
+      }
+    },
+    "input_bytes": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Input Bytes",
+      "type": "integer"
+    },
+    "input_height": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Height"
+    },
+    "input_width": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Width"
+    },
+    "memory": {
+      "$ref": "#/$defs/MemoryUsage",
+      "default": {
+        "measurement_method": "not_measured",
+        "peak_rss_bytes": 0,
+        "peak_vram_bytes": null,
+        "python_peak_delta_bytes": null
+      }
+    },
+    "output_bytes": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Output Bytes",
+      "type": "integer"
+    },
+    "output_height": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Height"
+    },
+    "output_width": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Width"
+    },
+    "retry_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Retry Count",
+      "type": "integer"
+    },
+    "tiling": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TilingRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "How the image was tiled, when it was. None means the question did not arise - a processor that does not tile, or a call that failed before it would have."
+    },
+    "timing": {
+      "$ref": "#/$defs/Timing",
+      "default": {
+        "cold_or_warm": "unknown",
+        "cold_start_ns": 0,
+        "inference_ns": 0,
+        "postprocess_ns": 0,
+        "preprocess_ns": 0,
+        "queue_wait_ns": 0,
+        "total_ns": 0
+      }
+    }
+  },
+  "title": "Measurement",
+  "type": "object"
+}

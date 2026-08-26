@@ -1,0 +1,57 @@
+# Pinned development toolchain for the Image & PDF Workspace monorepo.
+#
+# Used as a pip CONSTRAINTS file so that a clean checkout resolves to exactly the
+# versions this task was verified against (AGENTS.md: "Pin approved repository
+# commits, package versions and model hashes").
+#
+#   python -m pip install -c requirements-dev.lock.txt -r requirements-dev.txt \n#     -e packages/contracts -e packages/processors -e services/benchmark-runner
+#
+# Verified 2026-08-24 on CPython 3.14.5 (Windows 11 x64): every entry below
+# resolved to a prebuilt wheel; no source builds and no compiler are required.
+#
+# Licence register for the executed toolchain (informational; POC-002 owns the
+# formal disposition records):
+#   pydantic, pydantic-core, typing-extensions, annotated-types  MIT
+#   pytest, pluggy, iniconfig, pytest-cov, coverage              MIT / Apache-2.0
+#   ruff                                                         MIT
+#   mypy, mypy-extensions, pathspec                              MIT
+#   jsonschema, jsonschema-specifications, referencing, rpds-py  MIT
+#   attrs, packaging, Pygments                                   MIT / Apache-2.0 / BSD-2
+
+# ---- runtime -----------------------------------------------------------------
+pydantic==2.13.4
+pydantic_core==2.46.4
+annotated-types==0.7.0
+typing_extensions==4.15.0
+typing-inspection==0.4.2
+
+# ---- test --------------------------------------------------------------------
+pytest==9.1.1
+pytest-cov==7.1.0
+coverage==7.15.4
+pluggy==1.6.0
+iniconfig==2.3.0
+Pygments==2.21.0
+
+# ---- lint / format / types ---------------------------------------------------
+ruff==0.16.4
+mypy==2.3.1
+mypy_extensions==1.1.0
+pathspec==1.1.1
+
+# ---- schema round-trip validation --------------------------------------------
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+referencing==0.37.0
+rpds-py==2026.6.3
+attrs==26.1.0
+
+# ---- shared ------------------------------------------------------------------
+packaging==26.3
+
+# ---- transitive, recorded so the lock is complete ----------------------------
+# Pulled in by mypy/pytest on this platform. Listed so the licence surface of the
+# executed toolchain is fully reviewable (AGENTS.md commercial licence rules).
+ast_serialize==0.8.0
+colorama==0.4.6
+librt==0.15.0

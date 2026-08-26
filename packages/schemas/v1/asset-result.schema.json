@@ -1,0 +1,1538 @@
+{
+  "$defs": {
+    "AdjustSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "brightness_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Brightness Percent",
+          "type": "integer"
+        },
+        "contrast_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Contrast Percent",
+          "type": "integer"
+        },
+        "exposure_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Exposure Percent",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "adjust",
+          "default": "adjust",
+          "title": "Kind",
+          "type": "string"
+        },
+        "saturation_percent": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Saturation Percent",
+          "type": "integer"
+        },
+        "white_balance": {
+          "default": "none",
+          "enum": [
+            "none",
+            "auto",
+            "daylight",
+            "tungsten"
+          ],
+          "title": "White Balance",
+          "type": "string"
+        }
+      },
+      "title": "AdjustSettings",
+      "type": "object"
+    },
+    "AiDenoiseSettings": {
+      "additionalProperties": false,
+      "description": "Learned denoising. Distinct from DenoiseSettings, which is a median filter.\n\n``noise_sigma`` is the noise level the weights were *trained* for, not a\nstrength dial. SwinIR publishes separate checkpoints for sigma 15, 25 and 50,\nand an adapter must refuse a level it has no weights for rather than\nsubstituting the nearest one - the same rule as native scale for\nsuper-resolution (benchmark plan section 7).",
+      "properties": {
+        "kind": {
+          "const": "ai_denoise",
+          "default": "ai_denoise",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "natural",
+          "enum": [
+            "natural",
+            "strong"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "noise_sigma": {
+          "default": 15,
+          "enum": [
+            15,
+            25,
+            50
+          ],
+          "title": "Noise Sigma",
+          "type": "integer"
+        }
+      },
+      "title": "AiDenoiseSettings",
+      "type": "object"
+    },
+    "BackgroundRemoveSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "feather_px": {
+          "default": 0,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Feather Px",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "background_remove",
+          "default": "background_remove",
+          "title": "Kind",
+          "type": "string"
+        },
+        "return_mask": {
+          "default": true,
+          "title": "Return Mask",
+          "type": "boolean"
+        }
+      },
+      "title": "BackgroundRemoveSettings",
+      "type": "object"
+    },
+    "BackgroundReplaceSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "background_replace",
+          "default": "background_replace",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "solid",
+            "image",
+            "generated"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "solid_colour": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Solid Colour"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "BackgroundReplaceSettings",
+      "type": "object"
+    },
+    "ColouriseSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "disclose_estimated_colour": {
+          "const": true,
+          "default": true,
+          "description": "D-010: colourisation must always be described as estimated colour, never as historical fact. The literal type makes disabling it impossible.",
+          "title": "Disclose Estimated Colour",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "colourise",
+          "default": "colourise",
+          "title": "Kind",
+          "type": "string"
+        },
+        "saturation_percent": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Saturation Percent",
+          "type": "integer"
+        }
+      },
+      "title": "ColouriseSettings",
+      "type": "object"
+    },
+    "ConvertSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "flatten_background": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required when converting transparency to a format without alpha.",
+          "title": "Flatten Background"
+        },
+        "kind": {
+          "const": "convert",
+          "default": "convert",
+          "title": "Kind",
+          "type": "string"
+        },
+        "quality": {
+          "default": 90,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Quality",
+          "type": "integer"
+        },
+        "target_media_type": {
+          "$ref": "#/$defs/MediaType"
+        }
+      },
+      "required": [
+        "target_media_type"
+      ],
+      "title": "ConvertSettings",
+      "type": "object"
+    },
+    "CostBreakdown": {
+      "additionalProperties": false,
+      "description": "Direct job cost components from the benchmark plan section 13.\n\nAll amounts are exact decimal strings. Money is never a float.",
+      "properties": {
+        "basis": {
+          "default": "not_estimated",
+          "description": "How the figures were derived, e.g. 'not_estimated', 'list_price_2026_08'.",
+          "title": "Basis",
+          "type": "string"
+        },
+        "compute": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Compute",
+          "type": "string"
+        },
+        "currency": {
+          "default": "USD",
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        },
+        "external_provider_fee": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "External Provider Fee",
+          "type": "string"
+        },
+        "model_load_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Model Load Allocation",
+          "type": "string"
+        },
+        "output_bandwidth": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Output Bandwidth",
+          "type": "string"
+        },
+        "payment_overhead_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Payment Overhead Allocation",
+          "type": "string"
+        },
+        "retained_storage_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Retained Storage Allocation",
+          "type": "string"
+        },
+        "temporary_storage": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Temporary Storage",
+          "type": "string"
+        },
+        "total": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Total",
+          "type": "string"
+        }
+      },
+      "title": "CostBreakdown",
+      "type": "object"
+    },
+    "CropSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "crop",
+          "default": "crop",
+          "title": "Kind",
+          "type": "string"
+        },
+        "width": {
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "x": {
+          "minimum": 0,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "minimum": 0,
+          "title": "Y",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "title": "CropSettings",
+      "type": "object"
+    },
+    "DamageRepairSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "damage_repair",
+          "default": "damage_repair",
+          "title": "Kind",
+          "type": "string"
+        },
+        "strength_percent": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength Percent",
+          "type": "integer"
+        },
+        "targets": {
+          "default": [
+            "scratch"
+          ],
+          "items": {
+            "enum": [
+              "scratch",
+              "fold",
+              "stain",
+              "tear"
+            ],
+            "type": "string"
+          },
+          "title": "Targets",
+          "type": "array"
+        }
+      },
+      "title": "DamageRepairSettings",
+      "type": "object"
+    },
+    "DenoiseSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "denoise",
+          "default": "denoise",
+          "title": "Kind",
+          "type": "string"
+        },
+        "strength_percent": {
+          "default": 30,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength Percent",
+          "type": "integer"
+        }
+      },
+      "title": "DenoiseSettings",
+      "type": "object"
+    },
+    "FaceRestoreSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "apply_to_all_faces": {
+          "default": true,
+          "title": "Apply To All Faces",
+          "type": "boolean"
+        },
+        "fidelity_percent": {
+          "default": 70,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Fidelity Percent",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "face_restore",
+          "default": "face_restore",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "natural",
+          "enum": [
+            "natural",
+            "strong"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "title": "FaceRestoreSettings",
+      "type": "object"
+    },
+    "FailureCategory": {
+      "description": "The ten normalised categories from USER_FLOWS_AND_EDGE_CASES.md section 18.",
+      "enum": [
+        "invalid_input",
+        "unsupported_format",
+        "unsupported_feature",
+        "safety_limit",
+        "entitlement_required",
+        "queue_capacity",
+        "processor_unavailable",
+        "processor_quality_failure",
+        "temporary_infrastructure",
+        "permanent_processing",
+        "cancelled"
+      ],
+      "title": "FailureCategory",
+      "type": "string"
+    },
+    "FailureCode": {
+      "description": "Stable failure codes.\n\nCodes are namespaced by the subsystem that raises them and are part of the\npublic contract: tests, reports and (later) the browser lab assert on these\nexact strings, so a code is never renamed, only deprecated.",
+      "enum": [
+        "MANIFEST.UNREADABLE",
+        "MANIFEST.FILE_TOO_LARGE",
+        "MANIFEST.NOT_JSON",
+        "MANIFEST.SCHEMA_INVALID",
+        "MANIFEST.UNKNOWN_FIELD",
+        "MANIFEST.MISSING_FIELD",
+        "MANIFEST.SCHEMA_VERSION_UNSUPPORTED",
+        "MANIFEST.DUPLICATE_ASSET_ID",
+        "MANIFEST.CONTENT_TYPE_MISMATCH",
+        "MANIFEST.UNSUPPORTED_MEDIA_TYPE",
+        "MANIFEST.DIMENSIONS_EXCEEDED",
+        "MANIFEST.BYTES_EXCEEDED",
+        "MANIFEST.MISSING_PROVENANCE",
+        "MANIFEST.INVALID_PATH",
+        "MANIFEST.ASSET_FILE_MISSING",
+        "MANIFEST.HASH_MISMATCH",
+        "MANIFEST.DECLARED_BYTES_MISMATCH",
+        "MANIFEST.GROUND_TRUTH_UNRESOLVED",
+        "MANIFEST.DEGRADATION_RECIPE_REQUIRED",
+        "PROCESSOR.OPERATION_UNSUPPORTED",
+        "PROCESSOR.SETTINGS_UNSUPPORTED",
+        "PROCESSOR.UNAVAILABLE",
+        "PROCESSOR.INTERNAL_ERROR",
+        "PROCESSOR.TIMEOUT",
+        "PROCESSOR.CANCELLED",
+        "PROCESSOR.QUALITY_GATE_FAILED",
+        "SAFETY.PIXELS_EXCEEDED",
+        "SAFETY.BYTES_EXCEEDED",
+        "SAFETY.DECOMPRESSION_BOMB",
+        "SAFETY.MEMORY_EXCEEDED",
+        "SAFETY.ORIGINAL_MUTATED",
+        "LICENCE.NOT_APPROVED",
+        "LICENCE.BLOCKED",
+        "LICENCE.REFERENCE_ONLY",
+        "LICENCE.COMPONENT_NOT_REGISTERED",
+        "LICENCE.SUPPLY_CHAIN_INCOMPLETE",
+        "LICENCE.DEPENDENCY_CYCLE",
+        "LICENCE.DEPENDENCY_NOT_REGISTERED",
+        "LICENCE.NO_APPROVED_FALLBACK",
+        "LICENCE.UNKNOWN_DISPOSITION",
+        "RIGHTS.BENCHMARK_USE_NOT_PERMITTED",
+        "RIGHTS.PUBLIC_DEMO_NOT_PERMITTED",
+        "RIGHTS.SENSITIVE_CONTENT",
+        "RIGHTS.PROVENANCE_MISSING"
+      ],
+      "title": "FailureCode",
+      "type": "string"
+    },
+    "FlipSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "kind": {
+          "const": "flip",
+          "default": "flip",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "axis"
+      ],
+      "title": "FlipSettings",
+      "type": "object"
+    },
+    "InspectOnlySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "inspect_only",
+          "default": "inspect_only",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "InspectOnlySettings",
+      "type": "object"
+    },
+    "JpegArtifactRepairSettings": {
+      "additionalProperties": false,
+      "description": "Learned JPEG compression-artifact reduction.\n\n``quality_target`` is the JPEG quality the weights were trained against, in the\nsame sense as ``noise_sigma`` above: a property of the checkpoint, not a knob.",
+      "properties": {
+        "kind": {
+          "const": "jpeg_artifact_repair",
+          "default": "jpeg_artifact_repair",
+          "title": "Kind",
+          "type": "string"
+        },
+        "quality_target": {
+          "default": 10,
+          "enum": [
+            10,
+            20,
+            30,
+            40
+          ],
+          "title": "Quality Target",
+          "type": "integer"
+        }
+      },
+      "title": "JpegArtifactRepairSettings",
+      "type": "object"
+    },
+    "Measurement": {
+      "additionalProperties": false,
+      "description": "Everything observed about one processing call.",
+      "properties": {
+        "cost": {
+          "$ref": "#/$defs/CostBreakdown",
+          "default": {
+            "basis": "not_estimated",
+            "compute": "0",
+            "currency": "USD",
+            "external_provider_fee": "0",
+            "model_load_allocation": "0",
+            "output_bandwidth": "0",
+            "payment_overhead_allocation": "0",
+            "retained_storage_allocation": "0",
+            "temporary_storage": "0",
+            "total": "0"
+          }
+        },
+        "input_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Input Bytes",
+          "type": "integer"
+        },
+        "input_height": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Height"
+        },
+        "input_width": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Width"
+        },
+        "memory": {
+          "$ref": "#/$defs/MemoryUsage",
+          "default": {
+            "measurement_method": "not_measured",
+            "peak_rss_bytes": 0,
+            "peak_vram_bytes": null,
+            "python_peak_delta_bytes": null
+          }
+        },
+        "output_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Output Bytes",
+          "type": "integer"
+        },
+        "output_height": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Height"
+        },
+        "output_width": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Width"
+        },
+        "retry_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Retry Count",
+          "type": "integer"
+        },
+        "tiling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TilingRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How the image was tiled, when it was. None means the question did not arise - a processor that does not tile, or a call that failed before it would have."
+        },
+        "timing": {
+          "$ref": "#/$defs/Timing",
+          "default": {
+            "cold_or_warm": "unknown",
+            "cold_start_ns": 0,
+            "inference_ns": 0,
+            "postprocess_ns": 0,
+            "preprocess_ns": 0,
+            "queue_wait_ns": 0,
+            "total_ns": 0
+          }
+        }
+      },
+      "title": "Measurement",
+      "type": "object"
+    },
+    "MediaType": {
+      "description": "Declared media types. The initial supported set is JPG and PNG.\n\nAdditional members exist so a manifest can *declare* an unsupported type and\nbe rejected with ``MANIFEST.UNSUPPORTED_MEDIA_TYPE`` rather than a generic\nschema error.",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/avif",
+        "image/bmp",
+        "image/gif"
+      ],
+      "title": "MediaType",
+      "type": "string"
+    },
+    "MemoryUsage": {
+      "additionalProperties": false,
+      "description": "Memory observed during a single processing call.\n\nTwo figures, because on a shared process neither is trustworthy alone.\n``peak_rss_bytes`` is a **process-lifetime high-water mark**: it includes\nnative allocations, which dominate image work, but it never decreases. Run an\nAI model and a resize in one process and both report the model's peak - which\nis true of the process and false of the resize.\n\n``python_peak_delta_bytes`` is the mirror image: genuinely per-call, but blind\nto whatever a C library allocated. Read together they bracket the answer. A\nsingle trustworthy per-call number needs process isolation, which is what the\ncontainerised runtime exists to provide.",
+      "properties": {
+        "measurement_method": {
+          "default": "not_measured",
+          "description": "How the peak was obtained, e.g. 'tracemalloc', 'resource.getrusage', 'nvml'.",
+          "title": "Measurement Method",
+          "type": "string"
+        },
+        "peak_rss_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Peak Rss Bytes",
+          "type": "integer"
+        },
+        "peak_vram_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Peak video memory. None means no accelerator was present to measure, which is a different claim from zero VRAM used.",
+          "title": "Peak Vram Bytes"
+        },
+        "python_peak_delta_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Python-attributable peak allocation for this call alone. Unlike peak_rss_bytes this is not contaminated by earlier work in the same process, but it excludes native allocations. None means it was not measured.",
+          "title": "Python Peak Delta Bytes"
+        }
+      },
+      "title": "MemoryUsage",
+      "type": "object"
+    },
+    "NextAction": {
+      "description": "What the caller (ultimately, the customer) can do about a failure.",
+      "enum": [
+        "change_settings",
+        "retry",
+        "alternate_route",
+        "wait",
+        "purchase_capacity",
+        "contact_support",
+        "none"
+      ],
+      "title": "NextAction",
+      "type": "string"
+    },
+    "NoopSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "noop",
+          "default": "noop",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "NoopSettings",
+      "type": "object"
+    },
+    "NormalizedFailure": {
+      "additionalProperties": false,
+      "description": "A machine-actionable failure.\n\n``message`` is safe to log and to show: it must never contain image bytes,\nabsolute paths, credentials or personal metadata (AGENTS.md security rules).\nUse ``pointer`` to locate the offending field and ``context`` for redacted,\nscalar-only detail.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FailureCategory"
+        },
+        "code": {
+          "$ref": "#/$defs/FailureCode"
+        },
+        "context": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "description": "Redacted scalar detail. Never contains bytes, paths or personal data.",
+          "title": "Context",
+          "type": "object"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "next_action": {
+          "$ref": "#/$defs/NextAction"
+        },
+        "pointer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC 6901 JSON Pointer to the offending field, when applicable.",
+          "title": "Pointer"
+        },
+        "remediation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short operator-facing hint on how to resolve the failure.",
+          "title": "Remediation"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "error"
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "retryable",
+        "next_action",
+        "message"
+      ],
+      "title": "NormalizedFailure",
+      "type": "object"
+    },
+    "OperationKind": {
+      "enum": [
+        "noop",
+        "inspect_only",
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "adjust",
+        "sharpen",
+        "denoise",
+        "convert",
+        "super_resolution",
+        "ai_denoise",
+        "jpeg_artifact_repair",
+        "face_restore",
+        "damage_repair",
+        "colourise",
+        "background_remove",
+        "background_replace"
+      ],
+      "title": "OperationKind",
+      "type": "string"
+    },
+    "OutputArtifact": {
+      "additionalProperties": false,
+      "description": "A derivative produced by processing. Never an original.",
+      "properties": {
+        "bytes_written": {
+          "minimum": 0,
+          "title": "Bytes Written",
+          "type": "integer"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "is_preview": {
+          "default": false,
+          "description": "True unless the output explicitly qualifies as a final result. Browser output is a preview unless explicitly eligible (AGENTS.md product invariants).",
+          "title": "Is Preview",
+          "type": "boolean"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "relative_path": {
+          "description": "Path relative to the workspace or output root.",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "relative_path",
+        "sha256",
+        "bytes_written",
+        "media_type"
+      ],
+      "title": "OutputArtifact",
+      "type": "object"
+    },
+    "ProcessingVariant": {
+      "description": "The processing variants from benchmark plan section 7.",
+      "enum": [
+        "original_control",
+        "standard_browser_preview",
+        "standard_server_authoritative",
+        "ai_natural",
+        "ai_strong",
+        "ai_task_specific"
+      ],
+      "title": "ProcessingVariant",
+      "type": "string"
+    },
+    "ResizeSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "default": "lanczos",
+          "enum": [
+            "bicubic",
+            "lanczos",
+            "nearest"
+          ],
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "kind": {
+          "const": "resize",
+          "default": "resize",
+          "title": "Kind",
+          "type": "string"
+        },
+        "preserve_aspect_ratio": {
+          "default": true,
+          "title": "Preserve Aspect Ratio",
+          "type": "boolean"
+        },
+        "scale_denominator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Denominator"
+        },
+        "scale_numerator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Numerator"
+        },
+        "target_height": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Height"
+        },
+        "target_width": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Width"
+        }
+      },
+      "title": "ResizeSettings",
+      "type": "object"
+    },
+    "ResultIdentity": {
+      "additionalProperties": false,
+      "description": "The exact document hashed to produce a ``result_id``.\n\nEvery field here is a **declared input**. Nothing observed appears.",
+      "properties": {
+        "asset_id": {
+          "description": "Stable, human-readable asset identifier, unique within a manifest.",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "effective_settings": {
+          "discriminator": {
+            "mapping": {
+              "adjust": "#/$defs/AdjustSettings",
+              "ai_denoise": "#/$defs/AiDenoiseSettings",
+              "background_remove": "#/$defs/BackgroundRemoveSettings",
+              "background_replace": "#/$defs/BackgroundReplaceSettings",
+              "colourise": "#/$defs/ColouriseSettings",
+              "convert": "#/$defs/ConvertSettings",
+              "crop": "#/$defs/CropSettings",
+              "damage_repair": "#/$defs/DamageRepairSettings",
+              "denoise": "#/$defs/DenoiseSettings",
+              "face_restore": "#/$defs/FaceRestoreSettings",
+              "flip": "#/$defs/FlipSettings",
+              "inspect_only": "#/$defs/InspectOnlySettings",
+              "jpeg_artifact_repair": "#/$defs/JpegArtifactRepairSettings",
+              "noop": "#/$defs/NoopSettings",
+              "resize": "#/$defs/ResizeSettings",
+              "rotate": "#/$defs/RotateSettings",
+              "sharpen": "#/$defs/SharpenSettings",
+              "super_resolution": "#/$defs/SuperResolutionSettings"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NoopSettings"
+            },
+            {
+              "$ref": "#/$defs/InspectOnlySettings"
+            },
+            {
+              "$ref": "#/$defs/ResizeSettings"
+            },
+            {
+              "$ref": "#/$defs/CropSettings"
+            },
+            {
+              "$ref": "#/$defs/RotateSettings"
+            },
+            {
+              "$ref": "#/$defs/FlipSettings"
+            },
+            {
+              "$ref": "#/$defs/AdjustSettings"
+            },
+            {
+              "$ref": "#/$defs/SharpenSettings"
+            },
+            {
+              "$ref": "#/$defs/DenoiseSettings"
+            },
+            {
+              "$ref": "#/$defs/ConvertSettings"
+            },
+            {
+              "$ref": "#/$defs/SuperResolutionSettings"
+            },
+            {
+              "$ref": "#/$defs/FaceRestoreSettings"
+            },
+            {
+              "$ref": "#/$defs/DamageRepairSettings"
+            },
+            {
+              "$ref": "#/$defs/ColouriseSettings"
+            },
+            {
+              "$ref": "#/$defs/AiDenoiseSettings"
+            },
+            {
+              "$ref": "#/$defs/JpegArtifactRepairSettings"
+            },
+            {
+              "$ref": "#/$defs/BackgroundRemoveSettings"
+            },
+            {
+              "$ref": "#/$defs/BackgroundReplaceSettings"
+            }
+          ],
+          "title": "Effective Settings"
+        },
+        "input_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Input Sha256",
+          "type": "string"
+        },
+        "operation_kind": {
+          "$ref": "#/$defs/OperationKind"
+        },
+        "run_id": {
+          "description": "Content-addressed identifier produced by ipw.benchmark_runner.ids.",
+          "pattern": "^(run|res|rep|mfst|pol|rt|ast)_[a-z2-7]{32}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.5.0",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "variant": {
+          "$ref": "#/$defs/ProcessingVariant"
+        }
+      },
+      "required": [
+        "run_id",
+        "asset_id",
+        "input_sha256",
+        "operation_kind",
+        "variant",
+        "effective_settings"
+      ],
+      "title": "ResultIdentity",
+      "type": "object"
+    },
+    "ResultState": {
+      "description": "Per-item batch state (PRODUCT_REQUIREMENTS.md section 13).",
+      "enum": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "skipped"
+      ],
+      "title": "ResultState",
+      "type": "string"
+    },
+    "RotateSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "degrees": {
+          "enum": [
+            90,
+            180,
+            270
+          ],
+          "title": "Degrees",
+          "type": "integer"
+        },
+        "expand": {
+          "default": true,
+          "title": "Expand",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "rotate",
+          "default": "rotate",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "degrees"
+      ],
+      "title": "RotateSettings",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "error",
+        "warning"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SharpenSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_percent": {
+          "default": 50,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Amount Percent",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "sharpen",
+          "default": "sharpen",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius_x100": {
+          "default": 100,
+          "minimum": 1,
+          "title": "Radius X100",
+          "type": "integer"
+        }
+      },
+      "title": "SharpenSettings",
+      "type": "object"
+    },
+    "SuperResolutionSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "super_resolution",
+          "default": "super_resolution",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "natural",
+          "enum": [
+            "natural",
+            "strong"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "native_scale": {
+          "default": true,
+          "description": "True when the model natively produces this scale. Benchmark plan section 7 forbids presenting post-resized output as equivalent to a native scale.",
+          "title": "Native Scale",
+          "type": "boolean"
+        },
+        "scale": {
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Scale",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scale"
+      ],
+      "title": "SuperResolutionSettings",
+      "type": "object"
+    },
+    "ThermalState": {
+      "enum": [
+        "cold",
+        "warm",
+        "unknown"
+      ],
+      "title": "ThermalState",
+      "type": "string"
+    },
+    "TilingRecord": {
+      "additionalProperties": false,
+      "description": "The tiling decision made for one call, and why (POC-012).\n\nRecorded per *result*, not per processor. ``ProcessorIdentity.tile_size`` is\nthe configured budget and feeds the run digest, which is correct - it\ndescribes how the processor was set up. The tile actually used depends on the\nimage, so putting it in the identity would give two images processed by the\nsame processor two different processor identities.\n\nEvery field is an integer or a string. Tiling changes output (POC-006\nmeasured 54% of subpixels differing at tile 32/overlap 8), so this record is\npart of explaining a result, and a float would make it platform-dependent.",
+      "properties": {
+        "budget_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Budget Bytes",
+          "type": "integer"
+        },
+        "columns": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "estimated_peak_bytes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Estimated Peak Bytes",
+          "type": "integer"
+        },
+        "exceeds_budget": {
+          "default": false,
+          "description": "True when the minimum safe tile still exceeds the budget. The job ran above its configured budget, and its memory figures should be read knowing that rather than discovering it later.",
+          "title": "Exceeds Budget",
+          "type": "boolean"
+        },
+        "overlap": {
+          "minimum": 0,
+          "title": "Overlap",
+          "type": "integer"
+        },
+        "reason": {
+          "default": "whole_image",
+          "description": "Why this size was chosen: whole_image, budget, max_tile or floor.",
+          "title": "Reason",
+          "type": "string"
+        },
+        "rows": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "scale": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Scale",
+          "type": "integer"
+        },
+        "tile_count": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Tile Count",
+          "type": "integer"
+        },
+        "tile_size": {
+          "minimum": 1,
+          "title": "Tile Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tile_size",
+        "overlap"
+      ],
+      "title": "TilingRecord",
+      "type": "object"
+    },
+    "Timing": {
+      "additionalProperties": false,
+      "description": "Wall-clock phase durations in integer nanoseconds.",
+      "properties": {
+        "cold_or_warm": {
+          "$ref": "#/$defs/ThermalState",
+          "default": "unknown"
+        },
+        "cold_start_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cold Start Ns",
+          "type": "integer"
+        },
+        "inference_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Inference Ns",
+          "type": "integer"
+        },
+        "postprocess_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Postprocess Ns",
+          "type": "integer"
+        },
+        "preprocess_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Preprocess Ns",
+          "type": "integer"
+        },
+        "queue_wait_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Queue Wait Ns",
+          "type": "integer"
+        },
+        "total_ns": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Ns",
+          "type": "integer"
+        }
+      },
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/asset-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One asset processed by one processor under one operation.",
+  "properties": {
+    "attempt": {
+      "default": 1,
+      "description": "Attempt counter. Deliberately OUTSIDE the identity so a retry reuses the same result_id and cannot duplicate a usage event.",
+      "minimum": 0,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NormalizedFailure"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "identity": {
+      "$ref": "#/$defs/ResultIdentity"
+    },
+    "measurement": {
+      "$ref": "#/$defs/Measurement",
+      "default": {
+        "cost": {
+          "basis": "not_estimated",
+          "compute": "0",
+          "currency": "USD",
+          "external_provider_fee": "0",
+          "model_load_allocation": "0",
+          "output_bandwidth": "0",
+          "payment_overhead_allocation": "0",
+          "retained_storage_allocation": "0",
+          "temporary_storage": "0",
+          "total": "0"
+        },
+        "input_bytes": 0,
+        "input_height": null,
+        "input_width": null,
+        "memory": {
+          "measurement_method": "not_measured",
+          "peak_rss_bytes": 0,
+          "peak_vram_bytes": null,
+          "python_peak_delta_bytes": null
+        },
+        "output_bytes": 0,
+        "output_height": null,
+        "output_width": null,
+        "retry_count": 0,
+        "tiling": null,
+        "timing": {
+          "cold_or_warm": "unknown",
+          "cold_start_ns": 0,
+          "inference_ns": 0,
+          "postprocess_ns": 0,
+          "preprocess_ns": 0,
+          "queue_wait_ns": 0,
+          "total_ns": 0
+        }
+      }
+    },
+    "nondeterministic": {
+      "default": false,
+      "title": "Nondeterministic",
+      "type": "boolean"
+    },
+    "output": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OutputArtifact"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "result_id": {
+      "description": "Content-addressed identifier produced by ipw.benchmark_runner.ids.",
+      "pattern": "^(run|res|rep|mfst|pol|rt|ast)_[a-z2-7]{32}$",
+      "title": "Result Id",
+      "type": "string"
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started At"
+    },
+    "state": {
+      "$ref": "#/$defs/ResultState"
+    }
+  },
+  "required": [
+    "result_id",
+    "identity",
+    "state"
+  ],
+  "title": "AssetResult",
+  "type": "object"
+}

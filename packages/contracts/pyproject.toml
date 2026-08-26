@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipw-contracts"
+version = "0.1.0"
+description = "Versioned benchmark contract for the Image & PDF Workspace."
+requires-python = ">=3.11"
+license = "MIT"
+
+# The source of truth for every document the POC reads or writes. It depends on
+# nothing else in this repository, which is what lets the browser lab (POC-005)
+# consume the generated JSON Schema without depending on the benchmark runner.
+dependencies = ["pydantic>=2.11,<3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ipw*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ipw.contracts" = ["py.typed"]

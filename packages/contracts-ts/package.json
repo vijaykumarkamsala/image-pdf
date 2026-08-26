@@ -1,0 +1,16 @@
+{
+  "name": "ipw-contracts-ts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript view of the benchmark contract, generated from packages/schemas.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "build": "tsc --outDir dist"
+  }
+}

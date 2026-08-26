@@ -1,0 +1,6 @@
+# Generated benchmark reports are build output, not source.
+# Only the committed golden example report is tracked.
+*
+!.gitignore
+!example/
+!example/**

@@ -1,0 +1,465 @@
+{
+  "$defs": {
+    "AssetCategory": {
+      "description": "Evaluation corpus categories from the benchmark plan section 5.1.",
+      "enum": [
+        "modern_mobile_photo",
+        "old_photograph",
+        "face_portrait",
+        "document_screenshot",
+        "product_catalogue",
+        "illustration_anime",
+        "low_light_noisy",
+        "background_removal",
+        "large_professional",
+        "synthetic_fixture"
+      ],
+      "title": "AssetCategory",
+      "type": "string"
+    },
+    "AssetManifestEntry": {
+      "additionalProperties": false,
+      "description": "One benchmark input asset, described by declared metadata only.\n\nPOC-001 never decodes the image. The ``declared_*`` fields are assertions made\nby the manifest author; POC-003 verifies them against the real bytes.",
+      "properties": {
+        "asset_id": {
+          "description": "Stable, human-readable asset identifier, unique within a manifest.",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/AssetCategory"
+        },
+        "declared_bit_depth": {
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Declared Bit Depth",
+          "type": "integer"
+        },
+        "declared_bytes": {
+          "minimum": 1,
+          "title": "Declared Bytes",
+          "type": "integer"
+        },
+        "declared_channels": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Declared Channels",
+          "type": "integer"
+        },
+        "declared_extension": {
+          "pattern": "^\\.[a-z0-9]{2,5}$",
+          "title": "Declared Extension",
+          "type": "string"
+        },
+        "declared_height": {
+          "minimum": 1,
+          "title": "Declared Height",
+          "type": "integer"
+        },
+        "declared_media_type": {
+          "$ref": "#/$defs/MediaType"
+        },
+        "declared_width": {
+          "minimum": 1,
+          "title": "Declared Width",
+          "type": "integer"
+        },
+        "degradation_recipe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DegradationRecipe"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "external_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ground_truth": {
+          "$ref": "#/$defs/GroundTruthRelationship",
+          "default": "unpaired"
+        },
+        "ground_truth_asset_id": {
+          "anyOf": [
+            {
+              "description": "Stable, human-readable asset identifier, unique within a manifest.",
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ground Truth Asset Id"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "relative_path": {
+          "anyOf": [
+            {
+              "description": "POSIX-style path relative to the configured asset root.",
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[^/]",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path relative to the asset root. Mutually exclusive with external_ref.",
+          "title": "Relative Path"
+        },
+        "sha256": {
+          "description": "SHA-256 of the original bytes. The provenance anchor.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id",
+        "category",
+        "sha256",
+        "declared_media_type",
+        "declared_extension",
+        "declared_bytes",
+        "declared_width",
+        "declared_height",
+        "declared_channels",
+        "declared_bit_depth"
+      ],
+      "title": "AssetManifestEntry",
+      "type": "object"
+    },
+    "DegradationRecipe": {
+      "additionalProperties": false,
+      "description": "How a synthetically degraded asset was produced from its ground truth.\n\nBenchmark plan section 5.2: synthetic degradation must vary blur, noise,\ndownsampling, JPEG compression and colour loss, and the recipe must be\nrecorded so the pair is reproducible.",
+      "properties": {
+        "blur_radius_px": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blur Radius Px"
+        },
+        "colour_loss": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Colour Loss"
+        },
+        "downsample_denominator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Downsample Denominator"
+        },
+        "downsample_numerator": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Downsample Numerator"
+        },
+        "jpeg_quality": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Jpeg Quality"
+        },
+        "method": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "noise_sigma_x100": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Noise Sigma X100"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "DegradationRecipe",
+      "type": "object"
+    },
+    "ExternalRef": {
+      "additionalProperties": false,
+      "description": "Reference to an asset held outside Git in protected storage.\n\nLarge or private benchmark assets are never committed. They are referenced by\nid and hash and fetched by an operator-supplied credential at run time.",
+      "properties": {
+        "key": {
+          "description": "Object key within that storage. Never a URL carrying credentials.",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "storage": {
+          "description": "Logical storage name, e.g. 'corpus-private'.",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Storage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "storage",
+        "key"
+      ],
+      "title": "ExternalRef",
+      "type": "object"
+    },
+    "GroundTruthRelationship": {
+      "enum": [
+        "paired",
+        "unpaired",
+        "reference"
+      ],
+      "title": "GroundTruthRelationship",
+      "type": "string"
+    },
+    "MediaType": {
+      "description": "Declared media types. The initial supported set is JPG and PNG.\n\nAdditional members exist so a manifest can *declare* an unsupported type and\nbe rejected with ``MANIFEST.UNSUPPORTED_MEDIA_TYPE`` rather than a generic\nschema error.",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/avif",
+        "image/bmp",
+        "image/gif"
+      ],
+      "title": "MediaType",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "Where an asset came from and what may lawfully be done with it.\n\nMirrors the rights manifest required by benchmark plan section 5.3.",
+      "properties": {
+        "acquired_on": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO-8601 date.",
+          "title": "Acquired On"
+        },
+        "contains_people": {
+          "title": "Contains People",
+          "type": "boolean"
+        },
+        "contains_sensitive_information": {
+          "title": "Contains Sensitive Information",
+          "type": "boolean"
+        },
+        "licence": {
+          "description": "Licence or permission under which it is used.",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Licence",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "owner": {
+          "description": "Rights holder.",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "permitted_benchmark_use": {
+          "description": "May this asset be processed in benchmarks?",
+          "title": "Permitted Benchmark Use",
+          "type": "boolean"
+        },
+        "public_demo_permitted": {
+          "description": "May results appear in a public demo?",
+          "title": "Public Demo Permitted",
+          "type": "boolean"
+        },
+        "source": {
+          "description": "Where the asset came from, e.g. 'generated-in-repo'.",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "owner",
+        "licence",
+        "permitted_benchmark_use",
+        "public_demo_permitted",
+        "contains_people",
+        "contains_sensitive_information"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/asset-manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A curated set of benchmark inputs.\n\nGit stores manifests, hashes and small rights-cleared fixtures. Large or\nprivate assets are referenced through ``external_ref`` and live in protected\nstorage (AGENTS.md; benchmark plan section 15).",
+  "properties": {
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/AssetManifestEntry"
+      },
+      "minItems": 1,
+      "title": "Assets",
+      "type": "array"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "manifest_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.5.0",
+      "description": "Contract version.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "manifest_id",
+    "name",
+    "assets"
+  ],
+  "title": "AssetManifest",
+  "type": "object"
+}

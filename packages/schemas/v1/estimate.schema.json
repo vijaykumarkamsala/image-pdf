@@ -1,0 +1,144 @@
+{
+  "$defs": {
+    "CostBreakdown": {
+      "additionalProperties": false,
+      "description": "Direct job cost components from the benchmark plan section 13.\n\nAll amounts are exact decimal strings. Money is never a float.",
+      "properties": {
+        "basis": {
+          "default": "not_estimated",
+          "description": "How the figures were derived, e.g. 'not_estimated', 'list_price_2026_08'.",
+          "title": "Basis",
+          "type": "string"
+        },
+        "compute": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Compute",
+          "type": "string"
+        },
+        "currency": {
+          "default": "USD",
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        },
+        "external_provider_fee": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "External Provider Fee",
+          "type": "string"
+        },
+        "model_load_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Model Load Allocation",
+          "type": "string"
+        },
+        "output_bandwidth": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Output Bandwidth",
+          "type": "string"
+        },
+        "payment_overhead_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Payment Overhead Allocation",
+          "type": "string"
+        },
+        "retained_storage_allocation": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Retained Storage Allocation",
+          "type": "string"
+        },
+        "temporary_storage": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Temporary Storage",
+          "type": "string"
+        },
+        "total": {
+          "default": "0",
+          "description": "Exact decimal value carried as a string to avoid float drift.",
+          "pattern": "^-?\\d+(\\.\\d+)?$",
+          "title": "Total",
+          "type": "string"
+        }
+      },
+      "title": "CostBreakdown",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/estimate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Result of ``Processor.estimate`` - a prediction, not an observation.",
+  "properties": {
+    "confidence": {
+      "default": "low",
+      "pattern": "^(low|medium|high)$",
+      "title": "Confidence",
+      "type": "string"
+    },
+    "estimated_cost": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CostBreakdown"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "estimated_duration_ns": {
+      "minimum": 0,
+      "title": "Estimated Duration Ns",
+      "type": "integer"
+    },
+    "estimated_output_bytes": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Estimated Output Bytes"
+    },
+    "estimated_peak_memory_bytes": {
+      "minimum": 0,
+      "title": "Estimated Peak Memory Bytes",
+      "type": "integer"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "estimated_duration_ns",
+    "estimated_peak_memory_bytes"
+  ],
+  "title": "Estimate",
+  "type": "object"
+}
