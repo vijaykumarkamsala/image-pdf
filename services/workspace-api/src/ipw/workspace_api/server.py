@@ -148,6 +148,8 @@ class WorkspaceService:
 
     def __init__(self, repo_root: Path | None = None) -> None:
         self.repo_root = repo_root or find_repo_root()
+        self._storage: Any = None
+        self._base_url = ""
         self._register = None
         register_file = register_path(self.repo_root)
         if register_file.is_file():
@@ -348,6 +350,88 @@ class WorkspaceService:
             "tiling": measurement.tiling.model_dump(mode="json") if measurement.tiling else None,
             "notes": outcome.notes,
         }
+
+    # ---------------------------------------------------------- uploading ----
+
+    def storage(self) -> Any:
+        """Where files live for this deployment.
+
+        Built once and kept, because a bucket-backed store holds parsed
+        credentials and rebuilding it per request would re-read the key file
+        every time.
+        """
+        if self._storage is None:
+            from ipw.workspace_api.config import load_settings
+            from ipw.workspace_api.storage import build_storage
+
+            settings = load_settings()
+            self._storage = build_storage(
+                settings.bucket,
+                self.repo_root / "data" / "local-storage",
+                base_url=self._base_url or f"http://{settings.host}:{settings.port}",
+            )
+        return self._storage
+
+    def set_base_url(self, base_url: str) -> None:
+        """Tell the service the address it is actually reachable at.
+
+        Local upload URLs point back at this process, so they have to name the
+        port it *bound*, not the one it was configured with. Those differ
+        whenever the port is chosen at run time - a test on an ephemeral port,
+        or Cloud Run setting PORT - and the symptom is a signed URL that quietly
+        addresses whatever else happens to be listening on the default port.
+        """
+        self._base_url = base_url.rstrip("/")
+        # Rebuilt on next use, because a local store has the old address baked in.
+        self._storage = None
+
+    def sign_upload(self, filename: str, content_type: str) -> dict[str, Any]:
+        """Hand back a URL the browser can PUT a file to, directly.
+
+        This is the whole point of the storage work: a hundred-megabyte image
+        goes straight to the bucket, and the API is told only where it landed.
+        Nothing large travels through here as base64, so the request size limit
+        stops being the thing that caps the professional tier.
+        """
+        from ipw.workspace_api.storage import gcs_object_name
+
+        if not filename.strip():
+            msg = "a filename is required"
+            raise ValueError(msg)
+
+        kind = (content_type or "").strip() or "application/octet-stream"
+        if not _is_allowed_upload_type(kind):
+            msg = (
+                f"{kind} is not a type this workspace accepts. "
+                "Images (JPEG, PNG) and PDF are supported."
+            )
+            raise ValueError(msg)
+
+        store = self.storage()
+        signed = store.signed_upload(gcs_object_name(filename), kind)
+        return {
+            "ok": True,
+            "url": signed.url,
+            "method": signed.method,
+            "object": signed.object_name,
+            "headers": signed.headers,
+            "expires_in": signed.expires_in,
+            "note": (
+                "PUT the file to this URL with exactly these headers, then send the object "
+                "name back - not the file."
+            ),
+        }
+
+    def fetch_object(self, object_name: str) -> bytes:
+        """Read an uploaded object, for the processors to work on."""
+        if not object_name.strip():
+            msg = "an object name is required"
+            raise ValueError(msg)
+        try:
+            return bytes(self.storage().read(object_name))
+        except FileNotFoundError as exc:
+            msg = f"no uploaded file called {object_name!r} was found"
+            raise ValueError(msg) from exc
 
     # ----------------------------------------------------------------- batch --
 
@@ -1682,3 +1766,15 @@ def _batch_note(completed: int, failed: int, noun: str = "image") -> str:
         "their reasons and can be retried on their own - the successful ones do not need "
         "re-running."
     )
+
+
+# What a browser is allowed to put in the bucket.
+#
+# Checked before a URL is signed rather than after the upload: a signed URL is a
+# capability, and handing one out for a type this workspace cannot process means
+# paying to store something nobody can use.
+ALLOWED_UPLOAD_TYPES = frozenset({"image/jpeg", "image/png", "application/pdf"})
+
+
+def _is_allowed_upload_type(content_type: str) -> bool:
+    return content_type.split(";")[0].strip().lower() in ALLOWED_UPLOAD_TYPES

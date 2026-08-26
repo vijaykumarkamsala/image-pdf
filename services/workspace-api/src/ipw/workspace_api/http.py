@@ -20,6 +20,7 @@ from __future__ import annotations
 import http.server
 import json
 import socketserver
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +67,9 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
         if route == "/api/ocr-availability":
             self._json(200, self.service.ocr_availability())
             return
+        if route.startswith("/api/downloads/local/"):
+            self._serve_local_object(urllib.parse.unquote(route[len("/api/downloads/local/") :]))
+            return
         if route == "/api/health":
             # Cloud Run reads this, and so does a person wondering which
             # environment they are actually looking at. A misconfiguration
@@ -82,6 +86,36 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             )
             return
         super().do_GET()
+
+    # ------------------------------------------------------------------ PUT --
+
+    def do_PUT(self) -> None:
+        """Receive a local upload.
+
+        Only exists for LocalStorage. With a bucket configured the browser PUTs
+        to Google and this is never reached - which is the entire point of the
+        signed URL, and the reason this handler must never become the normal
+        path for anything.
+        """
+        route = self.path.split("?")[0]
+        if not route.startswith("/api/uploads/local/"):
+            self._json(404, {"ok": False, "error": f"no route {route}"})
+            return
+
+        object_name = urllib.parse.unquote(route[len("/api/uploads/local/") :])
+        try:
+            body = self._read_body()
+            self.service.storage().write(
+                object_name, body, self.headers.get("Content-Type", "application/octet-stream")
+            )
+        except ValueError as exc:
+            self._json(400, {"ok": False, "error": str(exc)})
+            return
+        except Exception as exc:  # noqa: BLE001 - a server must not die on one request
+            self._json(500, {"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+            return
+
+        self._json(200, {"ok": True, "object": object_name, "bytes": len(body)})
 
     # ----------------------------------------------------------------- POST --
 
@@ -104,6 +138,8 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(200, self._inspect(payload))
             elif route == "/api/process":
                 self._json(200, self._process(payload))
+            elif route == "/api/uploads/sign":
+                self._json(200, self._sign_upload(payload))
             elif route == "/api/batch":
                 self._json(200, self._batch(payload))
             elif route == "/api/batch/pdf":
@@ -142,6 +178,20 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             self._json(400, {"ok": False, "error": str(exc)})
         except Exception as exc:  # noqa: BLE001 - a server must not die on one request
             self._json(500, {"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+
+    def _serve_local_object(self, object_name: str) -> None:
+        """Serve an object LocalStorage holds. The bucket does this in cloud."""
+        try:
+            payload = self.service.storage().read(object_name)
+        except (FileNotFoundError, ValueError):
+            self._json(404, {"ok": False, "error": f"no such object: {object_name}"})
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     # ------------------------------------------------------------- handlers --
 
@@ -263,6 +313,12 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
                 image_bytes=_decode_image(payload.get("image", "")),
                 filename=str(payload.get("filename", "upload")),
             )
+        )
+
+    def _sign_upload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.service.sign_upload(
+            str(payload.get("filename", "")),
+            str(payload.get("content_type", "")),
         )
 
     def _batch(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -438,7 +494,13 @@ def build_server(
         # claim more than is known.
         return handler(*args, directory=str(app_root), **kwargs)
 
-    return _ThreadedServer((host, port), factory)
+    httpd = _ThreadedServer((host, port), factory)
+    # The bound port is only known now: `port=0` means "choose one", and Cloud
+    # Run sets PORT itself. Local upload URLs address this process, so they must
+    # name the port that was actually taken.
+    bound_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host  # noqa: S104
+    service.set_base_url(f"http://{bound_host}:{httpd.server_address[1]}")
+    return httpd
 
 
 def serve(

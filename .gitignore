@@ -99,3 +99,4 @@ apps/browser-lab/public/dist/
 # libvips DLLs for pyvips on Windows. Provenance recorded in .tools/vips-provenance.json
 # and in the licence register. Reinstall with: python tools/install_libvips.py
 .tools/
+data/local-storage/
