@@ -247,3 +247,91 @@ class TestProcessingByObjectName:
         )
         assert status == 400
         assert "no image was supplied" in body["error"]
+
+
+class TestResultDelivery:
+    """How a finished file comes back, and why it depends on size."""
+
+    @staticmethod
+    def _service(tmp_path: Path) -> Any:
+        import os
+
+        from ipw.workspace_api.server import WorkspaceService
+
+        previous = os.environ.get("IPW_BUCKET")
+        os.environ["IPW_BUCKET"] = ""
+        try:
+            service = WorkspaceService(repo_root=tmp_path)
+            service.set_base_url("http://127.0.0.1:1")
+            return service
+        finally:
+            if previous is None:
+                os.environ.pop("IPW_BUCKET", None)
+            else:
+                os.environ["IPW_BUCKET"] = previous
+
+    def test_a_small_result_rides_back_in_the_response(self, tmp_path: Path) -> None:
+        """A thumbnail inline is one round trip instead of three - the browser
+        paints it immediately rather than waiting on a second request."""
+        delivered = self._service(tmp_path).deliver(b"x" * 500, "small.png", "image/png")
+        assert delivered["delivery"] == "inline"
+        assert delivered["image"].startswith("data:image/png;base64,")
+        assert "download_url" not in delivered
+
+    def test_a_large_result_is_stored_and_linked(self, tmp_path: Path) -> None:
+        from ipw.workspace_api.server import INLINE_RESULT_LIMIT
+
+        payload = b"y" * (INLINE_RESULT_LIMIT + 1)
+        delivered = self._service(tmp_path).deliver(payload, "big.png", "image/png")
+
+        assert delivered["delivery"] == "stored"
+        assert delivered["object"].startswith("results/")
+        assert delivered["download_url"]
+
+    def test_a_large_result_carries_no_image_data_at_all(self, tmp_path: Path) -> None:
+        """The point of storing it. Base64 costs a third again on top of a file
+        that was already too big to send."""
+        from ipw.workspace_api.server import INLINE_RESULT_LIMIT
+
+        delivered = self._service(tmp_path).deliver(
+            b"z" * (INLINE_RESULT_LIMIT + 1), "big.png", "image/png"
+        )
+        assert "image" not in delivered
+
+    def test_the_stored_bytes_are_the_result(self, tmp_path: Path) -> None:
+        from ipw.workspace_api.server import INLINE_RESULT_LIMIT
+
+        service = self._service(tmp_path)
+        payload = bytes(range(256)) * (INLINE_RESULT_LIMIT // 256 + 1)
+        delivered = service.deliver(payload, "big.bin", "application/octet-stream")
+        assert service.storage().read(delivered["object"]) == payload
+
+    def test_the_size_is_reported_either_way(self, tmp_path: Path) -> None:
+        """A caller should not have to know which path it took to learn the size."""
+        from ipw.workspace_api.server import INLINE_RESULT_LIMIT
+
+        service = self._service(tmp_path)
+        assert service.deliver(b"a" * 10, "s.png", "image/png")["bytes"] == 10
+
+        big = INLINE_RESULT_LIMIT + 5
+        assert service.deliver(b"b" * big, "l.png", "image/png")["bytes"] == big
+
+    def test_results_are_kept_apart_from_uploads(self, tmp_path: Path) -> None:
+        """So a bucket lifecycle rule can expire one and not the other."""
+        from ipw.workspace_api.server import INLINE_RESULT_LIMIT
+
+        delivered = self._service(tmp_path).deliver(
+            b"c" * (INLINE_RESULT_LIMIT + 1), "x.png", "image/png"
+        )
+        assert delivered["object"].startswith("results/")
+        assert not delivered["object"].startswith("uploads/")
+
+    def test_exactly_at_the_limit_stays_inline(self, tmp_path: Path) -> None:
+        """The boundary is a real decision, so it should be pinned rather than
+        left to whichever comparison somebody wrote."""
+        from ipw.workspace_api.server import INLINE_RESULT_LIMIT
+
+        delivered = self._service(tmp_path).deliver(
+            b"d" * INLINE_RESULT_LIMIT, "edge.png", "image/png"
+        )
+        assert delivered["delivery"] == "inline"

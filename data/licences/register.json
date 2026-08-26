@@ -86,7 +86,7 @@
       "component_id": "cryptography",
       "display_name": "pyca/cryptography",
       "kind": "dependency",
-      "disposition": "review_required",
+      "disposition": "approved",
       "licence_id": "Apache-2.0 OR BSD-3-Clause",
       "official_source": "https://github.com/pyca/cryptography",
       "pinned_version": "50.0.1",
@@ -94,9 +94,10 @@
       "network_disabled_at_inference": true,
       "reviewed_by": "APP-007",
       "reviewed_on": "2026-08-26",
-      "evidence": "PRELIMINARY. pyca/cryptography states dual Apache-2.0 / BSD-3-Clause; the licence text has NOT been read against source. Recorded under D-038 before use. Needed for one thing only: RSA-SHA256 signing of Google Cloud Storage V4 URLs.",
-      "notes": "Chosen over google-cloud-storage, which would have added seventeen packages - protobuf, requests, urllib3 and the rest - to sign a URL. V4 signing is a fixed, deterministic algorithm and is implemented in ipw.workspace_api.storage; a mistake in it produces a signature Google rejects outright, so it fails loudly rather than quietly doing the wrong thing. Verified end to end against a real bucket: a 100 KB PUT and GET round-tripped byte-identical. The trade is roughly 120 lines of our code against sixteen fewer supply-chain entries.",
-      "depends_on": []
+      "evidence": "REVIEWED against the distributed artifact, not the project's README. The wheel installed and pinned here (50.0.1) ships three files under cryptography-50.0.1.dist-info/licenses/: LICENSE states the software is available under the terms of *either* LICENSE.APACHE or LICENSE.BSD; LICENSE.APACHE is the Apache License 2.0 (11,360 characters); LICENSE.BSD is a three-clause BSD notice (1,532 characters). Both were read and searched: neither contains a commercial, non-commercial, research-only, field-of-use, copyleft or GPL term. A permissive dual licence with no restriction on commercial use.",
+      "notes": "Used for one thing: RSA-SHA256 signing of Google Cloud Storage V4 upload URLs. Chosen over google-cloud-storage, which would have added seventeen packages - protobuf, requests, urllib3 and the rest - for the same capability; the signing algorithm itself is in ipw.workspace_api.storage and is verified against a real bucket and against the public key in tests.\n\nNOT separately reviewed: the wheels bundle a statically linked OpenSSL. OpenSSL has been Apache-2.0 since 3.0, which is consistent with this disposition, but that was not verified from the artifact and should be if a formal audit is ever done.",
+      "depends_on": [],
+      "licence_text_url": "https://github.com/pyca/cryptography/blob/main/LICENSE"
     },
     {
       "component_id": "div2k-dataset",

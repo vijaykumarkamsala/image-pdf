@@ -77,6 +77,48 @@ const bytes = (n) =>
 
 /* -------------------------------------------------------------------- load */
 
+/** Put a file where the server can reach it, without sending it to the server.
+ *
+ * The API signs a URL, the browser PUTs to it, and only the object name comes
+ * back here. A hundred-megabyte design sheet never enters the API process, and
+ * the request that later processes it is a couple of hundred bytes whatever the
+ * file weighs.
+ *
+ * If anything about that fails - no bucket, no network to storage, a signature
+ * the browser cannot use - the caller falls back to sending the file inline.
+ * A slower path that works beats a faster one that sometimes does not.
+ */
+async function uploadDirect(file, onProgress) {
+  const signed = await api("/api/uploads/sign", {
+    filename: file.name,
+    content_type: file.type || "application/octet-stream",
+  });
+
+  await new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open(signed.method, signed.url, true);
+    for (const [name, value] of Object.entries(signed.headers || {})) {
+      request.setRequestHeader(name, value);
+    }
+    // fetch() cannot report upload progress; XMLHttpRequest can. For a file
+    // large enough to need this path, a progress bar is the difference between
+    // waiting and wondering whether it has hung.
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    request.onload = () =>
+      request.status >= 200 && request.status < 300
+        ? resolve(null)
+        : reject(new Error(`upload failed (${request.status})`));
+    request.onerror = () => reject(new Error("the upload could not reach storage"));
+    request.send(file);
+  });
+
+  return signed.object;
+}
+
 function readFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -84,6 +126,19 @@ function readFile(file) {
     reader.onerror = () => reject(new Error("could not read that file"));
     reader.readAsDataURL(file);
   });
+}
+
+/** How to tell the API which image to work on.
+ *
+ * Prefers the object name, so nothing large is re-encoded on every edit. Falls
+ * back to the data URL when there is no object - a direct upload that failed,
+ * or a result that came back inline.
+ */
+function sourceRef(extra = {}) {
+  const current = state.current;
+  return current.object
+    ? { object: current.object, ...extra }
+    : { image: current.dataUrl, ...extra };
 }
 
 async function load(file, all = null) {
@@ -110,15 +165,30 @@ async function load(file, all = null) {
 
   busy(true, "Reading…");
   try {
+    // The data URL is for the screen only. What the API is told about is the
+    // object, so the file itself never travels through it.
     const dataUrl = await readFile(file);
-    state.original = { dataUrl, bytes: file.size, name: file.name, type: file.type };
-    state.current = { dataUrl, bytes: file.size, mediaType: file.type };
+
+    let object = null;
+    try {
+      busy(true, "Uploading…");
+      object = await uploadDirect(file, (percent) => busy(true, `Uploading… ${percent}%`));
+    } catch (error) {
+      // Falling back rather than failing: a workspace that cannot reach storage
+      // should still edit a photograph, just with the old size ceiling.
+      console.warn("direct upload unavailable, sending inline:", error.message);
+      object = null;
+    }
+
+    state.original = { dataUrl, object, bytes: file.size, name: file.name, type: file.type };
+    state.current = { dataUrl, object, bytes: file.size, mediaType: file.type };
     state.past = [];
     state.applied = [];
 
+    busy(true, "Reading…");
     // Inspection happens before anything else, exactly as the pipeline does it:
     // headers only, no pixels decoded, so a hostile file is refused cheaply.
-    const facts = await api("/api/inspect", { image: dataUrl, filename: file.name });
+    const facts = await api("/api/inspect", sourceRef({ filename: file.name }));
     state.facts = facts;
 
     if (!facts.accepted) {
@@ -403,12 +473,11 @@ async function apply(kind) {
     : `${op.label}…`);
 
   try {
-    const result = await api("/api/process", {
+    const result = await api("/api/process", sourceRef({
       operation: kind,
       settings: settingsFor(op),
-      image: state.current.dataUrl,
       filename: state.original.name,
-    });
+    }));
 
     if (!result.ok) {
       const f = result.failure || {};
@@ -417,9 +486,18 @@ async function apply(kind) {
     }
 
     state.past.push({ ...state.current });
+    // A result arrives one of two ways. Small ones come back inline; large ones
+    // are written to storage and come back as a link, so the response carries no
+    // image data at all. Both have to be displayable, and both have to be usable
+    // as the input to the next edit - which is why the object name is kept:
+    // chaining five edits should not re-upload the file five times.
     state.current = {
-      dataUrl: result.image, width: result.width, height: result.height,
-      bytes: result.bytes, mediaType: result.media_type,
+      dataUrl: result.image || result.download_url,
+      object: result.object || null,
+      width: result.width,
+      height: result.height,
+      bytes: result.bytes,
+      mediaType: result.media_type,
     };
     state.applied.push({ label: op.label, usedModel: result.processor.used_a_model });
 
@@ -450,7 +528,11 @@ async function exportPdf() {
   busy(true, "Building the PDF…");
   try {
     const result = await api("/api/pdf", {
-      images: [{ image: state.current.dataUrl, filename: state.original.name }],
+      images: [
+        state.current.object
+          ? { object: state.current.object, filename: state.original.name }
+          : { image: state.current.dataUrl, filename: state.original.name },
+      ],
       page_size: $("pdf-size").value || null,
       margin_mm: Number($("pdf-margin").value) || 0,
       title: (state.original.name || "").replace(/\.[^.]+$/, ""),
@@ -484,8 +566,7 @@ async function convertToVector() {
   if (state.busy || !state.current) return;
   busy(true, "Tracing the shapes…");
   try {
-    const result = await api("/api/vectorise", {
-      image: state.current.dataUrl,
+    const result = await api("/api/vectorise", sourceRef({
       filename: state.original.name,
       mode: $("vec-mode").value,
       colours: Number($("vec-colours").value) || 6,
@@ -494,7 +575,7 @@ async function convertToVector() {
       clean: Number($("vec-clean").value) || 0,
       also_pdf: true,
       page_size: $("pdf-size").value || null,
-    });
+    }));
 
     const report = result.report;
     const stem = (state.original.name || "artwork").replace(/\.[^.]+$/, "");

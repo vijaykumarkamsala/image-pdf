@@ -7,8 +7,8 @@ No image was decoded and no processor was executed to produce this report.
 
 | Field | Value |
 | --- | --- |
-| Report id | `rep_uy3spnzzdm6gnwtypejpdulrbw7vyapr` |
-| Identity digest | `87de034d321c7628f7092398f6c674a430e97c0ffc4cb0dec793feca877fe78b` |
+| Report id | `rep_xbfo3qmyblt66j6x44hi467kt2gfnh6t` |
+| Identity digest | `6c4652b799ae8bdefa1be3441545124ff229a259282d2a6b618888fba6b84104` |
 | Contract version | 1.5.0 |
 | Tool version | 0.1.0 |
 | Manifest id | `example-corpus` |
@@ -75,9 +75,9 @@ No image was decoded and no processor was executed to produce this report.
 
 | Disposition | Components |
 | --- | --- |
-| approved | 17 |
+| approved | 18 |
 | non_commercial | 7 |
-| review_required | 7 |
+| review_required | 6 |
 | unknown | 16 |
 
 ### Operations without an approved fallback (D-040)

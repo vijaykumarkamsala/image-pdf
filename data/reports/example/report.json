@@ -23,9 +23,9 @@
     },
     "licences": {
       "by_disposition": {
-        "approved": 17,
+        "approved": 18,
         "non_commercial": 7,
-        "review_required": 7,
+        "review_required": 6,
         "unknown": 16
       },
       "component_count": 47,
@@ -67,8 +67,8 @@
     "validation_failure_codes": [],
     "validation_passed": true
   },
-  "identity_digest": "87de034d321c7628f7092398f6c674a430e97c0ffc4cb0dec793feca877fe78b",
-  "report_id": "rep_uy3spnzzdm6gnwtypejpdulrbw7vyapr",
+  "identity_digest": "6c4652b799ae8bdefa1be3441545124ff229a259282d2a6b618888fba6b84104",
+  "report_id": "rep_xbfo3qmyblt66j6x44hi467kt2gfnh6t",
   "schema_version": "1.5.0",
   "tool_version": "0.1.0"
 }

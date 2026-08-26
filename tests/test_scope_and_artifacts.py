@@ -197,11 +197,23 @@ def _workspace_dependencies(repo_root: Path) -> dict[str, set[str]]:
 #   torch     POC-006  inference runtime for the AI adapter (CPU build)
 #   numpy     POC-006  the array hand-off between Pillow and torch; also the
 #                      arithmetic behind PSNR and SSIM from POC-007
+#   cryptography
+#             APP-007  RSA-SHA256, for signing Google Cloud Storage upload URLs.
+#                      Chosen over google-cloud-storage, which would have added
+#                      seventeen packages - protobuf, requests, urllib3 and the
+#                      rest - to do the same job. See ipw.workspace_api.storage.
 #
 # Growing this set is a deliberate act: add the dependency to a workspace
 # pyproject.toml, record its licence with real evidence, and update this constant
 # in the same change. If this assertion fails, a dependency arrived without that.
-APPROVED_RUNTIME_DEPENDENCIES = {"pydantic", "pillow", "pyvips", "torch", "numpy"}
+APPROVED_RUNTIME_DEPENDENCIES = {
+    "pydantic",
+    "pillow",
+    "pyvips",
+    "torch",
+    "numpy",
+    "cryptography",
+}
 
 
 class TestNoModelIntegration:

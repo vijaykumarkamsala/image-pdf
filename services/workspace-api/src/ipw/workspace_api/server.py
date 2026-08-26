@@ -330,13 +330,9 @@ class WorkspaceService:
         measurement = outcome.measurement
         return {
             "ok": True,
-            "image": "data:"
-            + outcome.output.media_type
-            + ";base64,"
-            + base64.b64encode(payload).decode("ascii"),
+            **self.deliver(payload, request.filename, outcome.output.media_type),
             "width": outcome.output.width,
             "height": outcome.output.height,
-            "bytes": outcome.output.bytes_written,
             "media_type": outcome.output.media_type,
             "sha256": outcome.output.sha256,
             "is_preview": outcome.output.is_preview,
@@ -384,6 +380,45 @@ class WorkspaceService:
         self._base_url = base_url.rstrip("/")
         # Rebuilt on next use, because a local store has the old address baked in.
         self._storage = None
+
+    def deliver(self, data: bytes, filename: str, media_type: str) -> dict[str, Any]:
+        """How a finished file goes back to the browser.
+
+        Small results stay inline. A thumbnail is a few kilobytes, and sending it
+        as a data URL is one round trip instead of three - the browser can paint
+        it immediately rather than waiting on a second request.
+
+        Large ones go to the bucket and come back as a link. Base64 costs a third
+        more bytes than the file, so an upscaled design sheet inline is both a
+        slow response and, past a certain size, one the platform will not carry
+        at all. The threshold is where that stops being a fair trade rather than
+        a hard limit, so behaviour degrades gradually instead of failing at a
+        cliff.
+        """
+        import base64 as _b64
+
+        if len(data) <= INLINE_RESULT_LIMIT:
+            return {
+                "image": f"data:{media_type};base64," + _b64.b64encode(data).decode("ascii"),
+                "bytes": len(data),
+                "delivery": "inline",
+            }
+
+        from ipw.workspace_api.storage import gcs_object_name
+
+        store = self.storage()
+        name = gcs_object_name(filename, prefix="results")
+        store.write(name, data, media_type)
+        return {
+            "object": name,
+            "download_url": store.signed_download(name),
+            "bytes": len(data),
+            "delivery": "stored",
+            "note": (
+                f"{len(data) / 1_000_000:.1f} MB is too large to send inline, so it was "
+                "written to storage. The link above downloads it directly."
+            ),
+        }
 
     def sign_upload(self, filename: str, content_type: str) -> dict[str, Any]:
         """Hand back a URL the browser can PUT a file to, directly.
@@ -1773,6 +1808,15 @@ def _batch_note(completed: int, failed: int, noun: str = "image") -> str:
 # Checked before a URL is signed rather than after the upload: a signed URL is a
 # capability, and handing one out for a type this workspace cannot process means
 # paying to store something nobody can use.
+
+# Below this a result rides back in the response; above it, it goes to storage
+# and the response carries a link.
+#
+# One megabyte is where base64's third-again overhead stops being worth avoiding
+# a round trip. It is deliberately well under any platform request limit, so the
+# behaviour changes gradually as files grow rather than failing at a cliff.
+INLINE_RESULT_LIMIT = 1_000_000
+
 ALLOWED_UPLOAD_TYPES = frozenset({"image/jpeg", "image/png", "application/pdf"})
 
 
