@@ -283,7 +283,7 @@ class WorkspaceService:
         msg = f"{kind.value} has no adapter in this build yet"
         raise ValueError(msg)
 
-    def process(self, request: ProcessRequest) -> dict[str, Any]:
+    def process(self, request: ProcessRequest, *, always_store: bool = False) -> dict[str, Any]:
         """Run one edit and return the result inline.
 
         The variant is derived from the operation's family, never chosen by the
@@ -335,7 +335,12 @@ class WorkspaceService:
         measurement = outcome.measurement
         return {
             "ok": True,
-            **self.deliver(payload, request.filename, outcome.output.media_type),
+            **self.deliver(
+                payload,
+                request.filename,
+                outcome.output.media_type,
+                always_store=always_store,
+            ),
             "width": outcome.output.width,
             "height": outcome.output.height,
             "media_type": outcome.output.media_type,
@@ -386,7 +391,9 @@ class WorkspaceService:
         # Rebuilt on next use, because a local store has the old address baked in.
         self._storage = None
 
-    def deliver(self, data: bytes, filename: str, media_type: str) -> dict[str, Any]:
+    def deliver(
+        self, data: bytes, filename: str, media_type: str, *, always_store: bool = False
+    ) -> dict[str, Any]:
         """How a finished file goes back to the browser.
 
         Small results stay inline. A thumbnail is a few kilobytes, and sending it
@@ -402,7 +409,13 @@ class WorkspaceService:
         """
         import base64 as _b64
 
-        if len(data) <= INLINE_RESULT_LIMIT:
+        # `always_store` is for results that outlive the request that made them.
+        # A queued job's result is written to a jsonb column and read back
+        # minutes later by a different process: an inline data URL there would
+        # put the file itself in Postgres, which is the one thing the schema
+        # refuses (D-079), and would be unreadable to anyone holding only the
+        # job id. A reference works for both.
+        if not always_store and len(data) <= INLINE_RESULT_LIMIT:
             return {
                 "image": f"data:{media_type};base64," + _b64.b64encode(data).decode("ascii"),
                 "bytes": len(data),

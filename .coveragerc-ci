@@ -33,6 +33,20 @@ omit =
     */ai_adapters/rrdbnet.py
     # Chooses and configures a device for inference.
     */ai_adapters/accelerator.py
+    # Drives the Tesseract binary, which a runner does not have.
+    #
+    # Installing it from apt was tried and reverted, and the reason is worth
+    # keeping. The register pins tesseract 5.4.0 and a tessdata file by SHA-256;
+    # Ubuntu ships engine 5.3.4 with tessdata 4.1.0. Recognition differs enough
+    # between them that a test asserting a phrase was found fails on one and
+    # passes on the other - so CI would have been testing *a* Tesseract, not
+    # *the* pinned one. Its failures would not have implied a product bug and
+    # its passes would not have proved the shipped configuration works.
+    #
+    # Fetching the pinned model instead is what the scope guard exists to
+    # prevent. So this is unreachable in CI for the same reason the inference
+    # code is: a deliberate rule, not an oversight.
+    */ipw/pdf/ocr.py
 
 [report]
 exclude_lines =
