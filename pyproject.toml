@@ -110,6 +110,13 @@ module = ["jsonschema.*", "pyvips.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# pg8000 ships no py.typed. It is reached through exactly one function - connect()
+# in ipw.workspace_api.database - and everything above that talks to a Protocol
+# declared in the same module, so the untyped surface is one import wide.
+module = ["pg8000.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 # NumPy ships stubs written in 3.12+ syntax (PEP 695 `type` statements). This
 # project type-checks at 3.11, its declared floor, and analysing a third-party
 # stub we do not control is not what that check is for. Skipping the stub bodies

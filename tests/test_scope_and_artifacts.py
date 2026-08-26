@@ -202,6 +202,13 @@ def _workspace_dependencies(repo_root: Path) -> dict[str, set[str]]:
 #                      Chosen over google-cloud-storage, which would have added
 #                      seventeen packages - protobuf, requests, urllib3 and the
 #                      rest - to do the same job. See ipw.workspace_api.storage.
+#   pg8000    APP-008  the PostgreSQL driver, in pure Python. Preferred over
+#                      psycopg and psycopg2, which are LGPL-3.0 and would put a
+#                      copyleft component in the runtime path of every request.
+#                      It arrives with four transitive packages - scramp,
+#                      asn1crypto, python-dateutil, six - which are recorded in
+#                      the licence register but do not appear here, because this
+#                      constant tracks what a workspace *declares*.
 #
 # Growing this set is a deliberate act: add the dependency to a workspace
 # pyproject.toml, record its licence with real evidence, and update this constant
@@ -213,6 +220,7 @@ APPROVED_RUNTIME_DEPENDENCIES = {
     "torch",
     "numpy",
     "cryptography",
+    "pg8000",
 }
 
 

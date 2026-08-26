@@ -17,6 +17,21 @@
       "evidence": "Licence text at annotated_types-0.7.0.dist-info/licenses/LICENSE. The wheel declares no License-Expression; the shipped text is the MIT licence."
     },
     {
+      "component_id": "asn1crypto",
+      "display_name": "asn1crypto",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://github.com/wbond/asn1crypto",
+      "pinned_version": "1.5.1",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "reviewed_by": "APP-008",
+      "reviewed_on": "2026-08-26",
+      "evidence": "REVIEWED against the installed artifact, not the project README. asn1crypto-1.5.1.dist-info/LICENSE holds a 1,075-character MIT notice (Will Bond, 2015-2022). The text was searched for commercial, non-commercial, research-only, field-of-use, copyleft, GPL, academic, evaluation-only, personal-use and share-alike terms; none is present. Permissive, with no restriction on commercial use.",
+      "notes": "ASN.1 parsing, reached only through scramp during authentication."
+    },
+    {
       "component_id": "basicsr",
       "display_name": "BasicSR (executed dependency)",
       "kind": "dependency",
@@ -244,6 +259,25 @@
       "evidence": "Named in Real-ESRGAN docs/Training.md as part of the training set. Released alongside the SFTGAN paper with no explicit licence grant located."
     },
     {
+      "component_id": "pg8000",
+      "display_name": "pg8000",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "BSD-3-Clause",
+      "official_source": "https://github.com/tlocke/pg8000",
+      "pinned_version": "1.31.5",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "scramp",
+        "python-dateutil"
+      ],
+      "reviewed_by": "APP-008",
+      "reviewed_on": "2026-08-26",
+      "evidence": "REVIEWED against the installed artifact, not the project README. pg8000-1.31.5.dist-info/licenses/LICENSE holds a 1,541-character BSD 3-Clause notice (Mathieu Fenniak and contributors) - the standard three clauses, retention of copyright, no endorsement, and the usual warranty disclaimer. The text was searched for commercial, non-commercial, research-only, field-of-use, copyleft, GPL, academic, evaluation-only, personal-use and share-alike terms; none is present. Permissive, with no restriction on commercial use.",
+      "notes": "The PostgreSQL driver. Chosen over psycopg and psycopg2, which are LGPL-3.0 and would put a copyleft component in the runtime path of every request - a Gate A question nobody wants to answer later. pg8000 speaks the wire protocol in pure Python, so there is no build step and no compiled artifact to review for the Cloud Run image.\n\nIt is not free of cost: it brings four transitive packages (scramp, asn1crypto, python-dateutil, six) where psycopg brings none. All four are recorded here and all four are permissive. That trade - four MIT/BSD/Apache packages against one LGPL one - is the reason for the choice, and it is written down so it is not silently revisited."
+    },
+    {
       "component_id": "pillow",
       "display_name": "Pillow (Python Imaging Library fork)",
       "kind": "code",
@@ -313,6 +347,24 @@
       "reviewed_by": "POC-004",
       "reviewed_on": "2026-08-24",
       "evidence": "Installed metadata declares License-Expression: MIT; text at pydantic_core-2.46.4.dist-info/licenses/LICENSE."
+    },
+    {
+      "component_id": "python-dateutil",
+      "display_name": "python-dateutil",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "Apache-2.0 OR BSD-3-Clause",
+      "official_source": "https://github.com/dateutil/dateutil",
+      "pinned_version": "2.9.0.post0",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "six"
+      ],
+      "reviewed_by": "APP-008",
+      "reviewed_on": "2026-08-26",
+      "evidence": "REVIEWED against the installed artifact, not the project README. python_dateutil-2.9.0.post0.dist-info/LICENSE holds a 2,888-character dual notice: the file states the work is 'licensed under the Apache License, Version 2.0' and also made available under the three-clause BSD licence, and both classifiers are declared. A dual permissive licence; either limb is acceptable. The text was searched for commercial, non-commercial, research-only, field-of-use, copyleft, GPL, academic, evaluation-only, personal-use and share-alike terms; none is present. Permissive, with no restriction on commercial use.",
+      "notes": "Reached through pg8000, which uses it to parse PostgreSQL interval and timestamp values. Not imported directly by any ipw module - the repository's own determinism rules govern how time is obtained, and this package is not a way around them."
     },
     {
       "component_id": "pyvips",
@@ -439,6 +491,39 @@
       ],
       "weight_format": "not_applicable",
       "evidence": "PRELIMINARY observation transcribed from docs/TECHNICAL_POC_AND_MODEL_BENCHMARK_PLAN.md sections 6 and 19. NOT a review: no licence text has been read and no version pinned. Must be replaced by a real review before POC-006."
+    },
+    {
+      "component_id": "scramp",
+      "display_name": "scramp",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT-0",
+      "official_source": "https://github.com/tlocke/scramp",
+      "pinned_version": "1.4.17",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "asn1crypto"
+      ],
+      "reviewed_by": "APP-008",
+      "reviewed_on": "2026-08-26",
+      "evidence": "REVIEWED against the installed artifact, not the project README. scramp-1.4.17.dist-info/licenses/LICENSE holds a 906-character MIT No Attribution (MIT-0) notice; the metadata declares License: MIT No Attribution. The text was searched for commercial, non-commercial, research-only, field-of-use, copyleft, GPL, academic, evaluation-only, personal-use and share-alike terms; none is present. Permissive, with no restriction on commercial use.",
+      "notes": "SCRAM-SHA-256 authentication for pg8000. This is the component that lets the driver authenticate to Cloud SQL without sending a password in the clear, so it is on the security path, not merely a transitive convenience."
+    },
+    {
+      "component_id": "six",
+      "display_name": "six",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://github.com/benjaminp/six",
+      "pinned_version": "1.17.0",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "reviewed_by": "APP-008",
+      "reviewed_on": "2026-08-26",
+      "evidence": "REVIEWED against the installed artifact, not the project README. six-1.17.0.dist-info/LICENSE holds a 1,066-character MIT notice (Benjamin Peterson, 2010-2024). The text was searched for commercial, non-commercial, research-only, field-of-use, copyleft, GPL, academic, evaluation-only, personal-use and share-alike terms; none is present. Permissive, with no restriction on commercial use.",
+      "notes": "A Python 2/3 compatibility shim, required by python-dateutil and by nothing else here. Recorded rather than waved through: a package that executes is a package that is reviewed, however small."
     },
     {
       "component_id": "standard-libvips",

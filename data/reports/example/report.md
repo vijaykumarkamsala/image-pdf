@@ -7,8 +7,8 @@ No image was decoded and no processor was executed to produce this report.
 
 | Field | Value |
 | --- | --- |
-| Report id | `rep_xbfo3qmyblt66j6x44hi467kt2gfnh6t` |
-| Identity digest | `6c4652b799ae8bdefa1be3441545124ff229a259282d2a6b618888fba6b84104` |
+| Report id | `rep_yieoppeb4lzfvorcmfl6l5u3tuss5ngr` |
+| Identity digest | `7780955f58433ca7127b9ca2037d876d9d7d8fe9cd8f66bd6bb3bc61759d571f` |
 | Contract version | 1.5.0 |
 | Tool version | 0.1.0 |
 | Manifest id | `example-corpus` |
@@ -66,7 +66,7 @@ No image was decoded and no processor was executed to produce this report.
 | Field | Value |
 | --- | --- |
 | Register | licence-register |
-| Components | 47 |
+| Components | 52 |
 | Reference-only | 3 |
 | Failing Gate B (supply chain) | 13 |
 | Gates evaluated for purpose | internal_benchmark |
@@ -75,7 +75,7 @@ No image was decoded and no processor was executed to produce this report.
 
 | Disposition | Components |
 | --- | --- |
-| approved | 18 |
+| approved | 23 |
 | non_commercial | 7 |
 | review_required | 6 |
 | unknown | 16 |

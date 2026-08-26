@@ -23,12 +23,12 @@
     },
     "licences": {
       "by_disposition": {
-        "approved": 18,
+        "approved": 23,
         "non_commercial": 7,
         "review_required": 6,
         "unknown": 16
       },
-      "component_count": 47,
+      "component_count": 52,
       "components_with_supply_chain_gaps": 13,
       "operations_without_approved_fallback": [
         "ai_denoise",
@@ -67,8 +67,8 @@
     "validation_failure_codes": [],
     "validation_passed": true
   },
-  "identity_digest": "6c4652b799ae8bdefa1be3441545124ff229a259282d2a6b618888fba6b84104",
-  "report_id": "rep_xbfo3qmyblt66j6x44hi467kt2gfnh6t",
+  "identity_digest": "7780955f58433ca7127b9ca2037d876d9d7d8fe9cd8f66bd6bb3bc61759d571f",
+  "report_id": "rep_yieoppeb4lzfvorcmfl6l5u3tuss5ngr",
   "schema_version": "1.5.0",
   "tool_version": "0.1.0"
 }

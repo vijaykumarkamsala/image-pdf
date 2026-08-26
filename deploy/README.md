@@ -114,6 +114,45 @@ that was tested.
 
 ---
 
+## Database migrations
+
+**You never run these by hand.** The service applies them itself at startup,
+before it binds its port, and prints what it did:
+
+```
+  applied 1 migration(s): 0001_initial.sql
+```
+
+or, on every subsequent deploy, `database schema is up to date`.
+
+Running them on deploy rather than from somebody's laptop is the whole point: a
+schema applied by whoever remembered is a schema that differs between
+environments, and dev → staging → production only predicts anything if all three
+were built the same way.
+
+**If a migration fails, the service does not start.** That is deliberate. Cloud
+Run keeps the previous revision serving and reports the failure, which is a far
+better outcome than a new revision taking traffic against a half-migrated
+schema and failing one request in five for reasons nobody can reproduce.
+
+Adding one: create `services/workspace-api/src/ipw/workspace_api/migrations/`
+`NNNN_lower_snake.sql`, numbered above every existing file. Three things are
+refused at boot, each with the file named:
+
+- editing a migration that has already been applied — its digest is recorded, so
+  the database and the repository cannot silently disagree;
+- two files sharing a number, which would make the schema depend on merge order;
+- a new file numbered *below* one already applied.
+
+There is no down-migration, on purpose. Rolling back a schema change on a live
+database is an incident with a human in it, not a generated script that has
+never been executed. Roll forward.
+
+Several instances booting together is safe: the first takes a Postgres advisory
+lock, the rest wait and then find nothing to do.
+
+---
+
 ## Checking a deployment
 
 ```bash
@@ -135,10 +174,12 @@ Written down so nobody assumes otherwise:
 - **The image has never been built.** Docker is not installed on the development
   machine, so the Dockerfile is statically verified, not proven. The first
   `gcloud builds submit` is the real test.
-- **Nothing persists.** `IPW_DATABASE_URL` is read and reported; no schema,
-  migrations or queries exist yet.
-- **Files still travel as base64 inside JSON**, so Cloud Run's request size
-  limit applies. Signed uploads are the next piece of work and are what make the
-  100 MB professional tier possible.
+- **No migration has ever run against a real Postgres.** The schema and the
+  runner exist and are tested, but the tests check the SQL as text, not as valid
+  Postgres - a fake connection records what would have been executed. The first
+  `gcloud run deploy` against the dev database is the real test, which is exactly
+  why migrations go dev, then staging, then production, in that order.
+- **Nothing writes to the database yet.** The tables are created; no route reads
+  or writes a row. Persistence arrives with the job queue and with accounts.
 - **There is no authentication.** Everything above assumes IAM is the only thing
   between this service and the internet.

@@ -57,8 +57,17 @@ ast_serialize==0.8.0
 colorama==0.4.6
 librt==0.15.0
 
-# Signing for Google Cloud Storage upload URLs. Recorded in the licence
-# register as review_required (D-038).
+# Signing for Google Cloud Storage upload URLs. Approved in the licence
+# register on evidence read from the installed artifact (D-038).
 cryptography==50.0.1
 cffi==2.1.1
 pycparser==3.0
+
+# PostgreSQL driver and its transitive set, all permissive and all recorded.
+# scramp is on the security path - it is what authenticates over SCRAM-SHA-256
+# rather than sending a password in the clear - so it is pinned, not floated.
+pg8000==1.31.5
+scramp==1.4.17
+asn1crypto==1.5.1
+python-dateutil==2.9.0.post0
+six==1.17.0

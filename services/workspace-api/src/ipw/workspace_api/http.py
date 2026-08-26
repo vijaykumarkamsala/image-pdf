@@ -26,6 +26,7 @@ from typing import Any
 
 from ipw.contracts.operation import OperationKind
 from ipw.workspace_api.config import Settings, load_settings
+from ipw.workspace_api.database import connect, migrate
 from ipw.workspace_api.server import ProcessRequest, WorkspaceService, print_plan
 
 __all__ = [
@@ -536,10 +537,46 @@ def serve(
     chosen = settings or load_settings()
     bind_port = port if port is not None else chosen.port
 
+    # Before the socket, not after. A container that is accepting requests
+    # against a schema it has not finished migrating answers some of them
+    # wrongly, and Cloud Run will happily send it traffic the moment it binds.
+    database_lines = prepare_database(chosen)
+
     with build_server(app_root, bind_port, repo_root, host=chosen.host) as httpd:
         for line in startup_banner(app_root, chosen, httpd.server_address[1]):
             print(line)
+        for line in database_lines:
+            print(line)
         httpd.serve_forever()
+
+
+def prepare_database(settings: Settings) -> list[str]:
+    """Bring the schema up to date, and say what happened.
+
+    **Migrations run on deploy, never by hand.** A schema applied by whoever
+    remembered is a schema that differs between environments, and the whole
+    point of dev, staging and production in that order is that the third one
+    holds no surprises. Running them here means the same code path applies them
+    everywhere, in the same order, with the same checks.
+
+    **A failure here stops the service starting.** That is deliberate and it is
+    the less obvious half. Serving against a half-migrated schema turns one loud
+    failure at boot - which Cloud Run reports, and which leaves the previous
+    revision serving - into a scatter of confusing failures at request time,
+    against a revision that has already taken traffic.
+    """
+    if not settings.database_url:
+        return ["  no database configured - nothing will persist"]
+
+    connection = connect(settings.database_url)
+    try:
+        applied = migrate(connection)
+    finally:
+        connection.close()
+
+    if not applied:
+        return ["  database schema is up to date"]
+    return [f"  applied {len(applied)} migration(s): {', '.join(applied)}"]
 
 
 def startup_banner(app_root: Path, settings: Settings, port: int) -> list[str]:
