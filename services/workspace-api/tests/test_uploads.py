@@ -156,3 +156,94 @@ class TestTheRoundTrip:
         with pytest.raises(urllib.error.HTTPError) as caught:
             urllib.request.urlopen(request, timeout=60)  # noqa: S310
         assert caught.value.code == 400
+
+
+class TestProcessingByObjectName:
+    """The reason all of this exists: bytes stop travelling through the API."""
+
+    @staticmethod
+    def _uploaded_png(base: str, width: int = 400, height: int = 300) -> str:
+        import io
+
+        from PIL import Image
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (width, height), (180, 90, 60)).save(buffer, format="PNG")
+        raw = buffer.getvalue()
+
+        _, signed = post(
+            base, "/api/uploads/sign", {"filename": "sheet.png", "content_type": "image/png"}
+        )
+        request = urllib.request.Request(  # noqa: S310 - localhost
+            signed["url"], data=raw, method="PUT", headers=signed["headers"]
+        )
+        with urllib.request.urlopen(request, timeout=60):  # noqa: S310
+            pass
+        return str(signed["object"])
+
+    def test_an_image_can_be_processed_by_name_alone(self, base_url: str) -> None:
+        name = self._uploaded_png(base_url, 800, 600)
+        status, body = post(
+            base_url,
+            "/api/process",
+            {"object": name, "operation": "resize", "settings": {"target_width": 200}},
+        )
+        assert status == 200, body
+        assert body["width"] == 200
+
+    def test_the_request_carries_no_image_data(self, base_url: str) -> None:
+        """A name is a few dozen bytes whatever the file weighs. This is the
+        whole point: the request size stops depending on the upload size."""
+        name = self._uploaded_png(base_url, 1200, 900)
+        body = {"object": name, "operation": "resize", "settings": {"target_width": 100}}
+        assert len(json.dumps(body)) < 300
+
+    def test_inspection_works_by_name_too(self, base_url: str) -> None:
+        name = self._uploaded_png(base_url, 640, 480)
+        status, body = post(base_url, "/api/inspect", {"object": name, "filename": "sheet.png"})
+        assert status == 200, body
+        assert (body["width"], body["height"]) == (640, 480)
+
+    def test_inline_base64_still_works(self, base_url: str) -> None:
+        """Both paths are supported: small inline cases did not have to change."""
+        import base64
+        import io
+
+        from PIL import Image
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (64, 48), (10, 20, 30)).save(buffer, format="PNG")
+        inline = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+        status, body = post(
+            base_url,
+            "/api/process",
+            {"image": inline, "operation": "resize", "settings": {"target_width": 32}},
+        )
+        assert status == 200, body
+        assert body["width"] == 32
+
+    def test_an_object_that_does_not_exist_is_the_callers_mistake(self, base_url: str) -> None:
+        """It arrived as a 500 with a raw HTTPError until both storage backends
+        were made to fail the same way - our fault, reported for their error."""
+        status, body = post(
+            base_url,
+            "/api/process",
+            {
+                "object": "uploads/nothing/here.png",
+                "operation": "resize",
+                "settings": {"target_width": 10},
+            },
+        )
+        assert status == 400
+        assert "no uploaded file" in body["error"]
+
+    def test_an_empty_object_name_falls_back_to_inline(self, base_url: str) -> None:
+        """An absent name must not be read as 'fetch the object called nothing'."""
+        status, body = post(
+            base_url,
+            "/api/process",
+            {"object": "", "image": "", "operation": "resize", "settings": {"target_width": 10}},
+        )
+        assert status == 400
+        assert "no image was supplied" in body["error"]

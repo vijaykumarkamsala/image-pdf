@@ -7,8 +7,8 @@ No image was decoded and no processor was executed to produce this report.
 
 | Field | Value |
 | --- | --- |
-| Report id | `rep_izr77p3bkyocey2b6mtz6mgh2twinjcm` |
-| Identity digest | `93c9f2f12b0ed5e49745ef625ae26970ab5949aa4f7055a01e0f082af9929588` |
+| Report id | `rep_uy3spnzzdm6gnwtypejpdulrbw7vyapr` |
+| Identity digest | `87de034d321c7628f7092398f6c674a430e97c0ffc4cb0dec793feca877fe78b` |
 | Contract version | 1.5.0 |
 | Tool version | 0.1.0 |
 | Manifest id | `example-corpus` |
@@ -66,7 +66,7 @@ No image was decoded and no processor was executed to produce this report.
 | Field | Value |
 | --- | --- |
 | Register | licence-register |
-| Components | 46 |
+| Components | 47 |
 | Reference-only | 3 |
 | Failing Gate B (supply chain) | 13 |
 | Gates evaluated for purpose | internal_benchmark |
@@ -77,7 +77,7 @@ No image was decoded and no processor was executed to produce this report.
 | --- | --- |
 | approved | 17 |
 | non_commercial | 7 |
-| review_required | 6 |
+| review_required | 7 |
 | unknown | 16 |
 
 ### Operations without an approved fallback (D-040)

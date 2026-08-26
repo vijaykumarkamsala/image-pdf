@@ -169,7 +169,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             elif route == "/api/pdf/number":
                 self._json(200, self._pdf_number(payload))
             elif route == "/api/pdf/coverage":
-                self._json(200, self.service.pdf_coverage(_decode_pdf(payload.get("pdf", ""))))
+                self._json(200, self.service.pdf_coverage(self._file_bytes(payload, "pdf")))
             else:
                 self._json(404, {"ok": False, "error": f"no route {route}"})
         except ValueError as exc:
@@ -193,21 +193,39 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def _file_bytes(self, payload: dict[str, Any], inline_key: str) -> bytes:
+        """The file this request is about, however it arrived.
+
+        Two ways in, and the object name is preferred whenever it is present. A
+        large file uploaded straight to the bucket never passes through this
+        process; base64 in the body remains for small inline cases and for
+        anything that has not been migrated yet.
+
+        Having one resolver rather than a decision per route is what stops half
+        the API supporting direct upload and the other half quietly not.
+        """
+        name = str(payload.get("object", "")).strip()
+        if name:
+            return self.service.fetch_object(name)
+
+        decode = _decode_pdf if inline_key == "pdf" else _decode_image
+        return decode(str(payload.get(inline_key, "")))
+
     # ------------------------------------------------------------- handlers --
 
     def _inspect(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.service.inspect(
-            _decode_image(payload.get("image", "")), str(payload.get("filename", "upload"))
+            self._file_bytes(payload, "image"), str(payload.get("filename", "upload"))
         )
 
     def _pdf_inspect(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.service.pdf_inspect(
-            _decode_pdf(payload.get("pdf", "")), str(payload.get("filename", "document.pdf"))
+            self._file_bytes(payload, "pdf"), str(payload.get("filename", "document.pdf"))
         )
 
     def _pdf_number(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.service.pdf_number(
-            _decode_pdf(payload.get("pdf", "")),
+            self._file_bytes(payload, "pdf"),
             prefix=str(payload.get("prefix", "")),
             start=int(payload.get("start", 1) or 1),
             digits=int(payload.get("digits", 6) or 0),
@@ -217,7 +235,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
 
     def _pdf_ocr(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.service.pdf_ocr(
-            _decode_pdf(payload.get("pdf", "")),
+            self._file_bytes(payload, "pdf"),
             pages=_int_list(payload.get("pages")),
             language=str(payload.get("language", "eng") or "eng"),
         )
@@ -225,7 +243,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
     def _pdf_compress(self, payload: dict[str, Any]) -> dict[str, Any]:
         target = payload.get("target_mb")
         return self.service.pdf_compress(
-            _decode_pdf(payload.get("pdf", "")),
+            self._file_bytes(payload, "pdf"),
             target_mb=None if target in (None, "") else float(target),
             max_dpi=int(payload.get("max_dpi", 200) or 200),
             quality=int(payload.get("quality", 82) or 82),
@@ -234,7 +252,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
 
     def _pdf_search(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.service.pdf_search(
-            _decode_pdf(payload.get("pdf", "")),
+            self._file_bytes(payload, "pdf"),
             str(payload.get("phrase", "")),
             ignore_case=bool(payload.get("ignore_case", True)),
         )
@@ -249,7 +267,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             msg = "areas must be a list"
             raise ValueError(msg)
         return self.service.pdf_redact(
-            _decode_pdf(payload.get("pdf", "")),
+            self._file_bytes(payload, "pdf"),
             phrases=[str(phrase) for phrase in phrases],
             areas=areas,
             pages=_int_list(payload.get("pages")),
@@ -259,7 +277,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
     def _vectorise(self, payload: dict[str, Any]) -> dict[str, Any]:
         threshold = payload.get("threshold")
         return self.service.vectorise(
-            _decode_image(payload.get("image", "")),
+            self._file_bytes(payload, "image"),
             str(payload.get("filename", "image")),
             mode=str(payload.get("mode", "flat_colour")),
             colours=int(payload.get("colours", 8) or 8),
@@ -275,7 +293,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
 
     def _pdf_thumbnails(self, payload: dict[str, Any]) -> dict[str, Any]:
         edge = max(64, min(int(payload.get("edge", 240) or 240), 480))
-        return self.service.pdf_thumbnails(_decode_pdf(payload.get("pdf", "")), edge)
+        return self.service.pdf_thumbnails(self._file_bytes(payload, "pdf"), edge)
 
     def _pdf_edit(self, payload: dict[str, Any]) -> dict[str, Any]:
         raw = payload.get("documents") or []
@@ -283,7 +301,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             msg = "documents must be a list"
             raise ValueError(msg)
         documents = [
-            (_decode_pdf(str(item.get("pdf", ""))), str(item.get("filename", "document.pdf")))
+            (self._file_bytes(item, "pdf"), str(item.get("filename", "document.pdf")))
             for item in raw
             if isinstance(item, dict)
         ]
@@ -310,7 +328,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             ProcessRequest(
                 kind=kind,
                 settings=dict(payload.get("settings") or {}),
-                image_bytes=_decode_image(payload.get("image", "")),
+                image_bytes=self._file_bytes(payload, "image"),
                 filename=str(payload.get("filename", "upload")),
             )
         )
@@ -372,7 +390,7 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             msg = "images must be a list"
             raise ValueError(msg)
         images = [
-            (_decode_image(str(item.get("image", ""))), str(item.get("filename", "image")))
+            (self._file_bytes(item, "image"), str(item.get("filename", "image")))
             for item in entries
         ]
         return self.service.to_pdf(

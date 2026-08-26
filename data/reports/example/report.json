@@ -25,10 +25,10 @@
       "by_disposition": {
         "approved": 17,
         "non_commercial": 7,
-        "review_required": 6,
+        "review_required": 7,
         "unknown": 16
       },
-      "component_count": 46,
+      "component_count": 47,
       "components_with_supply_chain_gaps": 13,
       "operations_without_approved_fallback": [
         "ai_denoise",
@@ -67,8 +67,8 @@
     "validation_failure_codes": [],
     "validation_passed": true
   },
-  "identity_digest": "93c9f2f12b0ed5e49745ef625ae26970ab5949aa4f7055a01e0f082af9929588",
-  "report_id": "rep_izr77p3bkyocey2b6mtz6mgh2twinjcm",
+  "identity_digest": "87de034d321c7628f7092398f6c674a430e97c0ffc4cb0dec793feca877fe78b",
+  "report_id": "rep_uy3spnzzdm6gnwtypejpdulrbw7vyapr",
   "schema_version": "1.5.0",
   "tool_version": "0.1.0"
 }

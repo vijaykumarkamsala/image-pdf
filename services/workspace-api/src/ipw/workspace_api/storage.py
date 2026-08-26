@@ -329,12 +329,23 @@ class GcsStorage:
         )
 
     def read(self, object_name: str) -> bytes:
+        import urllib.error
         import urllib.request
 
         url = self.signed_download(object_name)
-        with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310
-            payload: bytes = response.read()
-            return payload
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310
+                payload: bytes = response.read()
+                return payload
+        except urllib.error.HTTPError as exc:
+            # Both backends must fail the same way. Letting urllib's exception
+            # escape made "that upload does not exist" arrive as a 500 carrying
+            # a raw HTTPError - the caller's mistake reported as our fault, and
+            # with none of the information they needed.
+            if exc.code == 404:
+                message = f"no such object: {object_name}"
+                raise FileNotFoundError(message) from exc
+            raise
 
     def write(self, object_name: str, data: bytes, content_type: str) -> str:
         import urllib.request

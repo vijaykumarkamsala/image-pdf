@@ -256,3 +256,127 @@ class TestChoosingABackend:
 
         with pytest.raises(ValueError, match="bucket name is required"):
             GcsStorage("")
+
+
+class TestCloudStorageWithoutTheCloud:
+    """The bucket-backed paths, with the transport replaced.
+
+    The suite forbids reaching off this machine, and CI has no credentials - but
+    the logic worth testing is not the network. It is what happens to the bytes,
+    and how a missing object is reported.
+    """
+
+    @staticmethod
+    def _store() -> object:
+        from ipw.workspace_api.storage import GcsStorage
+
+        return GcsStorage("a-bucket", a_service_account())
+
+    def test_a_missing_object_is_reported_the_same_way_as_a_local_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """This arrived as a 500 carrying a raw HTTPError until both backends
+        were made to fail alike - the caller's mistake reported as ours."""
+        import urllib.error
+        import urllib.request
+
+        def not_found(*_args: object, **_kwargs: object) -> object:
+            raise urllib.error.HTTPError("url", 404, "Not Found", {}, None)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(urllib.request, "urlopen", not_found)
+        with pytest.raises(FileNotFoundError, match="no such object"):
+            self._store().read("uploads/gone.png")  # type: ignore[attr-defined]
+
+    def test_another_error_is_not_disguised_as_a_missing_file(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 403 means the credentials are wrong. Reporting it as 'not found'
+        would send somebody looking for a file that is right there."""
+        import urllib.error
+        import urllib.request
+
+        def forbidden(*_args: object, **_kwargs: object) -> object:
+            raise urllib.error.HTTPError("url", 403, "Forbidden", {}, None)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(urllib.request, "urlopen", forbidden)
+        with pytest.raises(urllib.error.HTTPError):
+            self._store().read("uploads/there.png")  # type: ignore[attr-defined]
+
+    def test_reading_returns_exactly_what_the_bucket_returned(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import urllib.request
+
+        class Response:
+            def read(self) -> bytes:
+                return b"the object bytes"
+
+            def __enter__(self) -> Response:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+        monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: Response())
+        assert self._store().read("uploads/x.png") == b"the object bytes"  # type: ignore[attr-defined]
+
+    def test_writing_sends_a_put_with_the_signed_headers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import urllib.request
+
+        seen: dict[str, object] = {}
+
+        class Response:
+            def __enter__(self) -> Response:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+        def capture(request: object, **_kwargs: object) -> object:
+            seen["method"] = request.get_method()  # type: ignore[attr-defined]
+            seen["data"] = request.data  # type: ignore[attr-defined]
+            seen["type"] = request.get_header("Content-type")  # type: ignore[attr-defined]
+            return Response()
+
+        monkeypatch.setattr(urllib.request, "urlopen", capture)
+        name = self._store().write("uploads/x.png", b"payload", "image/png")  # type: ignore[attr-defined]
+
+        assert name == "uploads/x.png"
+        assert seen["method"] == "PUT"
+        assert seen["data"] == b"payload"
+        assert seen["type"] == "image/png"
+
+    def test_exists_answers_false_rather_than_raising(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import urllib.error
+        import urllib.request
+
+        def gone(*_args: object, **_kwargs: object) -> object:
+            raise urllib.error.HTTPError("url", 404, "Not Found", {}, None)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(urllib.request, "urlopen", gone)
+        assert self._store().exists("uploads/gone.png") is False  # type: ignore[attr-defined]
+
+    def test_signing_without_credentials_says_what_is_missing(self) -> None:
+        """On Cloud Run the metadata service supplies these; locally a key file
+        does. Neither being present should say so, not fail obscurely."""
+        from ipw.workspace_api.storage import GcsStorage
+
+        store = GcsStorage("a-bucket", None)
+        store.account = None
+        with pytest.raises(RuntimeError, match="GOOGLE_APPLICATION_CREDENTIALS"):
+            store.signed_upload("uploads/x.png", "image/png")
+
+
+class TestLocalStorageHousekeeping:
+    def test_clearing_removes_everything_it_held(self, tmp_path: Path) -> None:
+        store = LocalStorage(tmp_path)
+        store.write("a.bin", b"x", "application/octet-stream")
+        store.write("nested/b.bin", b"y", "application/octet-stream")
+        store.clear()
+        assert store.exists("a.bin") is False
+        assert store.exists("nested/b.bin") is False
+        assert tmp_path.is_dir(), "the root itself should survive"
