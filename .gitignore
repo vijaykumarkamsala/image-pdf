@@ -18,6 +18,19 @@ coverage.xml
 # ---- Secrets ------------------------------------------------------------------
 .env
 .env.*
+# The template is the one env file that must be committed: it documents the
+# shape without carrying a single real value.
+!.env.example
+
+# Google service-account keys. On Cloud Run none of these should exist - the
+# metadata service provides credentials - so a file matching these names is
+# either a local development convenience or a mistake, and neither belongs in
+# a repository other people can read.
+*-sa.json
+*-key.json
+service-account*.json
+gcp-*.json
+application_default_credentials.json
 *.pem
 *.key
 secrets.json

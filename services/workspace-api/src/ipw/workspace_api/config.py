@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
-__all__ = ["ENVIRONMENTS", "Settings", "load_settings"]
+__all__ = ["ENVIRONMENTS", "Settings", "load_dotenv", "load_settings"]
 
 ENVIRONMENTS = ("local", "dev", "staging", "production")
 
@@ -86,6 +87,39 @@ class Settings:
         return notes
 
 
+def load_dotenv(path: Path | None = None) -> dict[str, str]:
+    """Read a `.env` file, if there is one. Twelve lines instead of a dependency.
+
+    A parser this small is worth writing rather than installing: `python-dotenv`
+    would be a permanent licence-register entry to read `KEY=value`, and every
+    dependency here is one somebody has to review.
+
+    **The real environment always wins.** A `.env` is a convenience for local
+    work; a variable set by Cloud Run, by CI or by a shell is a deliberate act,
+    and a file on disk quietly overriding it is how an afternoon disappears.
+    """
+    source = path or Path(".env")
+    if not source.is_file():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw in source.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        # Quotes are stripped so a value with spaces can be written naturally,
+        # but nothing else is interpreted - no escapes, no substitution. A
+        # config file that evaluates things is a config file that surprises.
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if key:
+            values[key] = value
+    return values
+
+
 def load_settings(source: dict[str, str] | None = None) -> Settings:
     """Read the settings from the environment.
 
@@ -93,7 +127,10 @@ def load_settings(source: dict[str, str] | None = None) -> Settings:
     will not be told otherwise. Everything else is prefixed, so a variable meant
     for this service cannot be set by accident.
     """
-    env = source if source is not None else dict(os.environ)
+    # A `.env` fills gaps; it never overrides something already set. The order
+    # of the merge is the whole rule: os.environ last means a variable set by
+    # Cloud Run, by CI or by a shell always wins over a file on disk.
+    env = source if source is not None else {**load_dotenv(), **os.environ}
 
     host = env.get("IPW_HOST", "127.0.0.1").strip() or "127.0.0.1"
     acknowledged = _truthy(env.get("IPW_ALLOW_PUBLIC_BIND", ""))

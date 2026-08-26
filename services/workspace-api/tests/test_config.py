@@ -17,9 +17,11 @@ decision has to be made in the open.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from ipw.workspace_api.config import ENVIRONMENTS, Settings, load_settings
+from ipw.workspace_api.config import ENVIRONMENTS, Settings, load_dotenv, load_settings
 
 
 class TestDefaults:
@@ -186,3 +188,46 @@ class TestStartupBanner:
         """Cloud Run picks the port; printing the requested one would mislead
         anybody debugging a deploy that landed somewhere else."""
         assert ":51234/" in self._banner({}, port=51234)[0]
+
+
+class TestDotenv:
+    """A `.env` is a local convenience, and must never outrank a real variable."""
+
+    @staticmethod
+    def _write(tmp_path: Path, text: str) -> Path:
+        path = tmp_path / ".env"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_a_missing_file_is_not_an_error(self, tmp_path: Path) -> None:
+        assert load_dotenv(tmp_path / "absent.env") == {}
+
+    def test_it_reads_plain_pairs(self, tmp_path: Path) -> None:
+        path = self._write(tmp_path, "IPW_ENV=dev\nIPW_BUCKET=my-bucket\n")
+        assert load_dotenv(path) == {"IPW_ENV": "dev", "IPW_BUCKET": "my-bucket"}
+
+    def test_comments_and_blank_lines_are_skipped(self, tmp_path: Path) -> None:
+        path = self._write(tmp_path, "# a note\n\nIPW_ENV=dev\n\n# another\n")
+        assert load_dotenv(path) == {"IPW_ENV": "dev"}
+
+    def test_quotes_are_stripped_but_nothing_is_interpreted(self, tmp_path: Path) -> None:
+        """A config file that evaluates things is a config file that surprises."""
+        path = self._write(tmp_path, 'A="spaced value"\nB=$NOT_SUBSTITUTED\n')
+        assert load_dotenv(path) == {"A": "spaced value", "B": "$NOT_SUBSTITUTED"}
+
+    def test_a_malformed_line_is_ignored_rather_than_fatal(self, tmp_path: Path) -> None:
+        """One bad line should not stop a service starting."""
+        path = self._write(tmp_path, "GOOD=yes\nMALFORMED\nALSO_GOOD=yes\n")
+        assert load_dotenv(path) == {"GOOD": "yes", "ALSO_GOOD": "yes"}
+
+    def test_a_password_containing_an_equals_sign_survives(self, tmp_path: Path) -> None:
+        """Splitting on every `=` would silently truncate a database password."""
+        path = self._write(tmp_path, "IPW_DATABASE_URL=postgresql://u:p==w@h:5432/db\n")
+        assert load_dotenv(path)["IPW_DATABASE_URL"] == "postgresql://u:p==w@h:5432/db"
+
+    def test_the_real_environment_wins_over_the_file(self, tmp_path: Path) -> None:
+        """A file on disk quietly overriding a deliberately set variable is how an
+        afternoon disappears."""
+        from_file = load_dotenv(self._write(tmp_path, "IPW_ENV=dev\n"))
+        merged = {**from_file, "IPW_ENV": "production"}
+        assert load_settings(merged).environment == "production"
