@@ -69,7 +69,38 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libvips
 
+      # OCR is a shipped feature - it is what makes a scan searchable - and
+      # without the binary every test that exercises it skips. A suite that
+      # skips twenty tests reports success for a feature it never ran, which is
+      # worse than reporting nothing. Installed on both platforms because the
+      # coordinate handling differs between them and the inverted-page bug this
+      # suite checks for is exactly the kind that appears on one and not the
+      # other.
+      #
+      # The pinned 5.4.0 build in the licence register stays the production
+      # artifact; the distribution package here is for exercising the code, and
+      # the assertions are structural - word counts, box geometry, confidence -
+      # rather than exact strings, so a minor version difference does not flake.
+      - name: Install Tesseract (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y tesseract-ocr
+
+      # choco puts it at C:/Program Files/Tesseract-OCR, which is already in the
+      # fallback list `locate()` searches when a fresh install has not reached
+      # the running shell's PATH.
+      - name: Install Tesseract (Windows)
+        if: runner.os == 'Windows'
+        run: choco install tesseract --no-progress -y
+
       - name: Run every gate
+        # A runner has no model weights and is forbidden from fetching any, so
+        # the inference code cannot execute here. .coveragerc-ci omits exactly
+        # those modules and nothing else, holding this environment to the same
+        # standard for the code it can actually run. See the file for why the
+        # alternatives - lowering the threshold, or `pragma: no cover` - are both
+        # worse.
+        env:
+          COVERAGE_RCFILE: .coveragerc-ci
         run: python tools/check.py
 
   scope-guard:

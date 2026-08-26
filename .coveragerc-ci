@@ -1,0 +1,44 @@
+# Coverage configuration for continuous integration only.
+#
+# The local run uses the settings in pyproject.toml and measures everything,
+# because a development machine has the model weights installed. A CI runner
+# does not, and must not: tests/test_scope_and_artifacts.py forbids fetching a
+# model, a weight or a provider during a run, and conftest.py blocks the network
+# outright. Those are deliberate rules that make a benchmark reproducible.
+#
+# So the inference code is unreachable in CI *by policy*, not by neglect. Left in
+# the measurement it drags the total from 90% to 88% and the gate fails for a
+# reason nobody can fix without breaking a rule the project chose. The two wrong
+# answers are lowering the threshold - which would then hide real regressions
+# everywhere else - and marking the code `pragma: no cover`, which would hide it
+# locally too, where it genuinely is tested.
+#
+# The right answer is that each environment is held to the same standard for the
+# code it can actually execute. The omissions below are exactly the modules whose
+# uncovered lines are model loading and inference, and nothing else. They are
+# still measured locally, where they run.
+#
+# If this list ever needs to grow, that is a signal worth arguing about rather
+# than a line to add quietly.
+
+[run]
+branch = True
+source = ipw
+omit =
+    */ai_adapters/vendor/*
+    # Loads a 67 MB checkpoint and runs a network. No weights on a runner.
+    */ai_adapters/real_esrgan.py
+    */ai_adapters/swinir.py
+    # The network definitions the two adapters build and execute.
+    */ai_adapters/rrdbnet.py
+    # Chooses and configures a device for inference.
+    */ai_adapters/accelerator.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    class .*\(Protocol\)
+    class .*\(Protocol\[
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:

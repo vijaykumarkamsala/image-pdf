@@ -192,27 +192,17 @@ class RealEsrganAdapter:
         return load_torch() is not None and self.weights_path.is_file()
 
     def supports(self, operation: Operation, settings: AnySettings) -> Support:
-        if load_torch() is None:
-            return Support.no(
-                failure(
-                    FailureCode.PROCESSOR_UNAVAILABLE,
-                    FailureCategory.PROCESSOR_UNAVAILABLE,
-                    "the torch runtime is not installed on this host",
-                    next_action=NextAction.ALTERNATE_ROUTE,
-                    remediation="Install the pinned runtime, or route to a host that has it.",
-                )
-            )
-        if not self.weights_path.is_file():
-            return Support.no(
-                failure(
-                    FailureCode.PROCESSOR_UNAVAILABLE,
-                    FailureCategory.PROCESSOR_UNAVAILABLE,
-                    f"pinned weights {self.spec.filename} are not installed",
-                    next_action=NextAction.ALTERNATE_ROUTE,
-                    remediation="Run: python tools/install_model_weights.py",
-                    component_id=self.spec.component_id,
-                )
-            )
+        # **Capability before availability, deliberately.**
+        #
+        # "This adapter performs super-resolution only" is true whether or not
+        # weights are installed; "the weights are missing" is true only until
+        # somebody installs them. Reporting the temporary problem first tells a
+        # caller asking for a resize to download sixty megabytes of model that
+        # will still refuse them - and tells a router that an adapter which can
+        # never do the job might be able to later.
+        #
+        # It also makes the permanent facts testable without a model present,
+        # which is how a clean CI runner found this ordering in the first place.
         if operation.kind is not OperationKind.SUPER_RESOLUTION:
             return Support.no(
                 failure(
@@ -246,6 +236,27 @@ class RealEsrganAdapter:
                     "model and must never be reported as one (benchmark plan section 7).",
                     native_scale=self.scale,
                     requested_scale=settings.scale,
+                )
+            )
+        if load_torch() is None:
+            return Support.no(
+                failure(
+                    FailureCode.PROCESSOR_UNAVAILABLE,
+                    FailureCategory.PROCESSOR_UNAVAILABLE,
+                    "the torch runtime is not installed on this host",
+                    next_action=NextAction.ALTERNATE_ROUTE,
+                    remediation="Install the pinned runtime, or route to a host that has it.",
+                )
+            )
+        if not self.weights_path.is_file():
+            return Support.no(
+                failure(
+                    FailureCode.PROCESSOR_UNAVAILABLE,
+                    FailureCategory.PROCESSOR_UNAVAILABLE,
+                    f"pinned weights {self.spec.filename} are not installed",
+                    next_action=NextAction.ALTERNATE_ROUTE,
+                    remediation="Run: python tools/install_model_weights.py",
+                    component_id=self.spec.component_id,
                 )
             )
         return Support.ok()
