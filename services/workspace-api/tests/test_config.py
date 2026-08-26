@@ -139,3 +139,50 @@ class TestSettingsShape:
         settings = Settings()
         with pytest.raises(Exception, match="cannot assign"):
             settings.host = "0.0.0.0"  # type: ignore[misc]
+
+
+class TestStartupBanner:
+    """What the service announces before it accepts anything.
+
+    A deployment that is quietly listening to the world should say so on its
+    first lines of output, not in a setting somebody has to go and read.
+    """
+
+    @staticmethod
+    def _banner(env: dict[str, str], port: int = 8080) -> list[str]:
+        from pathlib import Path
+
+        from ipw.workspace_api.http import startup_banner
+
+        return startup_banner(Path("/srv/apps/workspace"), load_settings(env), port)
+
+    def test_it_names_the_environment(self) -> None:
+        """Which environment you are looking at is the first thing to know."""
+        assert "[staging]" in self._banner({"IPW_ENV": "staging"})[0]
+
+    def test_a_local_run_says_nothing_alarming(self) -> None:
+        lines = self._banner({})
+        assert not any("WARNING" in line for line in lines)
+
+    def test_a_public_bind_announces_itself(self) -> None:
+        lines = self._banner({"IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": "1"})
+        assert any("NO AUTHENTICATION" in line for line in lines)
+
+    def test_a_wildcard_is_shown_as_a_usable_address_and_as_itself(self) -> None:
+        """Nobody can type 0.0.0.0 into a browser, so the link shows loopback -
+        but the real bind is printed too, so the convenience hides nothing."""
+        lines = self._banner({"IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": "1"})
+        assert "http://127.0.0.1:8080/" in lines[0]
+        assert any("listening on 0.0.0.0:8080" in line for line in lines)
+
+    def test_a_misconfigured_production_lists_every_problem(self) -> None:
+        lines = self._banner(
+            {"IPW_ENV": "production", "IPW_HOST": "0.0.0.0", "IPW_ALLOW_PUBLIC_BIND": "1"}
+        )
+        warnings = [line for line in lines if "WARNING" in line]
+        assert len(warnings) == 3, warnings
+
+    def test_the_port_shown_is_the_one_actually_bound(self) -> None:
+        """Cloud Run picks the port; printing the requested one would mislead
+        anybody debugging a deploy that landed somewhere else."""
+        assert ":51234/" in self._banner({}, port=51234)[0]

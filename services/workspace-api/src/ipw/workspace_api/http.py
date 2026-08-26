@@ -27,7 +27,13 @@ from ipw.contracts.operation import OperationKind
 from ipw.workspace_api.config import Settings, load_settings
 from ipw.workspace_api.server import ProcessRequest, WorkspaceService, print_plan
 
-__all__ = ["MAX_UPLOAD_BYTES", "WorkspaceHandler", "build_server", "serve"]
+__all__ = [
+    "MAX_UPLOAD_BYTES",
+    "WorkspaceHandler",
+    "build_server",
+    "serve",
+    "startup_banner",
+]
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
 """Refuse a body larger than this before reading it into memory.
@@ -451,12 +457,29 @@ def serve(
     bind_port = port if port is not None else chosen.port
 
     with build_server(app_root, bind_port, repo_root, host=chosen.host) as httpd:
-        actual = httpd.server_address[1]
-        shown = "127.0.0.1" if chosen.host in ("0.0.0.0", "::") else chosen.host  # noqa: S104
-        print(f"Image & PDF Workspace [{chosen.environment}]  ->  http://{shown}:{actual}/")
-        print(f"  serving {app_root}")
-        print(f"  listening on {chosen.host}:{actual}")
-        for warning in chosen.warnings():
-            print(f"  WARNING: {warning}")
-        print("  Ctrl+C to stop")
+        for line in startup_banner(app_root, chosen, httpd.server_address[1]):
+            print(line)
         httpd.serve_forever()
+
+
+def startup_banner(app_root: Path, settings: Settings, port: int) -> list[str]:
+    """What the service says about itself before it starts accepting requests.
+
+    A separate function because it is the only part of `serve` worth testing and
+    `serve` never returns. It is also useful on its own: a deployment check can
+    ask what this configuration *would* announce without binding anything.
+    """
+    # A wildcard bind has no address anyone can type. Showing loopback is the
+    # honest translation for the reader, and the real bind is on the next line
+    # so nothing is hidden by the convenience.
+    wildcards = ("0.0.0.0", "::")  # noqa: S104 - compared against, never bound here
+    shown = "127.0.0.1" if settings.host in wildcards else settings.host
+
+    lines = [
+        f"Image & PDF Workspace [{settings.environment}]  ->  http://{shown}:{port}/",
+        f"  serving {app_root}",
+        f"  listening on {settings.host}:{port}",
+    ]
+    lines.extend(f"  WARNING: {warning}" for warning in settings.warnings())
+    lines.append("  Ctrl+C to stop")
+    return lines
