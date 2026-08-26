@@ -41,22 +41,51 @@ export function isPdf(file) {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
 }
 
+/** How to name the document in a request.
+ *
+ * The object where there is one, so a two-hundred-page bundle is not re-encoded
+ * and re-sent for every operation applied to it. A data URL otherwise - a
+ * document produced by an earlier edit, or an upload that could not reach
+ * storage.
+ *
+ * Spread into a request rather than returning the whole body, so each caller
+ * keeps its own arguments visible where it makes them.
+ */
+function documentRef() {
+  const document_ = state.documents[0];
+  return document_.object
+    ? { object: document_.object, filename: document_.name }
+    : { pdf: document_.dataUrl, filename: document_.name };
+}
+
 /* --------------------------------------------------------------- opening -- */
 
 export async function open(file) {
   deps.busy(true, "Reading the document…");
   try {
     const dataUrl = await readAsDataUrl(file);
-    const report = await deps.api("/api/pdf/inspect", {
-      pdf: dataUrl,
-      filename: file.name,
-    });
+
+    // Straight to storage, so a large bundle never travels through the API.
+    let object = null;
+    try {
+      object = await deps.uploadDirect(file, (percent) =>
+        deps.busy(true, `Uploading… ${percent}%`)
+      );
+    } catch (error) {
+      console.warn("direct upload unavailable, sending inline:", error.message);
+    }
+
+    deps.busy(true, "Reading the document…");
+    const report = await deps.api(
+      "/api/pdf/inspect",
+      object ? { object, filename: file.name } : { pdf: dataUrl, filename: file.name }
+    );
     if (!report.ok) {
       deps.toast(report.error, true);
       return false;
     }
 
-    state.documents = [{ dataUrl, name: file.name, bytes: file.size }];
+    state.documents = [{ dataUrl, object, name: file.name, bytes: file.size }];
     state.report = report;
     state.selection = new Set();
     state.order = null;
@@ -95,7 +124,7 @@ async function loadThumbnails() {
   // judged there too, where the page dimensions are known.
   try {
     const result = await deps.api("/api/pdf/thumbnails", {
-      pdf: state.documents[0].dataUrl,
+      ...documentRef(),
       edge: 240,
     });
     state.thumbs = new Map(
@@ -353,7 +382,7 @@ async function run(operation, extra = {}) {
     const dropped = operation === "merge" ? 0 : state.documents.length - 1;
 
     const name = renamed(state.documents[0].name, operation);
-    state.documents = [{ dataUrl: result.pdf, name, bytes: result.bytes }];
+    state.documents = [{ dataUrl: result.pdf, object: null, name, bytes: result.bytes }];
     state.report = await deps.api("/api/pdf/inspect", { pdf: result.pdf, filename: name });
     state.selection = new Set();
     state.order = null;
@@ -454,7 +483,7 @@ async function refreshOcrStatus() {
 async function readTheWords() {
   deps.busy(true, "Reading the words on the scan…");
   try {
-    const result = await deps.api("/api/pdf/ocr", { pdf: state.documents[0].dataUrl });
+    const result = await deps.api("/api/pdf/ocr", documentRef());
     const box = $("pdf-ocr-result");
 
     if (!result.available) {
@@ -476,7 +505,7 @@ async function readTheWords() {
     });
 
     const name = renamed(state.documents[0].name, "searchable");
-    state.documents = [{ dataUrl: result.pdf, name, bytes: result.bytes }];
+    state.documents = [{ dataUrl: result.pdf, object: null, name, bytes: result.bytes }];
     state.report = await deps.api("/api/pdf/inspect", { pdf: result.pdf, filename: name });
     state.selection = new Set();
     state.order = null;
@@ -517,7 +546,7 @@ async function compressToFit() {
   deps.busy(true, "Reducing the file…");
   try {
     const result = await deps.api("/api/pdf/compress", {
-      pdf: state.documents[0].dataUrl,
+      ...documentRef(),
       target_mb: target,
       keep_private_data: state.keepPrivate,
     });
@@ -529,7 +558,7 @@ async function compressToFit() {
     });
 
     const name = renamed(state.documents[0].name, "smaller");
-    state.documents = [{ dataUrl: result.pdf, name, bytes: result.bytes }];
+    state.documents = [{ dataUrl: result.pdf, object: null, name, bytes: result.bytes }];
     state.report = await deps.api("/api/pdf/inspect", { pdf: result.pdf, filename: name });
     state.selection = new Set();
     state.order = null;
@@ -579,7 +608,7 @@ async function findText() {
   deps.busy(true, "Searching the document…");
   try {
     const result = await deps.api("/api/pdf/search", {
-      pdf: state.documents[0].dataUrl,
+      ...documentRef(),
       phrase,
       ignore_case: !$("pdf-redact-case").checked,
     });
@@ -607,7 +636,7 @@ async function removeText() {
   deps.busy(true, "Removing the text…");
   try {
     const result = await deps.api("/api/pdf/redact", {
-      pdf: state.documents[0].dataUrl,
+      ...documentRef(),
       phrases: [phrase],
       ignore_case: !$("pdf-redact-case").checked,
     });
@@ -627,7 +656,7 @@ async function removeText() {
     });
 
     const name = renamed(state.documents[0].name, "redact");
-    state.documents = [{ dataUrl: result.pdf, name, bytes: result.bytes }];
+    state.documents = [{ dataUrl: result.pdf, object: null, name, bytes: result.bytes }];
     state.report = await deps.api("/api/pdf/inspect", { pdf: result.pdf, filename: name });
     state.selection = new Set();
     state.order = null;

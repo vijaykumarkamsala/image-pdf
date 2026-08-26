@@ -684,12 +684,13 @@ function wire() {
 }
 
 async function start() {
-  pdfView.init({ api, toast, busy, bytes });
+  pdfView.init({ api, toast, busy, bytes, uploadDirect });
   batchView.init({
     api,
     toast,
     busy,
     bytes,
+    uploadDirect,
     catalogue: () => state.catalogue,
     findOperation,
     control,

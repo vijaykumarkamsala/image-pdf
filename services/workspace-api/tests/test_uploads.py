@@ -335,3 +335,99 @@ class TestResultDelivery:
             b"d" * INLINE_RESULT_LIMIT, "edge.png", "image/png"
         )
         assert delivered["delivery"] == "inline"
+
+
+class TestObjectCache:
+    """Fetching the same upload for every operation is the obvious waste.
+
+    Measured on a 20.9 MB document: the fetch took 15.1 seconds and the split it
+    fed took 0.15. Somebody applying four operations should pay for one download,
+    not four - and that ratio never reaches zero, because an object store is
+    always a network away.
+    """
+
+    @staticmethod
+    def _service(tmp_path: Path) -> Any:
+        import os
+
+        from ipw.workspace_api.server import WorkspaceService
+
+        previous = os.environ.get("IPW_BUCKET")
+        os.environ["IPW_BUCKET"] = ""
+        try:
+            service = WorkspaceService(repo_root=tmp_path)
+            service.set_base_url("http://127.0.0.1:1")
+            return service
+        finally:
+            if previous is None:
+                os.environ.pop("IPW_BUCKET", None)
+            else:
+                os.environ["IPW_BUCKET"] = previous
+
+    def test_a_second_fetch_does_not_touch_storage(self, tmp_path: Path) -> None:
+        service = self._service(tmp_path)
+        service.storage().write("uploads/a.bin", b"payload", "application/octet-stream")
+
+        assert service.fetch_object("uploads/a.bin") == b"payload"
+
+        # Remove it from underneath: a cached read must not need it any more.
+        (tmp_path / "data" / "local-storage" / "uploads" / "a.bin").unlink()
+        assert service.fetch_object("uploads/a.bin") == b"payload"
+
+    def test_a_missing_object_is_still_an_error(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="no uploaded file"):
+            self._service(tmp_path).fetch_object("uploads/never-existed.bin")
+
+    def test_an_empty_name_is_refused(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="object name is required"):
+            self._service(tmp_path).fetch_object("   ")
+
+    def test_the_cache_stays_within_its_budget(self, tmp_path: Path) -> None:
+        """A long session must not grow without limit. Cloud Run instances are
+        memory-limited, so this is a budget rather than a store."""
+        from ipw.workspace_api.server import OBJECT_CACHE_BYTES
+
+        service = self._service(tmp_path)
+        chunk = OBJECT_CACHE_BYTES // 4 + 1
+
+        for index in range(6):
+            name = f"uploads/{index}.bin"
+            service.storage().write(name, b"\0" * chunk, "application/octet-stream")
+            service.fetch_object(name)
+
+        held = sum(len(value) for value in service._object_cache.values())  # noqa: SLF001
+        assert held <= OBJECT_CACHE_BYTES
+
+    def test_the_least_recently_used_goes_first(self, tmp_path: Path) -> None:
+        from ipw.workspace_api.server import OBJECT_CACHE_BYTES
+
+        service = self._service(tmp_path)
+        chunk = OBJECT_CACHE_BYTES // 3 + 1
+
+        for name in ("uploads/first.bin", "uploads/second.bin"):
+            service.storage().write(name, b"\0" * chunk, "application/octet-stream")
+            service.fetch_object(name)
+
+        # Touch the first so the second becomes the oldest.
+        service.fetch_object("uploads/first.bin")
+
+        service.storage().write("uploads/third.bin", b"\0" * chunk, "application/octet-stream")
+        service.fetch_object("uploads/third.bin")
+
+        held = service._object_cache  # noqa: SLF001
+        assert "uploads/first.bin" in held
+        assert "uploads/second.bin" not in held
+
+    def test_something_larger_than_the_budget_is_not_cached(self, tmp_path: Path) -> None:
+        """Emptying the cache to hold one file nothing can share it with would
+        make every other operation slower to make one no faster."""
+        from ipw.workspace_api.server import OBJECT_CACHE_BYTES
+
+        service = self._service(tmp_path)
+        service.storage().write("uploads/small.bin", b"x" * 100, "application/octet-stream")
+        service.fetch_object("uploads/small.bin")
+
+        service._remember("uploads/huge.bin", b"\0" * (OBJECT_CACHE_BYTES + 1))  # noqa: SLF001
+
+        assert "uploads/huge.bin" not in service._object_cache  # noqa: SLF001
+        assert "uploads/small.bin" in service._object_cache  # noqa: SLF001

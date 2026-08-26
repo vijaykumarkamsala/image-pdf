@@ -27,6 +27,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import tempfile
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -149,6 +151,9 @@ class WorkspaceService:
     def __init__(self, repo_root: Path | None = None) -> None:
         self.repo_root = repo_root or find_repo_root()
         self._storage: Any = None
+        # Threaded server, so the cache is touched from several requests at once.
+        self._object_cache: OrderedDict[str, bytes] = OrderedDict()
+        self._cache_lock = threading.Lock()
         self._base_url = ""
         self._register = None
         register_file = register_path(self.repo_root)
@@ -458,15 +463,53 @@ class WorkspaceService:
         }
 
     def fetch_object(self, object_name: str) -> bytes:
-        """Read an uploaded object, for the processors to work on."""
+        """Read an uploaded object, for the processors to work on.
+
+        **Kept in memory once fetched.** Somebody applying four operations to one
+        document should not pay to download it four times: measured on a 20.9 MB
+        file, the fetch took 15.1 seconds and the split it fed took 0.15. That
+        ratio is worst on a slow connection and never zero, because an object
+        store is always a network away.
+
+        The cache is bounded and least-recently-used, so a long session cannot
+        grow without limit, and it is keyed by object name - which is unique per
+        upload, so an entry can never be stale.
+        """
         if not object_name.strip():
             msg = "an object name is required"
             raise ValueError(msg)
+
+        with self._cache_lock:
+            cached = self._object_cache.get(object_name)
+            if cached is not None:
+                self._object_cache.move_to_end(object_name)
+                return cached
+
         try:
-            return bytes(self.storage().read(object_name))
+            payload = bytes(self.storage().read(object_name))
         except FileNotFoundError as exc:
             msg = f"no uploaded file called {object_name!r} was found"
             raise ValueError(msg) from exc
+
+        self._remember(object_name, payload)
+        return payload
+
+    def _remember(self, object_name: str, payload: bytes) -> None:
+        """Hold an object, evicting the least recently used to stay in budget.
+
+        Anything larger than the whole budget is not cached at all rather than
+        emptying the cache to hold one file nothing else can share it with.
+        """
+        if len(payload) > OBJECT_CACHE_BYTES:
+            return
+
+        with self._cache_lock:
+            self._object_cache[object_name] = payload
+            self._object_cache.move_to_end(object_name)
+            held = sum(len(value) for value in self._object_cache.values())
+            while held > OBJECT_CACHE_BYTES and len(self._object_cache) > 1:
+                _, evicted = self._object_cache.popitem(last=False)
+                held -= len(evicted)
 
     # ----------------------------------------------------------------- batch --
 
@@ -1816,6 +1859,14 @@ def _batch_note(completed: int, failed: int, noun: str = "image") -> str:
 # a round trip. It is deliberately well under any platform request limit, so the
 # behaviour changes gradually as files grow rather than failing at a cliff.
 INLINE_RESULT_LIMIT = 1_000_000
+
+# How much uploaded material to keep in memory across requests.
+#
+# Sized against the ceiling a batch already implies - fifty images at the
+# professional tier is far more than this, so the cache helps the common case
+# of several operations on one document without pretending it can hold a whole
+# batch. Cloud Run instances are memory-limited; this is a budget, not a store.
+OBJECT_CACHE_BYTES = 256_000_000
 
 ALLOWED_UPLOAD_TYPES = frozenset({"image/jpeg", "image/png", "application/pdf"})
 

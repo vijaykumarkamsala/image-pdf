@@ -197,9 +197,19 @@ export async function open(files) {
     state.kind = kind;
     state.items = [];
     for (const file of chosen.slice(0, MAX_ITEMS)) {
+      // Each file goes straight to storage as it is read. Fifty images inline
+      // would be fifty base64 payloads held in memory at once, and fifty
+      // requests carrying them again.
+      let object = null;
+      try {
+        object = await deps.uploadDirect(file);
+      } catch (error) {
+        console.warn(`direct upload unavailable for ${file.name}:`, error.message);
+      }
       state.items.push({
         name: file.name,
         dataUrl: await readAsDataUrl(file),
+        object,
         bytes: file.size,
         status: "queued",
       });
@@ -225,6 +235,13 @@ function show() {
   $("batchspace").hidden = false;
   $("btn-reset").hidden = false;
   $("btn-download").hidden = false;
+}
+
+/** One batch item, named the cheap way where possible. */
+function itemRef(item) {
+  return item.object
+    ? { object: item.object, filename: item.name }
+    : { pdf: item.dataUrl, filename: item.name };
 }
 
 /* --------------------------------------------------------------- running -- */
@@ -309,7 +326,7 @@ function callFor(item, settings) {
     return deps.api("/api/process", {
       operation: state.operation,
       settings,
-      image: item.dataUrl,
+      ...(item.object ? { object: item.object } : { image: item.dataUrl }),
       filename: item.name,
     });
   }
@@ -319,7 +336,7 @@ function callFor(item, settings) {
     // Numbering is the one operation that carries state between documents: the
     // count continues, or a bundle ends up with fifty page ones.
     return deps
-      .api(entry.route, { pdf: item.dataUrl, filename: item.name, ...settings, start: state.nextNumber })
+      .api(entry.route, { ...itemRef(item), ...settings, start: state.nextNumber })
       .then((result) => {
         if (result?.next_number) state.nextNumber = result.next_number;
         return result;
@@ -330,12 +347,12 @@ function callFor(item, settings) {
     // name, so the settings carry it rather than the outer selection.
     const { operation, ...rest } = settings;
     return deps.api(entry.route, {
-      documents: [{ pdf: item.dataUrl, filename: item.name }],
+      documents: [itemRef(item)],
       operation,
       ...rest,
     });
   }
-  return deps.api(entry.route, { pdf: item.dataUrl, filename: item.name, ...settings });
+  return deps.api(entry.route, { ...itemRef(item), ...settings });
 }
 
 /** Why this result should count as a failure, or null if it should not. */
