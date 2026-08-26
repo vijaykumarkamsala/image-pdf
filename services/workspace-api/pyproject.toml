@@ -16,6 +16,12 @@ dependencies = [
   "ipw-contracts==0.1.0",
   "ipw-processors==0.1.0",
   "ipw-benchmark-runner==0.1.0",
+  "ipw-pdf==0.1.0",
+  "ipw-vector==0.1.0",
+  # RSA-SHA256, for signing Google Cloud Storage V4 URLs. Chosen over
+  # google-cloud-storage, which would have brought seventeen packages to do the
+  # same job - see ipw.workspace_api.storage for the reasoning.
+  "cryptography>=44,<52",
 ]
 
 [tool.setuptools.packages.find]

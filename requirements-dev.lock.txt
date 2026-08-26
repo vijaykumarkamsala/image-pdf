@@ -17,6 +17,7 @@
 #   mypy, mypy-extensions, pathspec                              MIT
 #   jsonschema, jsonschema-specifications, referencing, rpds-py  MIT
 #   attrs, packaging, Pygments                                   MIT / Apache-2.0 / BSD-2
+#   cryptography, cffi, pycparser                                Apache-2.0 / BSD
 
 # ---- runtime -----------------------------------------------------------------
 pydantic==2.13.4
@@ -55,3 +56,9 @@ packaging==26.3
 ast_serialize==0.8.0
 colorama==0.4.6
 librt==0.15.0
+
+# Signing for Google Cloud Storage upload URLs. Recorded in the licence
+# register as review_required (D-038).
+cryptography==50.0.1
+cffi==2.1.1
+pycparser==3.0

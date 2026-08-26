@@ -4,7 +4,10 @@ name: POC checks
 # dependencies using documented commands." A local pass on the author's machine
 # is not evidence; a clean runner is.
 #
-# No remote is configured yet, so this workflow is dormant until one exists.
+# Every workspace is installed, not only the three the POC started with: the
+# tests import ipw.pdf, ipw.vector and ipw.workspace_api, and a runner that
+# installs less than the suite imports fails on a collection error rather
+# than on anything real.
 
 on:
   push:
@@ -46,7 +49,11 @@ jobs:
           -r requirements-dev.txt
           -e packages/contracts
           -e packages/processors
+          -e packages/metrics
+          -e packages/pdf
+          -e packages/vector
           -e services/benchmark-runner
+          -e services/workspace-api
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -79,7 +86,11 @@ jobs:
           -r requirements-dev.txt
           -e packages/contracts
           -e packages/processors
+          -e packages/metrics
+          -e packages/pdf
+          -e packages/vector
           -e services/benchmark-runner
+          -e services/workspace-api
       - name: Assert POC scope boundary and monorepo layering
         run: >
           python -m pytest tests/test_scope_and_artifacts.py tests/test_workspaces.py
