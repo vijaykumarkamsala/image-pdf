@@ -203,7 +203,11 @@ class TestSizeHonesty:
             {"documents": [a_pdf(8)], "operation": "split", "pages": [1, 2]},
         )
         assert "quality" in body["note"].lower()
-        assert "MB" in body["note"]
+        # A unit that suits the magnitude. Every size was formatted in megabytes,
+        # so a four-page contract read as "0.0 MB from 0.0 MB" - a sentence whose
+        # whole purpose is to say what changed, saying nothing.
+        assert any(unit in body["note"] for unit in ("bytes", "KB", "MB"))
+        assert "0.0 MB" not in body["note"]
 
 
 class TestStampGeometry:

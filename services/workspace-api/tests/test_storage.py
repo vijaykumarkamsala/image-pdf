@@ -17,6 +17,7 @@ import datetime as dt
 import hashlib
 import urllib.parse
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -246,10 +247,50 @@ class TestChoosingABackend:
         """Local development gets a working upload path with no cloud account."""
         assert isinstance(build_storage("", tmp_path), LocalStorage)
 
-    def test_a_bucket_means_the_bucket(self, tmp_path: Path) -> None:
-        from ipw.workspace_api.storage import GcsStorage
+    def test_a_bucket_with_credentials_means_the_bucket(self, tmp_path: Path) -> None:
+        from ipw.workspace_api.storage import GcsStorage, ServiceAccount
 
-        assert isinstance(build_storage("some-bucket", tmp_path), GcsStorage)
+        account = ServiceAccount(client_email="a@b.iam.gserviceaccount.com", private_key="k")
+        with mock.patch.object(ServiceAccount, "from_environment", staticmethod(lambda: account)):
+            assert isinstance(build_storage("some-bucket", tmp_path), GcsStorage)
+
+    def test_a_bucket_without_credentials_falls_back_locally(self, tmp_path: Path) -> None:
+        """Naming a bucket records which one this environment will use; it is not
+        proof of holding a key for it.
+
+        Taking the name alone produced the worst possible behaviour: everything
+        under a megabyte worked, and the first large result - an upscale, a
+        merged PDF, a batch ZIP - failed with a signing error from deep inside
+        the storage layer, on a machine where nothing needed signing.
+        """
+        from ipw.workspace_api.storage import ServiceAccount
+
+        with mock.patch.object(ServiceAccount, "from_environment", staticmethod(lambda: None)):
+            assert isinstance(build_storage("some-bucket", tmp_path), LocalStorage)
+
+    def test_production_refuses_a_bucket_it_has_no_key_for(self, tmp_path: Path) -> None:
+        """Silently writing customer output to a container filesystem that
+        vanishes on the next deploy is worse than refusing to start."""
+        from ipw.workspace_api.storage import ServiceAccount
+
+        with (
+            mock.patch.object(ServiceAccount, "from_environment", staticmethod(lambda: None)),
+            pytest.raises(RuntimeError, match="no service-account credentials"),
+        ):
+            build_storage("some-bucket", tmp_path, require_bucket=True)
+
+    def test_the_startup_note_says_where_files_actually_go(self, tmp_path: Path) -> None:
+        """A configured bucket that is not usable here looks identical to a
+        working one until the first large result."""
+        from ipw.workspace_api.storage import ServiceAccount, storage_note
+
+        with mock.patch.object(ServiceAccount, "from_environment", staticmethod(lambda: None)):
+            storage = build_storage("some-bucket", tmp_path)
+
+        note = storage_note("some-bucket", storage)
+        assert "local disk" in note
+        assert "some-bucket" in note
+        assert "no credentials" in note
 
     def test_an_empty_bucket_name_is_refused_by_the_cloud_backend(self) -> None:
         from ipw.workspace_api.storage import GcsStorage

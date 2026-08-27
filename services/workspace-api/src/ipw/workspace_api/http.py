@@ -574,7 +574,28 @@ def prepare_database(settings: Settings) -> list[str]:
     if not settings.database_url:
         return ["  no database configured - nothing will persist"]
 
-    connection = connect(settings.database_url)
+    try:
+        connection = connect(settings.database_url)
+    except Exception as exc:
+        # **Unreachable is fatal in production and a warning anywhere else.**
+        #
+        # Nothing this application actually does needs Postgres: editing,
+        # converting, redacting and vectorising all work on bytes. The database
+        # holds accounts and job state, which matter in production and are
+        # irrelevant to somebody opening the app to see whether a PDF splits
+        # correctly.
+        #
+        # Refusing to start locally because a cloud database is behind a firewall
+        # would make a deployment concern block development entirely - which it
+        # did, for one commit, until this was caught. In production the opposite
+        # is true: serving without the schema is worse than not serving.
+        if settings.is_production:
+            raise
+        return [
+            f"  database unreachable ({type(exc).__name__}) - carrying on without it",
+            "  uploads and edits work; nothing will persist",
+        ]
+
     try:
         applied = migrate(connection)
     finally:
@@ -603,6 +624,28 @@ def startup_banner(app_root: Path, settings: Settings, port: int) -> list[str]:
         f"  serving {app_root}",
         f"  listening on {settings.host}:{port}",
     ]
+    # Where output actually lands, always. A configured bucket that is not
+    # usable here looks identical to a working one until the first large result,
+    # and "it saved somewhere" is not a thing anyone should have to guess at.
+    from ipw.benchmark_runner.workspace import find_repo_root
+    from ipw.workspace_api.storage import build_storage, storage_note
+
+    try:
+        # The same root the service itself uses. An earlier version guessed
+        # `app_root.parent`, which is `apps/` - so the banner built its store in
+        # a different place from the one actually serving requests, created a
+        # stray `apps/data/local-storage`, and could have reported a backend
+        # that was not the one in use. A line that describes something other
+        # than what is running is worse than no line.
+        storage = build_storage(
+            settings.bucket,
+            find_repo_root() / "data" / "local-storage",
+            require_bucket=settings.is_production,
+        )
+        lines.append(storage_note(settings.bucket, storage))
+    except Exception as exc:  # noqa: BLE001 - the banner must never stop the service
+        lines.append(f"  storage: unavailable ({type(exc).__name__})")
+
     lines.extend(f"  WARNING: {warning}" for warning in settings.warnings())
     lines.append("  Ctrl+C to stop")
     return lines

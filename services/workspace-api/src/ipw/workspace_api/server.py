@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError as PydanticValidationError
+
 from ipw.benchmark_runner.licence_register import load_register, register_path
 from ipw.benchmark_runner.workspace import find_repo_root
 from ipw.contracts.licence import RunPurpose
@@ -42,6 +44,7 @@ from ipw.contracts.operation import (
     AnySettings,
     ConvertSettings,
     CropSettings,
+    DenoiseSettings,
     FlipSettings,
     JpegArtifactRepairSettings,
     Operation,
@@ -84,6 +87,7 @@ _STANDARD_BUILDERS: dict[OperationKind, type[AnySettings]] = {
     OperationKind.FLIP: FlipSettings,
     OperationKind.ADJUST: AdjustSettings,
     OperationKind.SHARPEN: SharpenSettings,
+    OperationKind.DENOISE: DenoiseSettings,
     OperationKind.CONVERT: ConvertSettings,
 }
 
@@ -92,6 +96,20 @@ _AI_BUILDERS: dict[OperationKind, type[AnySettings]] = {
     OperationKind.AI_DENOISE: AiDenoiseSettings,
     OperationKind.JPEG_ARTIFACT_REPAIR: JpegArtifactRepairSettings,
 }
+
+
+def _readable_size(value: int) -> str:
+    """Bytes in the unit a person would use for that magnitude.
+
+    A four-page contract is not "0.0 MB". Formatting every size in megabytes
+    makes small documents read as nothing at all, in exactly the sentences that
+    exist to tell somebody what changed.
+    """
+    if value < 1_000:
+        return f"{value} bytes"
+    if value < 1_000_000:
+        return f"{value / 1_000:.0f} KB"
+    return f"{value / 1_000_000:.1f} MB"
 
 
 def print_plan(width: int, height: int, target_inches: float, dpi: int) -> dict[str, Any]:
@@ -255,6 +273,11 @@ class WorkspaceService:
             ),
             "sha256": result.sha256,
             "pixels_decoded": result.pixels_decoded,
+            # Every other route answers `ok`. Leaving it out here meant anybody
+            # writing `if (result.ok)` against the API read a successful
+            # inspection as a failure - a papercut that costs an hour the first
+            # time somebody hits it, and nothing to avoid.
+            "ok": result.failure is None,
         }
 
     # --------------------------------------------------------------- process --
@@ -264,7 +287,29 @@ class WorkspaceService:
         if builder is None:
             msg = f"{kind.value} is not available in this build"
             raise ValueError(msg)
-        return builder(**raw)
+
+        try:
+            return builder(**raw)
+        except PydanticValidationError as exc:
+            # **Translate, do not forward.** pydantic's own text is a multi-line
+            # report naming the model class, the error type and a URL - useful
+            # when reading a stack trace, unreadable in a toast, and it leaks an
+            # internal class name to anyone calling the API. What the caller
+            # needs is which setting was wrong and what this operation accepts.
+            # `kind` is the discriminator the contract uses to tell settings
+            # types apart. Listing it invites somebody to send it, which is a
+            # different error, so the advice stays to what a caller may choose.
+            accepted = (
+                ", ".join(sorted(field for field in builder.model_fields if field != "kind"))
+                or "no settings"
+            )
+            problems = []
+            for error in exc.errors():
+                field = ".".join(str(part) for part in error.get("loc", ())) or "settings"
+                problems.append(f"{field}: {error.get('msg', 'is not valid')}")
+            detail = "; ".join(problems)
+            msg = f"{kind.value} settings are not valid - {detail}. Accepts: {accepted}"
+            raise ValueError(msg) from exc
 
     def _processor_for(self, kind: OperationKind, settings: AnySettings) -> Processor:
         if FAMILY_OF_IS_STANDARD(kind):
@@ -375,6 +420,9 @@ class WorkspaceService:
                 settings.bucket,
                 self.repo_root / "data" / "local-storage",
                 base_url=self._base_url or f"http://{settings.host}:{settings.port}",
+                # Production must not quietly write customer output to a
+                # container filesystem that vanishes on the next deploy.
+                require_bucket=settings.is_production,
             )
         return self._storage
 
@@ -1311,14 +1359,38 @@ class WorkspaceService:
                 keep_private_data=keep_private_data,
             )
 
+        # **Never hand back something bigger than what arrived.**
+        #
+        # Rebuilding a document costs bytes - a fresh cross-reference table, and
+        # object streams that a small file cannot amortise - so a PDF that is
+        # already lean, or has no images to recompress, comes out larger than it
+        # went in. Measured on a four-page text-only contract: 1,773 bytes in,
+        # 1,862 out, reported as a success with `reached_target: true`.
+        #
+        # Somebody who asks to compress a file and receives a larger one has
+        # been failed twice: once by the result and once by being told it worked.
+        # The honest answer is the original file and a note saying why, which is
+        # what every compressor a customer has used before does.
+        grew = len(data) >= len(payload)
+        if grew:
+            data = payload
+            extra_notes = [
+                "This file was already as small as it goes - compressing it produced "
+                "a larger file, so the original was kept."
+            ]
+        else:
+            extra_notes = []
+
         after = PdfReader.from_bytes(data)
+        saved = max(0, len(payload) - len(data))
         return {
             "ok": True,
             "pdf": "data:application/pdf;base64," + base64.b64encode(data).decode("ascii"),
             "bytes": len(data),
-            "original_bytes": report.original_bytes,
-            "saved_bytes": report.saved,
-            "percent_smaller": round(100 - report.ratio * 100, 1),
+            "original_bytes": len(payload),
+            "saved_bytes": saved,
+            "already_minimal": grew,
+            "percent_smaller": round(saved / len(payload) * 100, 1) if payload else 0.0,
             "page_count": len(after.pages()),
             "images_touched": report.images_touched,
             "images_left_alone": report.images_left_alone,
@@ -1327,10 +1399,10 @@ class WorkspaceService:
             "dpi_limit": report.dpi_limit,
             "quality": report.quality,
             "attempts": report.attempts,
-            "reached_target": report.reached_target,
+            "reached_target": report.reached_target and not grew,
             "target_bytes": report.target_bytes,
-            "notes": report.notes,
-            "note": " ".join(report.notes),
+            "notes": extra_notes + list(report.notes),
+            "note": " ".join(extra_notes + list(report.notes)),
         }
 
     # ------------------------------------------------------------ redact ----
@@ -1646,7 +1718,7 @@ def _pdf_change_note(
         parts.append("Nothing was re-rendered, so quality is unchanged.")
 
     if before:
-        parts.append(f"{after / 1_000_000:.1f} MB, from {before / 1_000_000:.1f} MB.")
+        parts.append(f"{_readable_size(after)}, from {_readable_size(before)}.")
 
     if had_private_data and not keep_private_data:
         parts.append(

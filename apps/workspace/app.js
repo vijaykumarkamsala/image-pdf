@@ -68,6 +68,38 @@ function busy(on, text = "Working…") {
   $("busy").hidden = !on;
   $("busy-text").textContent = text;
   document.querySelectorAll(".apply").forEach((b) => { b.disabled = on; });
+  if (!on) stopClock();
+}
+
+/* A running clock for work that takes long enough to look broken.
+ *
+ * Measured on this machine: a 4x upscale of a small image is 68 seconds and a
+ * JPEG repair is over two minutes, both on CPU. A static "takes a moment" is
+ * worse than nothing at that length - the one thing a person needs to know is
+ * that something is still happening, and a number that keeps moving says it
+ * where a spinner does not.
+ */
+let clockTimer = null;
+
+function startClock(label) {
+  stopClock();
+  const started = Date.now();
+  const tick = () => {
+    const seconds = Math.round((Date.now() - started) / 1000);
+    const shown = seconds < 60
+      ? `${seconds}s`
+      : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+    $("busy-text").textContent = `${label} — ${shown}`;
+  };
+  tick();
+  clockTimer = setInterval(tick, 1000);
+}
+
+function stopClock() {
+  if (clockTimer !== null) {
+    clearInterval(clockTimer);
+    clockTimer = null;
+  }
 }
 
 const bytes = (n) =>
@@ -468,9 +500,14 @@ async function apply(kind) {
   const op = findOperation(kind);
   if (!op) return;
 
-  busy(true, op.speed === "slow"
-    ? `${op.label}… this uses a model and takes a moment`
-    : `${op.label}…`);
+  if (op.speed === "slow") {
+    // Honest about the length. "A moment" for something that runs over a
+    // minute on CPU is how a working operation gets reported as a hang.
+    busy(true, `${op.label}…`);
+    startClock(`${op.label} — running a model, this can take a minute or two`);
+  } else {
+    busy(true, `${op.label}…`);
+  }
 
   try {
     const result = await api("/api/process", sourceRef({

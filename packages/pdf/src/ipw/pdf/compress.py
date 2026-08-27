@@ -283,8 +283,8 @@ def _notes(report: CompressionReport) -> list[str]:
 
     if report.original_bytes:
         notes.append(
-            f"{report.final_bytes / 1_000_000:.1f} MB from "
-            f"{report.original_bytes / 1_000_000:.1f} MB - "
+            f"{_size(report.final_bytes)} from "
+            f"{_size(report.original_bytes)} - "
             f"{100 - report.ratio * 100:.0f}% smaller."
         )
 

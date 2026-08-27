@@ -371,13 +371,53 @@ class GcsStorage:
             return False
 
 
-def build_storage(bucket: str, local_root: Path, base_url: str = "") -> Storage:
-    """The bucket when one is configured, the filesystem when not.
+def build_storage(
+    bucket: str, local_root: Path, base_url: str = "", *, require_bucket: bool = False
+) -> Storage:
+    """The bucket when one is configured and usable, the filesystem otherwise.
 
     Local development gets a working upload path with no cloud account at all,
     which keeps the whole flow exercisable and testable rather than something
     only production ever runs.
+
+    **A bucket name without credentials falls back, unless this is production.**
+    Configuring a bucket is how a developer records which bucket their
+    environment *will* use; it does not mean they hold a key for it. Taking the
+    name alone as proof produced the worst possible behaviour: everything under
+    a megabyte worked, and the first large result - an upscale, a merged PDF, a
+    batch ZIP - failed with a signing error from deep inside the storage layer,
+    on a machine where nothing needed signing in the first place.
+
+    Production is the opposite case. There, silently writing customer output to
+    a container filesystem that vanishes on the next deploy is far worse than
+    refusing to start, so ``require_bucket`` makes the missing key fatal.
     """
-    if bucket:
-        return GcsStorage(bucket)
+    if not bucket:
+        return LocalStorage(local_root, base_url)
+
+    account = ServiceAccount.from_environment()
+    if account is not None:
+        return GcsStorage(bucket, account)
+
+    if require_bucket:
+        msg = (
+            f"bucket {bucket!r} is configured but no service-account credentials were "
+            f"found. Set GOOGLE_APPLICATION_CREDENTIALS, or run somewhere the metadata "
+            f"service provides them. Refusing to write customer output to a container "
+            f"filesystem that disappears on the next deploy."
+        )
+        raise RuntimeError(msg)
+
     return LocalStorage(local_root, base_url)
+
+
+def storage_note(bucket: str, storage: Storage) -> str:
+    """One line for the startup banner saying where files will actually go."""
+    if isinstance(storage, LocalStorage):
+        if bucket:
+            return (
+                f"  storage: local disk - bucket {bucket!r} is configured but no "
+                f"credentials were found here"
+            )
+        return "  storage: local disk (no bucket configured)"
+    return f"  storage: gs://{bucket}"
