@@ -1593,3 +1593,82 @@ button:disabled {
   .zoombar { right: 8px; bottom: 56px; }
   .zoom-note { display: none; }
 }
+
+/* --------------------------------------------------------------- cropping */
+
+/* Dragging a box on the picture, rather than typing four numbers.
+ *
+ * The selection is stored in image coordinates and drawn through the same
+ * transform as the image itself, which is what makes cropping *while zoomed in*
+ * work - and that combination is the thing a phone cannot do at all. Placing an
+ * edge on a specific thread of a garment means seeing that thread.
+ */
+.crop-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: crosshair;
+}
+
+.crop-box {
+  position: absolute;
+  border: 1px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 9999px rgba(8, 10, 16, 0.55);
+  cursor: move;
+}
+
+/* Thirds, because the composition guide is the reason anybody drags a box by
+ * eye instead of typing the numbers they already knew. */
+.crop-box::before,
+.crop-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.crop-box::before {
+  background:
+    linear-gradient(to right, transparent 33.33%, #fff 33.33%, #fff calc(33.33% + 1px),
+                    transparent calc(33.33% + 1px), transparent 66.66%, #fff 66.66%,
+                    #fff calc(66.66% + 1px), transparent calc(66.66% + 1px));
+}
+
+.crop-box::after {
+  background:
+    linear-gradient(to bottom, transparent 33.33%, #fff 33.33%, #fff calc(33.33% + 1px),
+                   transparent calc(33.33% + 1px), transparent 66.66%, #fff 66.66%,
+                   #fff calc(66.66% + 1px), transparent calc(66.66% + 1px));
+}
+
+.crop-handle {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  background: #fff;
+  border: 1px solid rgba(8, 10, 16, 0.5);
+  border-radius: 3px;
+}
+
+.crop-handle[data-grip="nw"] { left: -7px; top: -7px; cursor: nwse-resize; }
+.crop-handle[data-grip="ne"] { right: -7px; top: -7px; cursor: nesw-resize; }
+.crop-handle[data-grip="sw"] { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.crop-handle[data-grip="se"] { right: -7px; bottom: -7px; cursor: nwse-resize; }
+
+/* The size in pixels, because "about a third of the width" is not a crop
+ * anybody can repeat on the next forty garments. */
+.crop-size {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #1b1f29;
+  color: #fff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}

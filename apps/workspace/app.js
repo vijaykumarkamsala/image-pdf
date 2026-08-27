@@ -749,6 +749,7 @@ function wire() {
 
   wireTasks();
   wireZoom();
+  wireCrop();
   wireExport();
   wirePalette();
   wireJobs();
@@ -800,6 +801,188 @@ function applyPendingJob() {
   }
 }
 
+/* --------------------------------------------------------------- cropping */
+
+/* A box dragged on the picture, not four numbers typed into a form.
+ *
+ * The selection is kept in *image* coordinates and drawn through the same
+ * transform as the image, so it survives zooming and panning. That combination
+ * is the part a phone cannot do: placing a crop edge on one thread of a garment
+ * means being able to see that thread, which means being zoomed in while
+ * dragging.
+ *
+ * The numeric fields stay bound to it in both directions. Dragging is how a
+ * crop is found; typing is how it is repeated on the next forty files, and a
+ * tool for production work has to support both.
+ */
+const crop = { on: false, box: null, drag: null };
+
+function stageToImage(clientX, clientY) {
+  const rect = $("stage").getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - view.x) / view.scale,
+    y: (clientY - rect.top - view.y) / view.scale,
+  };
+}
+
+function clampToImage(box) {
+  const image = $("img-result");
+  const width = image.naturalWidth || 0;
+  const height = image.naturalHeight || 0;
+  const x = Math.max(0, Math.min(box.x, width));
+  const y = Math.max(0, Math.min(box.y, height));
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.min(box.width, width - x)),
+    height: Math.max(1, Math.min(box.height, height - y)),
+  };
+}
+
+function drawCrop() {
+  const layer = $("crop-layer");
+  const element = $("crop-box");
+  if (!crop.on || !crop.box) {
+    layer.hidden = true;
+    return;
+  }
+  layer.hidden = false;
+  const box = crop.box;
+  element.style.left = `${view.x + box.x * view.scale}px`;
+  element.style.top = `${view.y + box.y * view.scale}px`;
+  element.style.width = `${box.width * view.scale}px`;
+  element.style.height = `${box.height * view.scale}px`;
+  $("crop-size").textContent =
+    `${Math.round(box.width)} × ${Math.round(box.height)} px`;
+
+  // Keep the typed fields honest while the box moves.
+  const fields = { "crop-x": box.x, "crop-y": box.y,
+                   "crop-w": box.width, "crop-h": box.height };
+  for (const [id, value] of Object.entries(fields)) {
+    const field = document.getElementById(id);
+    if (field) field.value = String(Math.round(value));
+  }
+}
+
+function startCropping() {
+  const image = $("img-result");
+  crop.on = true;
+  // Open on the middle half, which is a visible starting box rather than an
+  // invisible zero-sized one somebody has to discover by dragging.
+  crop.box = clampToImage({
+    x: image.naturalWidth * 0.25,
+    y: image.naturalHeight * 0.25,
+    width: image.naturalWidth * 0.5,
+    height: image.naturalHeight * 0.5,
+  });
+  drawCrop();
+}
+
+function stopCropping() {
+  crop.on = false;
+  crop.box = null;
+  crop.drag = null;
+  $("crop-layer").hidden = true;
+}
+
+/* Typing moves the box, as well as the box filling in the typing.
+ *
+ * Dragging is how a crop is found. Typing is how the same crop is applied to
+ * the next forty files, which is the difference between a photo app and
+ * something used for production - so both directions have to work.
+ */
+function bindCropFields() {
+  for (const id of ["crop-x", "crop-y", "crop-w", "crop-h"]) {
+    const field = document.getElementById(id);
+    if (!field) continue;
+    field.addEventListener("input", () => {
+      if (!crop.on) return;
+      const read = (name, fallback) => {
+        const value = Number(document.getElementById(name)?.value);
+        return Number.isFinite(value) ? value : fallback;
+      };
+      crop.box = clampToImage({
+        x: read("crop-x", crop.box.x),
+        y: read("crop-y", crop.box.y),
+        width: read("crop-w", crop.box.width),
+        height: read("crop-h", crop.box.height),
+      });
+      // Redraw without writing the fields back, or the caret jumps mid-typing.
+      const element = $("crop-box");
+      element.style.left = `${view.x + crop.box.x * view.scale}px`;
+      element.style.top = `${view.y + crop.box.y * view.scale}px`;
+      element.style.width = `${crop.box.width * view.scale}px`;
+      element.style.height = `${crop.box.height * view.scale}px`;
+      $("crop-size").textContent =
+        `${Math.round(crop.box.width)} × ${Math.round(crop.box.height)} px`;
+      $("crop-layer").hidden = false;
+    });
+  }
+}
+
+function wireCrop() {
+  const layer = $("crop-layer");
+  if (!layer) return;
+
+  layer.addEventListener("pointerdown", (event) => {
+    const grip = event.target.closest(".crop-handle");
+    const inside = event.target.closest(".crop-box");
+    const at = stageToImage(event.clientX, event.clientY);
+
+    if (grip) {
+      crop.drag = { mode: "resize", grip: grip.dataset.grip, from: { ...crop.box } };
+    } else if (inside) {
+      crop.drag = { mode: "move", at, from: { ...crop.box } };
+    } else {
+      // A drag on bare canvas starts a fresh selection from that corner.
+      crop.drag = { mode: "new", at };
+      crop.box = { x: at.x, y: at.y, width: 1, height: 1 };
+    }
+    layer.setPointerCapture(event.pointerId);
+    event.stopPropagation();
+  });
+
+  layer.addEventListener("pointermove", (event) => {
+    if (!crop.drag) return;
+    const at = stageToImage(event.clientX, event.clientY);
+    const from = crop.drag.from;
+
+    if (crop.drag.mode === "new") {
+      const start = crop.drag.at;
+      crop.box = clampToImage({
+        x: Math.min(start.x, at.x),
+        y: Math.min(start.y, at.y),
+        width: Math.abs(at.x - start.x),
+        height: Math.abs(at.y - start.y),
+      });
+    } else if (crop.drag.mode === "move") {
+      crop.box = clampToImage({
+        x: from.x + (at.x - crop.drag.at.x),
+        y: from.y + (at.y - crop.drag.at.y),
+        width: from.width,
+        height: from.height,
+      });
+    } else {
+      const right = from.x + from.width;
+      const bottom = from.y + from.height;
+      const grip = crop.drag.grip;
+      const x = grip.includes("w") ? Math.min(at.x, right - 1) : from.x;
+      const y = grip.includes("n") ? Math.min(at.y, bottom - 1) : from.y;
+      crop.box = clampToImage({
+        x,
+        y,
+        width: (grip.includes("e") ? Math.max(at.x, from.x + 1) : right) - x,
+        height: (grip.includes("s") ? Math.max(at.y, from.y + 1) : bottom) - y,
+      });
+    }
+    drawCrop();
+  });
+
+  for (const type of ["pointerup", "pointercancel"]) {
+    layer.addEventListener(type, () => { crop.drag = null; });
+  }
+}
+
 /* ---------------------------------------------------------------- zooming */
 
 /* The inspection canvas.
@@ -832,6 +1015,7 @@ function applyView() {
   if (label) label.textContent = view.fitted ? "Fit" : `${Math.round(view.scale * 100)}%`;
 
   renderZoomNote();
+  drawCrop();
 }
 
 /* Fit the whole image in the stage, which is where every load starts. */
@@ -1085,6 +1269,15 @@ function openTool(operation, button) {
   popover.hidden = false;
   button.classList.add("is-on");
 
+  // Crop is the one tool that is used *on* the picture rather than through a
+  // form, so opening it puts a box on the image and closing it takes it away.
+  if (operation.kind === "crop") {
+    startCropping();
+    bindCropFields();
+  } else {
+    stopCropping();
+  }
+
   popover.querySelector(".pop-close").addEventListener("click", closeTool);
   popover.querySelector(".apply").addEventListener("click", async () => {
     await apply(operation.kind);
@@ -1093,6 +1286,7 @@ function openTool(operation, button) {
 }
 
 function closeTool() {
+  stopCropping();
   const popover = $("tool-popover");
   popover.hidden = true;
   popover.dataset.kind = "";

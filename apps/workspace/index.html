@@ -99,6 +99,19 @@
              aria-label="Editing tools"></div>
         <div id="tool-popover" class="tool-popover" hidden></div>
 
+        <!-- The crop selection. Held in image coordinates and drawn through the
+             same transform as the picture, so zooming in to place an edge
+             precisely is the point rather than a problem. -->
+        <div id="crop-layer" class="crop-layer" hidden>
+          <div id="crop-box" class="crop-box">
+            <span class="crop-handle" data-grip="nw"></span>
+            <span class="crop-handle" data-grip="ne"></span>
+            <span class="crop-handle" data-grip="sw"></span>
+            <span class="crop-handle" data-grip="se"></span>
+            <span id="crop-size" class="crop-size"></span>
+          </div>
+        </div>
+
         <!-- Everything that can be zoomed lives inside one transformed layer,
              so the scale and the pan are applied once rather than per image. -->
         <div id="viewport" class="viewport">
