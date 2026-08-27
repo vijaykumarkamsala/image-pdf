@@ -532,3 +532,97 @@ class TestNoOrphanedOriginals:
         source = TestScannedPages._scan()  # noqa: SLF001 - shared fixture, by design
         redacted = TestScannedPages._redacted()  # noqa: SLF001
         assert len(redacted) <= len(source)
+
+
+class TestNothingIsLeftBehindInTheFile:
+    """The redacted words must be absent from the bytes, not merely unreferenced.
+
+    A page can render perfectly, extraction can find nothing, and `verify` can
+    pass, while the original text sits in the file as an object nothing points
+    at. That is how documents get released with the name still in them: the
+    reviewer looks at the page, and the recipient runs `qpdf --qdf`.
+
+    It happened here. `Contents` was replaced with the cleaned stream *after*
+    the page was copied, so the copy pulled the original stream into the output
+    first. The images had already been fixed the same way - dropped before the
+    copy - and the text had not.
+
+    So these tests read every object and decompress every stream, which is the
+    only check that distinguishes "removed" from "hidden".
+    """
+
+    @staticmethod
+    def _contract() -> bytes:
+        writer = PdfWriter()
+        catalog, tree = writer.reserve(), writer.reserve()
+        font = writer.add(
+            {"Type": Name("Font"), "Subtype": Name("Type1"), "BaseFont": Name("Helvetica")}
+        )
+        body = (
+            b"BT /F1 12 Tf 72 720 Td (SUPPLY AGREEMENT) Tj ET\n"
+            b"BT /F1 11 Tf 72 690 Td (Between Acme Textiles Ltd and Jane Doe) Tj ET\n"
+            b"BT /F1 11 Tf 72 660 Td (Signed at Coimbatore) Tj ET"
+        )
+        contents = writer.add(Stream({}, body))
+        leaf = writer.add(
+            {
+                "Type": Name("Page"),
+                "Parent": tree,
+                "MediaBox": [0, 0, 595, 842],
+                "Resources": {"Font": {"F1": font}},
+                "Contents": contents,
+            }
+        )
+        writer.put(tree, {"Type": Name("Pages"), "Kids": [leaf], "Count": 1})
+        writer.put(catalog, {"Type": Name("Catalog"), "Pages": tree})
+        return writer.build(catalog, {})
+
+    @staticmethod
+    def _everything_readable(payload: bytes) -> str:
+        """Raw bytes plus the contents of every stream that will decompress.
+
+        Text hidden in a deflate stream is still in the document, and a check
+        that only reads the raw bytes passes a file that still carries the name.
+        """
+        import re
+        import zlib
+
+        found = [payload.decode("latin-1", errors="replace")]
+        for match in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", payload, re.S):
+            try:
+                found.append(zlib.decompress(match.group(1)).decode("latin-1", errors="replace"))
+            except zlib.error:
+                continue
+        return "\n".join(found)
+
+    def test_the_phrase_is_absent_from_every_stream_in_the_file(self) -> None:
+        source = self._contract()
+        assert "Jane Doe" in self._everything_readable(source), "the fixture must contain it first"
+
+        redacted, _ = redact_phrases(PdfReader.from_bytes(source), ["Jane Doe"])[:2]
+
+        readable = self._everything_readable(redacted)
+        assert "Jane Doe" not in readable, "the redacted name is still recoverable from the file"
+        assert "Jane" not in readable
+        assert "Doe" not in readable
+
+    def test_the_rest_of_the_document_survives(self) -> None:
+        """A redaction that removed everything would pass the test above."""
+        redacted, _ = redact_phrases(PdfReader.from_bytes(self._contract()), ["Jane Doe"])[:2]
+
+        readable = self._everything_readable(redacted)
+        assert "SUPPLY AGREEMENT" in readable
+        assert "Coimbatore" in readable
+
+    def test_no_orphaned_content_stream_is_carried_over(self) -> None:
+        """The specific shape of the bug: two content streams in the output, the
+        page pointing at the clean one and the original left behind."""
+        import re
+
+        redacted, _ = redact_phrases(PdfReader.from_bytes(self._contract()), ["Jane Doe"])[:2]
+
+        streams = re.findall(rb"stream\r?\n(.*?)\r?\nendstream", redacted, re.S)
+        assert len(streams) == 1, (
+            f"{len(streams)} streams in a one-page document; the original was copied "
+            f"in before being replaced"
+        )

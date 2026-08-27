@@ -135,6 +135,20 @@ def redact(
             # the unredacted pixels never reach the output at all.
             body = page_body_without_xobjects(reader, page.dictionary, set(painted))
             body = _without_annotations(reader, body, boxes, report)
+            # **And the original text, for exactly the same reason.**
+            #
+            # `Contents` is replaced further down with the cleaned stream, but
+            # the replacement happens *after* the page is copied - so copying a
+            # body that still points at the original stream pulled the
+            # unredacted text into the output as its own object. Nothing
+            # referenced it, the page rendered correctly, extraction found
+            # nothing and verify() passed; the name came back from `qpdf --qdf`
+            # or two lines of zlib.
+            #
+            # That is the failure this module exists to prevent, and it is the
+            # same one already fixed for images. Dropping the reference before
+            # the copy is what makes "removed" mean removed.
+            body.pop("Contents", None)
             if _has_vector_art(reader, page.dictionary, boxes):
                 report.pages_with_vector_art.append(index + 1)
         else:
