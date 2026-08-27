@@ -179,6 +179,18 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         audiences=(Audience.EVERYONE, Audience.PHOTO_AND_PRINT),
     ),
     CatalogueEntry(
+        kind=OperationKind.STRAIGHTEN_PAGE,
+        label="Straighten a photographed page",
+        summary=(
+            "Finds the page in the photograph and maps its four corners onto a "
+            "rectangle, so a document held at an angle comes back square. Pairs "
+            "with cleaning up the lighting: together they turn a phone snap into "
+            "something that reads as a scan."
+        ),
+        group=Group.CLEAN_UP,
+        audiences=(Audience.EVERYONE, Audience.BUSINESS_DOCUMENTS, Audience.EDUCATION),
+    ),
+    CatalogueEntry(
         kind=OperationKind.DOCUMENT_CLEAN,
         label="Clean up a photographed page",
         summary=(

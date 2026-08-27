@@ -316,6 +316,7 @@
         "denoise",
         "document_clean",
         "enlarge",
+        "straighten_page",
         "convert",
         "super_resolution",
         "ai_denoise",

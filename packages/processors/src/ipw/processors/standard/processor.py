@@ -41,6 +41,7 @@ from ipw.contracts.operation import (
     ResizeSettings,
     RotateSettings,
     SharpenSettings,
+    StraightenPageSettings,
 )
 from ipw.contracts.processor import (
     OutputArtifact,
@@ -71,6 +72,7 @@ SUPPORTED_OPERATIONS: tuple[OperationKind, ...] = (
     OperationKind.DENOISE,
     OperationKind.DOCUMENT_CLEAN,
     OperationKind.ENLARGE,
+    OperationKind.STRAIGHTEN_PAGE,
     OperationKind.CONVERT,
 )
 """Standard-family operations only. No AI operation is declared, so this
@@ -194,6 +196,8 @@ class StandardProcessor(Generic[ImageT]):
             # Every pass resamples the full-size image twice, so the ceiling
             # is on the *output*: a 4x enlargement of this is 64 megapixels.
             OperationKind.ENLARGE: 16_000_000,
+            # Detection walks a downscaled copy; the transform is one pass.
+            OperationKind.STRAIGHTEN_PAGE: 60_000_000,
         }.get(operation.kind, 4_000_000)
 
         return Estimate(
@@ -300,6 +304,8 @@ class StandardProcessor(Generic[ImageT]):
             return self.engine.sharpen(image, settings.amount_percent, settings.radius_x100)
         if isinstance(settings, DenoiseSettings):
             return self.engine.denoise(image, settings.strength_percent)
+        if isinstance(settings, StraightenPageSettings):
+            return self.engine.straighten_page(image, settings.corners)
         if isinstance(settings, EnlargeSettings):
             return self.engine.enlarge(
                 image,

@@ -12,7 +12,7 @@ be handed bytes from a path that did not go through inspection.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps, ImageStat
 
@@ -275,6 +275,25 @@ class PillowEngine:
         return balanced
 
     # -- detail -----------------------------------------------------------
+
+    def straighten_page(self, image: PillowImage, corners: Any | None) -> PillowImage:
+        """Detect the page when no corners are given, then map it to a rectangle."""
+        from ipw.processors.standard.perspective import Corners, detect_page, flatten_page
+
+        if corners is None:
+            found = detect_page(image.image)
+            if found is None:
+                msg = (
+                    "no page could be found in this photograph. Give the four corners, "
+                    "or photograph the page against a darker background."
+                )
+                raise EngineError(msg)
+            quad = found.corners
+        else:
+            points = [(float(x), float(y)) for x, y in corners]
+            quad = Corners(*points)
+
+        return PillowImage(flatten_page(image.image, quad))
 
     def enlarge(
         self, image: PillowImage, *, scale: int, material: str, iterations: int

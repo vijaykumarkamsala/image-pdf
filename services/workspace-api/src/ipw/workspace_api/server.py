@@ -57,6 +57,7 @@ from ipw.contracts.operation import (
     ResizeSettings,
     RotateSettings,
     SharpenSettings,
+    StraightenPageSettings,
     SuperResolutionSettings,
 )
 from ipw.contracts.processor import Processor
@@ -92,6 +93,7 @@ _STANDARD_BUILDERS: dict[OperationKind, type[AnySettings]] = {
     OperationKind.DENOISE: DenoiseSettings,
     OperationKind.DOCUMENT_CLEAN: DocumentCleanSettings,
     OperationKind.ENLARGE: EnlargeSettings,
+    OperationKind.STRAIGHTEN_PAGE: StraightenPageSettings,
     OperationKind.CONVERT: ConvertSettings,
 }
 

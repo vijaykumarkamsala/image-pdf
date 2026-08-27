@@ -474,7 +474,7 @@ export interface Operation {
   family: OperationFamily;
   kind: OperationKind;
   route?: ProcessingRoute;
-  settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
+  settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | StraightenPageSettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
   variant: ProcessingVariant;
 }
 
@@ -482,8 +482,8 @@ export interface Operation {
 export type OperationFamily = "standard" | "ai" | "inspection";
 export const OperationFamilyValues: readonly OperationFamily[] = ["standard", "ai", "inspection"] as const;
 
-export type OperationKind = "noop" | "inspect_only" | "resize" | "crop" | "rotate" | "flip" | "adjust" | "sharpen" | "denoise" | "document_clean" | "enlarge" | "convert" | "super_resolution" | "ai_denoise" | "jpeg_artifact_repair" | "face_restore" | "damage_repair" | "colourise" | "background_remove" | "background_replace";
-export const OperationKindValues: readonly OperationKind[] = ["noop", "inspect_only", "resize", "crop", "rotate", "flip", "adjust", "sharpen", "denoise", "document_clean", "enlarge", "convert", "super_resolution", "ai_denoise", "jpeg_artifact_repair", "face_restore", "damage_repair", "colourise", "background_remove", "background_replace"] as const;
+export type OperationKind = "noop" | "inspect_only" | "resize" | "crop" | "rotate" | "flip" | "adjust" | "sharpen" | "denoise" | "document_clean" | "enlarge" | "straighten_page" | "convert" | "super_resolution" | "ai_denoise" | "jpeg_artifact_repair" | "face_restore" | "damage_repair" | "colourise" | "background_remove" | "background_replace";
+export const OperationKindValues: readonly OperationKind[] = ["noop", "inspect_only", "resize", "crop", "rotate", "flip", "adjust", "sharpen", "denoise", "document_clean", "enlarge", "straighten_page", "convert", "super_resolution", "ai_denoise", "jpeg_artifact_repair", "face_restore", "damage_repair", "colourise", "background_remove", "background_replace"] as const;
 
 /**
  * EXIF orientation, normalised **as metadata** - the original is never touched.
@@ -629,7 +629,7 @@ export interface ResizeSettings {
 export interface ResultIdentity {
   /** Stable, human-readable asset identifier, unique within a manifest. */
   asset_id: string;
-  effective_settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
+  effective_settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | StraightenPageSettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
   /** Lower-case hexadecimal SHA-256 digest. */
   input_sha256: string;
   operation_kind: OperationKind;
@@ -735,6 +735,19 @@ export interface SharpenSettings {
   amount_percent?: number;
   kind?: "sharpen";
   radius_x100?: number;
+}
+
+/**
+ * Flatten a page photographed at an angle into a rectangle.
+ *
+ * Corners are found automatically when none are given. They can be supplied
+ * instead - four (x, y) pairs clockwise from the top left - because a detector
+ * that is usually right still has to be correctable by hand.
+ */
+export interface StraightenPageSettings {
+  /** Four points clockwise from the top left; detected when omitted. */
+  corners?: unknown[][] | null;
+  kind?: "straighten_page";
 }
 
 export interface SuperResolutionSettings {

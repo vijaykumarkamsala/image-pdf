@@ -249,6 +249,35 @@ class VipsEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def straighten_page(self, image: VipsImage, corners: Any | None) -> VipsImage:
+        """Shared with the Pillow engine - the geometry is one implementation."""
+        from PIL import Image as PilImage
+
+        from ipw.processors.standard.perspective import Corners, detect_page, flatten_page
+
+        source = image.image
+        if source.bands > 3:
+            source = source.extract_band(0, n=3)
+        buffer = PilImage.frombytes("RGB", (source.width, source.height), source.write_to_memory())
+
+        if corners is None:
+            found = detect_page(buffer)
+            if found is None:
+                msg = (
+                    "no page could be found in this photograph. Give the four corners, "
+                    "or photograph the page against a darker background."
+                )
+                raise EngineError(msg)
+            quad = found.corners
+        else:
+            quad = Corners(*[(float(x), float(y)) for x, y in corners])
+
+        flat = flatten_page(buffer, quad)
+        vips = self._vips()
+        return VipsImage(
+            vips.Image.new_from_memory(flat.tobytes(), flat.width, flat.height, 3, "uchar")
+        )
+
     def enlarge(self, image: VipsImage, *, scale: int, material: str, iterations: int) -> VipsImage:
         """Shared with the Pillow engine, for the same reason as clean_document:
         two engines disagreeing about a result is a bug this repository has

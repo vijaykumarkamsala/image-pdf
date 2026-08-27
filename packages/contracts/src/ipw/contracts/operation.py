@@ -17,7 +17,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from ipw.contracts.asset import MediaType
 from ipw.contracts.common import ContractModel, Percent, PositiveInt, SignedPercent
@@ -45,6 +45,7 @@ class OperationKind(StrEnum):
     DENOISE = "denoise"
     DOCUMENT_CLEAN = "document_clean"
     ENLARGE = "enlarge"
+    STRAIGHTEN_PAGE = "straighten_page"
     CONVERT = "convert"
 
     # -- AI enhancement (PRODUCT_REQUIREMENTS.md section 10) ---------------
@@ -76,6 +77,10 @@ FAMILY_OF: dict[OperationKind, OperationFamily] = {
     # it adds is derived from the customer's own pixels by back-projection;
     # nothing is generated, so the result is still their photograph.
     OperationKind.ENLARGE: OperationFamily.STANDARD,
+    # Geometry, not generation: a projective transform is the exact model of
+    # a flat surface seen at an angle, so the corrected page is the same
+    # document rather than a plausible redrawing of one.
+    OperationKind.STRAIGHTEN_PAGE: OperationFamily.STANDARD,
     OperationKind.CONVERT: OperationFamily.STANDARD,
     OperationKind.SUPER_RESOLUTION: OperationFamily.AI,
     # Distinct from OperationKind.DENOISE on purpose. A median filter cannot
@@ -261,6 +266,31 @@ class EnlargeSettings(ContractModel):
     iterations: int = Field(default=3, ge=0, le=8)
 
 
+class StraightenPageSettings(ContractModel):
+    """Flatten a page photographed at an angle into a rectangle.
+
+    Corners are found automatically when none are given. They can be supplied
+    instead - four (x, y) pairs clockwise from the top left - because a detector
+    that is usually right still has to be correctable by hand.
+    """
+
+    kind: Literal[OperationKind.STRAIGHTEN_PAGE] = OperationKind.STRAIGHTEN_PAGE
+    corners: list[tuple[float, float]] | None = Field(
+        default=None,
+        description="Four points clockwise from the top left; detected when omitted.",
+    )
+
+    @field_validator("corners")
+    @classmethod
+    def _four_of_them(
+        cls, value: list[tuple[float, float]] | None
+    ) -> list[tuple[float, float]] | None:
+        if value is not None and len(value) != 4:
+            msg = f"a page has four corners, got {len(value)}"
+            raise ValueError(msg)
+        return value
+
+
 class ConvertSettings(ContractModel):
     kind: Literal[OperationKind.CONVERT] = OperationKind.CONVERT
     target_media_type: MediaType
@@ -356,6 +386,7 @@ AnySettings = Annotated[
     | DenoiseSettings
     | DocumentCleanSettings
     | EnlargeSettings
+    | StraightenPageSettings
     | ConvertSettings
     | SuperResolutionSettings
     | FaceRestoreSettings

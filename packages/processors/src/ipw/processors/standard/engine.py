@@ -13,7 +13,7 @@ crops, adjusts and sharpens; it never invents detail that was not in the source.
 
 from __future__ import annotations
 
-from typing import Literal, Protocol, TypeVar, runtime_checkable
+from typing import Any, Literal, Protocol, TypeVar, runtime_checkable
 
 __all__ = ["EngineError", "EngineImage", "ImageEngine", "ImageT", "ResampleFilter"]
 
@@ -129,6 +129,10 @@ class ImageEngine(Protocol[ImageT]):
         ...
 
     # -- detail -----------------------------------------------------------
+    def straighten_page(self, image: ImageT, corners: Any | None) -> ImageT:
+        """Flatten a page photographed at an angle into a rectangle."""
+        ...
+
     def enlarge(self, image: ImageT, *, scale: int, material: str, iterations: int) -> ImageT:
         """Enlarge by back-projection: better than a resize, invents nothing."""
         ...

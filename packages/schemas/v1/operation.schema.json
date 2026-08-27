@@ -526,6 +526,7 @@
         "denoise",
         "document_clean",
         "enlarge",
+        "straighten_page",
         "convert",
         "super_resolution",
         "ai_denoise",
@@ -699,6 +700,46 @@
       "title": "SharpenSettings",
       "type": "object"
     },
+    "StraightenPageSettings": {
+      "additionalProperties": false,
+      "description": "Flatten a page photographed at an angle into a rectangle.\n\nCorners are found automatically when none are given. They can be supplied\ninstead - four (x, y) pairs clockwise from the top left - because a detector\nthat is usually right still has to be correctable by hand.",
+      "properties": {
+        "corners": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Four points clockwise from the top left; detected when omitted.",
+          "title": "Corners"
+        },
+        "kind": {
+          "const": "straighten_page",
+          "default": "straighten_page",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "StraightenPageSettings",
+      "type": "object"
+    },
     "SuperResolutionSettings": {
       "additionalProperties": false,
       "properties": {
@@ -776,6 +817,7 @@
           "resize": "#/$defs/ResizeSettings",
           "rotate": "#/$defs/RotateSettings",
           "sharpen": "#/$defs/SharpenSettings",
+          "straighten_page": "#/$defs/StraightenPageSettings",
           "super_resolution": "#/$defs/SuperResolutionSettings"
         },
         "propertyName": "kind"
@@ -813,6 +855,9 @@
         },
         {
           "$ref": "#/$defs/EnlargeSettings"
+        },
+        {
+          "$ref": "#/$defs/StraightenPageSettings"
         },
         {
           "$ref": "#/$defs/ConvertSettings"

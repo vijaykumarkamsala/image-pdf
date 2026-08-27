@@ -1178,6 +1178,8 @@ const TOOL_ICONS = {
   adjust:  '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/>',
   sharpen: '<path d="M12 3 4 21h16L12 3Z"/><path d="M12 9v8"/>',
   denoise: '<path d="M4 18c3-6 5 4 8-2s5 2 8-4"/><circle cx="7" cy="7" r="1"/><circle cx="17" cy="16" r="1"/>',
+  straighten_page:
+    '<path d="M3 7l7-3 11 4-7 3Z"/><path d="M4 12h16v8H4Z"/>',
   document_clean:
     '<path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h4"/>',
   convert: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
