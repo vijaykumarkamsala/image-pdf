@@ -87,7 +87,22 @@ class VipsEngine:
         try:
             # access="sequential" would stream, but several operations below need
             # random access; "random" keeps behaviour correct and comparable.
-            return VipsImage(vips.Image.new_from_file(path, access="random"))
+            loaded = vips.Image.new_from_file(path, access="random")
+            # **Turn the picture the way the camera said to.**
+            #
+            # A phone in portrait writes landscape pixels plus an EXIF flag
+            # meaning "rotate this to display". Viewers honour the flag, so the
+            # file looks upright everywhere until a tool reads the pixels,
+            # ignores the flag, and writes the result without it - which is what
+            # happened here: a portrait photo came back on its side, at the
+            # right dimensions, with nothing reporting an error.
+            #
+            # Both engines strip metadata so output is reproducible. Stripping
+            # orientation without applying it first is precisely how the picture
+            # gets lost, so it is applied at the point of decode and every
+            # operation downstream sees the image the way a person sees it.
+            loaded = loaded.autorot()
+            return VipsImage(loaded)
         except Exception as exc:
             msg = f"could not decode image: {type(exc).__name__}"
             raise EngineError(msg) from exc

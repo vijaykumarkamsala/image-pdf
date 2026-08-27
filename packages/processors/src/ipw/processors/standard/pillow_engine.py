@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from PIL import Image, ImageEnhance, ImageFilter, ImageStat
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps, ImageStat
 
 from ipw.processors.standard.engine import EngineError, ResampleFilter
 
@@ -102,9 +102,26 @@ class PillowEngine:
         try:
             with Image.open(path) as handle:
                 handle.load()
+                # **Turn the picture the way the camera said to.**
+                #
+                # A phone in portrait writes landscape pixels plus an EXIF flag
+                # meaning "rotate this to display". Viewers honour the flag, so the
+                # file looks upright everywhere until a tool reads the pixels,
+                # ignores the flag, and writes the result without it - which is what
+                # happened here: a portrait photo came back on its side, at the
+                # right dimensions, with nothing reporting an error.
+                #
+                # Both engines strip metadata so output is reproducible. Stripping
+                # orientation without applying it first is precisely how the picture
+                # gets lost, so it is applied at the point of decode and every
+                # operation downstream sees the image the way a person sees it.
+                #
+                # A file with no orientation tag, or one set to 1, comes back
+                # untouched, so nothing that was already correct moves.
+                upright = ImageOps.exif_transpose(handle)
                 # copy() detaches from the file so the handle closes immediately;
                 # the source is never held open or written.
-                return PillowImage(handle.copy())
+                return PillowImage((upright if upright is not None else handle).copy())
         except Image.DecompressionBombError as exc:
             msg = f"decompression bomb refused by the decoder: {exc}"
             raise EngineError(msg) from exc
@@ -127,10 +144,29 @@ class PillowEngine:
                     compress_level=6,  # pinned: affects output bytes
                 )
             elif media_type == "image/jpeg":
-                if target.mode not in {"RGB", "L"}:
+                # **CMYK is a JPEG mode, and refusing it turned print work away.**
+                #
+                # This was an allowlist of RGB and L, so a CMYK JPEG - what a
+                # print shop or a textile bureau sends as a matter of course -
+                # could not even be resized. Worse, it was refused with "JPEG
+                # has no alpha channel", which is about transparency that CMYK
+                # does not have, so the message sent somebody looking for a
+                # problem that was not there.
+                #
+                # The libvips engine had this right all along: it refuses on
+                # actual alpha. Two engines disagreeing about which files are
+                # acceptable is its own bug - the same upload succeeded or
+                # failed depending on which one was installed.
+                if image.has_alpha:
                     msg = (
                         "JPEG has no alpha channel; flatten the image onto a background "
                         "before converting"
+                    )
+                    raise EngineError(msg)
+                if target.mode not in {"RGB", "L", "CMYK"}:
+                    msg = (
+                        f"JPEG cannot store {target.mode} data; convert the image to RGB "
+                        f"or greyscale first"
                     )
                     raise EngineError(msg)
                 target.save(

@@ -329,3 +329,134 @@ class TestOriginalPreservation:
 
         after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
         assert after == before
+
+
+class TestCmykIsAJpegMode:
+    """A print shop's file must survive the round trip.
+
+    JPEG stores CMYK natively - Adobe writes them constantly - and a textile or
+    print bureau sends them as a matter of course. The Pillow engine used an
+    allowlist of RGB and L, so those files could not be resized at all, and the
+    refusal blamed an alpha channel that CMYK does not have. libvips checked
+    actual transparency and accepted them, so the same upload succeeded or
+    failed depending on which engine was installed.
+    """
+
+    def _cmyk(self) -> Any:
+        from PIL import Image
+
+        return Image.new("CMYK", (40, 30), (10, 200, 180, 5))
+
+    def test_pillow_saves_cmyk_as_jpeg(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        from ipw.processors.standard.pillow_engine import PillowEngine, PillowImage
+
+        engine = PillowEngine()
+        out = tmp_path / "print.jpg"
+        engine.save(PillowImage(self._cmyk()), str(out), "image/jpeg", 90, optimise=False)
+
+        assert out.is_file()
+        assert Image.open(out).mode == "CMYK"
+
+    def test_a_transparent_image_is_still_refused_for_jpeg(self, tmp_path: Path) -> None:
+        """The real constraint, kept: JPEG cannot carry alpha, and flattening
+        onto a colour nobody chose is how a logo silently gains a black box."""
+        from PIL import Image
+
+        from ipw.processors.standard.engine import EngineError
+        from ipw.processors.standard.pillow_engine import PillowEngine, PillowImage
+
+        engine = PillowEngine()
+        image = PillowImage(Image.new("RGBA", (20, 20), (255, 0, 0, 0)))
+
+        with pytest.raises(EngineError, match="no alpha channel"):
+            engine.save(image, str(tmp_path / "x.jpg"), "image/jpeg", 90, optimise=False)
+
+    def test_a_mode_jpeg_cannot_store_says_what_it_is(self, tmp_path: Path) -> None:
+        """Not "no alpha channel" for something that has none."""
+        from PIL import Image
+
+        from ipw.processors.standard.engine import EngineError
+        from ipw.processors.standard.pillow_engine import PillowEngine, PillowImage
+
+        engine = PillowEngine()
+        image = PillowImage(Image.new("I;16", (20, 20), 4096))
+
+        with pytest.raises(EngineError, match="cannot store"):
+            engine.save(image, str(tmp_path / "x.jpg"), "image/jpeg", 90, optimise=False)
+
+
+class TestOrientationIsHonoured:
+    """A portrait phone photo must not come back on its side.
+
+    Phones in portrait write landscape pixels plus an EXIF flag meaning "rotate
+    this to display". Viewers honour it, so the file looks upright everywhere -
+    until a tool reads the pixels, ignores the flag, and writes the result
+    without it. The output then has the right dimensions and the wrong picture,
+    and nothing reports an error, which is why this needs a test rather than an
+    eye.
+    """
+
+    def _portrait_photo(self, path: Path) -> None:
+        """Landscape pixels - red left, blue right - flagged 'rotate 90 CW'."""
+        from PIL import Image, ImageDraw
+
+        canvas = Image.new("RGB", (400, 200), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
+        draw.rectangle([0, 0, 199, 199], fill=(220, 20, 20))
+        draw.rectangle([200, 0, 399, 199], fill=(20, 20, 220))
+        exif = Image.Exif()
+        exif[274] = 6
+        canvas.save(path, format="JPEG", exif=exif, quality=95)
+
+    def test_pillow_turns_the_photo_the_way_the_camera_said(self, tmp_path: Path) -> None:
+        from ipw.processors.standard.pillow_engine import PillowEngine
+
+        source = tmp_path / "IMG_2201.jpg"
+        self._portrait_photo(source)
+
+        loaded = PillowEngine().load(str(source))
+
+        assert (loaded.width, loaded.height) == (200, 400), "the photo is still on its side"
+
+        rgb = loaded.image.convert("RGB")
+
+        def average(box: tuple[int, int, int, int]) -> tuple[int, ...]:
+            pixel = rgb.crop(box).resize((1, 1)).getpixel((0, 0))
+            assert isinstance(pixel, tuple)
+            return pixel
+
+        top = average((0, 0, 200, 200))
+        bottom = average((0, 200, 200, 400))
+        assert top[0] > top[2], "the red side should be at the top after rotating"
+        assert bottom[2] > bottom[0], "the blue side should be at the bottom"
+
+    def test_an_image_with_no_orientation_tag_is_untouched(self, tmp_path: Path) -> None:
+        """Everything that was already correct must stay byte-for-byte correct -
+        which is also why the committed goldens did not move."""
+        from PIL import Image
+
+        from ipw.processors.standard.pillow_engine import PillowEngine
+
+        source = tmp_path / "plain.png"
+        Image.new("RGB", (60, 40), (10, 200, 10)).save(source)
+
+        loaded = PillowEngine().load(str(source))
+
+        assert (loaded.width, loaded.height) == (60, 40)
+        assert loaded.image.convert("RGB").getpixel((5, 5)) == (10, 200, 10)
+
+    def test_orientation_one_means_leave_it_alone(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        from ipw.processors.standard.pillow_engine import PillowEngine
+
+        source = tmp_path / "upright.jpg"
+        exif = Image.Exif()
+        exif[274] = 1
+        Image.new("RGB", (80, 40), (30, 30, 200)).save(source, format="JPEG", exif=exif)
+
+        loaded = PillowEngine().load(str(source))
+
+        assert (loaded.width, loaded.height) == (80, 40)
