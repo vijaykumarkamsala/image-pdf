@@ -92,6 +92,13 @@
       </div>
 
       <div id="stage" class="stage">
+        <!-- The tools live on the picture, not in a column beside it. An editor
+             is somewhere you work on an image; a settings page is somewhere you
+             fill in a form about one. -->
+        <div id="canvas-tools" class="canvas-tools" role="toolbar"
+             aria-label="Editing tools"></div>
+        <div id="tool-popover" class="tool-popover" hidden></div>
+
         <img id="img-result" alt="Edited image" />
         <img id="img-original" alt="Original image" hidden />
         <div id="split" class="split" hidden>

@@ -250,6 +250,7 @@ async function load(file, all = null) {
     // stayed empty for the entire session - which looked like an interface
     // missing its features rather than a crash.
     renderTools();
+    renderCanvasTools();
     await refreshPrintPlan();
     toast(`${file.name} loaded`);
   } catch (error) {
@@ -781,6 +782,127 @@ function applyPendingJob() {
   }
 }
 
+/* ------------------------------------------------------ tools on the canvas */
+
+/* Line icons, drawn here rather than pulled from a font or a sprite sheet.
+ *
+ * Four hundred bytes of paths against a web font that would be another request,
+ * another licence-register entry and a flash of missing glyphs on a slow
+ * connection. They inherit `currentColor`, so the active and disabled states
+ * cost nothing extra.
+ */
+const TOOL_ICONS = {
+  resize:  '<path d="M3 9V3h6M21 15v6h-6"/><path d="M3 3l7 7M21 21l-7-7"/>',
+  crop:    '<path d="M6 2v16h16"/><path d="M2 6h16v16"/>',
+  rotate:  '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/>',
+  flip:    '<path d="M12 3v18"/><path d="M8 7 3 12l5 5V7Z"/><path d="M16 7l5 5-5 5V7Z"/>',
+  adjust:  '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/>',
+  sharpen: '<path d="M12 3 4 21h16L12 3Z"/><path d="M12 9v8"/>',
+  denoise: '<path d="M4 18c3-6 5 4 8-2s5 2 8-4"/><circle cx="7" cy="7" r="1"/><circle cx="17" cy="16" r="1"/>',
+  document_clean:
+    '<path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h4"/>',
+  convert: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  super_resolution:
+    '<path d="M4 4h6v6H4Z"/><path d="M14 4h6v6h-6Z"/><path d="M4 14h6v6H4Z"/><path d="M14 14h6v6h-6Z"/>',
+  ai_denoise: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/>',
+  jpeg_artifact_repair:
+    '<path d="M4 4h16v16H4Z"/><path d="M4 10h16M10 4v16"/>',
+  // Not reachable while their weights are absent - the strip filters those out -
+  // but drawn now so installing a model does not produce a row of blank circles.
+  face_restore:
+    '<circle cx="12" cy="9" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+  damage_repair:
+    '<path d="M4 4h16v16H4Z"/><path d="m9 4 3 8-3 3 4 6"/>',
+  colourise:
+    '<path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1.3 1.2-2.2-.8-.9-.5-2.3.8-2.3H17a4 4 0 0 0 4-4A9 9 0 0 0 12 3Z"/>'
+    + '<circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="7.5" r="1"/>',
+  background_remove:
+    '<path d="M4 4h7v7H4Z"/><path d="M13 13h7v7h-7Z"/><path d="M13 4h7v7h-7Z" stroke-dasharray="2 2"/>'
+    + '<path d="M4 13h7v7H4Z" stroke-dasharray="2 2"/>',
+  background_replace:
+    '<path d="M3 17l5-5 4 4 3-3 6 6"/><path d="M3 5h18v14H3Z"/><circle cx="8.5" cy="8.5" r="1.5"/>',
+};
+
+const FALLBACK_ICON = '<circle cx="12" cy="12" r="8"/>';
+
+/* Build the strip from the catalogue, so a tool added on the server appears
+ * here without this file being touched. Order follows the catalogue's own
+ * grouping, with a rule between groups. */
+function renderCanvasTools() {
+  const strip = $("canvas-tools");
+  if (!strip || !state.catalogue) return;
+
+  strip.innerHTML = "";
+  let first = true;
+
+  for (const group of state.catalogue.groups) {
+    const usable = group.operations.filter(
+      (operation) => !(operation.needs_model && operation.available === false));
+    if (!usable.length) continue;
+
+    if (!first) {
+      const rule = document.createElement("div");
+      rule.className = "sep";
+      strip.append(rule);
+    }
+    first = false;
+
+    for (const operation of usable) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `tool-btn${group.is_ai ? " is-ai" : ""}`;
+      button.dataset.kind = operation.kind;
+      button.dataset.label = operation.label + (group.is_ai ? " · AI" : "");
+      button.setAttribute("aria-label", operation.label);
+      button.innerHTML =
+        `<svg viewBox="0 0 24 24" aria-hidden="true">` +
+        `${TOOL_ICONS[operation.kind] || FALLBACK_ICON}</svg>`;
+      button.addEventListener("click", () => openTool(operation, button));
+      strip.append(button);
+    }
+  }
+}
+
+/* The settings for one tool, next to the icon that opened them. */
+function openTool(operation, button) {
+  const popover = $("tool-popover");
+  const already = popover.dataset.kind === operation.kind && !popover.hidden;
+  closeTool();
+  if (already) return;
+
+  const licence = operation.licence && !operation.licence.eligible_for_commercial_use
+    ? `<span class="licence-note">${operation.licence.note ||
+        "This model is not cleared for commercial use."}</span>`
+    : "";
+
+  popover.dataset.kind = operation.kind;
+  popover.innerHTML =
+    `<button class="pop-close" type="button" aria-label="Close">&times;</button>` +
+    `<div class="tool-top"><span class="tool-name">${operation.label}</span>` +
+    `${operation.speed === "slow" ? '<span class="speed">slow</span>' : ""}` +
+    `${operation.invents_detail ? '<span class="invents">invents detail</span>' : ""}</div>` +
+    `<p class="tool-summary">${operation.summary}</p>` +
+    licence +
+    `<div class="controls">${toolControls(operation)}</div>` +
+    `<button class="apply" data-kind="${operation.kind}">Apply ${operation.label}</button>`;
+  popover.hidden = false;
+  button.classList.add("is-on");
+
+  popover.querySelector(".pop-close").addEventListener("click", closeTool);
+  popover.querySelector(".apply").addEventListener("click", async () => {
+    await apply(operation.kind);
+    closeTool();
+  });
+}
+
+function closeTool() {
+  const popover = $("tool-popover");
+  popover.hidden = true;
+  popover.dataset.kind = "";
+  popover.innerHTML = "";
+  document.querySelectorAll(".tool-btn.is-on").forEach((b) => b.classList.remove("is-on"));
+}
+
 /* --------------------------------------------------------- command palette */
 
 /* Search, rather than another row of buttons.
@@ -866,6 +988,10 @@ function wirePalette() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("tool-popover").hidden) {
+      closeTool();
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
       box.hidden ? open() : close();
