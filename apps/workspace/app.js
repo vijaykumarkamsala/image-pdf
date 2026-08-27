@@ -36,6 +36,10 @@ const state = {
   catalogue: null,
   facts: null,
   busy: false,
+  /** A job chosen on the landing page, honoured once a file is open. */
+  pendingJob: null,
+  /** Extra images queued to follow this one into a PDF. */
+  extraImages: [],
 };
 
 /* ------------------------------------------------------------------ helpers */
@@ -240,6 +244,12 @@ async function load(file, all = null) {
 
     renderFacts();
     renderImages();
+    // The tools are built here, not at boot: their controls are seeded from the
+    // image's own width and height. Building them with nothing loaded threw,
+    // and because that throw happened during start-up the whole tool panel
+    // stayed empty for the entire session - which looked like an interface
+    // missing its features rather than a crash.
+    renderTools();
     await refreshPrintPlan();
     toast(`${file.name} loaded`);
   } catch (error) {
@@ -247,6 +257,8 @@ async function load(file, all = null) {
   } finally {
     busy(false);
   }
+
+  applyPendingJob();
 }
 
 /* ------------------------------------------------------------------ render */
@@ -713,11 +725,330 @@ function wire() {
 
   $("btn-undo").addEventListener("click", undo);
   $("btn-download").addEventListener("click", download);
-  $("btn-pdf").addEventListener("click", exportPdf);
-  $("btn-vectorise").addEventListener("click", convertToVector);
   $("btn-reset").addEventListener("click", reset);
   $("print-inches").addEventListener("change", refreshPrintPlan);
   $("print-dpi").addEventListener("change", refreshPrintPlan);
+
+  wireTasks();
+  wireExport();
+  wirePalette();
+  wireJobs();
+}
+
+/* Jobs, not tools.
+ *
+ * Somebody arriving with "this PDF is too big for the portal" should not have
+ * to work out that the answer lives under Size. Each of these picks the file
+ * and lands on the task, so the first click is about their problem rather than
+ * about our menu.
+ */
+function wireJobs() {
+  for (const button of document.querySelectorAll(".job")) {
+    button.addEventListener("click", () => {
+      state.pendingJob = button.dataset.job;
+      $("file").click();
+    });
+  }
+}
+
+/* Called once a file is open, to honour whatever job was chosen on the way in. */
+function applyPendingJob() {
+  const job = state.pendingJob;
+  state.pendingJob = null;
+  if (!job) return;
+
+  const imagePanel = document.querySelector(".panel:not(.pdf-panel)");
+  const pdfPanel = document.querySelector(".pdf-panel");
+  const isPdf = !$("pdfspace").hidden;
+
+  if (job === "smaller") {
+    if (isPdf) showTask(pdfPanel, "size");
+    else showTask(imagePanel, "export");
+  } else if (job === "redact") {
+    if (isPdf) showTask(pdfPanel, "protect");
+    else toast("Removing text needs a PDF. This is an image.", true);
+  } else if (job === "searchable") {
+    if (isPdf) showTask(pdfPanel, "content");
+    else toast("Making a scan searchable needs a PDF. This is an image.", true);
+  } else if (job === "vector") {
+    if (isPdf) {
+      toast("Turning artwork into a cut file needs an image, not a PDF.", true);
+    } else {
+      showTask(imagePanel, "export");
+      $("export-format").value = "image/svg+xml";
+      $("export-format").dispatchEvent(new Event("change"));
+    }
+  }
+}
+
+/* --------------------------------------------------------- command palette */
+
+/* Search, rather than another row of buttons.
+ *
+ * The brief is that features keep being added. Every arrangement of visible
+ * controls degrades as that happens - a longer panel, a deeper menu, a second
+ * toolbar. A search box does not: the fiftieth action is found by the same
+ * three keystrokes as the first, and it costs no screen space at all.
+ *
+ * It also answers a question no menu can. Somebody thinking "I need to get a
+ * name out of this" does not know whether that lives under Content, Protect or
+ * Pages, and typing "name" finds it without them having to learn the map.
+ */
+function wirePalette() {
+  const box = $("cmdk");
+  const input = $("cmdk-input");
+  const list = $("cmdk-list");
+  const empty = $("cmdk-empty");
+  let commands = [];
+  let cursor = 0;
+
+  const open = () => {
+    commands = collectCommands();
+    box.hidden = false;
+    input.value = "";
+    render("");
+    input.focus();
+  };
+
+  const close = () => {
+    box.hidden = true;
+  };
+
+  function render(query) {
+    const needle = query.trim().toLowerCase();
+    const shown = needle
+      ? commands.filter((command) =>
+          `${command.label} ${command.where} ${command.keywords || ""}`
+            .toLowerCase()
+            .includes(needle))
+      : commands;
+
+    cursor = 0;
+    list.innerHTML = shown
+      .map((command, index) =>
+        `<li data-index="${index}" class="${index === 0 ? "is-on" : ""}">` +
+        `<span>${command.label}</span><span class="where">${command.where}</span></li>`)
+      .join("");
+    empty.hidden = shown.length > 0;
+    list.dataset.shown = JSON.stringify(shown.map((c) => c.id));
+  }
+
+  function runAt(index) {
+    const ids = JSON.parse(list.dataset.shown || "[]");
+    const chosen = commands.find((command) => command.id === ids[index]);
+    if (!chosen) return;
+    close();
+    chosen.run();
+  }
+
+  $("cmd-trigger").addEventListener("click", open);
+  input.addEventListener("input", () => render(input.value));
+
+  box.addEventListener("click", (event) => {
+    if (event.target === box) close();
+    const row = event.target.closest("li[data-index]");
+    if (row) runAt(Number(row.dataset.index));
+  });
+
+  input.addEventListener("keydown", (event) => {
+    const rows = list.querySelectorAll("li");
+    if (event.key === "Escape") { close(); return; }
+    if (event.key === "Enter") { event.preventDefault(); runAt(cursor); return; }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+
+    event.preventDefault();
+    if (!rows.length) return;
+    cursor = event.key === "ArrowDown"
+      ? Math.min(cursor + 1, rows.length - 1)
+      : Math.max(cursor - 1, 0);
+    rows.forEach((row, index) => row.classList.toggle("is-on", index === cursor));
+    rows[cursor].scrollIntoView({ block: "nearest" });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      box.hidden ? open() : close();
+    }
+  });
+}
+
+/* What the palette can reach right now.
+ *
+ * Rebuilt each time it opens rather than cached, because what is possible
+ * depends on what is loaded: a PDF has no resize, an image has no page order,
+ * and offering either would be a menu that lies.
+ */
+function collectCommands() {
+  const found = [];
+  const visible = (id) => {
+    const element = document.getElementById(id);
+    return element && !element.hidden;
+  };
+
+  if (visible("workspace") && state.catalogue) {
+    for (const group of state.catalogue.groups) {
+      for (const operation of group.operations) {
+        if (operation.needs_model && operation.available === false) continue;
+        found.push({
+          id: `op:${operation.kind}`,
+          label: operation.label,
+          where: group.label,
+          keywords: operation.summary,
+          run: () => {
+            showTask(document.querySelector(".panel"), "edit");
+            const card = document.querySelector(`[data-kind="${operation.kind}"]`);
+            card?.closest(".tool-group")?.classList.add("is-open");
+            card?.scrollIntoView({ block: "center", behavior: "smooth" });
+            card?.focus?.();
+          },
+        });
+      }
+    }
+
+    const panel = document.querySelector(".panel");
+    found.push(
+      { id: "task:print", label: "Print size", where: "Prepare",
+        keywords: "dpi inches banner fabric engraving",
+        run: () => showTask(panel, "print") },
+      { id: "task:export", label: "Export", where: "Finish",
+        keywords: "download save jpeg png pdf svg vector cut file",
+        run: () => showTask(panel, "export") },
+    );
+  }
+
+  if (visible("pdfspace")) {
+    const panel = document.querySelector(".pdf-panel");
+    found.push(
+      { id: "pdf:pages", label: "Combine or reorder pages", where: "Pages",
+        keywords: "merge join split delete rotate order",
+        run: () => showTask(panel, "pages") },
+      { id: "pdf:searchable", label: "Make a scan searchable", where: "Content",
+        keywords: "ocr recognise read words text layer",
+        run: () => showTask(panel, "content") },
+      { id: "pdf:stamp", label: "Stamp text over the pages", where: "Content",
+        keywords: "draft sample confidential watermark",
+        run: () => showTask(panel, "content") },
+      { id: "pdf:redact", label: "Remove a name or number", where: "Protect",
+        keywords: "redact delete sensitive personal gdpr disclosure",
+        run: () => showTask(panel, "protect") },
+      { id: "pdf:compress", label: "Make the file smaller", where: "Size",
+        keywords: "compress shrink megabytes portal email limit",
+        run: () => showTask(panel, "size") },
+    );
+  }
+
+  found.push({
+    id: "app:reset", label: "Start over with another file", where: "Workspace",
+    keywords: "clear reset new upload",
+    run: () => reset(),
+  });
+
+  return found;
+}
+
+/* ------------------------------------------------------------------ tasks */
+
+/* One pane at a time.
+ *
+ * The panel used to stack print settings, PDF export, vector conversion and
+ * every tool group in one column, all open. That is unreadable at today's
+ * feature count and gets worse with each one added, so a task is chosen and
+ * only its controls are shown. Adding the fiftieth feature adds an entry to a
+ * list; it does not add another screen's worth of scrolling.
+ */
+function wireTasks() {
+  for (const nav of document.querySelectorAll(".tasknav")) {
+    const scope = nav.parentElement;
+    nav.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-task]");
+      if (!button) return;
+      showTask(scope, button.dataset.task);
+    });
+  }
+}
+
+function showTask(scope, task) {
+  if (!scope) return;
+  for (const button of scope.querySelectorAll(".tasknav button")) {
+    button.classList.toggle("is-active", button.dataset.task === task);
+  }
+  for (const pane of scope.querySelectorAll(".taskpane")) {
+    pane.hidden = pane.dataset.pane !== task;
+  }
+}
+
+/* ----------------------------------------------------------------- export */
+
+/* Format is the customer's choice, not a conversion the tool decides on.
+ *
+ * There used to be a "Make a PDF" block and a separate "Convert to vector"
+ * block, which implied those were the destinations. They are two of four, and
+ * a JPEG staying a JPEG is the commonest answer of all.
+ */
+function wireExport() {
+  const format = $("export-format");
+  const update = () => {
+    const value = format.value;
+    $("export-pdf-options").hidden = value !== "application/pdf";
+    $("export-svg-options").hidden = value !== "image/svg+xml";
+    $("export-quality-wrap").hidden = value !== "image/jpeg";
+  };
+  format.addEventListener("change", update);
+  update();
+
+  $("btn-export").addEventListener("click", () => {
+    const value = format.value;
+    if (value === "application/pdf") return exportPdf();
+    if (value === "image/svg+xml") return convertToVector();
+    return exportImage(value);
+  });
+
+  $("btn-add-image").addEventListener("click", () => $("more-images").click());
+  $("more-images").addEventListener("change", (event) => {
+    const chosen = Array.from(event.target.files || []);
+    if (!chosen.length) return;
+    state.extraImages = chosen;
+    const box = $("extra-images");
+    box.hidden = false;
+    box.textContent =
+      `${chosen.length} more image${chosen.length === 1 ? "" : "s"} will follow this one ` +
+      `in the document.`;
+  });
+}
+
+/* Export the picture as itself, in the format asked for. */
+async function exportImage(mediaType) {
+  if (state.busy || !state.current) return;
+  const label = mediaType === "image/png" ? "PNG" : "JPEG";
+  busy(true, `Preparing the ${label}…`);
+  try {
+    const result = await api("/api/process", sourceRef({
+      operation: "convert",
+      settings: {
+        target_media_type: mediaType,
+        quality: Number($("export-quality").value) || 88,
+      },
+      filename: state.original.name,
+    }));
+
+    if (!result.ok) {
+      const failure = result.failure || {};
+      toast(failure.message || "That did not work", true);
+      return;
+    }
+
+    const stem = (state.original.name || "image").replace(/\.[^.]+$/, "");
+    const link = document.createElement("a");
+    link.href = result.image || result.download_url;
+    link.download = `${stem}.${mediaType === "image/png" ? "png" : "jpg"}`;
+    link.click();
+    toast(`${label} ready — ${bytes(result.bytes)}`);
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    busy(false);
+  }
 }
 
 async function start() {
@@ -736,11 +1067,26 @@ async function start() {
   wire();
   pdfView.wire();
   batchView.wire();
+  // The catalogue is fetched at boot; the tool controls are not built until
+  // there is a file to build them for. `toolControls` reads the current image's
+  // width to seed the resize and crop fields, so rendering with nothing loaded
+  // threw "Cannot read properties of null" - which the catch below then
+  // reported as the service being unreachable, sending anyone who saw it to
+  // check a server that was answering perfectly.
   try {
     state.catalogue = await api("/api/catalogue");
-    renderTools();
   } catch (error) {
     toast(`Could not reach the workspace service: ${error.message}`, true);
+    return;
+  }
+
+  // Separate catch: a failure to draw the tools is a bug in this file, and
+  // saying "could not reach the service" about it wastes the first hour of
+  // anybody debugging it.
+  try {
+    if (state.current) renderTools();
+  } catch (error) {
+    toast(`The tools could not be drawn: ${error.message}`, true);
   }
 }
 
