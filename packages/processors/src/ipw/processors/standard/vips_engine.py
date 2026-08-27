@@ -249,6 +249,37 @@ class VipsEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def clean_document(
+        self, image: VipsImage, *, strength_percent: int, whiten: bool, keep_ink_colour: bool
+    ) -> VipsImage:
+        """Shared with the Pillow engine - see the note there.
+
+        The image crosses to Pillow and back because the correction is per-pixel
+        division that libvips has no single operation for, and because writing
+        it twice would give two engines that disagree about what a cleaned page
+        looks like. That is the bug already found in JPEG saving, and once is
+        enough. The round trip costs memory, not quality: the pixels are
+        identical either way.
+        """
+        from PIL import Image as PilImage
+
+        from ipw.processors.standard.document import clean_document as run
+
+        source = image.image
+        if source.bands > 3:
+            source = source.extract_band(0, n=3)
+        buffer = PilImage.frombytes("RGB", (source.width, source.height), source.write_to_memory())
+        cleaned, _ = run(
+            buffer,
+            whiten=whiten,
+            strength_percent=strength_percent,
+            keep_ink_colour=keep_ink_colour,
+        )
+        vips = self._vips()
+        return VipsImage(
+            vips.Image.new_from_memory(cleaned.tobytes(), cleaned.width, cleaned.height, 3, "uchar")
+        )
+
     def sharpen(self, image: VipsImage, amount_percent: int, radius_x100: int) -> VipsImage:
         if amount_percent == 0:
             return image

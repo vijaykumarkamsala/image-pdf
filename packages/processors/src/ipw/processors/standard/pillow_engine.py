@@ -276,6 +276,27 @@ class PillowEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def clean_document(
+        self, image: PillowImage, *, strength_percent: int, whiten: bool, keep_ink_colour: bool
+    ) -> PillowImage:
+        """Both engines share one implementation, deliberately.
+
+        The correction is array arithmetic - estimate the light, divide it out -
+        and neither Pillow nor libvips has an operation for it. Writing it twice
+        would give two engines that disagree about what a cleaned page looks
+        like, which is the bug already found in JPEG saving. One function, two
+        callers, identical output.
+        """
+        from ipw.processors.standard.document import clean_document as run
+
+        cleaned, _ = run(
+            image.image,
+            whiten=whiten,
+            strength_percent=strength_percent,
+            keep_ink_colour=keep_ink_colour,
+        )
+        return PillowImage(cleaned)
+
     def sharpen(self, image: PillowImage, amount_percent: int, radius_x100: int) -> PillowImage:
         if amount_percent == 0:
             return image

@@ -521,6 +521,37 @@
       "title": "Disposition",
       "type": "string"
     },
+    "DocumentCleanSettings": {
+      "additionalProperties": false,
+      "description": "Flatten the lighting on a photograph of a page.\n\nA phone photograph of paper carries the room with it: the lamp as a bright\npatch, its warmth across the page, a shadow down one edge. Those are\nillumination rather than content, and they are removed by estimating the\nlight and dividing it out - which is why one setting fixes the shadow, the\ncolour cast and the lamp's gradient together.",
+      "properties": {
+        "keep_ink_colour": {
+          "default": true,
+          "title": "Keep Ink Colour",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "document_clean",
+          "default": "document_clean",
+          "title": "Kind",
+          "type": "string"
+        },
+        "strength_percent": {
+          "default": 100,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength Percent",
+          "type": "integer"
+        },
+        "whiten": {
+          "default": true,
+          "title": "Whiten",
+          "type": "boolean"
+        }
+      },
+      "title": "DocumentCleanSettings",
+      "type": "object"
+    },
     "EnvironmentRecord": {
       "additionalProperties": false,
       "description": "Runtime, dependency and hardware description for one run.",
@@ -1264,6 +1295,7 @@
               "crop": "#/$defs/CropSettings",
               "damage_repair": "#/$defs/DamageRepairSettings",
               "denoise": "#/$defs/DenoiseSettings",
+              "document_clean": "#/$defs/DocumentCleanSettings",
               "face_restore": "#/$defs/FaceRestoreSettings",
               "flip": "#/$defs/FlipSettings",
               "inspect_only": "#/$defs/InspectOnlySettings",
@@ -1303,6 +1335,9 @@
             },
             {
               "$ref": "#/$defs/DenoiseSettings"
+            },
+            {
+              "$ref": "#/$defs/DocumentCleanSettings"
             },
             {
               "$ref": "#/$defs/ConvertSettings"
@@ -1368,6 +1403,7 @@
         "adjust",
         "sharpen",
         "denoise",
+        "document_clean",
         "convert",
         "super_resolution",
         "ai_denoise",
@@ -1803,6 +1839,7 @@
               "crop": "#/$defs/CropSettings",
               "damage_repair": "#/$defs/DamageRepairSettings",
               "denoise": "#/$defs/DenoiseSettings",
+              "document_clean": "#/$defs/DocumentCleanSettings",
               "face_restore": "#/$defs/FaceRestoreSettings",
               "flip": "#/$defs/FlipSettings",
               "inspect_only": "#/$defs/InspectOnlySettings",
@@ -1842,6 +1879,9 @@
             },
             {
               "$ref": "#/$defs/DenoiseSettings"
+            },
+            {
+              "$ref": "#/$defs/DocumentCleanSettings"
             },
             {
               "$ref": "#/$defs/ConvertSettings"

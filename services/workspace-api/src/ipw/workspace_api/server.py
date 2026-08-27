@@ -45,6 +45,7 @@ from ipw.contracts.operation import (
     ConvertSettings,
     CropSettings,
     DenoiseSettings,
+    DocumentCleanSettings,
     FlipSettings,
     JpegArtifactRepairSettings,
     Operation,
@@ -88,6 +89,7 @@ _STANDARD_BUILDERS: dict[OperationKind, type[AnySettings]] = {
     OperationKind.ADJUST: AdjustSettings,
     OperationKind.SHARPEN: SharpenSettings,
     OperationKind.DENOISE: DenoiseSettings,
+    OperationKind.DOCUMENT_CLEAN: DocumentCleanSettings,
     OperationKind.CONVERT: ConvertSettings,
 }
 

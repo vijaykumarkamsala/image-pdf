@@ -179,6 +179,18 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         audiences=(Audience.EVERYONE, Audience.PHOTO_AND_PRINT),
     ),
     CatalogueEntry(
+        kind=OperationKind.DOCUMENT_CLEAN,
+        label="Clean up a photographed page",
+        summary=(
+            "Removes the lamp, the shadow and the brown cast from a photograph of "
+            "paper, so it reads like a scan. One step, because those are all the "
+            "same thing: light, not content."
+        ),
+        group=Group.CLEAN_UP,
+        audiences=(Audience.EVERYONE, Audience.BUSINESS_DOCUMENTS, Audience.PHOTO_AND_PRINT),
+        settings_hint={"strength_percent": [60, 80, 100], "whiten": [True, False]},
+    ),
+    CatalogueEntry(
         kind=OperationKind.DENOISE,
         label="Reduce noise",
         summary="Smooth speckle with a median filter. Cannot invent detail.",

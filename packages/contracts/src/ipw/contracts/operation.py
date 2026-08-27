@@ -43,6 +43,7 @@ class OperationKind(StrEnum):
     ADJUST = "adjust"
     SHARPEN = "sharpen"
     DENOISE = "denoise"
+    DOCUMENT_CLEAN = "document_clean"
     CONVERT = "convert"
 
     # -- AI enhancement (PRODUCT_REQUIREMENTS.md section 10) ---------------
@@ -66,6 +67,10 @@ FAMILY_OF: dict[OperationKind, OperationFamily] = {
     OperationKind.ADJUST: OperationFamily.STANDARD,
     OperationKind.SHARPEN: OperationFamily.STANDARD,
     OperationKind.DENOISE: OperationFamily.STANDARD,
+    # Standard, and the distinction matters: the light is measured off the
+    # page and divided out. Nothing is generated, so a document corrected
+    # this way can still be relied on as a record of what was written.
+    OperationKind.DOCUMENT_CLEAN: OperationFamily.STANDARD,
     OperationKind.CONVERT: OperationFamily.STANDARD,
     OperationKind.SUPER_RESOLUTION: OperationFamily.AI,
     # Distinct from OperationKind.DENOISE on purpose. A median filter cannot
@@ -221,6 +226,22 @@ class DenoiseSettings(ContractModel):
     strength_percent: Percent = 30
 
 
+class DocumentCleanSettings(ContractModel):
+    """Flatten the lighting on a photograph of a page.
+
+    A phone photograph of paper carries the room with it: the lamp as a bright
+    patch, its warmth across the page, a shadow down one edge. Those are
+    illumination rather than content, and they are removed by estimating the
+    light and dividing it out - which is why one setting fixes the shadow, the
+    colour cast and the lamp's gradient together.
+    """
+
+    kind: Literal[OperationKind.DOCUMENT_CLEAN] = OperationKind.DOCUMENT_CLEAN
+    strength_percent: Percent = 100
+    whiten: bool = True
+    keep_ink_colour: bool = True
+
+
 class ConvertSettings(ContractModel):
     kind: Literal[OperationKind.CONVERT] = OperationKind.CONVERT
     target_media_type: MediaType
@@ -314,6 +335,7 @@ AnySettings = Annotated[
     | AdjustSettings
     | SharpenSettings
     | DenoiseSettings
+    | DocumentCleanSettings
     | ConvertSettings
     | SuperResolutionSettings
     | FaceRestoreSettings

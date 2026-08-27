@@ -43,6 +43,7 @@
         "adjust",
         "sharpen",
         "denoise",
+        "document_clean",
         "convert",
         "super_resolution",
         "ai_denoise",

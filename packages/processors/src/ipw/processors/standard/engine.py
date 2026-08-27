@@ -129,6 +129,12 @@ class ImageEngine(Protocol[ImageT]):
         ...
 
     # -- detail -----------------------------------------------------------
+    def clean_document(
+        self, image: ImageT, *, strength_percent: int, whiten: bool, keep_ink_colour: bool
+    ) -> ImageT:
+        """Divide out the lighting on a photograph of a page."""
+        ...
+
     def sharpen(self, image: ImageT, amount_percent: int, radius_x100: int) -> ImageT:
         """Unsharp mask. Enhances existing edges; invents nothing."""
         ...

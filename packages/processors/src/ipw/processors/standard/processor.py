@@ -32,6 +32,7 @@ from ipw.contracts.operation import (
     ConvertSettings,
     CropSettings,
     DenoiseSettings,
+    DocumentCleanSettings,
     FlipSettings,
     Operation,
     OperationFamily,
@@ -67,6 +68,7 @@ SUPPORTED_OPERATIONS: tuple[OperationKind, ...] = (
     OperationKind.ADJUST,
     OperationKind.SHARPEN,
     OperationKind.DENOISE,
+    OperationKind.DOCUMENT_CLEAN,
     OperationKind.CONVERT,
 )
 """Standard-family operations only. No AI operation is declared, so this
@@ -183,6 +185,10 @@ class StandardProcessor(Generic[ImageT]):
             OperationKind.RESIZE: 8_000_000,
             OperationKind.DENOISE: 40_000_000,
             OperationKind.SHARPEN: 20_000_000,
+            # The light is estimated on a downscaled copy, so cost grows with
+            # the divide rather than the filter - a phone photograph is well
+            # inside this.
+            OperationKind.DOCUMENT_CLEAN: 60_000_000,
         }.get(operation.kind, 4_000_000)
 
         return Estimate(
@@ -289,6 +295,13 @@ class StandardProcessor(Generic[ImageT]):
             return self.engine.sharpen(image, settings.amount_percent, settings.radius_x100)
         if isinstance(settings, DenoiseSettings):
             return self.engine.denoise(image, settings.strength_percent)
+        if isinstance(settings, DocumentCleanSettings):
+            return self.engine.clean_document(
+                image,
+                strength_percent=settings.strength_percent,
+                whiten=settings.whiten,
+                keep_ink_colour=settings.keep_ink_colour,
+            )
         if isinstance(settings, ConvertSettings):
             if settings.target_media_type is MediaType.JPEG and image.has_alpha:
                 if settings.flatten_background is None:
