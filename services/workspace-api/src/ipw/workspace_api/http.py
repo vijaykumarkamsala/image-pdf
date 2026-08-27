@@ -326,10 +326,18 @@ class WorkspaceHandler(http.server.SimpleHTTPRequestHandler):
             msg = f"unknown operation {raw_kind!r}"
             raise ValueError(msg) from None
 
+        # `dict([1, 2, 3])` raises TypeError, which reached the caller as a 500
+        # and a raw Python message. A wrong shape is the caller's mistake and
+        # deserves the same plain refusal every other bad field gets.
+        raw_settings = payload.get("settings") or {}
+        if not isinstance(raw_settings, dict):
+            msg = f"settings must be an object, got {type(raw_settings).__name__}"
+            raise ValueError(msg)
+
         return self.service.process(
             ProcessRequest(
                 kind=kind,
-                settings=dict(payload.get("settings") or {}),
+                settings=dict(raw_settings),
                 image_bytes=self._file_bytes(payload, "image"),
                 filename=str(payload.get("filename", "upload")),
             )

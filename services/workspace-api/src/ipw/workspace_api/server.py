@@ -124,6 +124,22 @@ def print_plan(width: int, height: int, target_inches: float, dpi: int) -> dict[
     Floats are used here and nowhere else in the pipeline. This is advice for a
     person, not a benchmark observation, and it never reaches an identity digest.
     """
+    # **Nonsense in must not produce confident advice out.**
+    #
+    # Asked for -3 inches at 0 DPI, this used to answer "ready - the source
+    # already has enough pixels for this size", because both wrong numbers
+    # multiplied to zero and zero pixels are easy to supply. A print shop acting
+    # on that reads a guarantee where there was only arithmetic.
+    if width <= 0 or height <= 0:
+        msg = f"cannot plan a print for a {width}x{height} image"
+        raise ValueError(msg)
+    if target_inches <= 0:
+        msg = f"the printed size must be greater than zero inches, got {target_inches:g}"
+        raise ValueError(msg)
+    if dpi <= 0:
+        msg = f"DPI must be greater than zero, got {dpi}"
+        raise ValueError(msg)
+
     longest = max(width, height)
     needed = round(target_inches * dpi)
     scale = needed / longest if longest else 0.0

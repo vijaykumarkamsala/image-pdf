@@ -377,3 +377,38 @@ class TestEndToEnd:
         # The artwork is still described in the original coordinate system.
         assert (result.width, result.height) == (3000, 2000)
         assert result.report["traced_at"]["width"] < 3000
+
+
+class TestWhatItTellsTheCustomer:
+    """The verdict has to match what actually came back.
+
+    A wrong diagnosis is worse than none: it sends somebody adjusting a setting
+    that was already correct, and the artwork most likely to be vectorised - a
+    one-colour logo for a cutter or an embroidery machine - was the case being
+    told it had failed.
+    """
+
+    def test_a_single_colour_logo_is_the_best_case_not_the_empty_one(self) -> None:
+        from ipw.vector.vectorise import _suitability
+
+        verdict = _suitability("flat_colour", colours=1, paths=1, segments=43)
+
+        assert "Good candidate" in verdict
+        assert "Almost nothing" not in verdict
+
+    def test_nothing_traced_says_nothing_was_traced(self) -> None:
+        from ipw.vector.vectorise import _suitability
+
+        assert "Almost nothing" in _suitability("flat_colour", colours=0, paths=0, segments=0)
+
+    def test_a_thicket_of_shapes_is_reported_as_noise(self) -> None:
+        from ipw.vector.vectorise import _suitability
+
+        verdict = _suitability("flat_colour", colours=4, paths=3000, segments=50_000)
+
+        assert "very large number of shapes" in verdict
+
+    def test_a_photograph_is_still_called_a_photograph(self) -> None:
+        from ipw.vector.vectorise import _suitability
+
+        assert "photograph" in _suitability("photographic", colours=20, paths=900, segments=9000)

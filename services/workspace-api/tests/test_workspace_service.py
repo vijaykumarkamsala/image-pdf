@@ -315,8 +315,15 @@ class TestPrintPlan:
         assert plan["verdict"] in {"ready", "ok", "needs_upscale", "too_small"}
         assert plan["advice"]
 
-    def test_a_zero_size_does_not_divide_by_zero(self) -> None:
-        assert print_plan(0, 0, 10, 300)["required_scale"] == 0
+    def test_a_zero_size_is_refused_rather_than_answered(self) -> None:
+        """Originally this asserted a scale of 0, to prove nothing divided by
+        zero. Refusing satisfies that intent and one more: an image with no
+        pixels has no print plan, and returning one - `required_scale: 0`, as
+        though the request were satisfiable - is the same confident nonsense
+        that answered "ready" for -3 inches at 0 DPI.
+        """
+        with pytest.raises(ValueError, match="cannot plan a print"):
+            print_plan(0, 0, 10, 300)
 
 
 def test_the_service_exposes_no_operation_the_contract_rejects(
@@ -327,3 +334,39 @@ def test_the_service_exposes_no_operation_the_contract_rejects(
     for group in document["groups"]:
         for operation in group["operations"]:
             assert OperationKind(operation["kind"])
+
+
+class TestPrintPlanRefusesNonsense:
+    """Impossible requests must not come back as confident advice.
+
+    Asked for -3 inches at 0 DPI, this answered "ready - the source already has
+    enough pixels for this size": both wrong numbers multiplied to zero, and
+    zero pixels are easy to supply. A print shop acting on that reads a
+    guarantee where there was only arithmetic.
+    """
+
+    def test_zero_dpi_is_refused(self) -> None:
+        from ipw.workspace_api.server import print_plan
+
+        with pytest.raises(ValueError, match="DPI must be greater than zero"):
+            print_plan(800, 600, 8.0, 0)
+
+    def test_a_negative_printed_size_is_refused(self) -> None:
+        from ipw.workspace_api.server import print_plan
+
+        with pytest.raises(ValueError, match="greater than zero inches"):
+            print_plan(800, 600, -3.0, 300)
+
+    def test_an_empty_image_is_refused(self) -> None:
+        from ipw.workspace_api.server import print_plan
+
+        with pytest.raises(ValueError, match="cannot plan a print"):
+            print_plan(0, 600, 8.0, 300)
+
+    def test_a_real_request_still_answers(self) -> None:
+        from ipw.workspace_api.server import print_plan
+
+        plan = print_plan(800, 600, 8.0, 300)
+
+        assert plan["verdict"] in {"ready", "needs_upscale", "too_small"}
+        assert plan["required_pixels_on_longest_edge"] == 2400

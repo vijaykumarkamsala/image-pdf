@@ -249,10 +249,25 @@ def _suitability(mode: str, colours: int, paths: int, segments: int) -> str:
             "scanner grain or JPEG noise is being followed as if it were artwork. "
             "Raising 'ignore specks' or reducing the colour count will simplify it."
         )
-    if colours <= 1 and paths <= 2:
+    if paths == 0:
         return (
             "Almost nothing was found to trace. If the artwork is pale, set the "
             "ink threshold manually rather than letting it be chosen automatically."
+        )
+
+    # **A single-colour logo is the best case, not the empty one.**
+    #
+    # This used to read `colours <= 1 and paths <= 2`, which is the exact
+    # signature of a one-colour mark on white - a black wordmark, a stencil, a
+    # cutting file. That is the ideal input for tracing, and it was being told
+    # that almost nothing had been found, which sends somebody adjusting an ink
+    # threshold that was already right. "Nothing was traced" means no paths came
+    # back; anything else found artwork.
+    if colours <= 1 and segments >= 4:
+        return (
+            "Good candidate: a single-colour shape, which is exactly what a cutter, "
+            "vinyl plotter, engraver or embroidery machine wants - one path, no "
+            "colour separation needed."
         )
     return (
         "Good candidate: this traced into a clean set of shapes that will hold up "
