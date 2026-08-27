@@ -249,6 +249,24 @@ class VipsEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def enlarge(self, image: VipsImage, *, scale: int, material: str, iterations: int) -> VipsImage:
+        """Shared with the Pillow engine, for the same reason as clean_document:
+        two engines disagreeing about a result is a bug this repository has
+        already had once."""
+        from PIL import Image as PilImage
+
+        from ipw.processors.standard.upscale import upscale as run
+
+        source = image.image
+        if source.bands > 3:
+            source = source.extract_band(0, n=3)
+        buffer = PilImage.frombytes("RGB", (source.width, source.height), source.write_to_memory())
+        bigger, _ = run(buffer, scale, iterations=iterations, material=material)
+        vips = self._vips()
+        return VipsImage(
+            vips.Image.new_from_memory(bigger.tobytes(), bigger.width, bigger.height, 3, "uchar")
+        )
+
     def clean_document(
         self, image: VipsImage, *, strength_percent: int, whiten: bool, keep_ink_colour: bool
     ) -> VipsImage:

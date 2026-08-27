@@ -44,6 +44,7 @@
         "sharpen",
         "denoise",
         "document_clean",
+        "enlarge",
         "convert",
         "super_resolution",
         "ai_denoise",

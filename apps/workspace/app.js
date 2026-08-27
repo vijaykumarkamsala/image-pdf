@@ -997,6 +997,8 @@ const TOOL_ICONS = {
   document_clean:
     '<path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h4"/>',
   convert: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  enlarge:
+    '<path d="M4 4h7v7H4Z"/><path d="M11 11h9v9h-9Z"/><path d="M14 8h6v6"/>',
   super_resolution:
     '<path d="M4 4h6v6H4Z"/><path d="M14 4h6v6h-6Z"/><path d="M4 14h6v6H4Z"/><path d="M14 14h6v6h-6Z"/>',
   ai_denoise: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/>',

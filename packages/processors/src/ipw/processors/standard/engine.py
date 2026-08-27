@@ -129,6 +129,10 @@ class ImageEngine(Protocol[ImageT]):
         ...
 
     # -- detail -----------------------------------------------------------
+    def enlarge(self, image: ImageT, *, scale: int, material: str, iterations: int) -> ImageT:
+        """Enlarge by back-projection: better than a resize, invents nothing."""
+        ...
+
     def clean_document(
         self, image: ImageT, *, strength_percent: int, whiten: bool, keep_ink_colour: bool
     ) -> ImageT:

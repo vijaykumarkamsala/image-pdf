@@ -33,6 +33,7 @@ from ipw.contracts.operation import (
     CropSettings,
     DenoiseSettings,
     DocumentCleanSettings,
+    EnlargeSettings,
     FlipSettings,
     Operation,
     OperationFamily,
@@ -69,6 +70,7 @@ SUPPORTED_OPERATIONS: tuple[OperationKind, ...] = (
     OperationKind.SHARPEN,
     OperationKind.DENOISE,
     OperationKind.DOCUMENT_CLEAN,
+    OperationKind.ENLARGE,
     OperationKind.CONVERT,
 )
 """Standard-family operations only. No AI operation is declared, so this
@@ -189,6 +191,9 @@ class StandardProcessor(Generic[ImageT]):
             # the divide rather than the filter - a phone photograph is well
             # inside this.
             OperationKind.DOCUMENT_CLEAN: 60_000_000,
+            # Every pass resamples the full-size image twice, so the ceiling
+            # is on the *output*: a 4x enlargement of this is 64 megapixels.
+            OperationKind.ENLARGE: 16_000_000,
         }.get(operation.kind, 4_000_000)
 
         return Estimate(
@@ -295,6 +300,13 @@ class StandardProcessor(Generic[ImageT]):
             return self.engine.sharpen(image, settings.amount_percent, settings.radius_x100)
         if isinstance(settings, DenoiseSettings):
             return self.engine.denoise(image, settings.strength_percent)
+        if isinstance(settings, EnlargeSettings):
+            return self.engine.enlarge(
+                image,
+                scale=settings.scale,
+                material=settings.material,
+                iterations=settings.iterations,
+            )
         if isinstance(settings, DocumentCleanSettings):
             return self.engine.clean_document(
                 image,

@@ -276,6 +276,15 @@ class PillowEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def enlarge(
+        self, image: PillowImage, *, scale: int, material: str, iterations: int
+    ) -> PillowImage:
+        """Shared with the libvips engine - one implementation, two callers."""
+        from ipw.processors.standard.upscale import upscale as run
+
+        bigger, _ = run(image.image, scale, iterations=iterations, material=material)
+        return PillowImage(bigger)
+
     def clean_document(
         self, image: PillowImage, *, strength_percent: int, whiten: bool, keep_ink_colour: bool
     ) -> PillowImage:
