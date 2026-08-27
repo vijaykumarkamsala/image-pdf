@@ -291,7 +291,20 @@ function renderFacts() {
 
 function renderImages() {
   const c = state.current, o = state.original;
-  $("img-result").src = c.dataUrl;
+  const result = $("img-result");
+
+  // Fit once the new pixels have arrived, not before: naturalWidth is 0 until
+  // the image decodes, and fitting against 0 puts the picture in a corner at a
+  // scale of one - which reads as "the zoom is broken" rather than "the image
+  // has not loaded yet".
+  const keepPlace = !view.fitted && result.src === c.dataUrl;
+  result.onload = () => {
+    $("zoombar").hidden = false;
+    if (keepPlace) applyView();
+    else zoomToFit();
+  };
+
+  result.src = c.dataUrl;
   $("img-original").src = o.dataUrl;
   $("split-a").src = o.dataUrl;
   $("split-b").src = c.dataUrl;
@@ -717,6 +730,10 @@ function wire() {
       $("img-result").hidden = view !== "result";
       $("img-original").hidden = view !== "original";
       $("split").hidden = view !== "split";
+      // Compare stacks two images and slides a divider across them; a scale and
+      // pan on top of that would fight its layout, so zooming stands down here.
+      $("zoombar").hidden = view === "split";
+      $("viewport").hidden = view === "split";
     });
   });
 
@@ -731,6 +748,7 @@ function wire() {
   $("print-dpi").addEventListener("change", refreshPrintPlan);
 
   wireTasks();
+  wireZoom();
   wireExport();
   wirePalette();
   wireJobs();
@@ -780,6 +798,183 @@ function applyPendingJob() {
       $("export-format").dispatchEvent(new Event("change"));
     }
   }
+}
+
+/* ---------------------------------------------------------------- zooming */
+
+/* The inspection canvas.
+ *
+ * "I can edit faster on my phone" is true for cropping and brightness, and it
+ * stops being true the moment somebody has to judge whether detail survives at
+ * print size. A phone cannot show a 6000-pixel textile print at actual pixels
+ * and let you walk around it; this can, and that is the reason to open it.
+ *
+ * The zoom is anchored at the pointer rather than the centre, because looking
+ * closely at something means putting the cursor on it and scrolling - anchoring
+ * at the centre makes the thing you were looking at run away from you.
+ */
+const ZOOM_MIN = 0.05;
+const ZOOM_MAX = 32;      // 3200%: past the point where a printer's dot matters
+const ZOOM_STEP = 1.25;
+
+const view = { scale: 1, x: 0, y: 0, fitted: true };
+
+function applyView() {
+  const viewport = $("viewport");
+  if (!viewport) return;
+  viewport.style.transform =
+    `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+
+  const stage = $("stage");
+  stage.classList.toggle("is-zoomed", view.scale > 1.05);
+
+  const label = $("zoom-level");
+  if (label) label.textContent = view.fitted ? "Fit" : `${Math.round(view.scale * 100)}%`;
+
+  renderZoomNote();
+}
+
+/* Fit the whole image in the stage, which is where every load starts. */
+function zoomToFit() {
+  const stage = $("stage");
+  const image = $("img-result");
+  if (!stage || !image || !image.naturalWidth) return;
+
+  const pad = 40;
+  const available = {
+    width: Math.max(80, stage.clientWidth - pad),
+    height: Math.max(80, stage.clientHeight - pad),
+  };
+  const scale = Math.min(
+    available.width / image.naturalWidth,
+    available.height / image.naturalHeight,
+    1,
+  );
+
+  view.scale = scale;
+  view.fitted = true;
+  centre();
+}
+
+/* Actual pixels: one image pixel to one screen pixel, which is the only honest
+ * view for judging sharpness. */
+function zoomToActual() {
+  view.scale = 1;
+  view.fitted = false;
+  centre();
+}
+
+function centre() {
+  const stage = $("stage");
+  const image = $("img-result");
+  if (!stage || !image || !image.naturalWidth) return;
+  view.x = (stage.clientWidth - image.naturalWidth * view.scale) / 2;
+  view.y = (stage.clientHeight - image.naturalHeight * view.scale) / 2;
+  applyView();
+}
+
+function zoomAt(factor, clientX, clientY) {
+  const stage = $("stage");
+  const rect = stage.getBoundingClientRect();
+  const pointer = { x: clientX - rect.left, y: clientY - rect.top };
+
+  const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, view.scale * factor));
+  if (next === view.scale) return;
+
+  // Keep whatever is under the pointer under the pointer.
+  view.x = pointer.x - (pointer.x - view.x) * (next / view.scale);
+  view.y = pointer.y - (pointer.y - view.y) * (next / view.scale);
+  view.scale = next;
+  view.fitted = false;
+  applyView();
+}
+
+/* What the zoom means in the real world.
+ *
+ * A print shop does not think in percentages; it thinks in inches at a DPI. At
+ * actual pixels this says how big the image would print, which turns an
+ * abstract number into the decision somebody is actually making.
+ */
+function renderZoomNote() {
+  let note = document.getElementById("zoom-note");
+  const image = $("img-result");
+  if (!image || !image.naturalWidth || !state.current) {
+    if (note) note.remove();
+    return;
+  }
+  if (!note) {
+    note = document.createElement("div");
+    note.id = "zoom-note";
+    note.className = "zoom-note";
+    $("stage").append(note);
+  }
+
+  const dpi = Number($("print-dpi")?.value) || 300;
+  const inches = image.naturalWidth / dpi;
+  note.textContent =
+    `${image.naturalWidth} × ${image.naturalHeight} px · ` +
+    `${inches.toFixed(1)}in wide at ${dpi} DPI · ` +
+    (view.scale >= 1
+      ? `showing ${Math.round(view.scale * 100)}% of actual pixels`
+      : `showing ${Math.round(view.scale * 100)}% — zoom in to judge sharpness`);
+}
+
+function wireZoom() {
+  const stage = $("stage");
+  if (!stage) return;
+
+  stage.addEventListener("wheel", (event) => {
+    if ($("split").hidden === false) return;   // the compare view has its own layout
+    event.preventDefault();
+    zoomAt(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, event.clientX, event.clientY);
+  }, { passive: false });
+
+  let dragging = null;
+  stage.addEventListener("pointerdown", (event) => {
+    if (event.target.closest(".canvas-tools, .tool-popover, .zoombar, .busy")) return;
+    dragging = { x: event.clientX - view.x, y: event.clientY - view.y };
+    stage.classList.add("is-panning");
+    stage.setPointerCapture(event.pointerId);
+  });
+  stage.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    view.x = event.clientX - dragging.x;
+    view.y = event.clientY - dragging.y;
+    applyView();
+  });
+  for (const type of ["pointerup", "pointercancel"]) {
+    stage.addEventListener(type, () => {
+      dragging = null;
+      stage.classList.remove("is-panning");
+    });
+  }
+
+  $("zoom-in").addEventListener("click", () =>
+    zoomAt(ZOOM_STEP, stage.getBoundingClientRect().left + stage.clientWidth / 2,
+           stage.getBoundingClientRect().top + stage.clientHeight / 2));
+  $("zoom-out").addEventListener("click", () =>
+    zoomAt(1 / ZOOM_STEP, stage.getBoundingClientRect().left + stage.clientWidth / 2,
+           stage.getBoundingClientRect().top + stage.clientHeight / 2));
+  $("zoom-fit").addEventListener("click", zoomToFit);
+  $("zoom-100").addEventListener("click", zoomToActual);
+  $("zoom-level").addEventListener("click", () =>
+    (view.fitted ? zoomToActual() : zoomToFit()));
+
+  // The shortcuts every image tool has, so the muscle memory transfers.
+  document.addEventListener("keydown", (event) => {
+    if (event.target.matches("input, select, textarea")) return;
+    if ($("workspace").hidden) return;
+    if (event.key === "0") { zoomToFit(); }
+    else if (event.key === "1") { zoomToActual(); }
+    else if (event.key === "+" || event.key === "=") {
+      zoomAt(ZOOM_STEP, innerWidth / 2, innerHeight / 2);
+    } else if (event.key === "-") {
+      zoomAt(1 / ZOOM_STEP, innerWidth / 2, innerHeight / 2);
+    } else { return; }
+    event.preventDefault();
+  });
+
+  addEventListener("resize", () => { if (view.fitted) zoomToFit(); });
 }
 
 /* ------------------------------------------------------ tools on the canvas */

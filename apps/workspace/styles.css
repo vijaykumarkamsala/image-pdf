@@ -1471,3 +1471,125 @@ button:disabled {
     max-height: 60%;
   }
 }
+
+/* ------------------------------------------------------------ inspection */
+
+/* Zoom is the reason to open a laptop for this.
+ *
+ * A phone shows a picture; it does not let somebody check whether a hairline
+ * holds at print scale, whether a scan's serifs survived compression, or
+ * whether an upscale invented a texture that was never there. Judging any of
+ * that means seeing actual pixels, and everything below exists so that "is
+ * this good enough to print on cloth" can be answered by looking.
+ *
+ * `image-rendering: pixelated` past 1:1 is deliberate. A browser's smooth
+ * scaling flatters the image and hides exactly the artefacts being looked for -
+ * at 400% the customer must see the pixels the printer will get, not a blurred
+ * impression of them.
+ */
+.stage {
+  cursor: grab;
+  touch-action: none;
+}
+
+.stage.is-panning { cursor: grabbing; }
+
+.viewport {
+  transform-origin: 0 0;
+  will-change: transform;
+  display: grid;
+  place-items: center;
+}
+
+.viewport img {
+  max-width: none;
+  max-height: none;
+  display: block;
+  border-radius: 0;
+}
+
+.stage.is-zoomed .viewport img { image-rendering: pixelated; }
+
+.zoombar {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: saturate(1.5) blur(10px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lift);
+}
+
+.zoom-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--step), color var(--step);
+}
+
+.zoom-btn.wide { font-size: 12px; }
+
+.zoom-btn:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.zoom-level {
+  min-width: 58px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.zoom-level:hover { background: var(--surface-sunk); }
+
+.zoom-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--line);
+}
+
+/* What a pixel means in the real world. A print shop thinks in inches and DPI,
+ * not in percentages, so the readout says both. */
+.zoom-note {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .zoombar { right: 8px; bottom: 56px; }
+  .zoom-note { display: none; }
+}

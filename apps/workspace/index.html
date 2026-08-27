@@ -99,14 +99,29 @@
              aria-label="Editing tools"></div>
         <div id="tool-popover" class="tool-popover" hidden></div>
 
-        <img id="img-result" alt="Edited image" />
-        <img id="img-original" alt="Original image" hidden />
+        <!-- Everything that can be zoomed lives inside one transformed layer,
+             so the scale and the pan are applied once rather than per image. -->
+        <div id="viewport" class="viewport">
+          <img id="img-result" alt="Edited image" />
+          <img id="img-original" alt="Original image" hidden />
+        </div>
+
         <div id="split" class="split" hidden>
           <img id="split-a" alt="Original" />
           <div id="split-b-wrap" class="split-b"><img id="split-b" alt="Edited" /></div>
           <input id="split-range" type="range" min="0" max="100" value="50"
                  aria-label="Compare before and after" />
         </div>
+        <div id="zoombar" class="zoombar" hidden>
+          <button id="zoom-out" class="zoom-btn" type="button" aria-label="Zoom out">&minus;</button>
+          <button id="zoom-level" class="zoom-level" type="button"
+                  title="Click to switch between fit and actual pixels">Fit</button>
+          <button id="zoom-in" class="zoom-btn" type="button" aria-label="Zoom in">+</button>
+          <span class="zoom-sep"></span>
+          <button id="zoom-fit" class="zoom-btn wide" type="button">Fit</button>
+          <button id="zoom-100" class="zoom-btn wide" type="button">1:1</button>
+        </div>
+
         <div id="busy" class="busy" hidden>
           <div class="spinner" aria-hidden="true"></div>
           <p id="busy-text">Working…</p>
