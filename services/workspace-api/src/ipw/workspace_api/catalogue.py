@@ -210,6 +210,20 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         audiences=(Audience.EVERYONE, Audience.PHOTO_AND_PRINT),
     ),
     CatalogueEntry(
+        kind=OperationKind.PRINT_READY,
+        label="Make a photographed page print-ready",
+        summary=(
+            "Removes the lamp, the shadow and the paper's colour, lifts the ink off "
+            "the page, then enlarges - in that order, because enlarging a page that "
+            "still has a cast on it just magnifies the cast. Nothing is invented: "
+            "the light is measured off your own page and divided back out."
+        ),
+        group=Group.ESSENTIALS,
+        audiences=(Audience.EVERYONE, Audience.BUSINESS_DOCUMENTS, Audience.PHOTO_AND_PRINT),
+        speed="slow",
+        settings_hint={"scale": [1, 2, 3, 4], "material": ["text", "photo", "texture"]},
+    ),
+    CatalogueEntry(
         kind=OperationKind.ENLARGE,
         label="Make it bigger and sharper",
         summary=(

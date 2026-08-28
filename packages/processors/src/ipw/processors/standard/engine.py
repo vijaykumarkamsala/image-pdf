@@ -129,6 +129,18 @@ class ImageEngine(Protocol[ImageT]):
         ...
 
     # -- detail -----------------------------------------------------------
+    def print_ready(
+        self,
+        image: ImageT,
+        *,
+        scale: int,
+        material: str,
+        whiten: bool,
+        keep_ink_colour: bool,
+    ) -> ImageT:
+        """Clean the lighting, then enlarge. One step, because the order matters."""
+        ...
+
     def straighten_page(self, image: ImageT, corners: Any | None) -> ImageT:
         """Flatten a page photographed at an angle into a rectangle."""
         ...

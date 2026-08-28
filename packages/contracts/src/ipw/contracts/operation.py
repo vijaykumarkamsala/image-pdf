@@ -46,6 +46,7 @@ class OperationKind(StrEnum):
     DOCUMENT_CLEAN = "document_clean"
     ENLARGE = "enlarge"
     STRAIGHTEN_PAGE = "straighten_page"
+    PRINT_READY = "print_ready"
     CONVERT = "convert"
 
     # -- AI enhancement (PRODUCT_REQUIREMENTS.md section 10) ---------------
@@ -81,6 +82,9 @@ FAMILY_OF: dict[OperationKind, OperationFamily] = {
     # a flat surface seen at an angle, so the corrected page is the same
     # document rather than a plausible redrawing of one.
     OperationKind.STRAIGHTEN_PAGE: OperationFamily.STANDARD,
+    # Two standard steps in one. Still standard: it divides out measured
+    # light and back-projects the customer's own pixels, inventing nothing.
+    OperationKind.PRINT_READY: OperationFamily.STANDARD,
     OperationKind.CONVERT: OperationFamily.STANDARD,
     OperationKind.SUPER_RESOLUTION: OperationFamily.AI,
     # Distinct from OperationKind.DENOISE on purpose. A median filter cannot
@@ -291,6 +295,21 @@ class StraightenPageSettings(ContractModel):
         return value
 
 
+class PrintReadySettings(ContractModel):
+    """Clean a photographed page and enlarge it, in one step.
+
+    The order is not a detail. Cleaning first means the enlargement works on a
+    flat white page instead of magnifying a brown cast and a lamp gradient
+    along with the writing.
+    """
+
+    kind: Literal[OperationKind.PRINT_READY] = OperationKind.PRINT_READY
+    scale: int = Field(default=3, ge=1, le=4)
+    material: Literal["photo", "text", "texture"] = "text"
+    whiten: bool = True
+    keep_ink_colour: bool = True
+
+
 class ConvertSettings(ContractModel):
     kind: Literal[OperationKind.CONVERT] = OperationKind.CONVERT
     target_media_type: MediaType
@@ -387,6 +406,7 @@ AnySettings = Annotated[
     | DocumentCleanSettings
     | EnlargeSettings
     | StraightenPageSettings
+    | PrintReadySettings
     | ConvertSettings
     | SuperResolutionSettings
     | FaceRestoreSettings

@@ -474,7 +474,7 @@ export interface Operation {
   family: OperationFamily;
   kind: OperationKind;
   route?: ProcessingRoute;
-  settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | StraightenPageSettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
+  settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | StraightenPageSettings | PrintReadySettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
   variant: ProcessingVariant;
 }
 
@@ -482,8 +482,8 @@ export interface Operation {
 export type OperationFamily = "standard" | "ai" | "inspection";
 export const OperationFamilyValues: readonly OperationFamily[] = ["standard", "ai", "inspection"] as const;
 
-export type OperationKind = "noop" | "inspect_only" | "resize" | "crop" | "rotate" | "flip" | "adjust" | "sharpen" | "denoise" | "document_clean" | "enlarge" | "straighten_page" | "convert" | "super_resolution" | "ai_denoise" | "jpeg_artifact_repair" | "face_restore" | "damage_repair" | "colourise" | "background_remove" | "background_replace";
-export const OperationKindValues: readonly OperationKind[] = ["noop", "inspect_only", "resize", "crop", "rotate", "flip", "adjust", "sharpen", "denoise", "document_clean", "enlarge", "straighten_page", "convert", "super_resolution", "ai_denoise", "jpeg_artifact_repair", "face_restore", "damage_repair", "colourise", "background_remove", "background_replace"] as const;
+export type OperationKind = "noop" | "inspect_only" | "resize" | "crop" | "rotate" | "flip" | "adjust" | "sharpen" | "denoise" | "document_clean" | "enlarge" | "straighten_page" | "print_ready" | "convert" | "super_resolution" | "ai_denoise" | "jpeg_artifact_repair" | "face_restore" | "damage_repair" | "colourise" | "background_remove" | "background_replace";
+export const OperationKindValues: readonly OperationKind[] = ["noop", "inspect_only", "resize", "crop", "rotate", "flip", "adjust", "sharpen", "denoise", "document_clean", "enlarge", "straighten_page", "print_ready", "convert", "super_resolution", "ai_denoise", "jpeg_artifact_repair", "face_restore", "damage_repair", "colourise", "background_remove", "background_replace"] as const;
 
 /**
  * EXIF orientation, normalised **as metadata** - the original is never touched.
@@ -517,6 +517,21 @@ export interface OutputArtifact {
   /** Lower-case hexadecimal SHA-256 digest. */
   sha256: string;
   width?: number | null;
+}
+
+/**
+ * Clean a photographed page and enlarge it, in one step.
+ *
+ * The order is not a detail. Cleaning first means the enlargement works on a
+ * flat white page instead of magnifying a brown cast and a lamp gradient
+ * along with the writing.
+ */
+export interface PrintReadySettings {
+  keep_ink_colour?: boolean;
+  kind?: "print_ready";
+  material?: "photo" | "text" | "texture";
+  scale?: number;
+  whiten?: boolean;
 }
 
 /** Where the work ran. Customer-facing wording is applied by the UI, not here. */
@@ -629,7 +644,7 @@ export interface ResizeSettings {
 export interface ResultIdentity {
   /** Stable, human-readable asset identifier, unique within a manifest. */
   asset_id: string;
-  effective_settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | StraightenPageSettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
+  effective_settings: NoopSettings | InspectOnlySettings | ResizeSettings | CropSettings | RotateSettings | FlipSettings | AdjustSettings | SharpenSettings | DenoiseSettings | DocumentCleanSettings | EnlargeSettings | StraightenPageSettings | PrintReadySettings | ConvertSettings | SuperResolutionSettings | FaceRestoreSettings | DamageRepairSettings | ColouriseSettings | AiDenoiseSettings | JpegArtifactRepairSettings | BackgroundRemoveSettings | BackgroundReplaceSettings;
   /** Lower-case hexadecimal SHA-256 digest. */
   input_sha256: string;
   operation_kind: OperationKind;

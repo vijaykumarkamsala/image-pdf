@@ -249,6 +249,58 @@ class VipsEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def print_ready(
+        self,
+        image: VipsImage,
+        *,
+        scale: int,
+        material: str,
+        whiten: bool,
+        keep_ink_colour: bool,
+    ) -> VipsImage:
+        """Clean first, then enlarge - and that order is the whole point.
+
+        Enlarging a page that still carries a brown cast and a lamp gradient
+        magnifies those along with the writing; the result is a bigger version
+        of the problem. Flattening the light first means the enlargement is
+        working on a flat white page, so every pixel it reconstructs is paper
+        or ink rather than paper, ink and a shadow.
+        """
+        from PIL import Image as PilImage
+
+        from ipw.processors.standard.document import clean_document
+        from ipw.processors.standard.perspective import detect_page, flatten_page
+        from ipw.processors.standard.upscale import upscale
+
+        native = image.image
+        if native.bands > 3:
+            native = native.extract_band(0, n=3)
+        buffer = PilImage.frombytes("RGB", (native.width, native.height), native.write_to_memory())
+
+        # **Find the page first.**
+        #
+        # A photograph of a document includes the desk it was lying on. Left in,
+        # the dark border is enlarged with the page and skews the illumination
+        # estimate - the light gets measured across a frame that is part paper
+        # and part table, so the paper comes out wrong. Cropping to the page is
+        # the first step, not a cosmetic one.
+        #
+        # A photograph with no page in it is used whole rather than refused:
+        # cleaning something that is not a document is a harmless no-op, and
+        # refusing to clean one that is would not be.
+        found = detect_page(buffer)
+        if found is not None and found.confidence >= 0.45:
+            buffer = flatten_page(buffer, found.corners)
+
+        cleaned, _ = clean_document(
+            buffer, whiten=whiten, keep_ink_colour=keep_ink_colour, lift_ink=True
+        )
+        result = cleaned if scale <= 1 else upscale(cleaned, scale, material=material)[0]
+        vips = self._vips()
+        return VipsImage(
+            vips.Image.new_from_memory(result.tobytes(), result.width, result.height, 3, "uchar")
+        )
+
     def straighten_page(self, image: VipsImage, corners: Any | None) -> VipsImage:
         """Shared with the Pillow engine - the geometry is one implementation."""
         from PIL import Image as PilImage

@@ -936,6 +936,7 @@
         "document_clean",
         "enlarge",
         "straighten_page",
+        "print_ready",
         "convert",
         "super_resolution",
         "ai_denoise",
@@ -1017,6 +1018,47 @@
         "media_type"
       ],
       "title": "OutputArtifact",
+      "type": "object"
+    },
+    "PrintReadySettings": {
+      "additionalProperties": false,
+      "description": "Clean a photographed page and enlarge it, in one step.\n\nThe order is not a detail. Cleaning first means the enlargement works on a\nflat white page instead of magnifying a brown cast and a lamp gradient\nalong with the writing.",
+      "properties": {
+        "keep_ink_colour": {
+          "default": true,
+          "title": "Keep Ink Colour",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "print_ready",
+          "default": "print_ready",
+          "title": "Kind",
+          "type": "string"
+        },
+        "material": {
+          "default": "text",
+          "enum": [
+            "photo",
+            "text",
+            "texture"
+          ],
+          "title": "Material",
+          "type": "string"
+        },
+        "scale": {
+          "default": 3,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Scale",
+          "type": "integer"
+        },
+        "whiten": {
+          "default": true,
+          "title": "Whiten",
+          "type": "boolean"
+        }
+      },
+      "title": "PrintReadySettings",
       "type": "object"
     },
     "ProcessingVariant": {
@@ -1141,6 +1183,7 @@
               "inspect_only": "#/$defs/InspectOnlySettings",
               "jpeg_artifact_repair": "#/$defs/JpegArtifactRepairSettings",
               "noop": "#/$defs/NoopSettings",
+              "print_ready": "#/$defs/PrintReadySettings",
               "resize": "#/$defs/ResizeSettings",
               "rotate": "#/$defs/RotateSettings",
               "sharpen": "#/$defs/SharpenSettings",
@@ -1185,6 +1228,9 @@
             },
             {
               "$ref": "#/$defs/StraightenPageSettings"
+            },
+            {
+              "$ref": "#/$defs/PrintReadySettings"
             },
             {
               "$ref": "#/$defs/ConvertSettings"

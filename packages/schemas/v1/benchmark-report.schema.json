@@ -317,6 +317,7 @@
         "document_clean",
         "enlarge",
         "straighten_page",
+        "print_ready",
         "convert",
         "super_resolution",
         "ai_denoise",

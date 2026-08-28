@@ -157,16 +157,26 @@ class TestWhatCannotBeRecovered:
         assert report.clipped_percent > 0.5
         assert any("cannot be recovered" in warning for warning in report.warnings)
 
-    def test_the_clipped_area_is_left_as_it_was(self) -> None:
+    def test_the_clipped_area_becomes_blank_paper(self) -> None:
+        """Not a recovery - a display choice, and the honest one.
+
+        Those pixels are 255 in every channel: no information, nothing to get
+        back. Keeping them meant the lamp's own tint survived onto a page whose
+        paper had been corrected to white, leaving a coloured blob as the most
+        conspicuous thing on the sheet. Blank paper is less misleading than a
+        pink smear and less likely to be read as content. The warning carries
+        the truth about what was lost.
+        """
         source = photographed_page(glare=True)[0]
-        cleaned, _ = clean_document(source)
+        cleaned, report = clean_document(source)
 
         before = numpy.asarray(source.convert("RGB"), dtype=numpy.float32)
         after = numpy.asarray(cleaned.convert("RGB"), dtype=numpy.float32)
         clipped = (before >= 250).all(axis=2)
 
         assert clipped.any()
-        assert numpy.array_equal(after[clipped], before[clipped])
+        assert (after[clipped] >= 254).all(), "the burnt-out area should read as paper"
+        assert any("cannot be recovered" in warning for warning in report.warnings)
 
 
 class TestOptions:

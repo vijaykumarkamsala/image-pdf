@@ -38,6 +38,7 @@ from ipw.contracts.operation import (
     Operation,
     OperationFamily,
     OperationKind,
+    PrintReadySettings,
     ResizeSettings,
     RotateSettings,
     SharpenSettings,
@@ -73,6 +74,7 @@ SUPPORTED_OPERATIONS: tuple[OperationKind, ...] = (
     OperationKind.DOCUMENT_CLEAN,
     OperationKind.ENLARGE,
     OperationKind.STRAIGHTEN_PAGE,
+    OperationKind.PRINT_READY,
     OperationKind.CONVERT,
 )
 """Standard-family operations only. No AI operation is declared, so this
@@ -198,6 +200,8 @@ class StandardProcessor(Generic[ImageT]):
             OperationKind.ENLARGE: 16_000_000,
             # Detection walks a downscaled copy; the transform is one pass.
             OperationKind.STRAIGHTEN_PAGE: 60_000_000,
+            # Bounded by the enlargement, which is the expensive half.
+            OperationKind.PRINT_READY: 16_000_000,
         }.get(operation.kind, 4_000_000)
 
         return Estimate(
@@ -304,6 +308,14 @@ class StandardProcessor(Generic[ImageT]):
             return self.engine.sharpen(image, settings.amount_percent, settings.radius_x100)
         if isinstance(settings, DenoiseSettings):
             return self.engine.denoise(image, settings.strength_percent)
+        if isinstance(settings, PrintReadySettings):
+            return self.engine.print_ready(
+                image,
+                scale=settings.scale,
+                material=settings.material,
+                whiten=settings.whiten,
+                keep_ink_colour=settings.keep_ink_colour,
+            )
         if isinstance(settings, StraightenPageSettings):
             return self.engine.straighten_page(image, settings.corners)
         if isinstance(settings, EnlargeSettings):

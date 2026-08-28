@@ -276,6 +276,53 @@ class PillowEngine:
 
     # -- detail -----------------------------------------------------------
 
+    def print_ready(
+        self,
+        image: PillowImage,
+        *,
+        scale: int,
+        material: str,
+        whiten: bool,
+        keep_ink_colour: bool,
+    ) -> PillowImage:
+        """Clean first, then enlarge - and that order is the whole point.
+
+        Enlarging a page that still carries a brown cast and a lamp gradient
+        magnifies those along with the writing; the result is a bigger version
+        of the problem. Flattening the light first means the enlargement is
+        working on a flat white page, so every pixel it reconstructs is paper
+        or ink rather than paper, ink and a shadow.
+        """
+        from ipw.processors.standard.document import clean_document
+        from ipw.processors.standard.perspective import detect_page, flatten_page
+        from ipw.processors.standard.upscale import upscale
+
+        source = image.image
+        # **Find the page first.**
+        #
+        # A photograph of a document includes the desk it was lying on. Left in,
+        # the dark border is enlarged along with the page and skews the
+        # illumination estimate - the light is measured across a frame that is
+        # part paper and part table, so the paper comes out wrong. Cropping to
+        # the page and squaring it up is therefore the first step, not a
+        # cosmetic one.
+        #
+        # When no page can be found - a photograph of something else - the whole
+        # frame is used rather than refusing. Cleaning a picture that is not a
+        # document is a harmless no-op; refusing to clean one that is would not
+        # be.
+        found = detect_page(source)
+        if found is not None and found.confidence >= 0.45:
+            source = flatten_page(source, found.corners)
+
+        cleaned, _ = clean_document(
+            source, whiten=whiten, keep_ink_colour=keep_ink_colour, lift_ink=True
+        )
+        if scale <= 1:
+            return PillowImage(cleaned)
+        bigger, _ = upscale(cleaned, scale, material=material)
+        return PillowImage(bigger)
+
     def straighten_page(self, image: PillowImage, corners: Any | None) -> PillowImage:
         """Detect the page when no corners are given, then map it to a rectangle."""
         from ipw.processors.standard.perspective import Corners, detect_page, flatten_page

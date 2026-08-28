@@ -52,6 +52,7 @@ from ipw.contracts.operation import (
     Operation,
     OperationFamily,
     OperationKind,
+    PrintReadySettings,
     ProcessingRoute,
     ProcessingVariant,
     ResizeSettings,
@@ -94,6 +95,7 @@ _STANDARD_BUILDERS: dict[OperationKind, type[AnySettings]] = {
     OperationKind.DOCUMENT_CLEAN: DocumentCleanSettings,
     OperationKind.ENLARGE: EnlargeSettings,
     OperationKind.STRAIGHTEN_PAGE: StraightenPageSettings,
+    OperationKind.PRINT_READY: PrintReadySettings,
     OperationKind.CONVERT: ConvertSettings,
 }
 
