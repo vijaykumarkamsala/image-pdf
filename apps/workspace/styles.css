@@ -1785,3 +1785,58 @@ button:disabled {
   top: 0;
   display: block;
 }
+
+/* --------------------------------------------- saying what a control does */
+
+/* A number field with no consequence attached is a guess with extra steps.
+ * `.outcome` is the answer showing while the number is being chosen: what size
+ * it produces and what that prints at. `.opt-note` is the same idea for a
+ * dropdown - the chosen option explains itself instead of being a word the
+ * customer has to already know. */
+.outcome {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-size: 12px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.opt-note {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+
+/* Only the chosen option's explanation is shown; the rest stay in the DOM so
+ * the select can swap between them without a re-render. */
+.opt-note span { display: none; }
+.opt-note span.is-shown { display: block; }
+
+.control label {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-soft);
+}
+
+.tool-popover .control + .control,
+.tool-popover .row + .control,
+.tool-popover .control + .row { margin-top: 11px; }
+
+/* The strip ran past the bottom of the canvas with no sign there was more.
+ * A scroll region with a visible thumb says so. */
+.canvas-tools {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.canvas-tools::-webkit-scrollbar { display: block; width: 5px; }
+.canvas-tools::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+.canvas-tools::-webkit-scrollbar-track { background: transparent; }

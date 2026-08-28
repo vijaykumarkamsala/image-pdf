@@ -134,33 +134,46 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.RESIZE,
         label="Resize",
-        summary="Change the pixel dimensions, or scale by a factor.",
+        summary=(
+            "Make the picture a different size - smaller for email, or a set "
+            "size for printing. It tells you what you are getting before you "
+            "commit to it."
+        ),
         group=Group.ESSENTIALS,
         settings_hint={"algorithm": ["lanczos", "bicubic", "nearest"]},
     ),
     CatalogueEntry(
         kind=OperationKind.CROP,
         label="Crop",
-        summary="Keep a rectangular region and discard the rest.",
+        summary=(
+            "Cut away the parts you do not want. Drag a box on the picture, or "
+            "pick a shape such as square or A4."
+        ),
         group=Group.ESSENTIALS,
     ),
     CatalogueEntry(
         kind=OperationKind.ROTATE,
         label="Rotate",
-        summary="Turn in 90-degree steps, or by a chosen angle.",
+        summary=(
+            "Turn the picture a quarter turn at a time. Nothing is redrawn, so "
+            "it loses no quality however often you turn it."
+        ),
         group=Group.ESSENTIALS,
     ),
     CatalogueEntry(
         kind=OperationKind.FLIP,
         label="Flip",
-        summary="Mirror horizontally or vertically.",
+        summary="Flip the picture over, like seeing it in a mirror.",
         group=Group.ESSENTIALS,
     ),
     # -------------------------------------------------------------- adjust --
     CatalogueEntry(
         kind=OperationKind.ADJUST,
         label="Light & colour",
-        summary="Brightness, contrast, exposure, saturation and white balance.",
+        summary=(
+            "Make it lighter or darker, and the colours stronger or calmer. For "
+            "a photograph that came out dull, dark or too blue."
+        ),
         group=Group.ADJUST,
         settings_hint={
             "brightness_percent": [-100, 100],
@@ -174,7 +187,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.SHARPEN,
         label="Sharpen",
-        summary="Bring out edges that are already there.",
+        summary=(
+            "Make edges crisper. It can only bring out detail the camera already "
+            "caught - it cannot add any."
+        ),
         group=Group.CLEAN_UP,
         audiences=(Audience.EVERYONE, Audience.PHOTO_AND_PRINT),
     ),
@@ -182,10 +198,9 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         kind=OperationKind.STRAIGHTEN_PAGE,
         label="Straighten a photographed page",
         summary=(
-            "Finds the page in the photograph and maps its four corners onto a "
-            "rectangle, so a document held at an angle comes back square. Pairs "
-            "with cleaning up the lighting: together they turn a phone snap into "
-            "something that reads as a scan."
+            "You photographed the page at an angle, so it came out as a wonky "
+            "four-sided shape. This finds its corners and pulls them back into a "
+            "proper rectangle."
         ),
         group=Group.CLEAN_UP,
         audiences=(Audience.EVERYONE, Audience.BUSINESS_DOCUMENTS, Audience.EDUCATION),
@@ -194,9 +209,9 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         kind=OperationKind.DOCUMENT_CLEAN,
         label="Clean up a photographed page",
         summary=(
-            "Removes the lamp, the shadow and the brown cast from a photograph of "
-            "paper, so it reads like a scan. One step, because those are all the "
-            "same thing: light, not content."
+            "Takes the lamp glare, the shadow and the yellow-brown tinge out of a "
+            "photograph of paper, so the page looks white and evenly lit - like a "
+            "scan rather than a snapshot."
         ),
         group=Group.CLEAN_UP,
         audiences=(Audience.EVERYONE, Audience.BUSINESS_DOCUMENTS, Audience.PHOTO_AND_PRINT),
@@ -205,7 +220,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.DENOISE,
         label="Reduce noise",
-        summary="Smooth speckle with a median filter. Cannot invent detail.",
+        summary=(
+            "Smooth away the grainy speckle you get in dim light. It softens the "
+            "picture a little, and cannot put back detail that was never there."
+        ),
         group=Group.CLEAN_UP,
         audiences=(Audience.EVERYONE, Audience.PHOTO_AND_PRINT),
     ),
@@ -213,10 +231,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         kind=OperationKind.PRINT_READY,
         label="Make a photographed page print-ready",
         summary=(
-            "Removes the lamp, the shadow and the paper's colour, lifts the ink off "
-            "the page, then enlarges - in that order, because enlarging a page that "
-            "still has a cast on it just magnifies the cast. Nothing is invented: "
-            "the light is measured off your own page and divided back out."
+            "Turns a photograph of a document into something that looks scanned. It "
+            "straightens the page, takes out the lamp glare and the shadow, makes "
+            "the paper white again, and enlarges it enough to print. Nothing is "
+            "made up - the lighting is worked out from your own photograph."
         ),
         group=Group.ESSENTIALS,
         audiences=(Audience.EVERYONE, Audience.BUSINESS_DOCUMENTS, Audience.PHOTO_AND_PRINT),
@@ -227,11 +245,11 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         kind=OperationKind.ENLARGE,
         label="Make it bigger and sharper",
         summary=(
-            "Enlarges by measuring what a plain resize loses and putting it back, "
-            "over several passes. Nothing is invented - every value comes from your "
-            "own pixels - so it stays a photograph of what you photographed. "
-            "Measured against a plain resize: +3.9 dB on printed text, +1.8 dB on "
-            "photographs, +0.8 dB on woven cloth."
+            "Makes the picture bigger while keeping it sharp. It works out what an "
+            "ordinary enlargement would blur away and puts it back, several times "
+            "over. Nothing is invented, so it stays a true picture of what you "
+            "photographed - clearly better than a plain enlargement, most of all "
+            "on words and printed text."
         ),
         group=Group.ESSENTIALS,
         audiences=(Audience.EVERYONE, Audience.PHOTO_AND_PRINT, Audience.DESIGN_AND_CONTENT),
@@ -245,7 +263,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.CONVERT,
         label="Convert & export",
-        summary="Change format and quality, for screen or for print.",
+        summary=(
+            "Save it as a different kind of file - JPEG for photographs, PNG when "
+            "you need a see-through background."
+        ),
         group=Group.OUTPUT,
         settings_hint={"target_media_type": ["image/png", "image/jpeg"], "quality": [1, 100]},
     ),
@@ -254,8 +275,9 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         kind=OperationKind.SUPER_RESOLUTION,
         label="Upscale with AI",
         summary=(
-            "Enlarge 2x or 4x using a model. Reconstructs detail that was not in "
-            "the original, which is what makes it sharper than a plain resize."
+            "Makes it bigger using a model that guesses at the missing detail. "
+            "Sharper than a plain enlargement - but it is inventing, so do not use "
+            "it where the picture has to stay a true record."
         ),
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.PHOTO_AND_PRINT, Audience.DESIGN_AND_CONTENT),
@@ -267,7 +289,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.AI_DENOISE,
         label="Denoise with AI",
-        summary="Remove heavy noise a plain filter cannot, using a model.",
+        summary=(
+            "Clean up heavy grain the plain tool cannot manage. It uses a model, so "
+            "it may smooth away small real detail too."
+        ),
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.PHOTO_AND_PRINT,),
         speed="slow",
@@ -278,7 +303,9 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.JPEG_ARTIFACT_REPAIR,
         label="Repair JPEG damage",
-        summary="Clean the blocky halos heavy compression leaves behind.",
+        summary=(
+            "Tidy the blocky smudges in a picture that has been saved and re-saved too many times."
+        ),
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.PHOTO_AND_PRINT, Audience.DESIGN_AND_CONTENT),
         speed="slow",
@@ -291,8 +318,8 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
         kind=OperationKind.FACE_RESTORE,
         label="Restore faces",
         summary=(
-            "Rebuild facial detail in old or blurred photographs. Never applied "
-            "automatically, and a changed likeness is treated as a failure."
+            "Sharpen faces in an old or blurry photograph. It guesses at the detail, "
+            "so check it still looks like the person. Never applied unless you ask."
         ),
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.PHOTO_AND_PRINT,),
@@ -303,7 +330,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.DAMAGE_REPAIR,
         label="Repair damage",
-        summary="Fill scratches, creases and tears in scanned photographs.",
+        summary=(
+            "Fill in scratches and creases on a scanned old photograph. It is "
+            "guessing at what was underneath."
+        ),
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.PHOTO_AND_PRINT,),
         speed="slow",
@@ -313,7 +343,10 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.COLOURISE,
         label="Add colour",
-        summary="Estimate colour for a black-and-white photograph.",
+        summary=(
+            "Add colour to a black-and-white photograph. The colours are a guess, "
+            "not a record of what was really there."
+        ),
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.PHOTO_AND_PRINT,),
         speed="slow",
@@ -323,7 +356,7 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.BACKGROUND_REMOVE,
         label="Remove background",
-        summary="Cut the subject out and leave the rest transparent.",
+        summary="Cut out the main subject and make everything behind it see-through.",
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.DESIGN_AND_CONTENT, Audience.BUSINESS_DOCUMENTS),
         speed="slow",
@@ -333,7 +366,7 @@ OPERATION_CATALOGUE: tuple[CatalogueEntry, ...] = (
     CatalogueEntry(
         kind=OperationKind.BACKGROUND_REPLACE,
         label="Replace background",
-        summary="Cut the subject out and place it on something else.",
+        summary="Cut out the main subject and put a different background behind it.",
         group=Group.ENHANCE_WITH_AI,
         audiences=(Audience.DESIGN_AND_CONTENT,),
         speed="slow",

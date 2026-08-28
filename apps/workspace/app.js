@@ -358,6 +358,77 @@ async function refreshPrintPlan() {
 
 /* ------------------------------------------------------------------- tools */
 
+
+/* ------------------------------------------------ saying it in plain words */
+
+/* Every option a customer sees, in their words rather than the code's.
+ *
+ * "lanczos" is the name of a mathematician. "material: texture" is a parameter
+ * name. "+3.9 dB" is a unit from acoustics. None of them tell somebody which
+ * one to pick, and a control that does not help you choose is a control that
+ * makes you guess - so the label says what the option is *for*, and the effect
+ * is spelled out underneath in the units the work is actually measured in.
+ */
+const PLAIN_OPTIONS = {
+  algorithm: {
+    lanczos:  ["Sharpest", "best for photographs and detailed artwork"],
+    bicubic:  ["Smoother", "kinder to gradients and skin"],
+    nearest:  ["Hard edges", "pixel art, plans, screenshots - no blending"],
+  },
+  material: {
+    photo:    ["A photograph", "people, places, products"],
+    text:     ["Words or line art", "documents, plans, logos, screenshots"],
+    texture:  ["Fabric or fine pattern", "weave, grain, mesh - anything repeating"],
+  },
+  mode: {
+    natural:  ["Natural", "keeps it looking like the original"],
+    strong:   ["Strong", "pushes harder, invents more"],
+    flat_colour: ["Logo or flat colour", "solid shapes with clean edges"],
+    line_art: ["Line drawing", "sketches, plans, scans of drawings"],
+    photographic: ["Photograph", "posterised for a stencil or engraving"],
+  },
+  axis: {
+    horizontal: ["Left to right", "mirror it side to side"],
+    vertical:   ["Top to bottom", "mirror it upside down"],
+  },
+};
+
+const PLAIN_LABELS = {
+  algorithm: "Quality",
+  material: "What is it?",
+  mode: "What is it?",
+  axis: "Which way?",
+  scale: "How much bigger?",
+  quality: "Picture quality",
+  strength: "How strong?",
+  amount: "How strong?",
+  brightness: "Brightness",
+  contrast: "Contrast",
+  saturation: "Colour strength",
+  exposure: "Exposure",
+  noise_sigma: "How much noise?",
+  quality_target: "How damaged is it?",
+  iterations: "How many passes?",
+};
+
+function plainLabel(key) {
+  const stem = key.replace(/_percent$/, "");
+  return PLAIN_LABELS[stem] || stem.replace(/_/g, " ");
+}
+
+/* What a chosen number actually gets you, in inches and pixels.
+ *
+ * This is the answer to "how would a customer know which number to type". They
+ * would not, and they should not have to: the control shows the consequence as
+ * it changes, in the units the job is measured in.
+ */
+function outcomeLine(width, height) {
+  const dpi = Number(document.getElementById("print-dpi")?.value) || 300;
+  const inches = (Math.max(width, height) / dpi).toFixed(1);
+  return `${Math.round(width)} × ${Math.round(height)} pixels — prints about ` +
+         `${inches} inches on the long side at ${dpi} DPI`;
+}
+
 function control(op, key, spec, prefix = "") {
   // The prefix keeps two views' controls apart. Without it the batch screen
   // and the single-image screen both emit an element called `adjust-contrast_percent`,
@@ -369,15 +440,25 @@ function control(op, key, spec, prefix = "") {
       && (spec[0] < 0 || key.endsWith("percent") || key === "quality")) {
     const mid = key === "quality" ? 90 : 0;
     return `<div class="control">
-      <label for="${id}">${nice}</label><output id="${id}-out">${mid}</output>
+      <label for="${id}">${plainLabel(key)}</label><output id="${id}-out">${mid}</output>
       <input id="${id}" type="range" min="${spec[0]}" max="${spec[1]}" value="${mid}"
              oninput="document.getElementById('${id}-out').textContent=this.value">
     </div>`;
   }
   if (Array.isArray(spec)) {
+    const words = PLAIN_OPTIONS[key] || {};
+    const options = spec.map((v) => {
+      const said = words[v];
+      const text = said ? said[0] : (key === "scale" ? `${v} times bigger` : v);
+      return `<option value="${v}">${text}</option>`;
+    }).join("");
+    const notes = spec
+      .map((v) => (words[v] ? `<span data-for="${v}">${words[v][1]}</span>` : ""))
+      .join("");
     return `<div class="control">
-      <label for="${id}">${nice}</label>
-      <select id="${id}">${spec.map((v) => `<option value="${v}">${v}</option>`).join("")}</select>
+      <label for="${id}">${plainLabel(key)}</label>
+      <select id="${id}" data-explains="${id}-note">${options}</select>
+      ${notes ? `<p class="opt-note" id="${id}-note">${notes}</p>` : ""}
     </div>`;
   }
   return "";
@@ -386,34 +467,87 @@ function control(op, key, spec, prefix = "") {
 function toolControls(op) {
   const hint = op.settings_hint || {};
   switch (op.kind) {
-    case "resize":
-      return `<div class="row">
-          <div class="control"><label for="resize-w">width</label>
-            <input id="resize-w" type="number" min="1" value="${state.current.width}"></div>
-          <div class="control"><label for="resize-h">height</label>
-            <input id="resize-h" type="number" min="1" value="${state.current.height}"></div>
-        </div>${control(op, "algorithm", hint.algorithm)}`;
+    case "resize": {
+      // Start from the job, not the pixels. Nobody knows they want 2673 wide;
+      // they know they want it to fit an email, or to print six inches across.
+      const w = state.current.width, h = state.current.height;
+      return `
+        <div class="control">
+          <label for="resize-preset">What is it for?</label>
+          <select id="resize-preset">
+            <option value="">Choose a size…</option>
+            <option value="half">Half the size</option>
+            <option value="quarter">A quarter of the size</option>
+            <option value="email">Small enough to email</option>
+            <option value="a4-300">Fills an A4 page at 300 DPI</option>
+            <option value="print-6in">Prints 6 inches wide at 300 DPI</option>
+            <option value="print-18in">Prints 18 inches wide at 150 DPI</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="control"><label for="resize-w">Width in pixels</label>
+            <input id="resize-w" type="number" min="1" value="${w}"></div>
+          <div class="control"><label for="resize-h">Height in pixels</label>
+            <input id="resize-h" type="number" min="1" value="${h}"></div>
+        </div>
+        <p class="outcome" id="resize-outcome">${outcomeLine(w, h)}</p>
+        ${control(op, "algorithm", hint.algorithm)}`;
+    }
     case "crop":
-      return `<div class="row">
-          <div class="control"><label for="crop-x">left</label>
+      return `
+        <p class="opt-note">Drag the box on the picture to choose the area. Zoom
+          in first if you need the edge in an exact place.</p>
+        <div class="control">
+          <label for="crop-shape">Shape</label>
+          <select id="crop-shape">
+            <option value="">Any shape</option>
+            <option value="1:1">Square — profile pictures, Instagram</option>
+            <option value="4:3">4 by 3 — standard photo</option>
+            <option value="3:2">3 by 2 — classic print</option>
+            <option value="16:9">16 by 9 — screens and banners</option>
+            <option value="210:297">A4 page shape</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="control"><label for="crop-x">From the left</label>
             <input id="crop-x" type="number" min="0" value="0"></div>
-          <div class="control"><label for="crop-y">top</label>
+          <div class="control"><label for="crop-y">From the top</label>
             <input id="crop-y" type="number" min="0" value="0"></div>
-          <div class="control"><label for="crop-w">width</label>
+          <div class="control"><label for="crop-w">Width</label>
             <input id="crop-w" type="number" min="1" value="${Math.round(state.current.width / 2)}"></div>
-          <div class="control"><label for="crop-h">height</label>
+          <div class="control"><label for="crop-h">Height</label>
             <input id="crop-h" type="number" min="1" value="${Math.round(state.current.height / 2)}"></div>
-        </div>`;
+        </div>
+        <p class="outcome" id="crop-outcome"></p>`;
     case "rotate":
-      return `<div class="control"><label for="rotate-deg">turn</label>
+      return `<div class="control"><label for="rotate-deg">Which way?</label>
         <select id="rotate-deg">
-          <option value="90">90° right</option><option value="180">180°</option>
-          <option value="270">90° left</option></select></div>`;
+          <option value="90">Quarter turn to the right</option>
+          <option value="180">Upside down</option>
+          <option value="270">Quarter turn to the left</option></select>
+        <p class="opt-note">Turned without redrawing, so nothing loses quality.</p>
+        </div>`;
     case "flip":
-      return `<div class="control"><label for="flip-axis">direction</label>
+      return `<div class="control"><label for="flip-axis">Which way?</label>
         <select id="flip-axis">
-          <option value="horizontal">horizontal</option>
-          <option value="vertical">vertical</option></select></div>`;
+          <option value="horizontal">Mirror left to right</option>
+          <option value="vertical">Mirror top to bottom</option></select></div>`;
+    case "enlarge":
+    case "print_ready": {
+      // Every choice shows the size it produces and what that prints at, so the
+      // decision is made on the outcome instead of on the multiplier.
+      const w = state.current.width, h = state.current.height;
+      const scales = (hint.scale || [2, 3, 4]).map((n) =>
+        `<option value="${n}">${n} times bigger — ${Math.round(w * n)} × ${Math.round(h * n)}</option>`
+      ).join("");
+      return `
+        <div class="control">
+          <label for="${op.kind}-scale">How much bigger?</label>
+          <select id="${op.kind}-scale">${scales}</select>
+          <p class="outcome" id="${op.kind}-outcome">${outcomeLine(w * 2, h * 2)}</p>
+        </div>
+        ${control(op, "material", hint.material || ["photo", "text", "texture"])}`;
+    }
     default:
       return Object.entries(hint).map(([k, v]) => control(op, k, v)).join("");
   }
@@ -1251,6 +1385,10 @@ function renderCanvasTools() {
       button.dataset.kind = operation.kind;
       button.dataset.label = operation.label + (group.is_ai ? " · AI" : "");
       button.setAttribute("aria-label", operation.label);
+      // A native tooltip as well as the styled one: it survives a touch device,
+      // a screen reader and somebody who hovers before the CSS has painted.
+      button.title = `${operation.label}
+${operation.summary}`;
       button.innerHTML =
         `<svg viewBox="0 0 24 24" aria-hidden="true">` +
         `${TOOL_ICONS[operation.kind] || FALLBACK_ICON}</svg>`;
@@ -1281,7 +1419,7 @@ function openTool(operation, button) {
     `<p class="tool-summary">${operation.summary}</p>` +
     licence +
     `<div class="controls">${toolControls(operation)}</div>` +
-    `<button class="apply" data-kind="${operation.kind}">Apply ${operation.label}</button>`;
+    `<button class="apply" data-kind="${operation.kind}">${applyLabel(operation)}</button>`;
   popover.hidden = false;
   button.classList.add("is-on");
 
@@ -1293,12 +1431,43 @@ function openTool(operation, button) {
   } else {
     stopCropping();
   }
+  bindOutcomes(operation.kind);
+  bindOptionNotes(popover);
 
   popover.querySelector(".pop-close").addEventListener("click", closeTool);
   popover.querySelector(".apply").addEventListener("click", async () => {
     await apply(operation.kind);
     closeTool();
   });
+}
+
+/* What the button should say.
+ *
+ * The label used to be "Apply " plus the tool's name, which produced "Apply
+ * Make it bigger and sharper" - a sentence no person would write. A short verb
+ * for the ones whose names are already sentences, and "Apply X" only where X is
+ * a noun that reads correctly after it.
+ */
+const APPLY_WORDS = {
+  print_ready: "Make it print-ready",
+  enlarge: "Make it bigger",
+  document_clean: "Clean up the page",
+  straighten_page: "Straighten it",
+  resize: "Change the size",
+  crop: "Crop to the box",
+  rotate: "Turn it",
+  flip: "Flip it",
+  convert: "Save as this",
+  adjust: "Apply changes",
+  sharpen: "Sharpen it",
+  denoise: "Reduce the noise",
+  super_resolution: "Enlarge with AI",
+  ai_denoise: "Clean it with AI",
+  jpeg_artifact_repair: "Repair it",
+};
+
+function applyLabel(operation) {
+  return APPLY_WORDS[operation.kind] || `Apply ${operation.label}`;
 }
 
 function closeTool() {
@@ -1308,6 +1477,103 @@ function closeTool() {
   popover.dataset.kind = "";
   popover.innerHTML = "";
   document.querySelectorAll(".tool-btn.is-on").forEach((b) => b.classList.remove("is-on"));
+}
+
+
+/* Keep the "what you'll get" line honest while the customer types.
+ *
+ * A number field that shows nothing until you press Apply is a guess with extra
+ * steps. These bindings mean the consequence is on screen before the decision
+ * is made, which is the whole point of the rewrite.
+ */
+function bindOptionNotes(scope) {
+  for (const select of scope.querySelectorAll("select[data-explains]")) {
+    const note = document.getElementById(select.dataset.explains);
+    if (!note) continue;
+    const show = () => {
+      for (const span of note.querySelectorAll("span")) {
+        span.classList.toggle("is-shown", span.dataset.for === select.value);
+      }
+    };
+    select.addEventListener("change", show);
+    show();
+  }
+}
+
+function bindOutcomes(kind) {
+  const dpi = () => Number(document.getElementById("print-dpi")?.value) || 300;
+
+  if (kind === "resize") {
+    const w = document.getElementById("resize-w");
+    const h = document.getElementById("resize-h");
+    const out = document.getElementById("resize-outcome");
+    const preset = document.getElementById("resize-preset");
+    if (!w || !h || !out) return;
+
+    const refresh = () => { out.textContent = outcomeLine(Number(w.value), Number(h.value)); };
+    w.addEventListener("input", refresh);
+    h.addEventListener("input", refresh);
+
+    preset?.addEventListener("change", () => {
+      const ratio = state.current.height / state.current.width;
+      const long = Math.max(state.current.width, state.current.height);
+      const set = (width) => {
+        w.value = String(Math.max(1, Math.round(width)));
+        h.value = String(Math.max(1, Math.round(width * ratio)));
+        refresh();
+      };
+      switch (preset.value) {
+        case "half":      set(state.current.width / 2); break;
+        case "quarter":   set(state.current.width / 4); break;
+        // 1600 on the long edge is the usual ceiling for something that has to
+        // survive a mail server without being argued with.
+        case "email":     set(state.current.width * (1600 / long)); break;
+        case "a4-300":    set(2480 * (state.current.width / long)); break;
+        case "print-6in": set(1800 * (state.current.width / long)); break;
+        case "print-18in":set(2700 * (state.current.width / long)); break;
+        default: break;
+      }
+    });
+    refresh();
+  }
+
+  if (kind === "crop") {
+    const shape = document.getElementById("crop-shape");
+    const out = document.getElementById("crop-outcome");
+    const show = () => {
+      if (!out || !crop.box) return;
+      out.textContent = outcomeLine(crop.box.width, crop.box.height);
+    };
+    for (const id of ["crop-x", "crop-y", "crop-w", "crop-h"]) {
+      document.getElementById(id)?.addEventListener("input", show);
+    }
+    shape?.addEventListener("change", () => {
+      if (!shape.value || !crop.box) return;
+      const [a, b] = shape.value.split(":").map(Number);
+      // Keep the area roughly the same while changing its proportions, so the
+      // box does not leap across the picture when a shape is chosen.
+      const area = crop.box.width * crop.box.height;
+      const width = Math.sqrt(area * (a / b));
+      crop.box = clampToImage({
+        x: crop.box.x, y: crop.box.y, width, height: width * (b / a),
+      });
+      drawCrop();
+      show();
+    });
+    show();
+  }
+
+  if (kind === "enlarge" || kind === "print_ready") {
+    const scale = document.getElementById(`${kind}-scale`);
+    const out = document.getElementById(`${kind}-outcome`);
+    const refresh = () => {
+      if (!scale || !out) return;
+      const n = Number(scale.value) || 2;
+      out.textContent = outcomeLine(state.current.width * n, state.current.height * n);
+    };
+    scale?.addEventListener("change", refresh);
+    refresh();
+  }
 }
 
 /* --------------------------------------------------------- command palette */
