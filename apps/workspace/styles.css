@@ -1672,3 +1672,116 @@ button:disabled {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* ------------------------------------------------------ landing, arranged */
+
+/* Seen for the first time with a screenshot rather than imagined, and it did
+ * not hold together: four cards wrapping three-then-one, no sentence saying
+ * what any of it was for, and the whole thing floating in the top third of an
+ * empty page. Everything below is that, fixed.
+ */
+.intake {
+  max-width: 940px;
+  padding: 40px 24px 56px;
+}
+
+.intake-head {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.intake-head h2 {
+  font-size: 27px;
+  line-height: 1.25;
+  letter-spacing: -0.022em;
+  margin-bottom: 8px;
+}
+
+.intake-head p {
+  max-width: 560px;
+  margin: 0 auto;
+  color: var(--ink-soft);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.drop { padding: 44px 24px; }
+
+/* Four across on a wide screen, two-by-two below it. Never three-then-one,
+ * which is what it was doing and what made the page look broken. */
+.jobs {
+  margin-top: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .jobs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .jobs { grid-template-columns: minmax(0, 1fr); }
+}
+
+.job {
+  gap: 4px;
+  padding: 14px;
+  min-height: 92px;
+}
+
+.job strong { font-size: 13.5px; line-height: 1.3; }
+.job span { font-size: 12px; line-height: 1.4; }
+
+/* One quiet line rather than a bulleted list. These are reassurances, not
+ * instructions, and they should not compete with the thing you came to do. */
+.reassure {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
+  font-size: 12.5px;
+}
+
+.reassure li { padding-left: 15px; }
+.reassure li::before { top: 7px; left: 0; width: 5px; height: 5px; }
+
+/* The page ended two-thirds of the way down and left a slab of empty grey
+ * below it, which reads as unfinished rather than spacious. Centring the block
+ * in whatever height the window has fixes it at every size without inventing
+ * filler to push the fold down. */
+#app { display: flex; flex-direction: column; }
+
+.intake {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding-block: 32px;
+}
+
+.drop { padding: 38px 24px; }
+
+/* The canvas is a window, not a container that grows.
+ *
+ * Without a height of its own the stage expanded to whatever the image's
+ * natural size was, so "fit the image to the stage" measured a stage that had
+ * already grown to fit the image and returned a scale of 1 every time. The
+ * picture overflowed, the zoom bar never appeared, and it looked like the zoom
+ * was broken when the arithmetic was correct and the box was wrong.
+ */
+.stage {
+  height: clamp(420px, calc(100vh - 250px), 900px);
+  min-height: 0;
+  display: block;
+  padding: 0;
+}
+
+.viewport {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+}

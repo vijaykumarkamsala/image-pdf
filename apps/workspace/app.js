@@ -298,13 +298,25 @@ function renderImages() {
   // scale of one - which reads as "the zoom is broken" rather than "the image
   // has not loaded yet".
   const keepPlace = !view.fitted && result.src === c.dataUrl;
-  result.onload = () => {
+
+  // Fitting has to survive three cases, and hanging it on `onload` alone only
+  // covers one. A cached image fires nothing; a decode that finishes before the
+  // handler is attached fires nothing; and `naturalWidth` is zero until the
+  // decode completes, so fitting too early puts the picture in a corner at
+  // scale one - which is what a screenshot of this caught, with the image
+  // overflowing the stage and no zoom bar at all.
+  const settle = () => {
     $("zoombar").hidden = false;
+    if (!result.naturalWidth) return;
     if (keepPlace) applyView();
     else zoomToFit();
   };
 
+  result.onload = settle;
   result.src = c.dataUrl;
+  if (result.complete) settle();
+  // Belt and braces for the decode that lands between those two lines.
+  requestAnimationFrame(settle);
   $("img-original").src = o.dataUrl;
   $("split-a").src = o.dataUrl;
   $("split-b").src = c.dataUrl;
@@ -1417,11 +1429,11 @@ function collectCommands() {
           where: group.label,
           keywords: operation.summary,
           run: () => {
-            showTask(document.querySelector(".panel"), "edit");
-            const card = document.querySelector(`[data-kind="${operation.kind}"]`);
-            card?.closest(".tool-group")?.classList.add("is-open");
-            card?.scrollIntoView({ block: "center", behavior: "smooth" });
-            card?.focus?.();
+            // Open the tool where it now lives: on the picture.
+            const button = document.querySelector(
+              `.canvas-tools .tool-btn[data-kind="${operation.kind}"]`);
+            button?.click();
+            button?.scrollIntoView({ block: "nearest" });
           },
         });
       }

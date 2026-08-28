@@ -33,6 +33,13 @@
 
   <!-- ------------------------------------------------------------- intake -->
   <section id="intake" class="intake">
+    <div class="intake-head">
+      <h2>Make a photograph of a document look like a scan</h2>
+      <p>Straighten it, take the lamp and the shadow out of it, and enlarge it
+         far enough to print. Nothing is invented - every correction is measured
+         from your own file.</p>
+    </div>
+
     <div id="drop" class="drop" tabindex="0" role="button"
          aria-label="Choose an image, or drag one here">
       <div class="drop-inner">
@@ -71,10 +78,10 @@
     </div>
 
     <ul class="reassure">
-      <li>Your original is never modified.</li>
-      <li>Everything runs on this machine.</li>
-      <li>AI is only used when you ask for it.</li>
-      <li>PDF pages are combined, split and turned without re-rendering, so nothing loses quality.</li>
+      <li>Your original is never changed</li>
+      <li>Everything runs on this machine</li>
+      <li>AI only when you ask for it</li>
+      <li>PDF pages keep their quality</li>
     </ul>
   </section>
 
@@ -151,21 +158,22 @@
     <aside class="panel">
       <div id="facts" class="facts"></div>
 
-      <!-- One task at a time. The panel used to show every card for every task
-           at once; picking a task is what keeps this legible at feature fifty. -->
+      <!-- The tools are on the picture now, so this panel does not repeat
+           them. It had been showing every tool with every control open - four
+           stacked Apply buttons and a column that scrolled past the fold - next
+           to an icon strip offering the same things. Two ways to do one job,
+           and the duller one taking all the room.
+           #tools is kept, empty and hidden, because the command palette scrolls
+           to a tool card by id. -->
+      <div id="tools" hidden></div>
+
       <nav class="tasknav" id="tasknav" aria-label="What do you want to do">
-        <button data-task="edit" class="is-active" type="button">Edit</button>
-        <button data-task="print" type="button">Print size</button>
+        <button data-task="print" class="is-active" type="button">Print size</button>
         <button data-task="export" type="button">Export</button>
       </nav>
 
-      <!-- ---------------------------------------------------------- edit -->
-      <div class="taskpane" data-pane="edit">
-        <div id="tools"></div>
-      </div>
-
       <!-- --------------------------------------------------------- print -->
-      <div class="taskpane" data-pane="print" hidden>
+      <div class="taskpane" data-pane="print">
         <div class="print-card">
           <h2>Print size</h2>
           <p class="print-note">Tell it the size you need. It will say honestly whether
