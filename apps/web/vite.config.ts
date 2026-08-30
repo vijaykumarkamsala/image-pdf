@@ -3,6 +3,11 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      "/v1": "http://127.0.0.1:8780",
+    },
+  },
   build: {
     sourcemap: true,
   },

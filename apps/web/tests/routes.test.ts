@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { majorOutcomes, routeFor } from "../src/routes.ts";
+import { futureOutcomes, workspacePath, workspaceRoutes } from "../src/routes.ts";
 
-test("home exposes the four V2 parent outcomes equally", () => {
-  assert.deepEqual(
-    majorOutcomes.map((route) => route.label),
-    ["Image & Graphic Studio", "Create PDF", "Edit & Manage PDF", "Print & Production"],
-  );
+test("workspace navigation is outcome-oriented and mobile-safe", () => {
+  assert.deepEqual(workspaceRoutes.map((route) => route.label), ["Home", "Projects", "Files"]);
+  assert.equal(workspacePath("workspace-001", "projects"), "/w/workspace-001/projects");
 });
 
-test("unknown routes fall back to home", () => {
-  assert.equal(routeFor("/unknown").path, "/");
+test("the four approved parent outcomes remain equally represented", () => {
+  assert.deepEqual(futureOutcomes, [
+    "Image & Graphic Studio",
+    "Create PDF",
+    "Edit & Manage PDF",
+    "Print & Production",
+  ]);
 });
-

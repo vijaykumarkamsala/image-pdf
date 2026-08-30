@@ -1,16 +1,16 @@
-export const routes = [
-  { path: "/", label: "Home" },
-  { path: "/projects", label: "Projects" },
-  { path: "/studio/image-graphic", label: "Image & Graphic Studio" },
-  { path: "/pdf/create", label: "Create PDF" },
-  { path: "/pdf/manage", label: "Edit & Manage PDF" },
-  { path: "/production", label: "Print & Production" },
+export const workspaceRoutes = [
+  { segment: "", label: "Home" },
+  { segment: "projects", label: "Projects" },
+  { segment: "files", label: "Files" },
 ] as const;
 
-export type AppRoute = (typeof routes)[number];
+export const futureOutcomes = [
+  "Image & Graphic Studio",
+  "Create PDF",
+  "Edit & Manage PDF",
+  "Print & Production",
+] as const;
 
-export const majorOutcomes = routes.slice(2) as readonly AppRoute[];
-
-export function routeFor(pathname: string): AppRoute {
-  return routes.find((route) => route.path === pathname) ?? routes[0];
+export function workspacePath(workspaceId: string, segment = ""): string {
+  return `/w/${workspaceId}${segment ? `/${segment}` : ""}`;
 }
