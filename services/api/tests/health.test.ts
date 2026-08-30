@@ -46,9 +46,9 @@ test("health and readiness endpoints return v1 envelopes with trace propagation"
       ok: true,
       service: "ipw-api",
       dependencies: {
-        database: "deferred",
-        queue: "deferred",
-        object_storage: "deferred",
+        database: "deterministic_local",
+        queue: "excluded_recovery_2a",
+        object_storage: "reference_catalog_only",
       },
       trace_id: "trace-ready",
     });

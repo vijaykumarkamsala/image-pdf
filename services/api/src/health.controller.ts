@@ -18,9 +18,9 @@ export class HealthController {
       ok: true,
       service: "ipw-api",
       dependencies: {
-        database: "deferred",
-        queue: "deferred",
-        object_storage: "deferred",
+        database: process.env["IPW_DATABASE_URL"] ? "postgresql" : "deterministic_local",
+        queue: "excluded_recovery_2a",
+        object_storage: "reference_catalog_only",
       },
       trace_id: traceId ?? "trace-unset",
     };
