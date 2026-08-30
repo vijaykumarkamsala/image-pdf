@@ -160,7 +160,11 @@
         "upload.read",
         "upload.cancel",
         "job.read",
-        "job.cancel"
+        "job.cancel",
+        "job.retry",
+        "notification.read",
+        "notification.update",
+        "search.read"
       ],
       "title": "Permission",
       "type": "string"

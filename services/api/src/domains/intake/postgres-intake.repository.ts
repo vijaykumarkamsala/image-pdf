@@ -213,6 +213,15 @@ export class PostgresIntakeRepository implements IntakeRepository {
     return result.rows[0] ? stored(result.rows[0]) : null;
   }
 
+  async listWorkspaceUploads(workspaceId: string): Promise<StoredUploadSession[]> {
+    const result = await this.pool.query(
+      `SELECT * FROM upload_sessions WHERE owner_kind='actor' AND workspace_id=$1
+       ORDER BY updated_at DESC,upload_session_id DESC`,
+      [workspaceId],
+    );
+    return result.rows.map(stored);
+  }
+
   async recordUploadedBytes(
     uploadSessionId: string,
     tokenHash: string,

@@ -14,6 +14,7 @@ import {
 } from "../../kernel/product.types.js";
 import { requestDigest, type RuntimeValues } from "../../kernel/runtime.js";
 import { DURABLE_JOB_REPOSITORY, type DurableJobRepository } from "./durable-job.types.js";
+import type { JobView } from "./job-pagination.js";
 
 type Headers = Record<string, string | string[] | undefined>;
 
@@ -83,6 +84,17 @@ export class JobsService implements OnApplicationShutdown {
     return { schema_version: PRODUCT_SCHEMA_VERSION, job };
   }
 
+  async list(headers: Headers, workspaceId: string, view: JobView, cursor: string | undefined, limit: number) {
+    const principal = this.identity.resolve(headers);
+    const id = requireId(workspaceId, "workspace id");
+    const context = await this.product.workspaceContext(principal.actorId, id);
+    if (!context?.effectivePermissions.some((item) => item.permission === "job.read" && item.allowed)) {
+      throw new DomainError(403, "access-denied", "You do not have permission to view Jobs in this workspace");
+    }
+    const page = await this.repository.listWorkspaceJobs(id, view, cursor, limit);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, jobs: page.jobs, next_cursor: page.nextCursor };
+  }
+
   async events(headers: Headers, jobId: string, after: number, limit: number) {
     const { job, owner } = await this.requireAccessible(headers, requireId(jobId, "job id"));
     const events = await this.repository.listEvents(job.job_id, owner, after, limit);
@@ -110,6 +122,29 @@ export class JobsService implements OnApplicationShutdown {
     return { schema_version: PRODUCT_SCHEMA_VERSION, job };
   }
 
+  async retry(headers: Headers, jobId: string) {
+    const id = requireId(jobId, "job id");
+    const { owner } = await this.requireAccessible(headers, id, "job.retry");
+    const context = this.command(headers, owner, "job.retry", { jobId: id });
+    const result = await this.repository.retry(id, owner, {
+      ownerScope: owner.ownerScope,
+      idempotencyKey: context.idempotencyKey,
+      commandName: "job.retry",
+      requestHash: context.requestHash,
+    }, this.runtime.now(), context.traceId);
+    if (!result.replayed && owner.ownerKind === "actor") {
+      await this.product.recordExternalMutation(context, owner.workspaceId!, "job.retry-requested", "processing_job", id);
+    }
+    const command: IdempotentCommandResult = {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      idempotency_key: context.idempotencyKey,
+      replayed: result.replayed,
+      resource_kind: "processing_job",
+      resource_id: id,
+    };
+    return { schema_version: PRODUCT_SCHEMA_VERSION, job: result.job, command };
+  }
+
   async onApplicationShutdown(): Promise<void> {
     await this.repository.close();
   }
@@ -126,15 +161,15 @@ export class JobsService implements OnApplicationShutdown {
       return { job, owner };
     }
     const principal = this.identity.resolve(headers);
-    const job = await this.repository.findJobByActor(jobId, principal.actorId);
-    if (!job?.workspace_id) throw new DomainError(404, "job-not-found", "Job was not found");
+    const job = await this.repository.findWorkspaceJob(jobId);
+    if (!job?.workspace_id || !job.actor_id) throw new DomainError(404, "job-not-found", "Job was not found");
     const context = await this.product.workspaceContext(principal.actorId, job.workspace_id);
     if (!context?.effectivePermissions.some((item) => item.permission === permission && item.allowed)) {
       throw new DomainError(404, "job-not-found", "Job was not found");
     }
     return {
       job,
-      owner: { ownerKind: "actor", ownerScope: job.workspace_id, workspaceId: job.workspace_id, actorId: principal.actorId },
+      owner: { ownerKind: "actor", ownerScope: job.workspace_id, workspaceId: job.workspace_id, actorId: job.actor_id },
     };
   }
 
@@ -142,7 +177,10 @@ export class JobsService implements OnApplicationShutdown {
     const idempotencyKey = requireId(this.header(headers, "idempotency-key"), "Idempotency-Key");
     const traceId = requireId(this.header(headers, "x-trace-id"), "trace id");
     return {
-      principal: { actorId: owner.actorId ?? owner.guestSessionId!, displayName: owner.ownerKind },
+      principal: {
+        actorId: owner.ownerKind === "actor" ? this.identity.resolve(headers).actorId : owner.guestSessionId!,
+        displayName: owner.ownerKind,
+      },
       idempotencyKey,
       traceId,
       requestHash: requestDigest({ command: name, payload }),

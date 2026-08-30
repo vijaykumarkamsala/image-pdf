@@ -15,6 +15,19 @@ export interface Actor {
   display_name: string;
 }
 
+export interface AttentionItem {
+  schema_version?: string;
+  kind: AttentionKind;
+  resource_id: string;
+  title: string;
+  message: string;
+  path: string;
+  occurred_at: string;
+}
+
+export type AttentionKind = "job_retry" | "job_failed" | "upload_interrupted" | "upload_rejected" | "source_expiring";
+export const AttentionKindValues: readonly AttentionKind[] = ["job_retry", "job_failed", "upload_interrupted", "upload_rejected", "source_expiring"] as const;
+
 export interface AuditEvent {
   schema_version?: string;
   audit_event_id: string;
@@ -61,6 +74,13 @@ export interface ErrorDetail {
   code: string;
   message: string;
   trace_id: string;
+}
+
+export interface FeatureStateRecord {
+  schema_version?: string;
+  feature: string;
+  active: boolean;
+  customer_visible: boolean;
 }
 
 export type FileLocationKind = "default_files" | "project";
@@ -146,14 +166,52 @@ export interface Membership {
   role: RolePreset;
 }
 
-export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel";
-export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel"] as const;
+export type NotificationKind = "upload_accepted" | "upload_rejected" | "job_completed" | "job_failed" | "job_cancelled" | "retry_required" | "retry_completed" | "guest_handoff_completed" | "source_cleanup_required";
+export const NotificationKindValues: readonly NotificationKind[] = ["upload_accepted", "upload_rejected", "job_completed", "job_failed", "job_cancelled", "retry_required", "retry_completed", "guest_handoff_completed", "source_cleanup_required"] as const;
+
+export interface NotificationRecord {
+  schema_version?: string;
+  notification_id: string;
+  workspace_id: string;
+  kind: NotificationKind;
+  title: string;
+  message: string;
+  resource_kind: string;
+  resource_id: string;
+  occurred_at: string;
+  read_at?: string | null;
+}
+
+export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read";
+export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read"] as const;
 
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
 
 export type ProcessingJobKind = "file_intake_inspection";
 export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection"] as const;
+
+export interface ProcessingJobRecord {
+  schema_version?: string;
+  job_id: string;
+  kind: ProcessingJobKind;
+  owner_kind: UploadOwnerKind;
+  workspace_id?: string | null;
+  actor_id?: string | null;
+  guest_session_id?: string | null;
+  upload_session_id: string;
+  state: ProcessingJobState;
+  attempt: number;
+  max_attempts: number;
+  progress_percent: number;
+  lease_owner?: string | null;
+  lease_expires_at?: string | null;
+  heartbeat_at?: string | null;
+  next_attempt_at?: string | null;
+  failure?: IntakeFailure | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export type ProcessingJobState = "queued" | "leased" | "running" | "retry_wait" | "cancel_requested" | "succeeded" | "failed" | "cancelled";
 export const ProcessingJobStateValues: readonly ProcessingJobState[] = ["queued", "leased", "running", "retry_wait", "cancel_requested", "succeeded", "failed", "cancelled"] as const;
@@ -170,8 +228,24 @@ export interface ProjectRecord {
   archived?: boolean;
 }
 
+export interface RecentWorkItem {
+  schema_version?: string;
+  kind: RecentWorkKind;
+  resource_id: string;
+  title: string;
+  description: string;
+  path: string;
+  updated_at: string;
+}
+
+export type RecentWorkKind = "project" | "file";
+export const RecentWorkKindValues: readonly RecentWorkKind[] = ["project", "file"] as const;
+
 export type RolePreset = "owner" | "admin" | "member" | "viewer";
 export const RolePresetValues: readonly RolePreset[] = ["owner", "admin", "member", "viewer"] as const;
+
+export type SearchResultKind = "project" | "file" | "job";
+export const SearchResultKindValues: readonly SearchResultKind[] = ["project", "file", "job"] as const;
 
 export interface SourceFacts {
   schema_version?: string;
@@ -253,6 +327,15 @@ export const UploadTransferProtocolValues: readonly UploadTransferProtocol[] = [
 export type UploadTransferProvider = "local_api" | "google_cloud_storage";
 export const UploadTransferProviderValues: readonly UploadTransferProvider[] = ["local_api", "google_cloud_storage"] as const;
 
+export interface UsageSummary {
+  schema_version?: string;
+  files: number;
+  storage_bytes: number;
+  jobs: number;
+  high_cost_processing: number;
+  activities?: CustomerUsageActivity[];
+}
+
 export interface Workspace {
   schema_version?: string;
   workspace_id: string;
@@ -278,6 +361,16 @@ export interface WorkspaceProjectPolicy {
   allow_subprojects?: boolean;
 }
 
+export interface WorkspaceSearchResult {
+  schema_version?: string;
+  kind: SearchResultKind;
+  resource_id: string;
+  title: string;
+  description: string;
+  path: string;
+  updated_at: string;
+}
+
 export interface AssetOriginalRecord {
   schema_version?: string;
   asset_original_id: string;
@@ -301,6 +394,11 @@ export interface CollectionProjectRelation {
 export interface ErrorEnvelope {
   schema_version?: string;
   error: ErrorDetail;
+}
+
+export interface FeatureStateList {
+  schema_version?: string;
+  features: FeatureStateRecord[];
 }
 
 export interface FileList {
@@ -340,6 +438,19 @@ export interface JobEventList {
   next_cursor: number;
 }
 
+export interface JobList {
+  schema_version?: string;
+  jobs: ProcessingJobRecord[];
+  next_cursor?: string | null;
+}
+
+export interface NotificationList {
+  schema_version?: string;
+  notifications: NotificationRecord[];
+  next_cursor?: string | null;
+  unread_count: number;
+}
+
 export interface ObjectReference {
   schema_version?: string;
   object_reference_id: string;
@@ -358,28 +469,6 @@ export interface PermissionGrant {
   actor_id: string;
   permission: Permission;
   allowed: boolean;
-}
-
-export interface ProcessingJobRecord {
-  schema_version?: string;
-  job_id: string;
-  kind: ProcessingJobKind;
-  owner_kind: UploadOwnerKind;
-  workspace_id?: string | null;
-  actor_id?: string | null;
-  guest_session_id?: string | null;
-  upload_session_id: string;
-  state: ProcessingJobState;
-  attempt: number;
-  max_attempts: number;
-  progress_percent: number;
-  lease_owner?: string | null;
-  lease_expires_at?: string | null;
-  heartbeat_at?: string | null;
-  next_attempt_at?: string | null;
-  failure?: IntakeFailure | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface ProjectList {
@@ -434,15 +523,6 @@ export interface UsageEvent {
   occurred_at: string;
 }
 
-export interface UsageSummary {
-  schema_version?: string;
-  files: number;
-  storage_bytes: number;
-  jobs: number;
-  high_cost_processing: number;
-  activities?: CustomerUsageActivity[];
-}
-
 export interface WorkspaceContext {
   schema_version?: string;
   actor: Actor;
@@ -453,7 +533,24 @@ export interface WorkspaceContext {
   effective_permissions: EffectivePermission[];
 }
 
+export interface WorkspaceHome {
+  schema_version?: string;
+  recent_work: RecentWorkItem[];
+  attention: AttentionItem[];
+  active_jobs: ProcessingJobRecord[];
+  recent_jobs: ProcessingJobRecord[];
+  notifications: NotificationRecord[];
+  unread_notification_count: number;
+  usage: UsageSummary;
+}
+
 export interface WorkspaceList {
   schema_version?: string;
   workspaces: Workspace[];
+}
+
+export interface WorkspaceSearchPage {
+  schema_version?: string;
+  results: WorkspaceSearchResult[];
+  next_cursor?: string | null;
 }

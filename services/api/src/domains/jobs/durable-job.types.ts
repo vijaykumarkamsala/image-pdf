@@ -6,10 +6,21 @@ import type {
 } from "ipw-contracts-ts/product";
 
 import type { IntakeCommand, IntakeOwner } from "../intake/intake.types.js";
+import type { JobView } from "./job-pagination.js";
 
 export interface JobCreateResult {
   job: ProcessingJobRecord;
   upload: UploadSessionRecord;
+  replayed: boolean;
+}
+
+export interface JobPageResult {
+  jobs: ProcessingJobRecord[];
+  nextCursor: string | null;
+}
+
+export interface JobRetryResult {
+  job: ProcessingJobRecord;
   replayed: boolean;
 }
 
@@ -56,9 +67,17 @@ export interface DurableJobRepository {
     traceId: string,
   ): Promise<JobCreateResult>;
   findJob(jobId: string, owner: IntakeOwner): Promise<ProcessingJobRecord | null>;
-  findJobByActor(jobId: string, actorId: string): Promise<ProcessingJobRecord | null>;
+  findWorkspaceJob(jobId: string): Promise<ProcessingJobRecord | null>;
+  listWorkspaceJobs(workspaceId: string, view: JobView, cursor: string | undefined, limit: number): Promise<JobPageResult>;
   listEvents(jobId: string, owner: IntakeOwner, after: number, limit: number): Promise<JobEventRecord[]>;
   requestCancel(jobId: string, owner: IntakeOwner, now: string, traceId: string): Promise<ProcessingJobRecord>;
+  retry(
+    jobId: string,
+    owner: IntakeOwner,
+    command: IntakeCommand,
+    now: string,
+    traceId: string,
+  ): Promise<JobRetryResult>;
   claimOutbox(workerId: string, now: string, leaseExpiresAt: string, limit: number): Promise<JobOutboxRecord[]>;
   markOutboxDispatched(outboxId: string, workerId: string, now: string): Promise<void>;
   releaseOutbox(

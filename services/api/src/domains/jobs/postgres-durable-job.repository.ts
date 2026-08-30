@@ -11,10 +11,13 @@ import type {
   ClaimedJob,
   DurableJobRepository,
   JobCreateResult,
+  JobPageResult,
   JobOutboxRecord,
+  JobRetryResult,
   InspectionCompletion,
   StoredCheckpoint,
 } from "./durable-job.types.js";
+import { decodeJobCursor, encodeJobCursor, type JobView } from "./job-pagination.js";
 
 function instant(value: Date | string | null): string | null {
   return value === null ? null : value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -161,12 +164,38 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
     return result.rows[0] ? job(result.rows[0]) : null;
   }
 
-  async findJobByActor(jobId: string, actorId: string): Promise<ProcessingJobRecord | null> {
+  async findWorkspaceJob(jobId: string): Promise<ProcessingJobRecord | null> {
     const result = await this.pool.query(
-      "SELECT * FROM processing_jobs WHERE job_id=$1 AND owner_kind='actor' AND actor_id=$2",
-      [jobId, actorId],
+      "SELECT * FROM processing_jobs WHERE job_id=$1 AND owner_kind='actor'",
+      [jobId],
     );
     return result.rows[0] ? job(result.rows[0]) : null;
+  }
+
+  async listWorkspaceJobs(
+    workspaceId: string,
+    view: JobView,
+    cursorValue: string | undefined,
+    limit: number,
+  ): Promise<JobPageResult> {
+    const cursor = decodeJobCursor(cursorValue);
+    const result = await this.pool.query(
+      `SELECT * FROM processing_jobs WHERE owner_kind='actor' AND workspace_id=$1
+       AND ($2='all'
+         OR ($2='active' AND state IN ('queued','leased','running','retry_wait','cancel_requested'))
+         OR ($2='completed' AND state='succeeded')
+         OR ($2='failed' AND state='failed')
+         OR ($2='cancelled' AND state='cancelled')
+         OR ($2='retryable' AND state='failed' AND coalesce((failure->>'retryable')::boolean,false)))
+       AND ($3::timestamptz IS NULL OR (updated_at,job_id) < ($3::timestamptz,$4))
+       ORDER BY updated_at DESC,job_id DESC LIMIT $5`,
+      [workspaceId, view, cursor?.updatedAt ?? null, cursor?.jobId ?? "", limit + 1],
+    );
+    const jobs = result.rows.slice(0, limit).map(job);
+    return {
+      jobs,
+      nextCursor: result.rows.length > limit && jobs.length ? encodeJobCursor(jobs.at(-1)!) : null,
+    };
   }
 
   async listEvents(jobId: string, owner: IntakeOwner, after: number, limit: number): Promise<JobEventRecord[]> {
@@ -222,6 +251,75 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       await this.insertEvent(client, updated, state === "cancelled" ? "job.cancelled" : "job.cancel-requested", traceId);
       await client.query("COMMIT");
       return updated;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async retry(
+    jobId: string,
+    owner: IntakeOwner,
+    command: IntakeCommand,
+    now: string,
+    traceId: string,
+  ): Promise<JobRetryResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const prior = await client.query(
+        `SELECT command_name,request_hash,response_body FROM intake_idempotency_records
+         WHERE owner_scope=$1 AND idempotency_key=$2 FOR UPDATE`,
+        [command.ownerScope, command.idempotencyKey],
+      );
+      if (prior.rows[0]) {
+        if (prior.rows[0]["command_name"] !== command.commandName || prior.rows[0]["request_hash"] !== command.requestHash) {
+          throw new DomainError(409, "idempotency-conflict", "Idempotency key was already used for another request");
+        }
+        const replayJobId = String((prior.rows[0]["response_body"] as { job_id: string }).job_id);
+        const replay = await client.query("SELECT * FROM processing_jobs WHERE job_id=$1", [replayJobId]);
+        await client.query("COMMIT");
+        return { job: job(replay.rows[0]), replayed: true };
+      }
+      const found = await client.query(
+        `SELECT * FROM processing_jobs WHERE job_id=$1 AND ${this.ownerSql(owner, 2)} FOR UPDATE`,
+        [jobId, ...this.ownerValues(owner)],
+      );
+      if (!found.rows[0]) throw new DomainError(404, "job-not-found", "Job was not found");
+      const current = job(found.rows[0]);
+      if (current.state !== "failed" || !current.failure?.retryable || current.max_attempts >= 20) {
+        throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
+      }
+      const reopened = await client.query(
+        `UPDATE upload_sessions SET state='finalising',failure=NULL,updated_at=$1
+         WHERE upload_session_id=$2 AND ${this.ownerSql(owner, 3)}
+           AND state='rejected' AND coalesce((failure->>'retryable')::boolean,false)
+           AND cleanup_completed_at IS NULL AND expires_at>$1 RETURNING upload_session_id`,
+        [now, current.upload_session_id, ...this.ownerValues(owner)],
+      );
+      if (!reopened.rowCount) throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
+      const updatedResult = await client.query(
+        `UPDATE processing_jobs SET state='queued',max_attempts=max_attempts+1,progress_percent=0,
+         next_attempt_at=NULL,failure=NULL,lease_owner=NULL,lease_token_hash=NULL,
+         lease_expires_at=NULL,heartbeat_at=NULL,updated_at=$1 WHERE job_id=$2 RETURNING *`,
+        [now, jobId],
+      );
+      const updated = job(updatedResult.rows[0]);
+      await this.insertEvent(client, updated, "job.retry-requested", traceId);
+      await client.query(
+        `INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
+         VALUES ($1,$2,'process_job',$3,$4,$5,$5)`,
+        [`outbox-${randomUUID()}`, jobId, { job_id: jobId }, traceId, now],
+      );
+      await client.query(
+        `INSERT INTO intake_idempotency_records(owner_scope,idempotency_key,command_name,
+         request_hash,response_body,created_at) VALUES ($1,$2,$3,$4,$5,$6)`,
+        [command.ownerScope, command.idempotencyKey, command.commandName, command.requestHash, { job_id: jobId }, now],
+      );
+      await client.query("COMMIT");
+      return { job: updated, replayed: false };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

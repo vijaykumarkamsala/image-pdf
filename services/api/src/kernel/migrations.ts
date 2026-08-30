@@ -14,6 +14,8 @@ export const MIGRATION_VERSIONS = [
   "0006_recovery_2b_durable_dispatch",
   "0007_recovery_2b_durable_cleanup",
   "0008_recovery_2c_intake_classification",
+  "0009_recovery_2c_experience",
+  "0010_recovery_2c_manual_retry",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {

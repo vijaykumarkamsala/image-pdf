@@ -84,6 +84,10 @@ class Permission(StrEnum):
     UPLOAD_CANCEL = "upload.cancel"
     JOB_READ = "job.read"
     JOB_CANCEL = "job.cancel"
+    JOB_RETRY = "job.retry"
+    NOTIFICATION_READ = "notification.read"
+    NOTIFICATION_UPDATE = "notification.update"
+    SEARCH_READ = "search.read"
 
 
 class PermissionOrigin(StrEnum):
@@ -543,6 +547,112 @@ class JobEventList(ProductKernelContractModel):
     next_cursor: int = Field(ge=0)
 
 
+class JobList(ProductKernelContractModel):
+    jobs: tuple[ProcessingJobRecord, ...]
+    next_cursor: NonEmptyStr | None = None
+
+
+class NotificationKind(StrEnum):
+    UPLOAD_ACCEPTED = "upload_accepted"
+    UPLOAD_REJECTED = "upload_rejected"
+    JOB_COMPLETED = "job_completed"
+    JOB_FAILED = "job_failed"
+    JOB_CANCELLED = "job_cancelled"
+    RETRY_REQUIRED = "retry_required"
+    RETRY_COMPLETED = "retry_completed"
+    GUEST_HANDOFF_COMPLETED = "guest_handoff_completed"
+    SOURCE_CLEANUP_REQUIRED = "source_cleanup_required"
+
+
+class NotificationRecord(ProductKernelContractModel):
+    notification_id: SlugId
+    workspace_id: SlugId
+    kind: NotificationKind
+    title: NonEmptyStr
+    message: NonEmptyStr
+    resource_kind: SlugId
+    resource_id: SlugId
+    occurred_at: NonEmptyStr
+    read_at: NonEmptyStr | None = None
+
+
+class NotificationList(ProductKernelContractModel):
+    notifications: tuple[NotificationRecord, ...]
+    next_cursor: NonEmptyStr | None = None
+    unread_count: int = Field(ge=0)
+
+
+class SearchResultKind(StrEnum):
+    PROJECT = "project"
+    FILE = "file"
+    JOB = "job"
+
+
+class WorkspaceSearchResult(ProductKernelContractModel):
+    kind: SearchResultKind
+    resource_id: SlugId
+    title: NonEmptyStr
+    description: NonEmptyStr
+    path: NonEmptyStr
+    updated_at: NonEmptyStr
+
+
+class WorkspaceSearchPage(ProductKernelContractModel):
+    results: tuple[WorkspaceSearchResult, ...]
+    next_cursor: NonEmptyStr | None = None
+
+
+class RecentWorkKind(StrEnum):
+    PROJECT = "project"
+    FILE = "file"
+
+
+class RecentWorkItem(ProductKernelContractModel):
+    kind: RecentWorkKind
+    resource_id: SlugId
+    title: NonEmptyStr
+    description: NonEmptyStr
+    path: NonEmptyStr
+    updated_at: NonEmptyStr
+
+
+class AttentionKind(StrEnum):
+    JOB_RETRY = "job_retry"
+    JOB_FAILED = "job_failed"
+    UPLOAD_INTERRUPTED = "upload_interrupted"
+    UPLOAD_REJECTED = "upload_rejected"
+    SOURCE_EXPIRING = "source_expiring"
+
+
+class AttentionItem(ProductKernelContractModel):
+    kind: AttentionKind
+    resource_id: SlugId
+    title: NonEmptyStr
+    message: NonEmptyStr
+    path: NonEmptyStr
+    occurred_at: NonEmptyStr
+
+
+class WorkspaceHome(ProductKernelContractModel):
+    recent_work: tuple[RecentWorkItem, ...]
+    attention: tuple[AttentionItem, ...]
+    active_jobs: tuple[ProcessingJobRecord, ...]
+    recent_jobs: tuple[ProcessingJobRecord, ...]
+    notifications: tuple[NotificationRecord, ...]
+    unread_notification_count: int = Field(ge=0)
+    usage: UsageSummary
+
+
+class FeatureStateRecord(ProductKernelContractModel):
+    feature: SlugId
+    active: bool
+    customer_visible: bool
+
+
+class FeatureStateList(ProductKernelContractModel):
+    features: tuple[FeatureStateRecord, ...]
+
+
 PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "actor": Actor,
     "identity-reference": IdentityReference,
@@ -587,4 +697,14 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "processing-job-record": ProcessingJobRecord,
     "job-event-record": JobEventRecord,
     "job-event-list": JobEventList,
+    "job-list": JobList,
+    "notification-record": NotificationRecord,
+    "notification-list": NotificationList,
+    "workspace-search-result": WorkspaceSearchResult,
+    "workspace-search-page": WorkspaceSearchPage,
+    "recent-work-item": RecentWorkItem,
+    "attention-item": AttentionItem,
+    "workspace-home": WorkspaceHome,
+    "feature-state-record": FeatureStateRecord,
+    "feature-state-list": FeatureStateList,
 }

@@ -4,6 +4,7 @@ export const workspaceRoutes = [
   { segment: "", label: "Home" },
   { segment: "projects", label: "Projects" },
   { segment: "files", label: "Files" },
+  { segment: "jobs", label: "Jobs" },
 ] as const;
 
 export const futureOutcomes = [

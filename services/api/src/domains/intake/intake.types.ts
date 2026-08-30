@@ -68,6 +68,7 @@ export interface IntakeRepository {
   findUpload(uploadSessionId: string, owner: IntakeOwner): Promise<StoredUploadSession | null>;
   findUploadByActor(uploadSessionId: string, actorId: string): Promise<StoredUploadSession | null>;
   findUploadByToken(uploadSessionId: string, tokenHash: string, now: string): Promise<StoredUploadSession | null>;
+  listWorkspaceUploads(workspaceId: string): Promise<StoredUploadSession[]>;
   recordUploadedBytes(
     uploadSessionId: string,
     tokenHash: string,

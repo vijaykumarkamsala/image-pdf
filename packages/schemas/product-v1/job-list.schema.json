@@ -1,0 +1,270 @@
+{
+  "$defs": {
+    "IntakeFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.10.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "IntakeFailure",
+      "type": "object"
+    },
+    "ProcessingJobKind": {
+      "enum": [
+        "file_intake_inspection"
+      ],
+      "title": "ProcessingJobKind",
+      "type": "string"
+    },
+    "ProcessingJobRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Id"
+        },
+        "attempt": {
+          "minimum": 0,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "created_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Created At",
+          "type": "string"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntakeFailure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "guest_session_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Guest Session Id"
+        },
+        "heartbeat_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heartbeat At"
+        },
+        "job_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProcessingJobKind"
+        },
+        "lease_expires_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lease Expires At"
+        },
+        "lease_owner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lease Owner"
+        },
+        "max_attempts": {
+          "minimum": 1,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "next_attempt_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Attempt At"
+        },
+        "owner_kind": {
+          "$ref": "#/$defs/UploadOwnerKind"
+        },
+        "progress_percent": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Progress Percent",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.10.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ProcessingJobState"
+        },
+        "updated_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "upload_session_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Upload Session Id",
+          "type": "string"
+        },
+        "workspace_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workspace Id"
+        }
+      },
+      "required": [
+        "job_id",
+        "kind",
+        "owner_kind",
+        "upload_session_id",
+        "state",
+        "attempt",
+        "max_attempts",
+        "progress_percent",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "ProcessingJobRecord",
+      "type": "object"
+    },
+    "ProcessingJobState": {
+      "enum": [
+        "queued",
+        "leased",
+        "running",
+        "retry_wait",
+        "cancel_requested",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "ProcessingJobState",
+      "type": "string"
+    },
+    "UploadOwnerKind": {
+      "enum": [
+        "actor",
+        "guest"
+      ],
+      "title": "UploadOwnerKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/job-list.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "jobs": {
+      "items": {
+        "$ref": "#/$defs/ProcessingJobRecord"
+      },
+      "title": "Jobs",
+      "type": "array"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Cursor"
+    },
+    "schema_version": {
+      "default": "1.10.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobs"
+  ],
+  "title": "JobList",
+  "type": "object"
+}

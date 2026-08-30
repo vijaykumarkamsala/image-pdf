@@ -222,6 +222,77 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .intake-recommendation p { margin: 5px 0; color: var(--color-text-muted); font-size: var(--text-xs); }
 .upload-message { padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--color-error) 55%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-error); background: var(--color-error-subtle); font-size: var(--text-xs); }
 .upload-workspace { padding: 20px; border-block: 1px solid var(--color-border); background: var(--color-surface); }
+
+.search-dialog { display: grid; gap: 14px; padding: 18px 20px 22px; }
+.search-results { display: grid; max-height: min(430px, 55vh); overflow-y: auto; border-block: 1px solid var(--color-border); }
+.search-results > div { border-bottom: 1px solid var(--color-border); }
+.search-results > div:last-child { border-bottom: 0; }
+.search-results > div > button { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 62px; padding: 9px 4px; border: 0; color: var(--color-text); background: transparent; text-align: left; cursor: pointer; }
+.search-results > div > button:hover { background: var(--color-surface-subtle); }
+.search-results > div > button > span:nth-child(2) { display: grid; min-width: 0; gap: 2px; }
+.search-results strong, .search-results small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-results small { color: var(--color-text-muted); }
+.search-result-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-md); color: var(--color-brand); background: var(--color-brand-subtle); }
+.search-result-icon svg { width: 17px; }
+
+.notification-trigger { position: relative; display: grid; place-items: center; width: 44px; height: 44px; }
+.notification-trigger > svg { width: 19px; }
+.notification-trigger > span { position: absolute; top: 3px; right: 1px; display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 4px; border: 2px solid var(--color-surface); border-radius: 10px; color: var(--color-brand-contrast); background: var(--color-brand); font-size: 9px; font-weight: 800; }
+.notification-popover { display: grid; max-height: min(520px, calc(100vh - 92px)); overflow-y: auto; }
+.notification-popover > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 10px 14px; border-bottom: 1px solid var(--color-border); }
+.notification-popover > header > div { display: grid; }
+.notification-popover > header span { color: var(--color-text-muted); font-size: 11px; }
+.notification-list { display: grid; }
+.notification-list > button { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 10px; min-height: 64px; padding: 11px 14px; border: 0; border-bottom: 1px solid var(--color-border); color: var(--color-text); background: transparent; text-align: left; cursor: pointer; }
+.notification-list > button:hover { background: var(--color-surface-subtle); }
+.notification-list > button > span:last-child { display: grid; gap: 3px; min-width: 0; }
+.notification-list small { color: var(--color-text-muted); line-height: 1.4; }
+.notification-list .is-read strong { font-weight: 600; }
+.notification-dot { display: block; width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--color-brand); }
+.notification-dot.is-read, .is-read .notification-dot { background: var(--color-border-strong); }
+
+.operational-section { min-width: 0; }
+.quiet-state { display: flex; align-items: center; gap: 10px; min-height: 52px; padding-block: 10px; border-block: 1px solid var(--color-border); color: var(--color-text-muted); }
+.quiet-state svg { width: 20px; color: var(--color-success); }
+.attention-list, .home-job-list { display: grid; gap: 7px; }
+.attention-list > button, .home-job-list > button { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 64px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-surface); text-align: left; cursor: pointer; }
+.attention-list > button:hover, .home-job-list > button:hover { border-color: var(--color-brand); }
+.attention-list > button > svg, .home-job-list > button > svg { width: 19px; color: var(--color-warning); }
+.home-job-list > button > svg { color: var(--color-info); }
+.attention-list > button > span, .home-job-list > button > span { display: grid; min-width: 0; }
+.attention-list small, .home-job-list small { color: var(--color-text-muted); }
+.home-update-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.home-update-list article { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 10px; padding: 12px; border-left: 1px solid var(--color-border); }
+.home-update-list p { margin: 3px 0 0; color: var(--color-text-muted); font-size: var(--text-xs); }
+
+.jobs-page .page-heading { align-items: center; }
+.jobs-page .ds-tabs > [role="tablist"] { max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.jobs-page .ds-tabs [role="tab"] { flex: 0 0 auto; white-space: nowrap; }
+.job-list { display: grid; gap: 10px; }
+.job-card { min-width: 0; padding: 15px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.job-card > header { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.job-card h2 { margin: 0; font-size: var(--text-sm); }
+.job-card header p { margin: 3px 0 0; color: var(--color-text-muted); font-size: var(--text-xs); }
+.job-state-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-md); color: var(--color-text-muted); background: var(--color-surface-subtle); }
+.job-state-icon svg { width: 19px; }
+.job-state-icon.state-running, .job-state-icon.state-leased, .job-state-icon.state-queued, .job-state-icon.state-retry_wait { color: var(--color-info); background: var(--color-info-subtle); }
+.job-state-icon.state-running svg, .job-state-icon.state-leased svg { animation: spin 1.2s linear infinite; }
+.job-state-icon.state-succeeded { color: var(--color-success); background: var(--color-success-subtle); }
+.job-state-icon.state-failed { color: var(--color-error); background: var(--color-error-subtle); }
+.job-state-icon.state-cancelled, .job-state-icon.state-cancel_requested { color: var(--color-warning); background: var(--color-warning-subtle); }
+.job-card > .ds-notice { margin-top: 12px; }
+.job-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; margin-top: 12px; }
+.job-timeline { display: grid; gap: 0; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+.job-timeline > div:not(.ds-state) { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 10px; min-height: 48px; }
+.job-timeline > div:not(.ds-state) > span { width: 9px; height: 9px; margin-top: 5px; border: 2px solid var(--color-surface); border-radius: 50%; background: var(--color-brand); box-shadow: 0 0 0 1px var(--color-brand); }
+.job-timeline > div:not(.ds-state) > div { display: grid; align-content: start; border-left: 1px solid var(--color-border); padding: 0 0 12px 14px; }
+.job-timeline small { color: var(--color-text-muted); }
+.job-timeline details { margin-top: 5px; padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.job-timeline summary { min-height: 32px; font-weight: 700; cursor: pointer; }
+.job-timeline dl { display: grid; gap: 7px; margin: 7px 0 0; }
+.job-timeline dl > div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; font-size: var(--text-xs); }
+.job-timeline dt { color: var(--color-text-muted); }
+.job-timeline dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-family: var(--font-mono); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 980px) {
@@ -236,6 +307,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .outcome-card { min-height: 164px; }
   .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-update-list { grid-template-columns: 1fr; }
 }
 
 @media (min-width: 621px) and (max-width: 700px) {
@@ -270,7 +342,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .file-card { grid-template-columns: 38px minmax(0, 1fr); }
   .file-card > small { grid-column: 2; }
   .phone-bottom-nav { position: fixed; inset: auto 0 0; z-index: var(--layer-navigation); display: block; height: 68px; border-top: 1px solid var(--color-border); background: var(--color-surface); }
-  .phone-bottom-nav .primary-nav { display: grid; grid-template-columns: repeat(3, 1fr); height: 100%; margin: 0; }
+  .phone-bottom-nav .primary-nav { display: grid; grid-template-columns: repeat(4, 1fr); height: 100%; margin: 0; }
   .phone-bottom-nav .primary-nav a { display: grid; place-content: center; justify-items: center; gap: 2px; padding: 0; border-radius: 0; font-size: 10px; }
   .phone-bottom-nav .primary-nav a.active { box-shadow: inset 0 3px var(--color-brand); }
   .phone-bottom-nav .primary-nav svg { width: 20px; }
@@ -296,6 +368,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .fact-list > div { grid-template-columns: 1fr; gap: 2px; }
   .fact-list dd { text-align: left; }
   .intake-section-heading { align-items: flex-start; flex-direction: column; gap: 1px; }
+  .search-results > div > button { grid-template-columns: 34px minmax(0, 1fr); }
+  .search-results .ds-badge { grid-column: 2; justify-self: start; }
+  .notification-popover { max-height: min(470px, calc(100vh - 72px)); }
+  .attention-list > button, .home-job-list > button { grid-template-columns: 30px minmax(0, 1fr); }
+  .attention-list .ds-badge, .home-job-list .ds-badge { grid-column: 2; justify-self: start; }
+  .section-heading { align-items: flex-start; }
+  .job-card > header { grid-template-columns: 36px minmax(0, 1fr); }
+  .job-card > header .ds-badge { grid-column: 2; justify-self: start; }
+  .job-actions .ds-button { flex: 1 1 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

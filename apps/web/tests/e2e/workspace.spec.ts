@@ -65,7 +65,43 @@ test("real API secure upload becomes a preserved Default Files source", async ({
   await page.getByRole("link", { name: "Files" }).first().click();
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
-  await expect(page.locator(".testing-status")).toContainText(/1 file.*0 jobs/);
+  await expect(page.locator(".testing-status")).toContainText(/1 file.*1 job/);
+});
+
+test("real workspace search, notifications, and durable Jobs use server state", async ({ page }) => {
+  await openWorkspace(page, "workspace-operations");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await page.getByRole("button", { name: "New project" }).first().click();
+  await page.getByLabel("Project name").fill("Searchable campaign");
+  await page.getByRole("button", { name: "Create project" }).click();
+
+  await page.keyboard.press("Control+K");
+  await page.getByLabel("Search projects, files and jobs").fill("Searchable");
+  await expect(page.getByRole("button", { name: /Searchable campaign/ })).toBeVisible();
+  await page.getByRole("button", { name: /Searchable campaign/ }).click();
+  await expect(page.getByTestId("projects-page")).toBeVisible();
+
+  await page.getByRole("link", { name: "Home" }).first().click();
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+
+  const notificationButton = page.getByRole("button", { name: /unread notifications/ });
+  await expect(notificationButton).toBeVisible();
+  await notificationButton.click();
+  await expect(page.locator(".notification-popover").getByText("File accepted")).toBeVisible();
+  await page.getByRole("button", { name: "Mark all read" }).click();
+  await expect(page.getByText("You're up to date")).toBeVisible();
+
+  await page.getByRole("link", { name: "Jobs" }).first().click();
+  await page.getByRole("tab", { name: "Completed" }).click();
+  await expect(page.getByRole("heading", { name: "File intake check" })).toBeVisible();
+  await page.getByRole("button", { name: "Timeline" }).click();
+  await expect(page.getByRole("region", { name: "Ordered job timeline" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
 test("an in-flight upload can be cancelled and its temporary source is removed", async ({ page }) => {
@@ -200,10 +236,10 @@ test("loading, access-denied, and API error states are customer-safe", async ({ 
   await expect(page.getByText("You do not have access to this workspace")).toBeVisible();
 });
 
-for (const route of ["home", "projects", "files"] as const) {
+for (const route of ["home", "projects", "files", "jobs"] as const) {
   test(`${route} journey has no detectable accessibility violations`, async ({ page }) => {
     await openWorkspace(page, `axe-${route}`);
-    if (route !== "home") await page.getByRole("link", { name: route === "projects" ? "Projects" : "Files" }).first().click();
+    if (route !== "home") await page.getByRole("link", { name: route === "projects" ? "Projects" : route === "files" ? "Files" : "Jobs" }).first().click();
     await expect(page.locator("main")).not.toHaveAttribute("aria-busy", "true");
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);
@@ -214,7 +250,7 @@ test("collapsed tablet navigation retains accessible names", async ({ page }) =>
   await page.setViewportSize({ width: 768, height: 1024 });
   await openWorkspace(page, "axe-tablet-navigation");
   const primaryNavigation = page.getByRole("navigation", { name: "Workspace navigation" }).first();
-  for (const name of ["Home", "Projects", "Files"]) {
+  for (const name of ["Home", "Projects", "Files", "Jobs"]) {
     await expect(primaryNavigation.getByRole("link", { name })).toBeVisible();
   }
   const results = await new AxeBuilder({ page }).analyze();

@@ -6,7 +6,7 @@ import { resolveTheme } from "../src/boundaries/theme.ts";
 import { futureOutcomes, workspacePath, workspaceRoutes } from "../src/routes.ts";
 
 test("workspace navigation is outcome-oriented and mobile-safe", () => {
-  assert.deepEqual(workspaceRoutes.map((route) => route.label), ["Home", "Projects", "Files"]);
+  assert.deepEqual(workspaceRoutes.map((route) => route.label), ["Home", "Projects", "Files", "Jobs"]);
   assert.equal(workspacePath("workspace-001", "projects"), "/w/workspace-001/projects");
 });
 

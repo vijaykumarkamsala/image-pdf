@@ -13,8 +13,11 @@ import type {
   JobCreateResult,
   JobOutboxRecord,
   InspectionCompletion,
+  JobPageResult,
+  JobRetryResult,
   StoredCheckpoint,
 } from "./durable-job.types.js";
+import { decodeJobCursor, encodeJobCursor, jobMatchesView, type JobView } from "./job-pagination.js";
 
 interface CommandEntry {
   commandName: string;
@@ -77,9 +80,26 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     return job && this.ownedBy(job, owner) ? job : null;
   }
 
-  async findJobByActor(jobId: string, actorId: string): Promise<ProcessingJobRecord | null> {
+  async findWorkspaceJob(jobId: string): Promise<ProcessingJobRecord | null> {
     const job = this.jobs.get(jobId);
-    return job?.actor_id === actorId ? job : null;
+    return job?.owner_kind === "actor" ? job : null;
+  }
+
+  async listWorkspaceJobs(
+    workspaceId: string,
+    view: JobView,
+    cursorValue: string | undefined,
+    limit: number,
+  ): Promise<JobPageResult> {
+    const cursor = decodeJobCursor(cursorValue);
+    const ordered = [...this.jobs.values()]
+      .filter((item) => item.owner_kind === "actor" && item.workspace_id === workspaceId && jobMatchesView(item, view))
+      .sort((left, right) => right.updated_at.localeCompare(left.updated_at) || right.job_id.localeCompare(left.job_id))
+      .filter((item) => !cursor || item.updated_at < cursor.updatedAt
+        || (item.updated_at === cursor.updatedAt && item.job_id < cursor.jobId));
+    const page = ordered.slice(0, limit + 1);
+    const jobs = page.slice(0, limit);
+    return { jobs, nextCursor: page.length > limit && jobs.length ? encodeJobCursor(jobs.at(-1)!) : null };
   }
 
   async listEvents(jobId: string, owner: IntakeOwner, after: number, limit: number): Promise<JobEventRecord[]> {
@@ -96,6 +116,54 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     this.jobs.set(jobId, updated);
     this.event(updated, state === "cancelled" ? "job.cancelled" : "job.cancel-requested", traceId);
     return updated;
+  }
+
+  async retry(
+    jobId: string,
+    owner: IntakeOwner,
+    command: IntakeCommand,
+    now: string,
+    traceId: string,
+  ): Promise<JobRetryResult> {
+    const commandKey = `${command.ownerScope}:${command.idempotencyKey}`;
+    const prior = this.commands.get(commandKey);
+    if (prior) {
+      if (prior.commandName !== command.commandName || prior.requestHash !== command.requestHash) {
+        throw new DomainError(409, "idempotency-conflict", "Idempotency key was already used for another request");
+      }
+      return { job: this.requireJob(prior.jobId), replayed: true };
+    }
+    const current = await this.findJob(jobId, owner);
+    if (!current || current.state !== "failed" || !current.failure?.retryable || current.max_attempts >= 20) {
+      throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
+    }
+    this.intake.reopenForRetry(current.upload_session_id, owner, now);
+    const updated: ProcessingJobRecord = {
+      ...current,
+      state: "queued",
+      max_attempts: current.max_attempts + 1,
+      progress_percent: 0,
+      next_attempt_at: null,
+      failure: null,
+      lease_owner: null,
+      lease_expires_at: null,
+      heartbeat_at: null,
+      updated_at: now,
+    };
+    this.jobs.set(jobId, updated);
+    this.commands.set(commandKey, { commandName: command.commandName, requestHash: command.requestHash, jobId });
+    this.event(updated, "job.retry-requested", traceId);
+    const outboxId = `outbox-${jobId}-manual-${updated.max_attempts}`;
+    this.outbox.set(outboxId, {
+      outboxId,
+      jobId,
+      availableAt: now,
+      deliveryAttempts: 0,
+      traceId,
+      leaseOwner: "",
+      state: "pending",
+    });
+    return { job: updated, replayed: false };
   }
 
   async claimOutbox(workerId: string, now: string, leaseExpiresAt: string, limit: number): Promise<JobOutboxRecord[]> {
@@ -303,6 +371,8 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
         leaseOwner: "",
         state: "pending",
       });
+    } else {
+      this.intake.completeRejected(current.upload_session_id, failure, now);
     }
     return updated;
   }

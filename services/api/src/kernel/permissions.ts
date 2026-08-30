@@ -15,6 +15,10 @@ const ALL_PERMISSIONS: Permission[] = [
   "upload.cancel",
   "job.read",
   "job.cancel",
+  "job.retry",
+  "notification.read",
+  "notification.update",
+  "search.read",
 ];
 
 const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
@@ -32,8 +36,12 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
     "upload.cancel",
     "job.read",
     "job.cancel",
+    "job.retry",
+    "notification.read",
+    "notification.update",
+    "search.read",
   ]),
-  viewer: new Set(["workspace.read", "project.read", "file.read"]),
+  viewer: new Set(["workspace.read", "project.read", "file.read", "search.read"]),
 };
 
 export function permissionsForRole(role: RolePreset): EffectivePermission[] {

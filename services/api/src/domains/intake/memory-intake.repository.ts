@@ -109,6 +109,12 @@ export class MemoryIntakeRepository implements IntakeRepository {
     return stored;
   }
 
+  async listWorkspaceUploads(workspaceId: string): Promise<StoredUploadSession[]> {
+    return [...this.uploads.values()]
+      .filter((stored) => stored.record.owner_kind === "actor" && stored.record.workspace_id === workspaceId)
+      .sort((left, right) => right.record.updated_at.localeCompare(left.record.updated_at));
+  }
+
   async recordUploadedBytes(
     uploadSessionId: string,
     tokenHash: string,
@@ -259,7 +265,9 @@ export class MemoryIntakeRepository implements IntakeRepository {
 
   markInspecting(uploadSessionId: string, now: string): StoredUploadSession {
     const stored = this.uploads.get(uploadSessionId);
-    if (!stored || stored.record.state !== "finalising") throw new DomainError(409, "upload-state-conflict", "Upload is not ready for inspection");
+    if (!stored || !["finalising", "inspecting"].includes(stored.record.state)) {
+      throw new DomainError(409, "upload-state-conflict", "Upload is not ready for inspection");
+    }
     const updated = { ...stored, record: { ...stored.record, state: "inspecting" as const, updated_at: now } };
     this.uploads.set(uploadSessionId, updated);
     return updated;
@@ -303,6 +311,21 @@ export class MemoryIntakeRepository implements IntakeRepository {
     const stored = this.uploads.get(uploadSessionId);
     if (!stored || stored.record.state !== "inspecting") throw new DomainError(409, "upload-state-conflict", "Upload is not being inspected");
     const updated = { ...stored, record: { ...stored.record, state: "rejected" as const, failure, updated_at: now } };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
+
+  reopenForRetry(uploadSessionId: string, owner: IntakeOwner, now: string): StoredUploadSession {
+    const stored = this.requireOwned(uploadSessionId, owner);
+    const cleanup = this.cleanup.get(uploadSessionId);
+    if (stored.record.state !== "rejected" || !stored.record.failure?.retryable
+      || stored.record.expires_at <= now || cleanup?.completedAt) {
+      throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
+    }
+    const updated = {
+      ...stored,
+      record: { ...stored.record, state: "finalising" as const, failure: null, updated_at: now },
+    };
     this.uploads.set(uploadSessionId, updated);
     return updated;
   }

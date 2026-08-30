@@ -8,6 +8,7 @@ import { DomainError } from "../src/kernel/errors.js";
 import { PostgresIntakeRepository } from "../src/domains/intake/postgres-intake.repository.js";
 import { PostgresGuestHandoffRepository } from "../src/domains/intake/guest-handoff.repository.js";
 import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
+import { PostgresExperienceRepository } from "../src/domains/experience/postgres-experience.repository.js";
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
@@ -569,11 +570,151 @@ test(
         (await intake.findClassification("upload-accepted-pg", jobOwner))?.customer_category,
         "document",
       );
+      const experience = new PostgresExperienceRepository(pool);
+      const experienceHome = await experience.home(
+        "actor-pg",
+        first.workspace.workspace_id,
+        "2026-08-30T00:12:00.000Z",
+      );
+      assert.ok(experienceHome.recentWork.some((item) => item.resource_id === "file-accepted-pg"));
+      assert.ok(experienceHome.recentJobs.some((item) => item.job_id === "job-accepted-pg"));
+      const experienceSearch = await experience.search(
+        "actor-pg",
+        first.workspace.workspace_id,
+        "accepted",
+        [],
+        { projects: true, files: true, jobs: true },
+        undefined,
+        10,
+      );
+      assert.ok(experienceSearch.results.some((item) => item.resource_id === "file-accepted-pg"));
+      const experienceNotifications = await experience.notifications(
+        "actor-pg",
+        first.workspace.workspace_id,
+        undefined,
+        1,
+      );
+      assert.equal(experienceNotifications.notifications.length, 1);
+      assert.ok(experienceNotifications.nextCursor);
+      const notificationCommand = {
+        name: "notification.read",
+        idempotencyKey: "notification-pg-read",
+        requestHash: "b".repeat(64),
+      };
+      assert.equal(await experience.markNotificationRead(
+        "actor-pg",
+        first.workspace.workspace_id,
+        experienceNotifications.notifications[0].notification_id,
+        "2026-08-30T00:12:10.000Z",
+        notificationCommand,
+      ), false);
+      assert.equal(await experience.markNotificationRead(
+        "actor-pg",
+        first.workspace.workspace_id,
+        experienceNotifications.notifications[0].notification_id,
+        "2026-08-30T00:12:10.000Z",
+        notificationCommand,
+      ), true);
       const acceptedFiles = await repository.listFiles("actor-pg", first.workspace.workspace_id);
       assert.ok(acceptedFiles.some((file) => file.file_id === "file-accepted-pg"));
       const intakeUsage = await repository.listUsageEvents("actor-pg", first.workspace.workspace_id);
       assert.ok(intakeUsage.some((event) => event.event_kind === "file.intake-ready"));
       assert.ok(intakeUsage.every((event) => event.customer_amount === "0.00" && event.credit_debit === 0));
+
+      const failedUpload = {
+        ...acceptedUpload,
+        record: {
+          ...acceptedUpload.record,
+          upload_session_id: "upload-manual-retry-pg",
+          display_name: "manual-retry.png",
+        },
+        quarantineRef: {
+          ...acceptedUpload.quarantineRef,
+          objectKey: `quarantine/${first.workspace.workspace_id}/upload-manual-retry-pg`,
+        },
+        uploadTokenHash: "6".repeat(64),
+      };
+      await intake.createUpload(
+        failedUpload,
+        { ...jobCommand, idempotencyKey: "upload-manual-retry-pg", requestHash: "c".repeat(64) },
+        failedUpload.record.created_at,
+      );
+      await intake.recordUploadedBytes(
+        "upload-manual-retry-pg",
+        "6".repeat(64),
+        4,
+        "2026-08-30T00:13:00.000Z",
+      );
+      const failedJob = {
+        ...jobRecord,
+        job_id: "job-manual-retry-pg",
+        upload_session_id: "upload-manual-retry-pg",
+        max_attempts: 1,
+        created_at: "2026-08-30T00:13:10.000Z",
+        updated_at: "2026-08-30T00:13:10.000Z",
+      };
+      await durableJobs.createForUpload(
+        "upload-manual-retry-pg",
+        jobOwner,
+        failedJob,
+        { ...jobCommand, idempotencyKey: "finalise-manual-retry-pg", requestHash: "d".repeat(64) },
+        "trace-manual-retry-pg",
+      );
+      await durableJobs.claim(
+        "worker-manual-retry-pg",
+        "lease-manual-retry-pg",
+        "7".repeat(64),
+        "2026-08-30T00:13:20.000Z",
+        "2026-08-30T00:14:20.000Z",
+        "trace-manual-retry-pg",
+      );
+      await durableJobs.start(
+        "job-manual-retry-pg",
+        "7".repeat(64),
+        "2026-08-30T00:13:30.000Z",
+        "trace-manual-retry-pg",
+      );
+      const terminalFailure = await durableJobs.fail(
+        "job-manual-retry-pg",
+        "7".repeat(64),
+        { schema_version: "1.10.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        "2026-08-30T00:13:40.000Z",
+        "2026-08-30T00:14:00.000Z",
+        "trace-manual-retry-pg",
+      );
+      assert.equal(terminalFailure.state, "failed");
+      await assert.rejects(
+        pool.query(
+          `UPDATE upload_sessions SET state='finalising',failure=NULL,bytes_received=3,updated_at=$1
+           WHERE upload_session_id='upload-manual-retry-pg'`,
+          ["2026-08-30T00:13:45.000Z"],
+        ),
+        /invalid upload session transition: rejected -> finalising/,
+      );
+      const manualRetryCommand = {
+        ownerScope: first.workspace.workspace_id,
+        idempotencyKey: "manual-retry-pg",
+        commandName: "job.retry",
+        requestHash: "e".repeat(64),
+      };
+      const manualRetry = await durableJobs.retry(
+        "job-manual-retry-pg",
+        jobOwner,
+        manualRetryCommand,
+        "2026-08-30T00:13:50.000Z",
+        "trace-manual-retry-pg",
+      );
+      const manualRetryReplay = await durableJobs.retry(
+        "job-manual-retry-pg",
+        jobOwner,
+        manualRetryCommand,
+        "2026-08-30T00:13:50.000Z",
+        "trace-manual-retry-pg",
+      );
+      assert.equal(manualRetry.job.state, "queued");
+      assert.equal(manualRetry.job.max_attempts, 2);
+      assert.equal(manualRetryReplay.replayed, true);
+      assert.equal((await intake.findUpload("upload-manual-retry-pg", jobOwner))?.record.state, "finalising");
 
       const guestReadyUpload = {
         ...acceptedUpload,

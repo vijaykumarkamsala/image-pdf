@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "NotificationKind": {
+      "enum": [
+        "upload_accepted",
+        "upload_rejected",
+        "job_completed",
+        "job_failed",
+        "job_cancelled",
+        "retry_required",
+        "retry_completed",
+        "guest_handoff_completed",
+        "source_cleanup_required"
+      ],
+      "title": "NotificationKind",
+      "type": "string"
+    },
+    "NotificationRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/NotificationKind"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "notification_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Notification Id",
+          "type": "string"
+        },
+        "occurred_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "read_at": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Read At"
+        },
+        "resource_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Resource Id",
+          "type": "string"
+        },
+        "resource_kind": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Resource Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.10.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "notification_id",
+        "workspace_id",
+        "kind",
+        "title",
+        "message",
+        "resource_kind",
+        "resource_id",
+        "occurred_at"
+      ],
+      "title": "NotificationRecord",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/notification-list.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "next_cursor": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Cursor"
+    },
+    "notifications": {
+      "items": {
+        "$ref": "#/$defs/NotificationRecord"
+      },
+      "title": "Notifications",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.10.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unread_count": {
+      "minimum": 0,
+      "title": "Unread Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "notifications",
+    "unread_count"
+  ],
+  "title": "NotificationList",
+  "type": "object"
+}

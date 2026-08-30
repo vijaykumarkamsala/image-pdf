@@ -7,6 +7,7 @@ import type {
   IntakeClassificationRecord,
   IntakeSourceCategory,
   JobEventList,
+  JobList,
   Membership,
   ProcessingJobRecord,
   ProjectRecord,
@@ -16,6 +17,10 @@ import type {
   Workspace,
   WorkspaceFile,
   WorkspaceProjectPolicy,
+  WorkspaceHome,
+  WorkspaceSearchPage,
+  NotificationList,
+  FeatureStateList,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -86,6 +91,17 @@ export interface ClassificationCorrectionResponse extends IntakePresentationResp
   classification: IntakeClassificationRecord;
   command: { replayed: boolean };
 }
+
+export interface WorkspaceHomeResponse {
+  schema_version: string;
+  home: WorkspaceHome;
+}
+
+export interface JobListResponse extends JobList {}
+
+export interface NotificationListResponse extends NotificationList {}
+
+export interface SearchResponse extends WorkspaceSearchPage {}
 
 interface RequestOptions {
   traceId?: string;
@@ -351,6 +367,11 @@ export const api = {
   jobStatus(jobId: string, traceId: string, guestToken?: string): Promise<JobStatusResponse> {
     return request(`/jobs/${jobId}`, {}, { traceId, guestToken });
   },
+  jobs(workspaceId: string, view = "all", cursor?: string, limit = 25): Promise<JobListResponse> {
+    const query = new URLSearchParams({ view, limit: String(limit) });
+    if (cursor) query.set("cursor", cursor);
+    return request(`/workspaces/${workspaceId}/jobs?${query}`);
+  },
   jobEvents(jobId: string, after: number, traceId: string, guestToken?: string): Promise<JobEventList> {
     return request(`/jobs/${jobId}/events?after=${after}&limit=100`, {}, { traceId, guestToken });
   },
@@ -365,6 +386,40 @@ export const api = {
       method: "POST",
       headers: { "idempotency-key": commandKey("job-cancel") },
     }, { traceId, guestToken });
+  },
+  retryJob(jobId: string, traceId: string): Promise<JobStatusResponse & { command: { replayed: boolean } }> {
+    return request(`/jobs/${jobId}/retry`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("job-retry") },
+    }, { traceId });
+  },
+  home(workspaceId: string): Promise<WorkspaceHomeResponse> {
+    return request(`/workspaces/${workspaceId}/home`);
+  },
+  notifications(workspaceId: string, cursor?: string, limit = 25): Promise<NotificationListResponse> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (cursor) query.set("cursor", cursor);
+    return request(`/workspaces/${workspaceId}/notifications?${query}`);
+  },
+  markNotificationRead(workspaceId: string, notificationId: string): Promise<{ command: { replayed: boolean } }> {
+    return request(`/workspaces/${workspaceId}/notifications/${notificationId}/read`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("notification-read") },
+    });
+  },
+  markAllNotificationsRead(workspaceId: string): Promise<{ command: { replayed: boolean } }> {
+    return request(`/workspaces/${workspaceId}/notifications/read-all`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("notification-read-all") },
+    });
+  },
+  search(workspaceId: string, queryValue: string, cursor?: string, limit = 20): Promise<SearchResponse> {
+    const query = new URLSearchParams({ q: queryValue, limit: String(limit) });
+    if (cursor) query.set("cursor", cursor);
+    return request(`/workspaces/${workspaceId}/search?${query}`);
+  },
+  features(workspaceId: string): Promise<FeatureStateList> {
+    return request(`/workspaces/${workspaceId}/features`);
   },
   handoffGuest(
     uploadSessionId: string,

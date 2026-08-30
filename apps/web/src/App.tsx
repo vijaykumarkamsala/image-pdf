@@ -6,6 +6,7 @@ import {
   ChevronDown,
   FileStack,
   FolderKanban,
+  History,
   Home,
   Menu as MenuIcon,
   Plus,
@@ -18,6 +19,7 @@ import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiCl
 import { loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session";
 import { type ThemePreference, useThemePreference } from "./boundaries/theme";
 import { Brand } from "./components/Brand";
+import { HeaderOperations, JobsPage, SignedWorkspaceHome } from "./components/OperationalExperience";
 import { OutcomeGrid } from "./components/OutcomeGrid";
 import { UploadDialog } from "./components/UploadDialog";
 import { Button, Dialog, IconButton, Menu, Popover, StatePanel, TextInput } from "./design-system";
@@ -48,7 +50,7 @@ function useWorkspace() {
   return { context, error, retry: () => setAttempt((value) => value + 1) };
 }
 
-const navIcons = [Home, FolderKanban, FileStack];
+const navIcons = [Home, FolderKanban, FileStack, History];
 
 function ThemeMenu({ preference, setPreference }: { preference: ThemePreference; setPreference: (value: ThemePreference) => void }) {
   return <Menu
@@ -76,10 +78,15 @@ function WorkspaceShell({ context, preference, setPreference }: {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [fileRefresh, setFileRefresh] = useState(0);
   const [fileCount, setFileCount] = useState(0);
+  const [jobCount, setJobCount] = useState(0);
   const id = context.workspace.workspace_id;
   useEffect(() => {
     let active = true;
-    api.files(id).then((result) => { if (active) setFileCount(result.files.length); }, () => undefined);
+    Promise.all([api.files(id), api.home(id)]).then(([fileResult, homeResult]) => {
+      if (!active) return;
+      setFileCount(fileResult.files.length);
+      setJobCount(new Set([...homeResult.home.active_jobs, ...homeResult.home.recent_jobs].map((job) => job.job_id)).size);
+    }, () => undefined);
     return () => { active = false; };
   }, [id, fileRefresh]);
   return <div className="app-shell">
@@ -89,7 +96,7 @@ function WorkspaceShell({ context, preference, setPreference }: {
         <div className="workspace-popover"><strong>{context.workspace.name}</strong><span>Your current workspace</span></div>
       </Popover>
       <WorkspaceNavigation workspaceId={id} />
-      <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; 0 jobs</span></div></div>
+      <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; {jobCount} {jobCount === 1 ? "job" : "jobs"}</span></div></div>
     </aside>
 
     <div className="app-main">
@@ -98,54 +105,27 @@ function WorkspaceShell({ context, preference, setPreference }: {
         <span className="phone-brand"><Brand compact /></span>
         <div className="header-workspace"><strong>{context.workspace.name}</strong><span>Workspace</span></div>
         <div className="header-actions">
+          <HeaderOperations workspaceId={id} refresh={fileRefresh} />
           <ThemeMenu preference={preference} setPreference={setPreference} />
           <button className="account-button" aria-label={`Signed in as ${context.actor.display_name}`}><span>{context.actor.display_name.slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{context.actor.display_name}</strong><small>{context.membership.role}</small></span></button>
         </div>
       </header>
 
       <Routes>
-        <Route path=":workspaceId" element={<WorkspaceHome context={context} onUpload={() => setUploadOpen(true)} />} />
+        <Route path=":workspaceId" element={<SignedWorkspaceHome workspaceId={id} actorName={context.actor.display_name} onUpload={() => setUploadOpen(true)} refresh={fileRefresh} />} />
         <Route path=":workspaceId/projects" element={<ProjectsPage />} />
         <Route path=":workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} />} />
+        <Route path=":workspaceId/jobs" element={<JobsPage />} />
         <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
       </Routes>
     </div>
 
     <div className="phone-bottom-nav"><WorkspaceNavigation workspaceId={id} /></div>
     <Dialog open={mobileOpen} title="Navigation" onClose={() => setMobileOpen(false)}>
-      <div className="mobile-sheet-body"><WorkspaceNavigation workspaceId={id} close={() => setMobileOpen(false)} /><div className="testing-status mobile-testing"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; 0 jobs</span></div></div></div>
+      <div className="mobile-sheet-body"><WorkspaceNavigation workspaceId={id} close={() => setMobileOpen(false)} /><div className="testing-status mobile-testing"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; {jobCount} {jobCount === 1 ? "job" : "jobs"}</span></div></div></div>
     </Dialog>
     <UploadDialog open={uploadOpen} workspaceId={id} onOpenChange={setUploadOpen} onReady={() => setFileRefresh((value) => value + 1)} />
   </div>;
-}
-
-function WorkspaceHome({ context, onUpload }: { context: WorkspaceContextResponse; onUpload: () => void }) {
-  const navigate = useNavigate();
-  const [projects, setProjects] = useState<ProjectRecord[] | null>(null);
-  const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
-  const workspaceId = context.workspace.workspace_id;
-  useEffect(() => {
-    let active = true;
-    Promise.all([api.projects(workspaceId), api.files(workspaceId)]).then(([projectResult, fileResult]) => {
-      if (!active) return;
-      setProjects(projectResult.projects);
-      setFiles(fileResult.files);
-    }, () => { if (active) { setProjects([]); setFiles([]); } });
-    return () => { active = false; };
-  }, [workspaceId]);
-  const recent = [
-    ...(files ?? []).slice().reverse().map((file) => ({ id: file.file_id, name: file.display_name, kind: "File", target: "files" })),
-    ...(projects ?? []).slice().reverse().map((project) => ({ id: project.project_id, name: project.name, kind: project.parent_project_id ? "Subproject" : "Project", target: "projects" })),
-  ].slice(0, 4);
-  return <main className="page home-page" data-testid="workspace-home">
-    <section className="page-heading home-heading"><div><p className="eyebrow">Good to see you, {context.actor.display_name.split(" ")[0]}</p><h1>Continue your work</h1><p>Open something recent or begin with a file.</p></div><div className="heading-actions"><Button onClick={onUpload}><Upload aria-hidden="true" />Upload</Button><Button tone="primary" onClick={() => navigate(workspacePath(workspaceId, "projects"))}><Plus aria-hidden="true" />New project</Button></div></section>
-
-    <section className="home-section" aria-labelledby="recent-heading"><div className="section-heading"><div><h2 id="recent-heading">Recent work</h2><p>Projects and accepted files from this workspace.</p></div></div>
-      {projects === null || files === null ? <div className="recent-grid" aria-busy="true">{[1, 2].map((item) => <div className="recent-card loading" key={item} />)}</div> : recent.length === 0 ? <div className="compact-empty"><FileStack aria-hidden="true" /><div><strong>Start with your first file</strong><span>Your accepted source will stay connected to its history.</span></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></div> : <div className="recent-grid">{recent.map((item) => <button className="recent-card" key={item.id} onClick={() => navigate(workspacePath(workspaceId, item.target))}><span className="recent-icon">{item.kind === "File" ? <FileStack aria-hidden="true" /> : <BriefcaseBusiness aria-hidden="true" />}</span><span><strong>{item.name}</strong><small>{item.kind}</small></span></button>)}</div>}
-    </section>
-
-    <section className="home-section" aria-labelledby="outcomes-heading"><div className="section-heading"><div><h2 id="outcomes-heading">Choose an outcome</h2><p>Every path starts by protecting and understanding the source.</p></div></div><OutcomeGrid /></section>
-  </main>;
 }
 
 function ProjectsPage() {

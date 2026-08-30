@@ -4,6 +4,7 @@ import { TraceMiddleware } from "./common/trace.middleware.js";
 import { HealthController } from "./health.controller.js";
 import { AuditModule } from "./domains/audit/audit.module.js";
 import { FilesModule } from "./domains/files/files.module.js";
+import { ExperienceModule } from "./domains/experience/experience.module.js";
 import { IdentityModule } from "./domains/identity/identity.module.js";
 import { IntakeModule } from "./domains/intake/intake.module.js";
 import { JobsModule } from "./domains/jobs/jobs.module.js";
@@ -21,6 +22,7 @@ import { KernelModule } from "./kernel/kernel.module.js";
     WorkspacesModule,
     ProjectsModule,
     FilesModule,
+    ExperienceModule,
     AuditModule,
     UsageModule,
   ],

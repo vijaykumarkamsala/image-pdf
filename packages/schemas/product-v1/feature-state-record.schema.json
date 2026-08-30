@@ -1,0 +1,32 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/feature-state-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "active": {
+      "title": "Active",
+      "type": "boolean"
+    },
+    "customer_visible": {
+      "title": "Customer Visible",
+      "type": "boolean"
+    },
+    "feature": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Feature",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "feature",
+    "active",
+    "customer_visible"
+  ],
+  "title": "FeatureStateRecord",
+  "type": "object"
+}
