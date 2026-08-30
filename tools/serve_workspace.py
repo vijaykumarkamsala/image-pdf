@@ -1,9 +1,9 @@
-"""Run the Image & PDF Workspace locally.
+"""Run the frozen legacy Image & PDF Workspace locally.
 
     python tools/serve_workspace.py
     python tools/serve_workspace.py --port 9000 --no-browser
 
-Serves the application and its API from one origin on localhost. Zero
+Serves the legacy application and its API from one origin on localhost. Zero
 dependencies beyond what the benchmark already uses: the server is
 ``http.server`` and the interface is plain ES modules, so there is nothing to
 install and nothing to build before it runs.
@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from ipw.workspace_api.http import serve
 
-    app_root = root / "apps" / "workspace"
+    app_root = root / "apps" / "workspace-legacy"
     if not (app_root / "index.html").is_file():
         sys.stderr.write(f"application files are missing from {app_root}\n")
         return 1

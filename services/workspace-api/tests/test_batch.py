@@ -38,7 +38,7 @@ def service() -> WorkspaceService:
 @pytest.fixture(scope="module")
 def base_url() -> Iterator[str]:
     """A real server on an ephemeral port, for the routes to be driven properly."""
-    app_root = Path(__file__).resolve().parents[3] / "apps" / "workspace"
+    app_root = Path(__file__).resolve().parents[3] / "apps" / "workspace-legacy"
     server = build_server(app_root, port=0)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:

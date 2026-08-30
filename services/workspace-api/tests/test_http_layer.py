@@ -24,7 +24,7 @@ from PIL import Image
 from ipw.pdf.document import PdfDocument
 from ipw.workspace_api.http import build_server
 
-APP_ROOT = Path(__file__).resolve().parents[3] / "apps" / "workspace"
+APP_ROOT = Path(__file__).resolve().parents[3] / "apps" / "workspace-legacy"
 
 
 @pytest.fixture(scope="module")

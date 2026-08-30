@@ -156,7 +156,7 @@ class TestStartupBanner:
 
         from ipw.workspace_api.http import startup_banner
 
-        return startup_banner(Path("/srv/apps/workspace"), load_settings(env), port)
+        return startup_banner(Path("/srv/apps/workspace-legacy"), load_settings(env), port)
 
     def test_it_names_the_environment(self) -> None:
         """Which environment you are looking at is the first thing to know."""

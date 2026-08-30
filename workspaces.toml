@@ -106,12 +106,12 @@ depends_on = ["ipw-contracts", "ipw-processors", "ipw-benchmark-runner"]
 # -------------------------------------------------------------------- apps ----
 
 [[workspace]]
-path = "apps/workspace"
-name = "ipw-workspace"
+path = "apps/workspace-legacy"
+name = "ipw-workspace-legacy"
 language = "javascript"
 stage = "poc"
 task = "APP-001"
-role = "The customer-facing application. Plain ES modules, no build step: it renders what the API reports and never computes a measurement of its own."
+role = "Frozen legacy workspace UI. Plain ES modules, no build step: preserved as evidence, not the production customer application."
 depends_on = ["ipw-workspace-api"]
 
 [[workspace]]
