@@ -46,7 +46,7 @@ name = "ipw-schemas"
 language = "json"
 stage = "shared"
 task = "POC-001"
-role = "JSON Schema generated from ipw-contracts. Language-neutral; do not hand-edit."
+role = "JSON Schema generated from benchmark and product contract lines. Language-neutral; do not hand-edit."
 
 [[workspace]]
 path = "packages/contracts-ts"
@@ -135,8 +135,8 @@ path = "services/api"
 name = "ipw-api"
 language = "typescript"
 stage = "production"
-task = "RECOVERY-1"
-role = "NestJS product/control API skeleton. Owns orchestration boundaries; no real providers are connected."
+task = "RECOVERY-2A"
+role = "NestJS Product V2 control plane with the Recovery 2A workspace kernel and PostgreSQL repository boundary."
 depends_on = ["ipw-contracts-ts"]
 
 [[workspace]]
@@ -164,8 +164,8 @@ path = "apps/web"
 name = "ipw-web"
 language = "typescript"
 stage = "production"
-task = "RECOVERY-1"
-role = "React TypeScript customer application shell. No editor or production features are implemented."
+task = "RECOVERY-2A"
+role = "Responsive React customer application for real workspace, Projects and Files metadata journeys."
 depends_on = ["ipw-contracts-ts"]
 
 [[workspace]]

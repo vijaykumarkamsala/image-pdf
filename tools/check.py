@@ -71,6 +71,11 @@ GATES: tuple[Gate, ...] = (
         "the TypeScript contract still matches the JSON Schema",
     ),
     Gate(
+        "product-contract-drift",
+        [PY, "tools/generate_product_contracts.py", "--check"],
+        "the Product V2 schemas and generated TypeScript match their Python source",
+    ),
+    Gate(
         "canonical-vectors",
         [PY, "tools/make_canonical_vectors.py", "--check"],
         "the cross-language canonicalisation vectors are current",
@@ -84,6 +89,11 @@ GATES: tuple[Gate, ...] = (
         "ts-tests",
         ["npm", "run", "test", "--silent"],
         "TypeScript agrees with Python on canonical form and identifiers",
+    ),
+    Gate(
+        "web-e2e",
+        ["npm", "run", "test:e2e", "--workspace", "ipw-web", "--silent"],
+        "the real API React journey, accessibility and reviewed visual baselines pass",
     ),
     Gate(
         "goldens",
