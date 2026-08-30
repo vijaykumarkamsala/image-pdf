@@ -7,12 +7,16 @@
   "license": "MIT",
   "dependencies": {
     "@vitejs/plugin-react": "6.1.1",
-    "vite": "8.2.2",
+    "ipw-contracts-ts": "*",
+    "lucide-react": "1.37.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "ipw-contracts-ts": "*"
+    "react-router-dom": "7.18.3",
+    "vite": "8.2.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5"
   },
@@ -20,6 +24,9 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.ts",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test --grep @visual",
+    "test:visual:update": "playwright test --grep @visual --update-snapshots",
     "build": "tsc --noEmit && vite build"
   }
 }

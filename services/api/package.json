@@ -9,18 +9,21 @@
     "@nestjs/common": "12.0.1",
     "@nestjs/core": "12.0.1",
     "@nestjs/platform-express": "12.0.1",
+    "ipw-contracts-ts": "*",
+    "pg": "8.23.0",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2",
-    "ipw-contracts-ts": "*"
+    "rxjs": "7.8.2"
   },
   "devDependencies": {
     "@nestjs/testing": "12.0.1",
-    "@types/express": "5.0.6"
+    "@types/express": "5.0.6",
+    "@types/pg": "8.23.1"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "test": "npm run build --silent && node --test dist/tests/*.test.js",
+    "test:postgres": "npm run build --silent && node -e \"if(!process.env.IPW_TEST_DATABASE_URL){console.error('IPW_TEST_DATABASE_URL is required');process.exit(1)}\" && node --test dist/tests/postgres.integration.test.js",
     "start": "node dist/src/main.js"
   }
 }
