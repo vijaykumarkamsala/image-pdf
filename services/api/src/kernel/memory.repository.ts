@@ -335,6 +335,17 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
     return this.usage.filter((item) => item.workspace_id === workspaceId);
   }
 
+  async recordExternalMutation(
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    resourceKind: string,
+    resourceId: string,
+  ): Promise<void> {
+    this.requireMember(context.principal.actorId, workspaceId);
+    this.recordMutation(context, workspaceId, action, resourceKind, resourceId);
+  }
+
   async close(): Promise<void> {}
 
   private command<T>(context: CommandContext, command: string, execute: () => T): T {

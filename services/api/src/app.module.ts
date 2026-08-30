@@ -5,6 +5,7 @@ import { HealthController } from "./health.controller.js";
 import { AuditModule } from "./domains/audit/audit.module.js";
 import { FilesModule } from "./domains/files/files.module.js";
 import { IdentityModule } from "./domains/identity/identity.module.js";
+import { IntakeModule } from "./domains/intake/intake.module.js";
 import { ProjectsModule } from "./domains/projects/projects.module.js";
 import { UsageModule } from "./domains/usage/usage.module.js";
 import { WorkspacesModule } from "./domains/workspaces/workspaces.module.js";
@@ -14,6 +15,7 @@ import { KernelModule } from "./kernel/kernel.module.js";
   imports: [
     KernelModule,
     IdentityModule,
+    IntakeModule,
     WorkspacesModule,
     ProjectsModule,
     FilesModule,

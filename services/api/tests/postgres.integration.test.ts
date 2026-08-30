@@ -4,6 +4,7 @@ import test from "node:test";
 import { Pool } from "pg";
 
 import { DomainError } from "../src/kernel/errors.js";
+import { PostgresIntakeRepository } from "../src/domains/intake/postgres-intake.repository.js";
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
@@ -144,6 +145,96 @@ test(
           [first.workspace.workspace_id, "actor-pg"],
         ),
         /check constraint/,
+      );
+
+      const intake = new PostgresIntakeRepository(pool);
+      await intake.createGuest(
+        { schema_version: "1.8.0", guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
+        "c".repeat(64),
+        "2026-08-30T00:00:00.000Z",
+      );
+      assert.equal(
+        (await intake.findGuest("c".repeat(64), "2026-08-30T00:00:00.000Z"))?.guest_session_id,
+        "guest-pg",
+      );
+      const uploadRecord = {
+        schema_version: "1.8.0" as const,
+        upload_session_id: "upload-pg",
+        owner_kind: "actor" as const,
+        workspace_id: first.workspace.workspace_id,
+        actor_id: "actor-pg",
+        guest_session_id: null,
+        display_name: "postgres.png",
+        expected_media_type: "image/png",
+        expected_byte_size: 4,
+        bytes_received: 0,
+        state: "initiated" as const,
+        constraints: {
+          schema_version: "1.8.0" as const,
+          allowed_media_types: ["image/png"],
+          max_bytes: 4,
+          max_pixels: 100,
+          max_pages: 1,
+        },
+        job_id: null,
+        asset_original_id: null,
+        source_version_id: null,
+        file_id: null,
+        source_facts: null,
+        failure: null,
+        created_at: "2026-08-30T00:00:00.000Z",
+        expires_at: "2026-08-31T00:00:00.000Z",
+        updated_at: "2026-08-30T00:00:00.000Z",
+      };
+      const storedUpload = {
+        record: uploadRecord,
+        quarantineRef: {
+          ownerScope: first.workspace.workspace_id,
+          objectKey: `quarantine/${first.workspace.workspace_id}/upload-pg`,
+          zone: "quarantine" as const,
+        },
+        uploadTokenHash: "d".repeat(64),
+        uploadTokenExpiresAt: "2026-08-30T01:00:00.000Z",
+      };
+      const command = {
+        ownerScope: first.workspace.workspace_id,
+        idempotencyKey: "upload-pg-key",
+        commandName: "upload.create",
+        requestHash: "e".repeat(64),
+      };
+      const createdUpload = await intake.createUpload(storedUpload, command, uploadRecord.created_at);
+      const replayedUpload = await intake.createUpload(storedUpload, command, uploadRecord.created_at);
+      assert.equal(createdUpload.replayed, false);
+      assert.equal(replayedUpload.replayed, true);
+      assert.equal(
+        await intake.findUpload("upload-pg", {
+          ownerKind: "actor",
+          ownerScope: other.workspace.workspace_id,
+          workspaceId: other.workspace.workspace_id,
+          actorId: "actor-other",
+        }),
+        null,
+      );
+      const uploaded = await intake.recordUploadedBytes(
+        "upload-pg",
+        "d".repeat(64),
+        4,
+        "2026-08-30T00:05:00.000Z",
+      );
+      assert.equal(uploaded.record.bytes_received, 4);
+      await intake.cancelUpload(
+        "upload-pg",
+        {
+          ownerKind: "actor",
+          ownerScope: first.workspace.workspace_id,
+          workspaceId: first.workspace.workspace_id,
+          actorId: "actor-pg",
+        },
+        "2026-08-30T00:06:00.000Z",
+      );
+      await assert.rejects(
+        pool.query("UPDATE upload_sessions SET bytes_received=3 WHERE upload_session_id='upload-pg'"),
+        /terminal upload sessions are immutable/,
       );
     } finally {
       await repository.close();

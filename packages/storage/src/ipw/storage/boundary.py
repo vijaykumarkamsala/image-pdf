@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from enum import StrEnum
+from typing import BinaryIO, Protocol
 
 from ipw.contracts.product import StorageObjectRef, TraceContext
 
@@ -14,6 +15,30 @@ class StoredObject:
 
     ref: StorageObjectRef
     data: bytes
+
+
+class ObjectZone(StrEnum):
+    """Private lifecycle zone; neither value implies public readability."""
+
+    QUARANTINE = "quarantine"
+    IMMUTABLE = "immutable"
+
+
+@dataclass(frozen=True)
+class PrivateObjectRef:
+    """Internal object locator which must never cross the customer API boundary."""
+
+    owner_scope: str
+    object_key: str
+    zone: ObjectZone
+
+
+@dataclass(frozen=True)
+class UploadWriteResult:
+    """Observed write position returned by a resumable private upload."""
+
+    ref: PrivateObjectRef
+    bytes_received: int
 
 
 class ObjectReader(Protocol):
@@ -33,3 +58,32 @@ class ObjectWriter(Protocol):
         media_type: str,
         trace: TraceContext,
     ) -> StorageObjectRef: ...
+
+
+class QuarantineStore(Protocol):
+    """Private, resumable storage used before any source is trusted."""
+
+    def create(self, *, owner_scope: str, object_key: str) -> PrivateObjectRef: ...
+
+    def append(
+        self,
+        ref: PrivateObjectRef,
+        stream: BinaryIO,
+        *,
+        expected_offset: int,
+        max_bytes: int,
+    ) -> UploadWriteResult: ...
+
+    def delete(self, ref: PrivateObjectRef) -> None: ...
+
+
+class ImmutableOriginalStore(Protocol):
+    """Promote a verified quarantine object without overwriting existing bytes."""
+
+    def promote(
+        self,
+        source: PrivateObjectRef,
+        *,
+        owner_scope: str,
+        sha256: str,
+    ) -> PrivateObjectRef: ...

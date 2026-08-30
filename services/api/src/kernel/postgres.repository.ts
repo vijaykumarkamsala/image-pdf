@@ -495,6 +495,27 @@ export class PostgresProductKernelRepository implements ProductKernelRepository 
     }));
   }
 
+  async recordExternalMutation(
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    resourceKind: string,
+    resourceId: string,
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await this.requireMember(client, context.principal.actorId, workspaceId);
+      await this.recordMutation(client, context, workspaceId, action, resourceKind, resourceId);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }

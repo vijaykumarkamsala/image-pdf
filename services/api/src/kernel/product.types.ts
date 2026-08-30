@@ -130,7 +130,15 @@ export interface ProductKernelRepository {
   listFileReferences(actorId: string, workspaceId: string, fileId: string): Promise<ReusableFileReference[]>;
   listAuditEvents(actorId: string, workspaceId: string): Promise<AuditEvent[]>;
   listUsageEvents(actorId: string, workspaceId: string): Promise<UsageEvent[]>;
+  recordExternalMutation(
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    resourceKind: string,
+    resourceId: string,
+  ): Promise<void>;
   close(): Promise<void>;
 }
 
 export const PRODUCT_REPOSITORY = Symbol("PRODUCT_REPOSITORY");
+export const RUNTIME_VALUES = Symbol("RUNTIME_VALUES");
