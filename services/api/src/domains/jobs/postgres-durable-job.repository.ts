@@ -7,10 +7,12 @@ import { DomainError } from "../../kernel/errors.js";
 import { runMigrations } from "../../kernel/migrations.js";
 import type { IntakeCommand, IntakeOwner } from "../intake/intake.types.js";
 import type {
+  AcceptedInspection,
   ClaimedJob,
   DurableJobRepository,
   JobCreateResult,
   JobOutboxRecord,
+  InspectionCompletion,
 } from "./durable-job.types.js";
 
 function instant(value: Date | string | null): string | null {
@@ -204,6 +206,12 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
         [state, now, jobId],
       );
       const updated = job(updatedResult.rows[0]);
+      if (state === "cancelled") {
+        await client.query(
+          "UPDATE upload_sessions SET state='cancelled',updated_at=$1 WHERE upload_session_id=$2",
+          [now, updated.upload_session_id],
+        );
+      }
       await this.insertEvent(client, updated, state === "cancelled" ? "job.cancelled" : "job.cancel-requested", traceId);
       await client.query("COMMIT");
       return updated;
@@ -315,6 +323,148 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
     return this.transitionLeased(jobId, leaseTokenHash, now, "succeeded", 100, "job.succeeded", traceId);
   }
 
+  async completeAccepted(
+    jobId: string,
+    leaseTokenHash: string,
+    result: AcceptedInspection,
+    now: string,
+    traceId: string,
+  ): Promise<InspectionCompletion> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const found = await client.query(
+        "SELECT * FROM processing_jobs WHERE job_id=$1 AND lease_token_hash=$2 AND state='running' FOR UPDATE",
+        [jobId, leaseTokenHash],
+      );
+      if (!found.rows[0]) throw new DomainError(409, "job-lease-invalid", "Job lease is invalid or state changed");
+      const current = job(found.rows[0]);
+      const uploadResult = await client.query(
+        "SELECT * FROM upload_sessions WHERE upload_session_id=$1 FOR UPDATE",
+        [current.upload_session_id],
+      );
+      const currentUpload = upload(uploadResult.rows[0]);
+      let fileId: string | null = null;
+      if (current.owner_kind === "actor" && current.workspace_id && current.actor_id && result.fileId) {
+        const existingObject = await client.query(
+          "SELECT * FROM object_references WHERE workspace_id=$1 AND object_key=$2",
+          [current.workspace_id, result.immutableObjectKey],
+        );
+        let objectReferenceId = result.objectReferenceId;
+        if (existingObject.rows[0]) {
+          if (existingObject.rows[0]["sha256"] !== result.facts.sha256 || Number(existingObject.rows[0]["byte_size"]) !== result.facts.byte_size) {
+            throw new DomainError(409, "immutable-object-conflict", "Immutable object identity conflicts with stored facts");
+          }
+          objectReferenceId = String(existingObject.rows[0]["object_reference_id"]);
+        } else {
+          await client.query(
+            `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [objectReferenceId, current.workspace_id, result.immutableObjectKey, result.facts.sha256,
+              result.facts.detected_media_type, result.facts.byte_size, now],
+          );
+        }
+        await client.query(
+          `INSERT INTO asset_originals(asset_original_id,workspace_id,object_reference_id,original_filename,created_at)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [result.assetOriginalId, current.workspace_id, objectReferenceId, currentUpload.display_name, now],
+        );
+        await client.query(
+          `INSERT INTO source_versions(source_version_id,workspace_id,asset_original_id,object_reference_id,sequence,created_at)
+           VALUES ($1,$2,$3,$4,1,$5)`,
+          [result.sourceVersionId, current.workspace_id, result.assetOriginalId, objectReferenceId, now],
+        );
+        const defaults = await client.query(
+          "SELECT default_files_id FROM default_files_locations WHERE workspace_id=$1",
+          [current.workspace_id],
+        );
+        fileId = result.fileId;
+        await client.query(
+          `INSERT INTO workspace_files(file_id,workspace_id,asset_original_id,current_source_version_id,
+           display_name,canonical_location_kind,default_files_id,created_at,updated_at)
+           VALUES ($1,$2,$3,$4,$5,'default_files',$6,$7,$7)`,
+          [fileId, current.workspace_id, result.assetOriginalId, result.sourceVersionId,
+            currentUpload.display_name, defaults.rows[0]["default_files_id"], now],
+        );
+        const auditId = `audit-${randomUUID()}`;
+        const usageId = `usage-${randomUUID()}`;
+        await client.query(
+          `INSERT INTO audit_events(audit_event_id,workspace_id,actor_id,action,resource_kind,resource_id,occurred_at,trace_id)
+           VALUES ($1,$2,$3,'file.intake-ready','file',$4,$5,$6)`,
+          [auditId, current.workspace_id, current.actor_id, fileId, now, traceId],
+        );
+        await client.query(
+          `INSERT INTO usage_events(usage_event_id,workspace_id,actor_id,event_kind,customer_amount,credit_debit,currency,occurred_at)
+           VALUES ($1,$2,$3,'file.intake-ready',0,0,'USD',$4)`,
+          [usageId, current.workspace_id, current.actor_id, now],
+        );
+        await client.query(
+          "INSERT INTO usage_admin_dimensions(usage_event_id,dimensions) VALUES ($1,$2)",
+          [usageId, { resource_kind: "file", operation: "secure_intake" }],
+        );
+      }
+      const readyResult = await client.query(
+        `UPDATE upload_sessions SET state='ready',immutable_object_key=$1,asset_original_id=$2,
+         source_version_id=$3,file_id=$4,source_facts=$5,updated_at=$6
+         WHERE upload_session_id=$7 RETURNING *`,
+        [result.immutableObjectKey, result.assetOriginalId, result.sourceVersionId, fileId,
+          result.facts, now, current.upload_session_id],
+      );
+      const completedResult = await client.query(
+        `UPDATE processing_jobs SET state='succeeded',progress_percent=100,updated_at=$1
+         WHERE job_id=$2 RETURNING *`,
+        [now, jobId],
+      );
+      const completed = job(completedResult.rows[0]);
+      await this.insertEvent(client, completed, "job.succeeded", traceId);
+      await client.query("COMMIT");
+      return { job: completed, upload: upload(readyResult.rows[0]) };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async completeRejected(
+    jobId: string,
+    leaseTokenHash: string,
+    failure: IntakeFailure,
+    now: string,
+    traceId: string,
+  ): Promise<InspectionCompletion> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const found = await client.query(
+        "SELECT * FROM processing_jobs WHERE job_id=$1 AND lease_token_hash=$2 AND state='running' FOR UPDATE",
+        [jobId, leaseTokenHash],
+      );
+      if (!found.rows[0]) throw new DomainError(409, "job-lease-invalid", "Job lease is invalid or state changed");
+      const current = job(found.rows[0]);
+      const rejectedResult = await client.query(
+        `UPDATE upload_sessions SET state='rejected',failure=$1,updated_at=$2
+         WHERE upload_session_id=$3 RETURNING *`,
+        [failure, now, current.upload_session_id],
+      );
+      const completedResult = await client.query(
+        `UPDATE processing_jobs SET state='succeeded',progress_percent=100,updated_at=$1
+         WHERE job_id=$2 RETURNING *`,
+        [now, jobId],
+      );
+      const completed = job(completedResult.rows[0]);
+      await this.insertEvent(client, completed, "job.completed-with-rejection", traceId);
+      await client.query("COMMIT");
+      return { job: completed, upload: upload(rejectedResult.rows[0]) };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async fail(
     jobId: string,
     leaseTokenHash: string,
@@ -339,6 +489,13 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
         [retry ? "retry_wait" : "failed", failure, retry ? retryAt : null, now, jobId],
       );
       const updated = job(result.rows[0]);
+      if (!retry) {
+        await client.query(
+          `UPDATE upload_sessions SET state='rejected',failure=$1,updated_at=$2
+           WHERE upload_session_id=$3 AND state='inspecting'`,
+          [failure, now, updated.upload_session_id],
+        );
+      }
       await this.insertEvent(client, updated, retry ? "job.retry-scheduled" : "job.failed", traceId);
       if (retry) {
         await client.query(
@@ -380,6 +537,13 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       );
       if (!result.rows[0]) throw new DomainError(409, "job-lease-invalid", "Job lease is invalid or state changed");
       const updated = job(result.rows[0]);
+      if (state === "running") {
+        await client.query(
+          `UPDATE upload_sessions SET state='inspecting',updated_at=$1
+           WHERE upload_session_id=$2 AND state IN ('finalising','inspecting')`,
+          [now, updated.upload_session_id],
+        );
+      }
       await this.insertEvent(client, updated, eventKind, traceId);
       await client.query("COMMIT");
       return updated;

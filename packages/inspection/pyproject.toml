@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipw-inspection"
+version = "0.1.0"
+description = "Production header-first image and PDF safety inspection."
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["ipw-contracts==0.1.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ipw.inspection*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"ipw.inspection" = ["py.typed"]

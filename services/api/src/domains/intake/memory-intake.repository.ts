@@ -117,7 +117,9 @@ export class MemoryIntakeRepository implements IntakeRepository {
   async expireUploads(now: string): Promise<PrivateObjectRef[]> {
     const refs: PrivateObjectRef[] = [];
     for (const [id, stored] of this.uploads) {
-      if (!["ready", "rejected", "expired", "cancelled"].includes(stored.record.state) && stored.record.expires_at <= now) {
+      const active = !["ready", "rejected", "expired", "cancelled"].includes(stored.record.state);
+      const retainedGuest = stored.record.owner_kind === "guest" && ["ready", "rejected"].includes(stored.record.state);
+      if ((active || retainedGuest) && stored.record.expires_at <= now) {
         refs.push(stored.quarantineRef);
         this.uploads.set(id, { ...stored, record: { ...stored.record, state: "expired", updated_at: now } });
       }
@@ -140,6 +142,56 @@ export class MemoryIntakeRepository implements IntakeRepository {
       ...stored,
       record: { ...stored.record, state: "finalising" as const, job_id: job.job_id, updated_at: now },
     };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
+
+  markInspecting(uploadSessionId: string, now: string): StoredUploadSession {
+    const stored = this.uploads.get(uploadSessionId);
+    if (!stored || stored.record.state !== "finalising") throw new DomainError(409, "upload-state-conflict", "Upload is not ready for inspection");
+    const updated = { ...stored, record: { ...stored.record, state: "inspecting" as const, updated_at: now } };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
+
+  completeAccepted(
+    uploadSessionId: string,
+    input: {
+      immutableObjectKey: string;
+      assetOriginalId: string;
+      sourceVersionId: string;
+      fileId: string | null;
+      sourceFacts: UploadSessionRecord["source_facts"];
+      now: string;
+    },
+  ): StoredUploadSession {
+    const stored = this.uploads.get(uploadSessionId);
+    if (!stored || stored.record.state !== "inspecting") throw new DomainError(409, "upload-state-conflict", "Upload is not being inspected");
+    const updated = {
+      ...stored,
+      record: {
+        ...stored.record,
+        state: "ready" as const,
+        asset_original_id: input.assetOriginalId,
+        source_version_id: input.sourceVersionId,
+        file_id: input.fileId,
+        source_facts: input.sourceFacts,
+        updated_at: input.now,
+      },
+    };
+    updated.quarantineRef = { ...stored.quarantineRef, objectKey: input.immutableObjectKey, zone: "immutable" };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
+
+  completeRejected(
+    uploadSessionId: string,
+    failure: UploadSessionRecord["failure"],
+    now: string,
+  ): StoredUploadSession {
+    const stored = this.uploads.get(uploadSessionId);
+    if (!stored || stored.record.state !== "inspecting") throw new DomainError(409, "upload-state-conflict", "Upload is not being inspected");
+    const updated = { ...stored, record: { ...stored.record, state: "rejected" as const, failure, updated_at: now } };
     this.uploads.set(uploadSessionId, updated);
     return updated;
   }

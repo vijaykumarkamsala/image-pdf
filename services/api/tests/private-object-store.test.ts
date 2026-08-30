@@ -32,6 +32,9 @@ for (const [name, factory] of [
       assert.match(immutable.objectKey, /^immutable\/workspace-001\/[a-f0-9]{64}$/);
       await assert.rejects(store.append(immutable, new Uint8Array([9]), 4, 10));
       assert.deepEqual(Uint8Array.from(await store.read(immutable, 4)), new Uint8Array([1, 2, 3, 4]));
+      const rehomed = await store.rehome(immutable, "workspace-002", digest);
+      assert.match(rehomed.objectKey, /^immutable\/workspace-002\/[a-f0-9]{64}$/);
+      assert.deepEqual(Uint8Array.from(await store.read(rehomed, 4)), new Uint8Array([1, 2, 3, 4]));
     } finally {
       await close();
     }

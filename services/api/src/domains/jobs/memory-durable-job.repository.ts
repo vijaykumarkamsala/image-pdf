@@ -4,11 +4,15 @@ import type { IntakeFailure, JobEventRecord, ProcessingJobRecord } from "ipw-con
 import { DomainError } from "../../kernel/errors.js";
 import type { IntakeCommand, IntakeOwner } from "../intake/intake.types.js";
 import { MemoryIntakeRepository } from "../intake/memory-intake.repository.js";
+import { MemoryProductKernelRepository } from "../../kernel/memory.repository.js";
+import type { CommandContext } from "../../kernel/product.types.js";
 import type {
+  AcceptedInspection,
   ClaimedJob,
   DurableJobRepository,
   JobCreateResult,
   JobOutboxRecord,
+  InspectionCompletion,
 } from "./durable-job.types.js";
 
 interface CommandEntry {
@@ -25,7 +29,10 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
   private readonly leaseHashes = new Map<string, string>();
   private cursor = 0;
 
-  constructor(private readonly intake: MemoryIntakeRepository) {}
+  constructor(
+    private readonly intake: MemoryIntakeRepository,
+    private readonly product: MemoryProductKernelRepository,
+  ) {}
 
   async createForUpload(
     uploadSessionId: string,
@@ -128,6 +135,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     if (current.state !== "leased") throw new DomainError(409, "job-state-conflict", "Job cannot start from its current state");
     const updated = { ...current, state: "running" as const, progress_percent: 10, updated_at: now };
     this.jobs.set(jobId, updated);
+    this.intake.markInspecting(current.upload_session_id, now);
     this.event(updated, "job.started", traceId);
     return updated;
   }
@@ -155,6 +163,66 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     this.jobs.set(jobId, updated);
     this.event(updated, "job.succeeded", traceId);
     return updated;
+  }
+
+  async completeAccepted(
+    jobId: string,
+    leaseTokenHash: string,
+    result: AcceptedInspection,
+    now: string,
+    traceId: string,
+  ): Promise<InspectionCompletion> {
+    const current = this.requireLease(jobId, leaseTokenHash);
+    if (current.state !== "running") throw new DomainError(409, "job-state-conflict", "Job is not running");
+    const upload = this.intake.completeAccepted(current.upload_session_id, {
+      immutableObjectKey: result.immutableObjectKey,
+      assetOriginalId: result.assetOriginalId,
+      sourceVersionId: result.sourceVersionId,
+      fileId: result.fileId,
+      sourceFacts: result.facts,
+      now,
+    });
+    if (current.owner_kind === "actor" && current.workspace_id && current.actor_id && result.fileId) {
+      const context: CommandContext = {
+        principal: { actorId: current.actor_id, displayName: "inspection-worker" },
+        idempotencyKey: `worker-${jobId}`,
+        traceId,
+        requestHash: result.facts.sha256,
+      };
+      this.product.registerVerifiedOriginal({
+        context,
+        workspaceId: current.workspace_id,
+        objectReferenceId: result.objectReferenceId,
+        assetOriginalId: result.assetOriginalId,
+        sourceVersionId: result.sourceVersionId,
+        fileId: result.fileId,
+        displayName: upload.record.display_name,
+        objectKey: result.immutableObjectKey,
+        sha256: result.facts.sha256,
+        mediaType: result.facts.detected_media_type,
+        byteSize: result.facts.byte_size,
+      });
+    }
+    const completed = { ...current, state: "succeeded" as const, progress_percent: 100, updated_at: now };
+    this.jobs.set(jobId, completed);
+    this.event(completed, "job.succeeded", traceId);
+    return { job: completed, upload: upload.record };
+  }
+
+  async completeRejected(
+    jobId: string,
+    leaseTokenHash: string,
+    failure: IntakeFailure,
+    now: string,
+    traceId: string,
+  ): Promise<InspectionCompletion> {
+    const current = this.requireLease(jobId, leaseTokenHash);
+    if (current.state !== "running") throw new DomainError(409, "job-state-conflict", "Job is not running");
+    const upload = this.intake.completeRejected(current.upload_session_id, failure, now);
+    const completed = { ...current, state: "succeeded" as const, progress_percent: 100, updated_at: now };
+    this.jobs.set(jobId, completed);
+    this.event(completed, "job.completed-with-rejection", traceId);
+    return { job: completed, upload: upload.record };
   }
 
   async fail(

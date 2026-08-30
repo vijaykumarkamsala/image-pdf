@@ -8,6 +8,13 @@ import { IntakeController } from "./intake.controller.js";
 import { IntakeService } from "./intake.service.js";
 import { MemoryIntakeRepository } from "./memory-intake.repository.js";
 import { PostgresIntakeRepository } from "./postgres-intake.repository.js";
+import { PRODUCT_REPOSITORY, type ProductKernelRepository } from "../../kernel/product.types.js";
+import { MemoryProductKernelRepository } from "../../kernel/memory.repository.js";
+import {
+  GUEST_HANDOFF_REPOSITORY,
+  MemoryGuestHandoffRepository,
+  PostgresGuestHandoffRepository,
+} from "./guest-handoff.repository.js";
 import {
   LocalFilesystemPrivateObjectStore,
   MemoryPrivateObjectStore,
@@ -41,8 +48,25 @@ import {
         );
       },
     },
+    {
+      provide: GUEST_HANDOFF_REPOSITORY,
+      async useFactory(intake: unknown, product: ProductKernelRepository) {
+        const connectionString = process.env["IPW_DATABASE_URL"];
+        if (connectionString) {
+          return PostgresGuestHandoffRepository.connect(
+            connectionString,
+            process.env["IPW_DATABASE_MIGRATE"] === "1",
+          );
+        }
+        if (!(intake instanceof MemoryIntakeRepository) || !(product instanceof MemoryProductKernelRepository)) {
+          throw new Error("Local guest handoff requires memory repositories");
+        }
+        return new MemoryGuestHandoffRepository(intake, product);
+      },
+      inject: [INTAKE_REPOSITORY, PRODUCT_REPOSITORY],
+    },
     IntakeService,
   ],
-  exports: [IntakeService, INTAKE_REPOSITORY, PRIVATE_OBJECT_STORE],
+  exports: [GUEST_HANDOFF_REPOSITORY, IntakeService, INTAKE_REPOSITORY, PRIVATE_OBJECT_STORE],
 })
 export class IntakeModule {}

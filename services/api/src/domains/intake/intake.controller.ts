@@ -39,6 +39,15 @@ export class IntakeController {
     return this.intake.cancel(headers, uploadSessionId);
   }
 
+  @Post("upload-sessions/:uploadSessionId/handoff")
+  handoff(
+    @Headers() headers: RequestHeaders,
+    @Param("uploadSessionId") uploadSessionId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.intake.handoffGuest(headers, uploadSessionId, body);
+  }
+
   @Put("uploads/:uploadSessionId/content")
   async upload(
     @Req() request: Request,

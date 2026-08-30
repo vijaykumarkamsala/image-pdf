@@ -12,6 +12,7 @@ dependencies = [
   "ipw-contracts==0.1.0",
   "ipw-jobs==0.1.0",
   "ipw-storage==0.1.0",
+  "ipw-inspection==0.1.0",
   "ipw-licence-registry==0.1.0",
 ]
 

@@ -102,6 +102,15 @@ role = "Production durable-job boundary contracts and protocols. Queue implement
 depends_on = ["ipw-contracts"]
 
 [[workspace]]
+path = "packages/inspection"
+name = "ipw-inspection"
+language = "python"
+stage = "production"
+task = "RECOVERY-2B"
+role = "Header-first production image/PDF safety inspection with no POC runtime dependency."
+depends_on = ["ipw-contracts"]
+
+[[workspace]]
 path = "packages/licence-registry"
 name = "ipw-licence-registry"
 language = "python"
@@ -146,7 +155,7 @@ language = "python"
 stage = "production"
 task = "RECOVERY-1"
 role = "Python processing worker boundary with deterministic fake processor only."
-depends_on = ["ipw-contracts", "ipw-jobs", "ipw-storage", "ipw-licence-registry"]
+depends_on = ["ipw-contracts", "ipw-jobs", "ipw-storage", "ipw-inspection", "ipw-licence-registry"]
 
 # -------------------------------------------------------------------- apps ----
 

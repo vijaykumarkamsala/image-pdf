@@ -25,6 +25,20 @@ export interface JobOutboxRecord {
   deliveryAttempts: number;
 }
 
+export interface AcceptedInspection {
+  objectReferenceId: string;
+  assetOriginalId: string;
+  sourceVersionId: string;
+  fileId: string | null;
+  immutableObjectKey: string;
+  facts: NonNullable<UploadSessionRecord["source_facts"]>;
+}
+
+export interface InspectionCompletion {
+  job: ProcessingJobRecord;
+  upload: UploadSessionRecord;
+}
+
 export interface DurableJobRepository {
   createForUpload(
     uploadSessionId: string,
@@ -57,6 +71,20 @@ export interface DurableJobRepository {
     now: string,
   ): Promise<void>;
   succeed(jobId: string, leaseTokenHash: string, now: string, traceId: string): Promise<ProcessingJobRecord>;
+  completeAccepted(
+    jobId: string,
+    leaseTokenHash: string,
+    result: AcceptedInspection,
+    now: string,
+    traceId: string,
+  ): Promise<InspectionCompletion>;
+  completeRejected(
+    jobId: string,
+    leaseTokenHash: string,
+    failure: IntakeFailure,
+    now: string,
+    traceId: string,
+  ): Promise<InspectionCompletion>;
   fail(
     jobId: string,
     leaseTokenHash: string,

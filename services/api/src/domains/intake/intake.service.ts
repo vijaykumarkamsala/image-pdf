@@ -27,6 +27,10 @@ import {
   UploadOffsetConflict,
   type PrivateObjectStore,
 } from "./private-object-store.js";
+import {
+  GUEST_HANDOFF_REPOSITORY,
+  type GuestHandoffRepository,
+} from "./guest-handoff.repository.js";
 
 type Headers = Record<string, string | string[] | undefined>;
 
@@ -55,6 +59,7 @@ export class IntakeService implements OnApplicationShutdown {
     @Inject(PRIVATE_OBJECT_STORE) private readonly objects: PrivateObjectStore,
     @Inject(PRODUCT_REPOSITORY) private readonly product: ProductKernelRepository,
     @Inject(RUNTIME_VALUES) private readonly runtime: RuntimeValues,
+    @Inject(GUEST_HANDOFF_REPOSITORY) private readonly handoffs: GuestHandoffRepository,
     private readonly identity: IdentityBoundary,
   ) {}
 
@@ -154,6 +159,72 @@ export class IntakeService implements OnApplicationShutdown {
     return refs.length;
   }
 
+  async handoffGuest(headers: Headers, uploadSessionId: string, body: Record<string, unknown>) {
+    const guest = await this.requireGuest(headers);
+    const principal = this.identity.resolve(headers);
+    const workspaceId = requireId(body["workspace_id"], "workspace id");
+    const context = await this.product.workspaceContext(principal.actorId, workspaceId);
+    if (!context || !context.effectivePermissions.some((item) => item.permission === "file.create" && item.allowed)) {
+      throw new DomainError(403, "access-denied", "You do not have permission to save this source");
+    }
+    const id = requireId(uploadSessionId, "upload session id");
+    const owner: IntakeOwner = {
+      ownerKind: "guest",
+      ownerScope: guest.guest_session_id,
+      guestSessionId: guest.guest_session_id,
+    };
+    const stored = await this.repository.findUpload(id, owner);
+    if (!stored || stored.record.state !== "ready" || !stored.record.source_facts
+      || !stored.record.asset_original_id || !stored.record.source_version_id) {
+      throw new DomainError(409, "upload-not-ready", "Guest upload is not ready to save");
+    }
+    const command = this.commandContext(headers, {
+      ownerKind: "actor",
+      ownerScope: workspaceId,
+      workspaceId,
+      actorId: principal.actorId,
+    }, "guest-source.handoff", { uploadSessionId: id, workspaceId });
+    const target = await this.objects.rehome(
+      stored.quarantineRef,
+      workspaceId,
+      stored.record.source_facts.sha256,
+    );
+    const fileId = this.runtime.id("file");
+    const result = await this.handoffs.handoff({
+      uploadSessionId: id,
+      guestSessionId: guest.guest_session_id,
+      workspaceId,
+      actorId: principal.actorId,
+      objectReferenceId: this.runtime.id("object"),
+      assetOriginalId: stored.record.asset_original_id,
+      sourceVersionId: stored.record.source_version_id,
+      fileId,
+      displayName: stored.record.display_name,
+      immutableObjectKey: target.objectKey,
+      sha256: stored.record.source_facts.sha256,
+      mediaType: stored.record.source_facts.detected_media_type,
+      byteSize: stored.record.source_facts.byte_size,
+      command,
+      now: this.runtime.now(),
+    });
+    const file = (await this.product.listFiles(principal.actorId, workspaceId))
+      .find((candidate) => candidate.file_id === result.fileId);
+    if (!file) throw new Error("handed-off file is unavailable");
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      file,
+      asset_original_id: stored.record.asset_original_id,
+      source_version_id: stored.record.source_version_id,
+      command: {
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        idempotency_key: command.idempotencyKey,
+        replayed: result.replayed,
+        resource_kind: "file",
+        resource_id: result.fileId,
+      },
+    };
+  }
+
   requireForInternal(headers: Headers, uploadSessionId: string): Promise<StoredUploadSession> {
     return this.requireAccessible(headers, requireId(uploadSessionId, "upload session id"));
   }
@@ -173,6 +244,7 @@ export class IntakeService implements OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     await this.repository.close();
+    await this.handoffs.close();
   }
 
   private async create(headers: Headers, owner: IntakeOwner, body: Record<string, unknown>): Promise<UploadSessionCreated> {

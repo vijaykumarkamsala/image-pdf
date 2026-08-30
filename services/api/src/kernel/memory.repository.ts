@@ -346,6 +346,81 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
     this.recordMutation(context, workspaceId, action, resourceKind, resourceId);
   }
 
+  registerVerifiedOriginal(input: {
+    context: CommandContext;
+    workspaceId: string;
+    objectReferenceId: string;
+    assetOriginalId: string;
+    sourceVersionId: string;
+    fileId: string;
+    displayName: string;
+    objectKey: string;
+    sha256: string;
+    mediaType: string;
+    byteSize: number;
+  }): RegisteredFile {
+    this.requireMember(input.context.principal.actorId, input.workspaceId);
+    const existing = this.files.get(input.fileId);
+    if (existing) {
+      return {
+        file: existing,
+        original: this.originals.get(input.assetOriginalId)!,
+        sourceVersion: this.sources.get(input.sourceVersionId)!,
+        objectReference: this.objectReferences.get(input.objectReferenceId)!,
+        replayed: true,
+      };
+    }
+    const now = this.runtime.now();
+    const defaultFiles = this.requireDefaultFiles(input.workspaceId);
+    const objectReference: ObjectReference = {
+      schema_version: VERSION,
+      object_reference_id: input.objectReferenceId,
+      workspace_id: input.workspaceId,
+      object_key: input.objectKey,
+      sha256: input.sha256,
+      media_type: input.mediaType,
+      byte_size: input.byteSize,
+    };
+    const original: AssetOriginalRecord = {
+      schema_version: VERSION,
+      asset_original_id: input.assetOriginalId,
+      workspace_id: input.workspaceId,
+      object_reference_id: input.objectReferenceId,
+      original_filename: input.displayName,
+      created_at: now,
+    };
+    const sourceVersion: SourceVersionRecord = {
+      schema_version: VERSION,
+      source_version_id: input.sourceVersionId,
+      workspace_id: input.workspaceId,
+      asset_original_id: input.assetOriginalId,
+      object_reference_id: input.objectReferenceId,
+      sequence: 1,
+      previous_source_version_id: null,
+      created_at: now,
+    };
+    const file: WorkspaceFile = {
+      schema_version: VERSION,
+      file_id: input.fileId,
+      workspace_id: input.workspaceId,
+      asset_original_id: input.assetOriginalId,
+      current_source_version_id: input.sourceVersionId,
+      display_name: input.displayName,
+      canonical_location: {
+        schema_version: VERSION,
+        kind: "default_files",
+        default_files_id: defaultFiles.default_files_id,
+        project_id: null,
+      },
+    };
+    this.objectReferences.set(input.objectReferenceId, objectReference);
+    this.originals.set(input.assetOriginalId, original);
+    this.sources.set(input.sourceVersionId, sourceVersion);
+    this.files.set(input.fileId, file);
+    this.recordMutation(input.context, input.workspaceId, "file.intake-ready", "file", input.fileId);
+    return { file, original, sourceVersion, objectReference, replayed: false };
+  }
+
   async close(): Promise<void> {}
 
   private command<T>(context: CommandContext, command: string, execute: () => T): T {

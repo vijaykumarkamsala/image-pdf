@@ -5,6 +5,7 @@ import { Pool } from "pg";
 
 import { DomainError } from "../src/kernel/errors.js";
 import { PostgresIntakeRepository } from "../src/domains/intake/postgres-intake.repository.js";
+import { PostgresGuestHandoffRepository } from "../src/domains/intake/guest-handoff.repository.js";
 import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
@@ -23,7 +24,7 @@ function context(actorId: string, key: string, command: string, payload: unknown
 }
 
 test(
-  "PostgreSQL 17 runs migrations and the Recovery 2A repository journey",
+  "PostgreSQL 17 runs all Product V2 migrations and the Recovery 2B repository journey",
   { skip: !connectionString },
   async () => {
     assert.ok(connectionString);
@@ -355,6 +356,200 @@ test(
         jobEvents.map((event) => event.event_kind),
         ["job.queued", "job.leased", "job.started", "job.retry-scheduled", "job.leased", "job.cancel-requested"],
       );
+
+      const acceptedUpload = {
+        ...jobUpload,
+        record: { ...jobUpload.record, upload_session_id: "upload-accepted-pg", display_name: "accepted.png" },
+        quarantineRef: {
+          ...jobUpload.quarantineRef,
+          objectKey: `quarantine/${first.workspace.workspace_id}/upload-accepted-pg`,
+        },
+        uploadTokenHash: "5".repeat(64),
+      };
+      await intake.createUpload(
+        acceptedUpload,
+        { ...command, idempotencyKey: "upload-accepted-pg-key", requestHash: "6".repeat(64) },
+        uploadRecord.created_at,
+      );
+      await intake.recordUploadedBytes(
+        "upload-accepted-pg",
+        "5".repeat(64),
+        4,
+        "2026-08-30T00:11:00.000Z",
+      );
+      const acceptedJob = {
+        ...jobRecord,
+        job_id: "job-accepted-pg",
+        upload_session_id: "upload-accepted-pg",
+        created_at: "2026-08-30T00:11:10.000Z",
+        updated_at: "2026-08-30T00:11:10.000Z",
+      };
+      await durableJobs.createForUpload(
+        "upload-accepted-pg",
+        jobOwner,
+        acceptedJob,
+        { ...jobCommand, idempotencyKey: "finalise-accepted-pg", requestHash: "7".repeat(64) },
+        "trace-postgres-accepted",
+      );
+      const acceptedClaim = await durableJobs.claim(
+        "worker-pg",
+        "lease-token-accepted",
+        "8".repeat(64),
+        "2026-08-30T00:11:20.000Z",
+        "2026-08-30T00:12:20.000Z",
+        "trace-postgres-accepted",
+      );
+      assert.equal(acceptedClaim?.job.job_id, "job-accepted-pg");
+      await durableJobs.start(
+        "job-accepted-pg",
+        "8".repeat(64),
+        "2026-08-30T00:11:30.000Z",
+        "trace-postgres-accepted",
+      );
+      const sourceFacts = {
+        schema_version: "1.8.0" as const,
+        sha256: "9".repeat(64),
+        detected_media_type: "image/png",
+        byte_size: 4,
+        width: 1,
+        height: 1,
+        megapixels_milli: 0,
+        orientation: null,
+        frame_count: 1,
+        page_count: null,
+        has_alpha: true,
+        bit_depth: 8,
+        has_icc_profile: false,
+        sensitive_metadata: [],
+        malware_scan_state: "clean" as const,
+      };
+      const acceptedCompletion = await durableJobs.completeAccepted(
+        "job-accepted-pg",
+        "8".repeat(64),
+        {
+          objectReferenceId: "object-accepted-pg",
+          assetOriginalId: "asset-accepted-pg",
+          sourceVersionId: "source-accepted-pg",
+          fileId: "file-accepted-pg",
+          immutableObjectKey: `immutable/${first.workspace.workspace_id}/${sourceFacts.sha256}`,
+          facts: sourceFacts,
+        },
+        "2026-08-30T00:11:40.000Z",
+        "trace-postgres-accepted",
+      );
+      assert.equal(acceptedCompletion.upload.state, "ready");
+      assert.equal(acceptedCompletion.job.state, "succeeded");
+      assert.equal(acceptedCompletion.upload.asset_original_id, "asset-accepted-pg");
+      const acceptedFiles = await repository.listFiles("actor-pg", first.workspace.workspace_id);
+      assert.ok(acceptedFiles.some((file) => file.file_id === "file-accepted-pg"));
+      const intakeUsage = await repository.listUsageEvents("actor-pg", first.workspace.workspace_id);
+      assert.ok(intakeUsage.some((event) => event.event_kind === "file.intake-ready"));
+      assert.ok(intakeUsage.every((event) => event.customer_amount === "0.00" && event.credit_debit === 0));
+
+      const guestReadyUpload = {
+        ...acceptedUpload,
+        record: {
+          ...acceptedUpload.record,
+          upload_session_id: "upload-guest-ready-pg",
+          owner_kind: "guest" as const,
+          workspace_id: null,
+          actor_id: null,
+          guest_session_id: "guest-pg",
+          display_name: "guest-ready.png",
+        },
+        quarantineRef: {
+          ownerScope: "guest-pg",
+          objectKey: "quarantine/guest-pg/upload-guest-ready-pg",
+          zone: "quarantine" as const,
+        },
+        uploadTokenHash: "a".repeat(64),
+      };
+      await intake.createUpload(
+        guestReadyUpload,
+        { ownerScope: "guest-pg", idempotencyKey: "upload-guest-ready", commandName: "upload.create", requestHash: "b".repeat(64) },
+        uploadRecord.created_at,
+      );
+      await intake.recordUploadedBytes(
+        "upload-guest-ready-pg",
+        "a".repeat(64),
+        4,
+        "2026-08-30T00:12:00.000Z",
+      );
+      const guestJob = {
+        ...jobRecord,
+        job_id: "job-guest-ready-pg",
+        owner_kind: "guest" as const,
+        workspace_id: null,
+        actor_id: null,
+        guest_session_id: "guest-pg",
+        upload_session_id: "upload-guest-ready-pg",
+        created_at: "2026-08-30T00:12:10.000Z",
+        updated_at: "2026-08-30T00:12:10.000Z",
+      };
+      const guestOwner = { ownerKind: "guest" as const, ownerScope: "guest-pg", guestSessionId: "guest-pg" };
+      await durableJobs.createForUpload(
+        "upload-guest-ready-pg",
+        guestOwner,
+        guestJob,
+        { ownerScope: "guest-pg", idempotencyKey: "finalise-guest-ready", commandName: "upload.finalise", requestHash: "c".repeat(64) },
+        "trace-postgres-guest",
+      );
+      const guestClaim = await durableJobs.claim(
+        "worker-pg",
+        "lease-token-guest",
+        "d".repeat(64),
+        "2026-08-30T00:12:20.000Z",
+        "2026-08-30T00:13:20.000Z",
+        "trace-postgres-guest",
+      );
+      assert.equal(guestClaim?.job.job_id, "job-guest-ready-pg");
+      await durableJobs.start(
+        "job-guest-ready-pg",
+        "d".repeat(64),
+        "2026-08-30T00:12:30.000Z",
+        "trace-postgres-guest",
+      );
+      const guestCompletion = await durableJobs.completeAccepted(
+        "job-guest-ready-pg",
+        "d".repeat(64),
+        {
+          objectReferenceId: "object-guest-unused",
+          assetOriginalId: "asset-guest-preserved",
+          sourceVersionId: "source-guest-preserved",
+          fileId: null,
+          immutableObjectKey: `immutable/guest-pg/${sourceFacts.sha256}`,
+          facts: sourceFacts,
+        },
+        "2026-08-30T00:12:40.000Z",
+        "trace-postgres-guest",
+      );
+      assert.equal(guestCompletion.upload.file_id, null);
+      const handoffs = new PostgresGuestHandoffRepository(pool);
+      const handedOff = await handoffs.handoff({
+        uploadSessionId: "upload-guest-ready-pg",
+        guestSessionId: "guest-pg",
+        workspaceId: first.workspace.workspace_id,
+        actorId: "actor-pg",
+        objectReferenceId: "object-guest-handoff",
+        assetOriginalId: "asset-guest-preserved",
+        sourceVersionId: "source-guest-preserved",
+        fileId: "file-guest-handoff",
+        displayName: "guest-ready.png",
+        immutableObjectKey: `immutable/${first.workspace.workspace_id}/${sourceFacts.sha256}`,
+        sha256: sourceFacts.sha256,
+        mediaType: sourceFacts.detected_media_type,
+        byteSize: sourceFacts.byte_size,
+        command: context("actor-pg", "handoff-guest-pg", "guest-source.handoff", {
+          uploadSessionId: "upload-guest-ready-pg",
+          workspaceId: first.workspace.workspace_id,
+        }),
+        now: "2026-08-30T00:12:50.000Z",
+      });
+      assert.equal(handedOff.fileId, "file-guest-handoff");
+      const guestFile = (await repository.listFiles("actor-pg", first.workspace.workspace_id))
+        .find((file) => file.file_id === handedOff.fileId);
+      assert.equal(guestFile?.asset_original_id, "asset-guest-preserved");
+      assert.equal(guestFile?.current_source_version_id, "source-guest-preserved");
     } finally {
       await repository.close();
     }

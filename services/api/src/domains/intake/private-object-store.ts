@@ -29,6 +29,7 @@ export interface PrivateObjectStore {
   append(ref: PrivateObjectRef, bytes: Uint8Array, expectedOffset: number, maxBytes: number): Promise<number>;
   read(ref: PrivateObjectRef, maxBytes: number): Promise<Uint8Array>;
   promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef>;
+  rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef>;
   remove(ref: PrivateObjectRef): Promise<void>;
 }
 
@@ -101,12 +102,23 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
       throw new Error("immutable object collision");
     }
     if (!existing) this.objects.set(objectKey, bytes);
-    this.objects.delete(ref.objectKey);
     return { ownerScope: ref.ownerScope, objectKey, zone: "immutable" };
   }
 
   async remove(ref: PrivateObjectRef): Promise<void> {
     this.objects.delete(ref.objectKey);
+  }
+
+  async rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef> {
+    if (ref.zone !== "immutable") throw new Error("only immutable objects can be rehomed");
+    const bytes = await this.read(ref, Number.MAX_SAFE_INTEGER);
+    const objectKey = immutableKey(targetOwnerScope, sha256);
+    const existing = this.objects.get(objectKey);
+    if (existing && createHash("sha256").update(existing).digest("hex") !== sha256) {
+      throw new Error("immutable object collision");
+    }
+    if (!existing) this.objects.set(objectKey, bytes);
+    return { ownerScope: targetOwnerScope, objectKey, zone: "immutable" };
   }
 }
 
@@ -172,12 +184,30 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
       const existing = await readFile(targetPath).catch(() => null);
       if (!existing || createHash("sha256").update(existing).digest("hex") !== sha256) throw error;
     }
-    await rm(this.path(ref), { force: true });
     return target;
   }
 
   async remove(ref: PrivateObjectRef): Promise<void> {
     await rm(this.path(ref), { force: true });
+  }
+
+  async rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef> {
+    const bytes = await this.read(ref, Number.MAX_SAFE_INTEGER);
+    if (createHash("sha256").update(bytes).digest("hex") !== sha256) throw new Error("rehoming digest mismatch");
+    const target: PrivateObjectRef = {
+      ownerScope: safeSegment(targetOwnerScope, "owner scope"),
+      objectKey: immutableKey(targetOwnerScope, sha256),
+      zone: "immutable",
+    };
+    const targetPath = this.path(target);
+    await mkdir(resolve(targetPath, ".."), { recursive: true, mode: 0o700 });
+    try {
+      await copyFile(this.path(ref), targetPath, constants.COPYFILE_EXCL);
+    } catch (error) {
+      const existing = await readFile(targetPath).catch(() => null);
+      if (!existing || createHash("sha256").update(existing).digest("hex") !== sha256) throw error;
+    }
+    return target;
   }
 
   private path(ref: PrivateObjectRef): string {
@@ -238,12 +268,21 @@ export class GcsPrivateObjectStore implements PrivateObjectStore {
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {
     const target = { ownerScope: ref.ownerScope, objectKey: immutableKey(ref.ownerScope, sha256), zone: "immutable" as const };
     await this.client.copyIfAbsent(ref.objectKey, target.objectKey);
-    await this.client.remove(ref.objectKey);
     return target;
   }
 
   remove(ref: PrivateObjectRef): Promise<void> {
     return this.client.remove(ref.objectKey);
+  }
+
+  async rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef> {
+    const target = {
+      ownerScope: safeSegment(targetOwnerScope, "owner scope"),
+      objectKey: immutableKey(targetOwnerScope, sha256),
+      zone: "immutable" as const,
+    };
+    await this.client.copyIfAbsent(ref.objectKey, target.objectKey);
+    return target;
   }
 }
 

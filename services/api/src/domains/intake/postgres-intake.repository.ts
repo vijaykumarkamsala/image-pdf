@@ -45,8 +45,8 @@ function stored(row: QueryResultRow): StoredUploadSession {
     },
     quarantineRef: {
       ownerScope: ownerKind === "actor" ? String(row["workspace_id"]) : String(row["guest_session_id"]),
-      objectKey: String(row["quarantine_object_key"]),
-      zone: "quarantine",
+      objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
+      zone: row["immutable_object_key"] ? "immutable" : "quarantine",
     },
     uploadTokenHash: String(row["upload_token_hash"]),
     uploadTokenExpiresAt: instant(row["upload_token_expires_at"] as Date | string),
@@ -208,14 +208,16 @@ export class PostgresIntakeRepository implements IntakeRepository {
   async expireUploads(now: string): Promise<PrivateObjectRef[]> {
     const result = await this.pool.query(
       `UPDATE upload_sessions SET state='expired', updated_at=$1
-       WHERE expires_at <= $1 AND state IN ('initiated','uploading')
-       RETURNING owner_kind, workspace_id, guest_session_id, quarantine_object_key`,
+       WHERE expires_at <= $1 AND (
+         state IN ('initiated','uploading') OR (owner_kind='guest' AND state IN ('ready','rejected'))
+       )
+       RETURNING owner_kind, workspace_id, guest_session_id, quarantine_object_key, immutable_object_key`,
       [now],
     );
     return result.rows.map((row) => ({
       ownerScope: String(row["owner_kind"] === "actor" ? row["workspace_id"] : row["guest_session_id"]),
-      objectKey: String(row["quarantine_object_key"]),
-      zone: "quarantine",
+      objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
+      zone: row["immutable_object_key"] ? "immutable" : "quarantine",
     }));
   }
 
