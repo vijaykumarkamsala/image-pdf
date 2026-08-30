@@ -162,6 +162,10 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (min-width: 621px) and (max-width: 700px) {
+  .page-heading > .button { min-height: 44px; flex: 0 0 auto; white-space: nowrap; }
+}
+
 @media (max-width: 620px) {
   .workspace-shell { display: block; padding-bottom: 68px; }
   .workspace-main { min-height: calc(100vh - 68px); }

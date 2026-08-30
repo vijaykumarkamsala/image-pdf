@@ -168,6 +168,34 @@ test("@visual tablet light Projects", async ({ page }) => {
   await expect(page).toHaveScreenshot("workspace-projects-768x1024-light.png", screenshotOptions);
 });
 
+test("@visual 638x768 Projects keeps its header action on one line", async ({ page }) => {
+  await page.setViewportSize({ width: 638, height: 768 });
+  await openWorkspace(page, "visual-projects-638");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await expect(page.getByRole("heading", { name: "No projects yet" })).toBeVisible();
+
+  const action = page.getByRole("button", { name: "New project" }).first();
+  const layout = await action.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      height: bounds.height,
+      whiteSpace: getComputedStyle(element).whiteSpace,
+      contentFits: element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight,
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    };
+  });
+  expect(layout.height).toBeGreaterThanOrEqual(44);
+  expect(layout.whiteSpace).toBe("nowrap");
+  expect(layout.contentFits).toBe(true);
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-projects-638x768-light.png", screenshotOptions);
+});
+
 test("@visual phone light Home with navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page, "visual-phone-navigation");
