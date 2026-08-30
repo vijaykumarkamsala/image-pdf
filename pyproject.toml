@@ -233,7 +233,13 @@ source = ["ipw"]
 #
 # What we do assert about it lives in tests/test_scope_and_artifacts.py: it is
 # attributed, it names its commit and digest, and it imports nothing forbidden.
-omit = ["*/ai_adapters/vendor/*"]
+omit = [
+  "*/ai_adapters/vendor/*",
+  # The PostgreSQL worker repository is measured by the separately required
+  # real-PostgreSQL integration gate. It is not counted as uncovered merely
+  # because the deterministic unit suite intentionally has no database.
+  "*/processing_worker/repository.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [

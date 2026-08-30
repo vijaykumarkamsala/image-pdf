@@ -55,12 +55,18 @@ __all__ = [
     "evaluate_assets",
     "evaluate_components",
     "load_register",
+    "load_release_register",
+    "production_provider_register_path",
     "register_path",
 ]
 
 
 def register_path(repo_root: Path) -> Path:
     return repo_root / "data" / "licences" / "register.json"
+
+
+def production_provider_register_path(repo_root: Path) -> Path:
+    return repo_root / "data" / "licences" / "production-providers.json"
 
 
 class RegisterDocument(ContractModel):
@@ -366,6 +372,24 @@ def load_register(path: Path) -> LicenceRegister:
     """Load and validate the register document."""
     document = RegisterDocument.model_validate(json.loads(path.read_text(encoding="utf-8")))
     return LicenceRegister(document)
+
+
+def load_release_register(repo_root: Path) -> LicenceRegister:
+    """Compose historical and production-provider evidence for release gates."""
+    historical = load_register(register_path(repo_root)).document
+    providers = load_register(production_provider_register_path(repo_root)).document
+    components = historical.components + providers.components
+    component_ids = [component.component_id for component in components]
+    if len(component_ids) != len(set(component_ids)):
+        raise ValueError("licence component ids must be unique across release registers")
+    return LicenceRegister(
+        RegisterDocument(
+            name="production-release-licence-register",
+            description="Historical component and production provider release evidence.",
+            components=components,
+            approved_fallback=historical.approved_fallback,
+        )
+    )
 
 
 # ------------------------------------------------------------- evaluation --

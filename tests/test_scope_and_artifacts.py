@@ -240,10 +240,10 @@ class TestNoModelIntegration:
 
     def test_every_runtime_dependency_has_an_approved_licence(self, repo_root: Path) -> None:
         """A dependency may not execute without a recorded, approved disposition."""
-        from ipw.benchmark_runner.licence_register import load_register, register_path
         from ipw.contracts.licence import Disposition
+        from ipw.licence_registry import load_release_register
 
-        register = load_register(register_path(repo_root))
+        register = load_release_register(repo_root)
         for name in sorted(APPROVED_RUNTIME_DEPENDENCIES):
             component = register.get(name)
             assert component is not None, f"{name} is a runtime dependency but is not registered"

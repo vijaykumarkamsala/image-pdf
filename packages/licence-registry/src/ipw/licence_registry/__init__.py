@@ -8,6 +8,8 @@ from ipw.licence_registry.register import (
     evaluate_assets,
     evaluate_components,
     load_register,
+    load_release_register,
+    production_provider_register_path,
     register_path,
 )
 
@@ -17,5 +19,7 @@ __all__ = [
     "evaluate_assets",
     "evaluate_components",
     "load_register",
+    "load_release_register",
+    "production_provider_register_path",
     "register_path",
 ]

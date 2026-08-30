@@ -4,10 +4,22 @@ import json
 import struct
 from typing import Any
 
+import pytest
+from google.oauth2 import id_token
+
+import ipw.processing_worker.task_server as task_server
 from ipw.inspection import DeterministicMalwareScanner, MalwareScan
-from ipw.processing_worker.durable_intake import DispatchMessage, DurableIntakeProcessor
+from ipw.processing_worker.durable_intake import (
+    DispatchMessage,
+    DurableIntakeProcessor,
+    WorkerOutcome,
+)
 from ipw.processing_worker.repository import LeasedIntakeJob
-from ipw.processing_worker.task_server import IntakeTaskApplication
+from ipw.processing_worker.task_server import (
+    GoogleOidcTaskIdentityVerifier,
+    IntakeTaskApplication,
+    build_production_application,
+)
 from ipw.storage import ObjectZone, PrivateObjectRef, PrivateObjectSnapshot
 
 
@@ -281,3 +293,82 @@ def test_internal_task_requires_identity_task_header_and_an_exact_opaque_envelop
         ).status
         == 400
     )
+
+
+def test_internal_task_rejects_large_malformed_and_invalid_payloads() -> None:
+    class Verifier:
+        def verify(self, _authorization: str | None) -> None:
+            return
+
+    class Processor:
+        def __init__(self) -> None:
+            self.state = "busy"
+
+        def process(self, message: DispatchMessage) -> WorkerOutcome:
+            return WorkerOutcome(self.state, message.job_id)
+
+    processor = Processor()
+    app = IntakeTaskApplication(Verifier(), processor)  # type: ignore[arg-type]
+    headers = {"x-cloudtasks-taskname": "projects/p/tasks/task-001"}
+    assert app.handle(headers, b"x" * (16 * 1024 + 1)).status == 413
+    assert app.handle(headers, b"not-json").status == 400
+    assert app.handle(headers, b"[]").status == 400
+    assert app.handle(headers, json.dumps({"unexpected": "value"}).encode()).status == 400
+    for invalid in (
+        {"dispatchId": "x", "jobId": "job-001", "traceId": "trace-001", "kind": "process_job"},
+        {"dispatchId": "dispatch-001", "jobId": "job-001", "traceId": "trace-001", "kind": "other"},
+    ):
+        assert app.handle(headers, json.dumps(invalid).encode()).status == 400
+    valid = json.dumps(
+        {
+            "dispatchId": "dispatch-001",
+            "jobId": "job-001",
+            "traceId": "trace-001",
+            "kind": "process_job",
+        }
+    ).encode()
+    assert app.handle(headers, valid) == task_server.TaskResponse(
+        409, {"state": "busy", "job_id": "job-001"}
+    )
+
+
+def test_google_task_identity_verifier_validates_configuration_and_claims(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(ValueError, match="audience must be HTTPS"):
+        GoogleOidcTaskIdentityVerifier("http://worker", "worker@project.iam.gserviceaccount.com")
+    with pytest.raises(ValueError, match="must be a service account"):
+        GoogleOidcTaskIdentityVerifier("https://worker", "worker@example.com")
+
+    verifier = GoogleOidcTaskIdentityVerifier(
+        "https://worker.internal",
+        "worker@project.iam.gserviceaccount.com",
+    )
+    with pytest.raises(PermissionError, match="bearer identity"):
+        verifier.verify(None)
+
+    claims: dict[str, object] = {
+        "email": "worker@project.iam.gserviceaccount.com",
+        "email_verified": True,
+        "iss": "https://accounts.google.com",
+    }
+
+    def verify_token(token: str, _request: object, *, audience: str) -> dict[str, object]:
+        assert token == "signed-token"  # noqa: S105 - deterministic fake OIDC token
+        assert audience == "https://worker.internal"
+        return claims
+
+    monkeypatch.setattr(id_token, "verify_oauth2_token", verify_token)
+    verifier.verify("Bearer signed-token")
+    claims["email"] = "other@project.iam.gserviceaccount.com"
+    with pytest.raises(PermissionError, match="identity is not authorised"):
+        verifier.verify("Bearer signed-token")
+    claims["email"] = "worker@project.iam.gserviceaccount.com"
+    claims["iss"] = "https://issuer.invalid"
+    with pytest.raises(PermissionError, match="issuer is not authorised"):
+        verifier.verify("Bearer signed-token")
+
+
+def test_production_worker_composition_fails_closed_when_configuration_is_missing() -> None:
+    with pytest.raises(RuntimeError, match=r"IPW_DATABASE_URL.*IPW_GCS_BUCKET"):
+        build_production_application({})

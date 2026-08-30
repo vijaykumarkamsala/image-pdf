@@ -163,8 +163,7 @@ def test_clamav_maps_malicious_timeout_unavailable_and_protocol_errors() -> None
     assert malformed.scan(b"sample").state == "error"
     assert stream_error.scan(b"sample").state == "error"
     assert (
-        ClamAvScanner(host="clamav", socket_factory=timeout_factory).scan(b"x").state
-        == "timeout"
+        ClamAvScanner(host="clamav", socket_factory=timeout_factory).scan(b"x").state == "timeout"
     )
     assert (
         ClamAvScanner(host="clamav", socket_factory=unavailable_factory).scan(b"x").state

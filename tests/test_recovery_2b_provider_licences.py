@@ -4,8 +4,8 @@ import json
 import re
 from pathlib import Path
 
-from ipw.benchmark_runner.licence_register import load_register, register_path
 from ipw.contracts.licence import Disposition
+from ipw.licence_registry import load_release_register
 
 PYTHON_PROVIDER_CLOSURE = {
     "certifi": "2026.7.22",
@@ -53,7 +53,7 @@ def _constraint_versions(path: Path) -> dict[str, str]:
 
 def test_python_provider_closure_is_pinned_registered_and_approved(repo_root: Path) -> None:
     constraints = _constraint_versions(repo_root / "requirements-dev.lock.txt")
-    register = load_register(register_path(repo_root))
+    register = load_release_register(repo_root)
 
     for name, version in PYTHON_PROVIDER_CLOSURE.items():
         assert constraints.get(name) == version, f"{name} is not pinned to {version}"
@@ -67,7 +67,7 @@ def test_python_provider_closure_is_pinned_registered_and_approved(repo_root: Pa
 def test_node_lock_has_exact_provider_sdks_and_reviewed_licences(repo_root: Path) -> None:
     lock = json.loads((repo_root / "package-lock.json").read_text(encoding="utf-8"))
     packages = lock["packages"]
-    register = load_register(register_path(repo_root))
+    register = load_release_register(repo_root)
 
     for package_name, (version, component_id) in NODE_PROVIDER_COMPONENTS.items():
         package = packages[f"node_modules/{package_name}"]
@@ -100,7 +100,7 @@ def test_node_lock_has_exact_provider_sdks_and_reviewed_licences(repo_root: Path
 
 
 def test_clamav_service_is_pinned_and_commercially_approved(repo_root: Path) -> None:
-    component = load_register(register_path(repo_root)).get("clamav-service")
+    component = load_release_register(repo_root).get("clamav-service")
     assert component is not None
     assert component.pinned_version == "1.5.3"
     assert component.disposition is Disposition.APPROVED

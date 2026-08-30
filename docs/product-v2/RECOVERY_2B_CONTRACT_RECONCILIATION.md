@@ -24,7 +24,7 @@ foundation.
 
 ## Contract compatibility
 
-- Product schema `product-v1` advances additively from `1.7.0` to `1.8.0`.
+- Product schema `product-v1` advances additively from `1.7.0` to `1.9.0`.
 - Existing model fields and API resource shapes are preserved. New permission
   values and intake/job models are additive.
 - Benchmark schema `v1`, canonical benchmark identifiers, POC schemas and
@@ -46,4 +46,6 @@ Guest handoff changes ownership and canonical location, not source identity.
 
 Image/PDF editing, OCR, enhancement, AI/models, export, cloud connectors, e-sign,
 payments, native applications and deployment remain outside Recovery 2B. GCS
-and Cloud Tasks are contracts/adapters only and are not called by verification.
+and Cloud Tasks now have executable official-SDK adapters selected by production
+composition. Verification uses deterministic provider fakes and makes no real
+cloud call, so deployment compatibility and credentials remain unapproved.
