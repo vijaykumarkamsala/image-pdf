@@ -17,7 +17,7 @@ def png(width: int = 1, height: int = 1) -> bytes:
     )
 
 
-def test_png_facts_are_derived_without_decoding() -> None:
+def test_png_facts_are_derived_header_first() -> None:
     data = png(20, 10)
     result = inspect_bytes(data, display_name="source.png", expected_media_type="image/png")
 

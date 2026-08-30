@@ -104,37 +104,44 @@ def test_location_rejects_mixed_targets() -> None:
 
 
 def test_upload_owner_boundary_is_exactly_one() -> None:
-    values = {
-        "upload_session_id": "upload-001",
-        "display_name": "source.png",
-        "expected_media_type": "image/png",
-        "expected_byte_size": 67,
-        "bytes_received": 0,
-        "state": UploadSessionState.INITIATED,
-        "constraints": UploadConstraints(
-            allowed_media_types=("image/png", "application/pdf"),
-            max_bytes=10_000,
-            max_pixels=1_000_000,
-            max_pages=20,
-        ),
-        "created_at": "2026-08-30T00:00:00.000Z",
-        "expires_at": "2026-08-30T00:15:00.000Z",
-        "updated_at": "2026-08-30T00:00:00.000Z",
-    }
+    constraints = UploadConstraints(
+        allowed_media_types=("image/png", "application/pdf"),
+        max_bytes=10_000,
+        max_pixels=1_000_000,
+        max_pages=20,
+    )
     actor_upload = UploadSessionRecord(
-        **values,
+        upload_session_id="upload-001",
         owner_kind=UploadOwnerKind.ACTOR,
         workspace_id="workspace-001",
         actor_id="actor-001",
+        display_name="source.png",
+        expected_media_type="image/png",
+        expected_byte_size=67,
+        bytes_received=0,
+        state=UploadSessionState.INITIATED,
+        constraints=constraints,
+        created_at="2026-08-30T00:00:00.000Z",
+        expires_at="2026-08-30T00:15:00.000Z",
+        updated_at="2026-08-30T00:00:00.000Z",
     )
     assert actor_upload.guest_session_id is None
 
     with pytest.raises(ValidationError, match="exactly one owner"):
         UploadSessionRecord(
-            **values,
+            upload_session_id="upload-001",
             owner_kind=UploadOwnerKind.GUEST,
             workspace_id="workspace-001",
             guest_session_id="guest-001",
+            display_name="source.png",
+            expected_media_type="image/png",
+            expected_byte_size=67,
+            bytes_received=0,
+            state=UploadSessionState.INITIATED,
+            constraints=constraints,
+            created_at="2026-08-30T00:00:00.000Z",
+            expires_at="2026-08-30T00:15:00.000Z",
+            updated_at="2026-08-30T00:00:00.000Z",
         )
 
 
