@@ -105,3 +105,5 @@ apps/web/playwright-report/
 # and in the licence register. Reinstall with: python tools/install_libvips.py
 .tools/
 data/local-storage/
+# npm workspace commands run the API with services/api as cwd.
+services/api/data/local-storage/

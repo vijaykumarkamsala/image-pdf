@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { resolve } from "node:path";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -21,7 +22,12 @@ export default defineConfig({
     {
       command: "npm run build --workspace ipw-api && npm run start --workspace ipw-api",
       cwd: "../..",
-      env: { ...process.env, NODE_ENV: "development", IPW_API_PORT: "8780" },
+      env: {
+        ...process.env,
+        NODE_ENV: "development",
+        IPW_API_PORT: "8780",
+        IPW_LOCAL_STORAGE_ROOT: resolve("test-results/private-storage"),
+      },
       port: 8780,
       reuseExistingServer: false,
       timeout: 60_000,

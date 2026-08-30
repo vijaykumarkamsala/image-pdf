@@ -1,5 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 async function identify(page: Page, suffix: string, theme: "light" | "dark" = "light") {
   await page.addInitScript(({ id, selectedTheme }) => {
@@ -39,6 +41,41 @@ test("real API onboarding, project creation, and Default Files journey", async (
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "No files yet" })).toBeVisible();
   await expect(page.getByText("Files you upload, create or save without a project will appear here.")).toBeVisible();
+});
+
+test("real API secure upload becomes a preserved Default Files source", async ({ page }) => {
+  await openWorkspace(page, "upload-journey");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
+  await page.getByRole("button", { name: "Upload", exact: true }).last().click();
+  await expect(page.getByRole("heading", { name: "File ready" })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("link", { name: "Files" }).first().click();
+  await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();
+  await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
+  await expect(page.locator(".testing-status")).toContainText(/1 file.*0 jobs/);
+});
+
+test("an in-flight upload can be cancelled and its temporary source is removed", async ({ page }) => {
+  let releaseTransfer: (() => void) | undefined;
+  await page.route("**/v1/uploads/**", async (route) => {
+    await new Promise<void>((resolve) => { releaseTransfer = resolve; });
+    await route.abort().catch(() => undefined);
+  });
+  await openWorkspace(page, "upload-cancel");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "cancelled.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(4096, 1),
+  });
+  await page.getByRole("button", { name: "Upload", exact: true }).last().click();
+  await expect(page.getByRole("heading", { name: "Uploading securely" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel upload" }).click();
+  await expect(page.getByRole("heading", { name: "Upload cancelled" })).toBeVisible();
+  releaseTransfer?.();
 });
 
 test("customer copy discloses testing and inactive product areas without internal or monetary language", async ({ page }) => {
@@ -146,6 +183,7 @@ for (const theme of ["light", "dark"] as const) {
 const visualCases = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "tablet", width: 768, height: 1024 },
+  { name: "intermediate", width: 638, height: 768 },
   { name: "phone", width: 390, height: 844 },
 ] as const;
 
@@ -155,6 +193,34 @@ for (const viewport of visualCases) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await openWorkspace(page, `visual-${viewport.name}-${theme}`, theme);
       await expect(page).toHaveScreenshot(`workspace-home-${viewport.width}x${viewport.height}-${theme}.png`, screenshotOptions);
+    });
+  }
+}
+
+for (const viewport of visualCases) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`@visual ${viewport.name} ${theme} selected upload dialog`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await openWorkspace(page, `visual-upload-${viewport.name}-${theme}`, theme);
+      await page.getByRole("button", { name: "Upload" }).first().click();
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "visual-proof.png",
+        mimeType: "image/png",
+        buffer: Buffer.alloc(1536, 1),
+      });
+      await expect(page.getByText("visual-proof.png")).toBeVisible();
+      const dimensions = await page.evaluate(() => ({
+        width: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+      }));
+      expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
+      const accessibility = await new AxeBuilder({ page }).analyze();
+      expect(accessibility.violations).toEqual([]);
+      await clearFocus(page);
+      await expect(page).toHaveScreenshot(
+        `workspace-upload-selected-${viewport.width}x${viewport.height}-${theme}.png`,
+        screenshotOptions,
+      );
     });
   }
 }

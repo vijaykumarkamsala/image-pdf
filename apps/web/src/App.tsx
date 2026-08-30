@@ -2,12 +2,13 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import {
   BriefcaseBusiness, CheckCircle2, ChevronDown, CircleDashed, FileStack, FolderKanban, Home,
-  Image, Layers3, Menu, Moon, Plus, Printer, Sun, X,
+  Image, Layers3, Menu, Moon, Plus, Printer, Sun, Upload, X,
 } from "lucide-react";
 import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
 import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiClient.ts";
 import { productFeatureState } from "./boundaries/featureFlags.ts";
+import { UploadDialog } from "./components/UploadDialog.tsx";
 import { futureOutcomes, workspacePath, workspaceRoutes } from "./routes.ts";
 
 type Theme = "light" | "dark";
@@ -57,8 +58,16 @@ function WorkspaceShell({ context, theme, toggleTheme }: {
   context: WorkspaceContextResponse; theme: Theme; toggleTheme: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [fileRefresh, setFileRefresh] = useState(0);
+  const [fileCount, setFileCount] = useState(0);
   const id = context.workspace.workspace_id;
   const navIcons = [Home, FolderKanban, FileStack];
+  useEffect(() => {
+    let active = true;
+    api.files(id).then((result) => { if (active) setFileCount(result.files.length); }, () => undefined);
+    return () => { active = false; };
+  }, [id, fileRefresh]);
   return (
     <div className="workspace-shell">
       <aside className={mobileOpen ? "sidebar open" : "sidebar"}>
@@ -76,7 +85,7 @@ function WorkspaceShell({ context, theme, toggleTheme }: {
             );
           })}
         </nav>
-        <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>0 files &middot; 0 jobs</span></div></div>
+        <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; 0 jobs</span></div></div>
       </aside>
       {mobileOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
       <div className="workspace-main">
@@ -89,31 +98,37 @@ function WorkspaceShell({ context, theme, toggleTheme }: {
           </div>
         </header>
         <Routes>
-          <Route path="/w/:workspaceId" element={<WorkspaceHome context={context} />} />
+          <Route path="/w/:workspaceId" element={<WorkspaceHome context={context} onUpload={() => setUploadOpen(true)} />} />
           <Route path="/w/:workspaceId/projects" element={<ProjectsPage />} />
-          <Route path="/w/:workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} />} />
+          <Route path="/w/:workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} />} />
           <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
         </Routes>
       </div>
-      <nav className="mobile-nav" aria-label="Workspace navigation">
+      <nav className="mobile-nav" aria-label="Mobile workspace navigation">
         {workspaceRoutes.map((route, index) => {
           const Icon = navIcons[index];
           return <NavLink aria-label={route.label} key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)}><Icon aria-hidden="true" /><span>{route.label}</span></NavLink>;
         })}
       </nav>
+      <UploadDialog
+        open={uploadOpen}
+        workspaceId={id}
+        onOpenChange={setUploadOpen}
+        onReady={() => setFileRefresh((value) => value + 1)}
+      />
     </div>
   );
 }
 
 const outcomeIcons = [Image, Layers3, FileStack, Printer];
 
-function WorkspaceHome({ context }: { context: WorkspaceContextResponse }) {
+function WorkspaceHome({ context, onUpload }: { context: WorkspaceContextResponse; onUpload: () => void }) {
   const navigate = useNavigate();
   return (
     <main className="page" data-testid="workspace-home">
       <section className="page-heading home-heading">
         <div><p className="eyebrow">Good afternoon, {context.actor.display_name.split(" ")[0]}</p><h1>What will you make today?</h1></div>
-        <button className="button primary" onClick={() => navigate(workspacePath(context.workspace.workspace_id, "projects"))}><Plus aria-hidden="true" />New project</button>
+        <div className="heading-actions"><button className="button" onClick={onUpload}><Upload aria-hidden="true" />Upload</button><button className="button primary" onClick={() => navigate(workspacePath(context.workspace.workspace_id, "projects"))}><Plus aria-hidden="true" />New project</button></div>
       </section>
       <section aria-labelledby="create-heading">
         <div className="section-heading"><h2 id="create-heading">Start creating</h2></div>
@@ -182,17 +197,17 @@ function ProjectsPage() {
   );
 }
 
-function FilesPage({ defaultFilesName }: { defaultFilesName: string }) {
+function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: string; refresh: number; onUpload: () => void }) {
   const { workspaceId = "" } = useParams();
   const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  useEffect(() => { api.files(workspaceId).then((result) => setFiles(result.files), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable"))); }, [workspaceId]);
+  useEffect(() => { api.files(workspaceId).then((result) => setFiles(result.files), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable"))); }, [workspaceId, refresh]);
   return (
     <main className="page" data-testid="files-page">
-      <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files without a project live here.</p></div></section>
+      <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files without a project live here.</p></div><button className="button primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</button></section>
       {error && <div className="inline-error" role="alert">{error.message}</div>}
       {files === null ? <div className="content-loading" aria-busy="true">Loading files...</div> : files.length === 0 ? (
-        <section className="empty-state"><span className="state-icon"><FileStack aria-hidden="true" /></span><h2>No files yet</h2><p>Files you upload, create or save without a project will appear here.</p></section>
+        <section className="empty-state"><span className="state-icon"><FileStack aria-hidden="true" /></span><h2>No files yet</h2><p>Files you upload, create or save without a project will appear here.</p><button className="button primary" onClick={onUpload}><Upload aria-hidden="true" />Upload a file</button></section>
       ) : (
         <div className="file-table" role="table" aria-label="Workspace files"><div className="file-row file-header" role="row"><span>Name</span><span>Location</span><span>Source</span></div>{files.map((file) => <div className="file-row" role="row" key={file.file_id}><span className="file-name"><FileStack aria-hidden="true" />{file.display_name}</span><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span><span>{file.current_source_version_id}</span></div>)}</div>
       )}
