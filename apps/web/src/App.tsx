@@ -23,7 +23,11 @@ import { HeaderOperations, JobsPage, SignedWorkspaceHome } from "./components/Op
 import { OutcomeGrid } from "./components/OutcomeGrid";
 import { UploadDialog } from "./components/UploadDialog";
 import { Button, Dialog, IconButton, Menu, Popover, StatePanel, TextInput } from "./design-system";
+import { InternalPanelHarness } from "./panels/PanelFramework";
+import { OfflineStatus } from "./pwa/OfflineStatus";
 import { workspacePath, workspaceRoutes } from "./routes";
+
+const developmentBuild = (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV ?? false;
 
 function AppLoading() {
   return <main className="app-center"><StatePanel kind="loading" title="Opening your workspace" message="Resolving your membership and recent work." /></main>;
@@ -217,11 +221,12 @@ function GuestHome() {
 }
 
 export default function App() {
-  return <BrowserRouter><Routes>
+  return <><OfflineStatus /><BrowserRouter><Routes>
     <Route path="/" element={<GuestHome />} />
     <Route path="/guest/upload" element={<GuestHome />} />
     <Route path="/app/*" element={<SignedInApplication />} />
     <Route path="/w/*" element={<SignedInApplication />} />
+    <Route path="/internal/panels" element={developmentBuild ? <InternalPanelHarness /> : <Navigate replace to="/" />} />
     <Route path="*" element={<Navigate replace to="/" />} />
-  </Routes></BrowserRouter>;
+  </Routes></BrowserRouter></>;
 }

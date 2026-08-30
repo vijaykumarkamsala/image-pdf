@@ -268,6 +268,109 @@ test("phone navigation remains operable without page overflow", async ({ page })
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
 });
 
+test("offline status is truthful and accessible", async ({ page }) => {
+  await openWorkspace(page, "offline-status");
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+  const status = page.getByRole("status").filter({ hasText: "You are offline" });
+  await expect(status).toContainText("Interrupted uploads can resume when you reconnect");
+  await expect(status).toContainText("work already accepted by the server remains durable");
+  await expect(status).not.toContainText(/processing continues|upload continues/i);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("internal panel harness restores, constrains, persists and resets layout", async ({ page }) => {
+  await page.goto("/internal/panels");
+  await expect(page.getByRole("heading", { name: "Panel framework" })).toBeVisible();
+  const panel = page.locator('[data-panel-id="inspector"]');
+  await panel.getByRole("button", { name: "Panel position" }).click();
+  await page.getByRole("menuitem", { name: "Dock bottom" }).click();
+  await expect(panel).toHaveClass(/dock-bottom/);
+  await panel.getByRole("button", { name: "Panel position" }).click();
+  await page.getByRole("menuitem", { name: "Dock right" }).click();
+  await expect(panel).toHaveClass(/dock-right/);
+  await panel.getByRole("button", { name: "Panel position" }).click();
+  await page.getByRole("menuitem", { name: "Detach panel" }).click();
+  await expect(panel).toHaveClass(/dock-floating/);
+
+  const header = panel.locator(".panel-window-header");
+  await header.focus();
+  const before = await panel.evaluate((element) => element.getBoundingClientRect().left);
+  const widthBefore = await panel.evaluate((element) => element.getBoundingClientRect().width);
+  await page.keyboard.press("ArrowRight");
+  const after = await panel.evaluate((element) => element.getBoundingClientRect().left);
+  expect(after).toBeGreaterThan(before);
+  await page.keyboard.press("Shift+ArrowRight");
+  const widthAfter = await panel.evaluate((element) => element.getBoundingClientRect().width);
+  expect(widthAfter).toBeGreaterThan(widthBefore);
+  await panel.getByTitle("Collapse panel").click();
+  await expect(panel).toHaveClass(/is-collapsed/);
+  await panel.getByTitle("Expand panel").click();
+
+  await panel.getByTitle("Pin panel").click();
+  await expect(panel.getByTitle("Close panel")).toBeDisabled();
+  await panel.getByTitle("Unpin panel").click();
+  await panel.getByTitle("Close panel").click();
+  const launcher = page.getByRole("button", { name: "Open Layout fixture" });
+  await expect(launcher).toBeFocused();
+  await page.reload();
+  await expect(launcher).toBeVisible();
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await expect(panel).toHaveClass(/dock-left/);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  const tabletBounds = await panel.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom };
+  });
+  expect(tabletBounds.left).toBeGreaterThanOrEqual(0);
+  expect(tabletBounds.right).toBeLessThanOrEqual(768);
+  expect(tabletBounds.top).toBeGreaterThanOrEqual(0);
+  expect(tabletBounds.bottom).toBeLessThanOrEqual(1024);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Secondary fixture" }).click();
+  await expect(page.locator('[data-panel-id="conversation"]')).toHaveClass(/is-active/);
+  const dimensions = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("service worker upgrades shell state, avoids API caching, clears private caches and serves offline fallback", async ({ page, context }) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await caches.open("ipw-shell-obsolete");
+    const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) await new Promise<void>((resolve) => navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true }));
+    await registration.update();
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  const version = await page.evaluate(() => new Promise<string>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event) => resolve(event.data.version);
+    navigator.serviceWorker.controller!.postMessage({ type: "GET_VERSION" }, [channel.port2]);
+  }));
+  expect(version).toBe("ipw-shell-2c-v1");
+  await page.request.get("/v1/health");
+  await page.evaluate(async () => {
+    await caches.open("ipw-private-logout-proof");
+    navigator.serviceWorker.controller!.postMessage({ type: "CLEAR_PRIVATE_CACHES" });
+  });
+  await expect.poll(() => page.evaluate(async () => !(await caches.keys()).includes("ipw-private-logout-proof"))).toBe(true);
+  const cacheEvidence = await page.evaluate(async () => ({
+    names: await caches.keys(),
+    requests: (await Promise.all((await caches.keys()).map(async (name) => (await caches.open(name)).keys()))).flat().map((request) => request.url),
+  }));
+  expect(cacheEvidence.names).not.toContain("ipw-shell-obsolete");
+  expect(cacheEvidence.requests.some((url) => new URL(url).pathname.startsWith("/v1/"))).toBe(false);
+
+  await context.setOffline(true);
+  await page.goto("/offline-proof");
+  await expect(page.getByRole("heading", { name: "You are offline" })).toBeVisible();
+  await context.setOffline(false);
+});
+
 for (const theme of ["light", "dark"] as const) {
   test(`${theme} keyboard focus uses the accessible brand token`, async ({ page }) => {
     await openWorkspace(page, `focus-${theme}`, theme);
