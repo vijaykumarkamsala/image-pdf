@@ -33,4 +33,3 @@ class ObjectWriter(Protocol):
         media_type: str,
         trace: TraceContext,
     ) -> StorageObjectRef: ...
-

@@ -23,4 +23,3 @@ def test_production_safe_register_evaluates_without_benchmark_runner_imports() -
 
     assert decision.permitted is True
     assert decision.effective_disposition is Disposition.APPROVED
-

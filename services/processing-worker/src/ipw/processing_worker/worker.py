@@ -103,7 +103,12 @@ def run_job(
             trace=job.trace,
             idempotency_key=job.idempotency_key,
             processor=processor.facts,
-            error=_error(job, "worker-cancelled", "Job was cancelled before processing.", FailureCategory.CANCELLED),
+            error=_error(
+                job,
+                "worker-cancelled",
+                "Job was cancelled before processing.",
+                FailureCategory.CANCELLED,
+            ),
         )
 
     if job.operation is not None and job.operation not in processor.facts.supports_operations:
@@ -149,4 +154,3 @@ def fake_processor_facts() -> ProcessorFacts:
         deterministic=True,
         commercial_disposition=Disposition.APPROVED,
     )
-

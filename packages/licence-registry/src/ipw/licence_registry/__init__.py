@@ -19,4 +19,3 @@ __all__ = [
     "load_register",
     "register_path",
 ]
-

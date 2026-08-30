@@ -17,4 +17,3 @@ def test_stored_object_keeps_bytes_outside_metadata_contract() -> None:
     assert stored.ref.object_name == "originals/a.png"
     assert stored.data == b"abc"
     assert TraceContext(trace_id="trace-001").trace_id == "trace-001"
-

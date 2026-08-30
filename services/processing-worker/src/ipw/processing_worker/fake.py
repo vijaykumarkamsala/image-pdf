@@ -21,4 +21,3 @@ class DeterministicFakeProcessor:
             processor_id=self.facts.processor_id,
             processor_version=self.facts.version,
         )
-

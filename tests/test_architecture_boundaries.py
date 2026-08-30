@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -30,7 +30,8 @@ TEXT_SUFFIXES = {
 
 
 def _read_manifest(repo_root: Path) -> list[dict[str, Any]]:
-    return tomllib.loads((repo_root / "workspaces.toml").read_text(encoding="utf-8"))["workspace"]
+    parsed = tomllib.loads((repo_root / "workspaces.toml").read_text(encoding="utf-8"))
+    return cast(list[dict[str, Any]], parsed["workspace"])
 
 
 @pytest.fixture(scope="session")

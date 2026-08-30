@@ -17,4 +17,3 @@ __all__ = [
     "ProcessingWorkerResult",
     "run_job",
 ]
-

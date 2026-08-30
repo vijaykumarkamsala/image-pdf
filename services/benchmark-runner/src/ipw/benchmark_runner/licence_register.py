@@ -5,6 +5,7 @@ from __future__ import annotations
 from ipw.licence_registry.register import (
     GateDecision,
     LicenceRegister,
+    RegisterDocument,
     evaluate_assets,
     evaluate_components,
     load_register,
@@ -14,9 +15,9 @@ from ipw.licence_registry.register import (
 __all__ = [
     "GateDecision",
     "LicenceRegister",
+    "RegisterDocument",
     "evaluate_assets",
     "evaluate_components",
     "load_register",
     "register_path",
 ]
-

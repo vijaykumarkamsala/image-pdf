@@ -9,4 +9,3 @@ from __future__ import annotations
 from ipw.storage.boundary import ObjectReader, ObjectWriter, StoredObject
 
 __all__ = ["ObjectReader", "ObjectWriter", "StoredObject"]
-

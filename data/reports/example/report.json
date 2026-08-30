@@ -42,7 +42,7 @@
       "reference_only_count": 3,
       "register_name": "licence-register"
     },
-    "manifest_digest": "mfst_4gcdjvwdena4dh6jh6otsw64j2soramb",
+    "manifest_digest": "mfst_sde6onheuaugcjzglfo3sk5jugqog3mn",
     "manifest_id": "example-corpus",
     "manifest_name": "Example evaluation corpus",
     "manifest_sha256": "8bd497580e54f3f27ded3b2c7dbf4376c23fae145ee987bf5ff58a39ca3972e6",
@@ -54,7 +54,7 @@
       "ai_strong",
       "ai_task_specific"
     ],
-    "policy_digest": "pol_rxw7dmjqmxviymoc3vt7jdcme2iybkra",
+    "policy_digest": "pol_dufwavs6lc2zz6hwmuu66sdrxky6dbyz",
     "rights": {
       "contains_people": 0,
       "contains_sensitive_information": 0,
@@ -63,12 +63,12 @@
       "public_demo_permitted": 1
     },
     "runs": [],
-    "schema_version": "1.5.0",
+    "schema_version": "1.6.0",
     "validation_failure_codes": [],
     "validation_passed": true
   },
-  "identity_digest": "7780955f58433ca7127b9ca2037d876d9d7d8fe9cd8f66bd6bb3bc61759d571f",
-  "report_id": "rep_yieoppeb4lzfvorcmfl6l5u3tuss5ngr",
-  "schema_version": "1.5.0",
+  "identity_digest": "47b36f74512e42e9e9f249d3a6643f00e3987353227609f672ca169478e6ae87",
+  "report_id": "rep_u4gghnpqt7j56rvfabri4eeztvthypua",
+  "schema_version": "1.6.0",
   "tool_version": "0.1.0"
 }

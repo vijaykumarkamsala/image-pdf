@@ -20,4 +20,3 @@ class JobHandler(Protocol):
     """Handle one durable job kind."""
 
     def handle(self, lease: JobLease) -> ProductError | None: ...
-

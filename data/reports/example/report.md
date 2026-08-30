@@ -7,14 +7,14 @@ No image was decoded and no processor was executed to produce this report.
 
 | Field | Value |
 | --- | --- |
-| Report id | `rep_yieoppeb4lzfvorcmfl6l5u3tuss5ngr` |
-| Identity digest | `7780955f58433ca7127b9ca2037d876d9d7d8fe9cd8f66bd6bb3bc61759d571f` |
-| Contract version | 1.5.0 |
+| Report id | `rep_u4gghnpqt7j56rvfabri4eeztvthypua` |
+| Identity digest | `47b36f74512e42e9e9f249d3a6643f00e3987353227609f672ca169478e6ae87` |
+| Contract version | 1.6.0 |
 | Tool version | 0.1.0 |
 | Manifest id | `example-corpus` |
-| Manifest digest | `mfst_4gcdjvwdena4dh6jh6otsw64j2soramb` |
+| Manifest digest | `mfst_sde6onheuaugcjzglfo3sk5jugqog3mn` |
 | Manifest SHA-256 | `8bd497580e54f3f27ded3b2c7dbf4376c23fae145ee987bf5ff58a39ca3972e6` |
-| Policy digest | `pol_rxw7dmjqmxviymoc3vt7jdcme2iybkra` |
+| Policy digest | `pol_dufwavs6lc2zz6hwmuu66sdrxky6dbyz` |
 | Generated at | 1970-01-01T00:00:00+00:00 |
 | Deterministic mode | yes |
 

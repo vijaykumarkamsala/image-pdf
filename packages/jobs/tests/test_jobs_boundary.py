@@ -18,4 +18,3 @@ def test_job_lease_wraps_versioned_processing_job() -> None:
 
     assert lease.job.schema_version == job.schema_version
     assert lease.job.trace.trace_id == "trace-001"
-

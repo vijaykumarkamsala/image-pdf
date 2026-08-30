@@ -9,8 +9,8 @@ from ipw.contracts.operation import OperationKind
 from ipw.contracts.product import (
     AssetOriginal,
     ExportRequest,
-    LicenceReleaseGate,
     JobKind,
+    LicenceReleaseGate,
     ProcessingJob,
     ProcessorFacts,
     ProductError,
