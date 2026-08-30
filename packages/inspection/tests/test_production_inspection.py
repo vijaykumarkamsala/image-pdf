@@ -4,7 +4,50 @@ import struct
 
 import pytest
 
-from ipw.inspection import DeterministicMalwareScanner, InspectionLimits, inspect_bytes
+from ipw.inspection import (
+    ClamAvScanner,
+    DeterministicMalwareScanner,
+    InspectionLimits,
+    RequiredScannerUnavailableError,
+    inspect_bytes,
+    production_malware_scanner,
+)
+
+
+class FakeClamdSocket:
+    def __init__(self, response: bytes, *, fail_on_send: bool = False) -> None:
+        self.response = response
+        self.fail_on_send = fail_on_send
+        self.sent: list[bytes] = []
+        self.timeout: float | None = None
+        self.closed = False
+
+    def settimeout(self, value: float | None) -> None:
+        self.timeout = value
+
+    def sendall(self, data: bytes) -> None:
+        if self.fail_on_send:
+            raise OSError("stream failed")
+        self.sent.append(data)
+
+    def recv(self, _size: int) -> bytes:
+        response, self.response = self.response, b""
+        return response
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeClamdFactory:
+    def __init__(self, connection: FakeClamdSocket) -> None:
+        self.connection = connection
+        self.address: tuple[str, int] | None = None
+        self.timeout: float | None = None
+
+    def __call__(self, address: tuple[str, int], timeout: float) -> FakeClamdSocket:
+        self.address = address
+        self.timeout = timeout
+        return self.connection
 
 
 def png(width: int = 1, height: int = 1) -> bytes:
@@ -73,6 +116,76 @@ def test_deterministic_scanner_recognises_only_the_rights_safe_test_marker() -> 
     assert scanner.scan(b"prefix EICAR-STANDARD-ANTIVIRUS-TEST-FILE suffix").state == "malicious"
 
 
+def test_clamav_instream_protocol_is_bounded_and_closes_the_socket() -> None:
+    connection = FakeClamdSocket(b"stream: OK\x00")
+    factory = FakeClamdFactory(connection)
+    scanner = ClamAvScanner(
+        host="clamav.internal",
+        timeout_seconds=3,
+        chunk_bytes=1_024,
+        socket_factory=factory,
+    )
+
+    result = scanner.scan(b"safe content")
+
+    assert result.state == "clean"
+    assert factory.address == ("clamav.internal", 3310)
+    assert connection.timeout == 3
+    assert connection.sent == [
+        b"zINSTREAM\x00",
+        struct.pack(">I", 12),
+        b"safe content",
+        b"\x00\x00\x00\x00",
+    ]
+    assert connection.closed
+
+
+def test_clamav_maps_malicious_timeout_unavailable_and_protocol_errors() -> None:
+    malicious = ClamAvScanner(
+        host="clamav",
+        socket_factory=FakeClamdFactory(FakeClamdSocket(b"stream: Eicar-Test FOUND\x00")),
+    )
+    malformed = ClamAvScanner(
+        host="clamav", socket_factory=FakeClamdFactory(FakeClamdSocket(b"not clamd\x00"))
+    )
+    stream_error = ClamAvScanner(
+        host="clamav",
+        socket_factory=FakeClamdFactory(FakeClamdSocket(b"", fail_on_send=True)),
+    )
+
+    def timeout_factory(_address: tuple[str, int], _timeout: float) -> FakeClamdSocket:
+        raise TimeoutError("timed out")
+
+    def unavailable_factory(_address: tuple[str, int], _timeout: float) -> FakeClamdSocket:
+        raise OSError("unavailable")
+
+    assert malicious.scan(b"sample").signature == "Eicar-Test"
+    assert malformed.scan(b"sample").state == "error"
+    assert stream_error.scan(b"sample").state == "error"
+    assert (
+        ClamAvScanner(host="clamav", socket_factory=timeout_factory).scan(b"x").state
+        == "timeout"
+    )
+    assert (
+        ClamAvScanner(host="clamav", socket_factory=unavailable_factory).scan(b"x").state
+        == "unavailable"
+    )
+
+
+def test_production_scanner_requires_explicit_valid_clamav_configuration() -> None:
+    with pytest.raises(RequiredScannerUnavailableError):
+        production_malware_scanner({})
+    with pytest.raises(RequiredScannerUnavailableError):
+        production_malware_scanner(
+            {"IPW_MALWARE_SCANNER": "clamav", "IPW_CLAMAV_HOST": "", "IPW_CLAMAV_PORT": "x"}
+        )
+
+    scanner = production_malware_scanner(
+        {"IPW_MALWARE_SCANNER": "clamav", "IPW_CLAMAV_HOST": "clamav.internal"}
+    )
+    assert isinstance(scanner, ClamAvScanner)
+
+
 def jpeg(width: int = 3, height: int = 2) -> bytes:
     return b"\xff\xd8\xff\xc0\x00\x08" + struct.pack(">BHHB", 8, height, width, 3)
 
@@ -121,7 +234,8 @@ def test_unsupported_and_malformed_structures_have_stable_codes(
     assert result.code == code
 
 
-def test_malware_and_scanner_unavailability_fail_closed() -> None:
+@pytest.mark.parametrize("scanner_state", ["unavailable", "timeout", "error"])
+def test_malware_and_scanner_unavailability_fail_closed(scanner_state: str) -> None:
     malicious = inspect_bytes(
         png(),
         display_name="source.png",
@@ -132,7 +246,7 @@ def test_malware_and_scanner_unavailability_fail_closed() -> None:
         png(),
         display_name="source.png",
         expected_media_type="image/png",
-        malware_state="unavailable",
+        malware_state=scanner_state,
     )
 
     assert malicious.code == "malware-detected"

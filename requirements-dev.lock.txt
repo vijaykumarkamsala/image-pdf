@@ -71,3 +71,22 @@ scramp==1.4.17
 asn1crypto==1.5.1
 python-dateutil==2.9.0.post0
 six==1.17.0
+
+# Official Google Cloud Python clients used by private object storage and task
+# authentication, including their complete transitive runtime closure.
+google-cloud-storage==3.13.1
+google-auth==2.57.0
+google-api-core==2.34.0
+google-cloud-core==2.7.0
+google-resumable-media==2.10.2
+google-crc32c==1.8.0
+googleapis-common-protos==1.75.2
+proto-plus==1.28.4
+protobuf==7.36.0
+requests==2.34.2
+charset-normalizer==3.5.1
+idna==3.19
+urllib3==2.7.0
+certifi==2026.7.22
+pyasn1==0.6.4
+pyasn1-modules==0.4.2

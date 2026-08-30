@@ -198,10 +198,11 @@ def _workspace_dependencies(repo_root: Path) -> dict[str, set[str]]:
 #   numpy     POC-006  the array hand-off between Pillow and torch; also the
 #                      arithmetic behind PSNR and SSIM from POC-007
 #   cryptography
-#             APP-007  RSA-SHA256, for signing Google Cloud Storage upload URLs.
-#                      Chosen over google-cloud-storage, which would have added
-#                      seventeen packages - protobuf, requests, urllib3 and the
-#                      rest - to do the same job. See ipw.workspace_api.storage.
+#             APP-007  protection for resumable-session authorization at rest.
+#   google-cloud-storage
+#             Recovery 2B official ADC-backed private object client.
+#   google-auth
+#             Recovery 2B authenticated Cloud Tasks request verification.
 #   pg8000    APP-008  the PostgreSQL driver, in pure Python. Preferred over
 #                      psycopg and psycopg2, which are LGPL-3.0 and would put a
 #                      copyleft component in the runtime path of every request.
@@ -220,6 +221,8 @@ APPROVED_RUNTIME_DEPENDENCIES = {
     "torch",
     "numpy",
     "cryptography",
+    "google-auth",
+    "google-cloud-storage",
     "pg8000",
 }
 

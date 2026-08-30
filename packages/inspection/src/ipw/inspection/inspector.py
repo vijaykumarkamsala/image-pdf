@@ -191,7 +191,7 @@ def inspect_bytes(
         return _reject("extension-mismatch", "The file name does not match its contents")
     if malware_state == "malicious":
         return _reject("malware-detected", "The file was rejected by the safety scan")
-    if malware_state == "unavailable":
+    if malware_state in {"unavailable", "timeout", "error"}:
         return _reject("scanner-unavailable", "The required safety scanner is unavailable")
 
     digest = hashlib.sha256(data).hexdigest()

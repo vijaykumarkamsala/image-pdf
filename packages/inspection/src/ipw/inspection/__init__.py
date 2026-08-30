@@ -8,6 +8,7 @@ from ipw.inspection.inspector import (
     inspect_bytes,
 )
 from ipw.inspection.malware import (
+    ClamAvScanner,
     DeterministicMalwareScanner,
     MalwareScan,
     MalwareScanner,
@@ -16,6 +17,7 @@ from ipw.inspection.malware import (
 )
 
 __all__ = [
+    "ClamAvScanner",
     "DeterministicMalwareScanner",
     "InspectionLimits",
     "InspectionOutcome",
