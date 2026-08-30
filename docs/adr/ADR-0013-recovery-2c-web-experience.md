@@ -16,9 +16,10 @@ panel framework and truthful PWA behavior without implementing editors.
    semantic-token/component design system inside that workspace.
 2. Make `/` the public guest home. Authenticated workspace routes remain under
    `/w/:workspaceId` and expose only Home, Projects, Files and Jobs.
-3. Add one additive Recovery 2C experience migration for notifications,
-   classification corrections and supporting indexes. Home, attention and
-   search are server-authoritative projections over existing product records.
+3. Add narrow additive Recovery 2C migrations for classification presentation,
+   notifications and supporting indexes, plus a guarded retry transition. Home,
+   attention and search are server-authoritative projections over existing
+   product records.
 4. Store notification read state durably and scope every projection by actor
    membership and workspace. Search uses typed, paginated results and cannot
    query another workspace through client filters.

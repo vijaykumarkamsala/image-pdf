@@ -159,9 +159,9 @@ export class PostgresExperienceRepository implements ExperienceRepository {
       `SELECT notification.*,reads.read_at FROM notifications notification
        LEFT JOIN notification_reads reads ON reads.notification_id=notification.notification_id AND reads.actor_id=$2
        WHERE notification.workspace_id=$1
-         AND ($3::timestamptz IS NULL OR (notification.occurred_at,notification.notification_id)<($3::timestamptz,$4))
-       ORDER BY notification.occurred_at DESC,notification.notification_id DESC LIMIT $5`,
-      [workspaceId, actorId, cursor?.occurredAt ?? null, cursor?.resourceId ?? "", limit + 1],
+         AND ($3::timestamptz IS NULL OR (notification.occurred_at,notification.kind,notification.notification_id)<($3::timestamptz,$4,$5))
+       ORDER BY notification.occurred_at DESC,notification.kind DESC,notification.notification_id DESC LIMIT $6`,
+      [workspaceId, actorId, cursor?.occurredAt ?? null, cursor?.kind ?? "~", cursor?.resourceId ?? "", limit + 1],
     );
     const count = await this.pool.query(
       `SELECT count(*)::integer AS unread FROM notifications notification
@@ -175,6 +175,7 @@ export class PostgresExperienceRepository implements ExperienceRepository {
       nextCursor: result.rows.length > limit && notifications.length ? encodeExperienceCursor({
         occurredAt: notifications.at(-1)!.occurred_at,
         resourceId: notifications.at(-1)!.notification_id,
+        kind: notifications.at(-1)!.kind,
       }) : null,
       unreadCount: Number(count.rows[0]?.["unread"] ?? 0),
     };

@@ -58,6 +58,8 @@ Recovery 2C is governed by Sequence C of
 product-owner approval dated 31 August 2026. Its pre-implementation
 reconciliation record is `RECOVERY_2C_CONTRACT_RECONCILIATION.md`. Recovery 2A
 and 2B records remain authoritative history for their delivered foundations.
+Delivered Recovery 2C evidence is recorded in
+`../recovery/RECOVERY_2C_PRODUCTION_WEB_AND_INTELLIGENT_INTAKE.md`.
 
 The files under `visual-reference/` are approved documentation and design
 evidence only. Production React code must not import or copy their HTML.

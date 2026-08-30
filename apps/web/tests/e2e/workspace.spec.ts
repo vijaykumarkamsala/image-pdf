@@ -509,3 +509,47 @@ test("@visual desktop light Projects with one created project", async ({ page })
   await clearFocus(page);
   await expect(page).toHaveScreenshot("workspace-projects-created-1440x900-light.png", screenshotOptions);
 });
+
+test("@visual desktop dark verified intelligent intake", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "visual-intake-ready", "dark");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible();
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-intake-ready-1440x900-dark.png", screenshotOptions);
+});
+
+test("@visual desktop light completed Jobs", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "visual-completed-jobs");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("link", { name: "Jobs" }).first().click();
+  await page.getByRole("tab", { name: "Completed" }).click();
+  await expect(page.getByRole("heading", { name: "File intake check" })).toBeVisible();
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-jobs-completed-1440x900-light.png", screenshotOptions);
+});
+
+test("@visual phone dark notification center", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWorkspace(page, "visual-phone-notifications", "dark");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: /unread notifications/ }).click();
+  await expect(page.locator(".notification-popover")).toBeVisible();
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-notifications-390x844-dark.png", screenshotOptions);
+});

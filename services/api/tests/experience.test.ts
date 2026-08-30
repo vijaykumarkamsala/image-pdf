@@ -115,6 +115,8 @@ test("Home, notifications, search and feature state are derived from real worksp
     const notifications = await json(await server.request(`/workspaces/${workspaceId}/notifications?limit=1`));
     assert.equal(notifications.notifications.length, 1);
     assert.ok(notifications.next_cursor);
+    const orderedNotifications = await json(await server.request(`/workspaces/${workspaceId}/notifications?limit=10`));
+    assert.deepEqual(orderedNotifications.notifications.slice(0, 2).map((item: any) => item.kind), ["upload_accepted", "job_completed"]);
     const readOptions = { method: "POST", headers: { "idempotency-key": "notification-read" } };
     const firstRead = await json(await server.request(
       `/workspaces/${workspaceId}/notifications/${notifications.notifications[0].notification_id}/read`,

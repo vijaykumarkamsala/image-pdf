@@ -238,6 +238,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .search-result-icon svg { width: 17px; }
 
 .notification-trigger { position: relative; display: grid; place-items: center; width: 44px; height: 44px; }
+.notification-center { width: 44px; height: 44px; }
 .notification-trigger > svg { width: 19px; }
 .notification-trigger > span { position: absolute; top: 3px; right: 1px; display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 4px; border: 2px solid var(--color-surface); border-radius: 10px; color: var(--color-brand-contrast); background: var(--color-brand); font-size: 9px; font-weight: 800; }
 .notification-popover { display: grid; max-height: min(520px, calc(100vh - 92px)); overflow-y: auto; }
@@ -405,6 +406,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .search-results > div > button { grid-template-columns: 34px minmax(0, 1fr); }
   .search-results .ds-badge { grid-column: 2; justify-self: start; }
   .notification-popover { max-height: min(470px, calc(100vh - 72px)); }
+  .notification-center .ds-popover { position: fixed; inset: 60px 8px auto; width: auto; }
   .attention-list > button, .home-job-list > button { grid-template-columns: 30px minmax(0, 1fr); }
   .attention-list .ds-badge, .home-job-list .ds-badge { grid-column: 2; justify-self: start; }
   .section-heading { align-items: flex-start; }

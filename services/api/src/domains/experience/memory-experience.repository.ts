@@ -96,9 +96,11 @@ export class MemoryExperienceRepository implements ExperienceRepository {
     const ordered = [...this.projectedNotifications.values()]
       .filter((item) => item.workspace_id === workspaceId)
       .sort((left, right) => right.occurred_at.localeCompare(left.occurred_at)
+        || right.kind.localeCompare(left.kind)
         || right.notification_id.localeCompare(left.notification_id))
       .filter((item) => !cursor || item.occurred_at < cursor.occurredAt
-        || (item.occurred_at === cursor.occurredAt && item.notification_id < cursor.resourceId));
+        || (item.occurred_at === cursor.occurredAt && (item.kind < (cursor.kind ?? "~")
+          || (item.kind === cursor.kind && item.notification_id < cursor.resourceId))));
     const page = ordered.slice(0, limit + 1);
     const notifications = page.slice(0, limit).map((item) => ({
       ...item,
@@ -109,7 +111,7 @@ export class MemoryExperienceRepository implements ExperienceRepository {
     return {
       notifications,
       nextCursor: page.length > limit && notifications.length
-        ? encodeExperienceCursor({ occurredAt: notifications.at(-1)!.occurred_at, resourceId: notifications.at(-1)!.notification_id })
+        ? encodeExperienceCursor({ occurredAt: notifications.at(-1)!.occurred_at, resourceId: notifications.at(-1)!.notification_id, kind: notifications.at(-1)!.kind })
         : null,
       unreadCount,
     };

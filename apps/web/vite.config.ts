@@ -26,6 +26,11 @@ export default defineConfig({
       "/v1": "http://127.0.0.1:8780",
     },
   },
+  preview: {
+    proxy: {
+      "/v1": "http://127.0.0.1:8780",
+    },
+  },
   build: {
     sourcemap: true,
   },
