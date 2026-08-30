@@ -17,9 +17,30 @@ import {
 } from "./guest-handoff.repository.js";
 import {
   LocalFilesystemPrivateObjectStore,
+  GcsPrivateObjectStore,
   MemoryPrivateObjectStore,
   PRIVATE_OBJECT_STORE,
+  ResumableSessionProtector,
 } from "./private-object-store.js";
+import { GcsSdkPrivateClient } from "./gcs-private-client.js";
+
+export function createPrivateObjectStore(env: NodeJS.ProcessEnv) {
+  if (env["NODE_ENV"] === "test") return new MemoryPrivateObjectStore();
+  if (env["NODE_ENV"] === "production") {
+    const bucket = env["IPW_GCS_BUCKET"];
+    const secret = env["IPW_UPLOAD_SESSION_SECRET"];
+    if (!bucket || !secret) {
+      throw new Error("IPW_GCS_BUCKET and IPW_UPLOAD_SESSION_SECRET are required in production");
+    }
+    return new GcsPrivateObjectStore(
+      new GcsSdkPrivateClient({ bucket, projectId: env["IPW_GCP_PROJECT_ID"] }),
+      new ResumableSessionProtector(secret),
+    );
+  }
+  return new LocalFilesystemPrivateObjectStore(
+    resolve(env["IPW_LOCAL_STORAGE_ROOT"] ?? "data/local-storage/product-v2"),
+  );
+}
 
 @Module({
   imports: [KernelModule, IdentityModule],
@@ -38,15 +59,7 @@ import {
     },
     {
       provide: PRIVATE_OBJECT_STORE,
-      useFactory() {
-        if (process.env["NODE_ENV"] === "test") return new MemoryPrivateObjectStore();
-        if (process.env["NODE_ENV"] === "production") {
-          throw new Error("A configured private GCS object-store adapter is required in production");
-        }
-        return new LocalFilesystemPrivateObjectStore(
-          resolve(process.env["IPW_LOCAL_STORAGE_ROOT"] ?? "data/local-storage/product-v2"),
-        );
-      },
+      useFactory: () => createPrivateObjectStore(process.env),
     },
     {
       provide: GUEST_HANDOFF_REPOSITORY,

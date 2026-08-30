@@ -156,7 +156,7 @@ export function UploadDialog({ open, workspaceId, onOpenChange, onReady }: Uploa
       setUpload(created.upload_session);
       setPhase("uploading");
       transfer.current = new AbortController();
-      const uploaded = await api.transferFile(
+      const transferred = await api.transferFile(
         created.authorization,
         file,
         created.upload_session.bytes_received,
@@ -164,7 +164,11 @@ export function UploadDialog({ open, workspaceId, onOpenChange, onReady }: Uploa
         transfer.current.signal,
       );
       transfer.current = null;
-      setUpload(uploaded);
+      setUpload(transferred.uploadSession ?? {
+        ...created.upload_session,
+        bytes_received: transferred.bytesReceived,
+        state: "uploading",
+      });
       setPhase("queued");
       const finalised = await api.finaliseUpload(created.upload_session.upload_session_id, operationTrace);
       setUpload(finalised.upload_session);

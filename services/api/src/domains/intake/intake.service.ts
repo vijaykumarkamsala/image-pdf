@@ -23,8 +23,11 @@ import { INTAKE_REPOSITORY, type IntakeOwner, type IntakeRepository } from "./in
 import type { StoredUploadSession } from "./intake.types.js";
 import {
   PRIVATE_OBJECT_STORE,
+  UploadChecksumMismatch,
   UploadLimitExceeded,
   UploadOffsetConflict,
+  UploadSizeMismatch,
+  type UploadAuthorizationInput,
   type PrivateObjectStore,
 } from "./private-object-store.js";
 import {
@@ -103,6 +106,58 @@ export class IntakeService implements OnApplicationShutdown {
     return { schema_version: PRODUCT_SCHEMA_VERSION, upload_session: stored.record };
   }
 
+  async resume(
+    headers: Headers,
+    uploadSessionId: string,
+  ): Promise<{ schema_version: string; authorization: UploadSessionCreated["authorization"]; upload_session: UploadSessionRecord }> {
+    const id = requireId(uploadSessionId, "upload session id");
+    const stored = await this.requireAccessible(headers, id);
+    if (!["initiated", "uploading"].includes(stored.record.state)) {
+      throw new DomainError(409, "upload-not-resumable", "This upload can no longer be resumed");
+    }
+    const resumeToken = this.token();
+    const expiresAt = this.after(this.runtime.now(), 15 * 60);
+    const owner = this.owner(stored.record);
+    const rotated = await this.repository.rotateUploadToken(
+      id,
+      owner,
+      this.hash(resumeToken),
+      expiresAt,
+      this.runtime.now(),
+    );
+    const authorization = await this.objects.resumeUpload(
+      rotated.quarantineRef,
+      rotated.protectedProviderSession,
+      this.authorizationInput(rotated.record, resumeToken, expiresAt),
+    );
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      upload_session: rotated.record,
+      authorization: this.publicAuthorization(authorization, resumeToken),
+    };
+  }
+
+  async reconcileForFinalise(headers: Headers, uploadSessionId: string): Promise<StoredUploadSession> {
+    const stored = await this.requireAccessible(headers, requireId(uploadSessionId, "upload session id"));
+    if (stored.record.job_id) return stored;
+    const owner = this.owner(stored.record);
+    try {
+      const metadata = await this.objects.reconcile(
+        stored.quarantineRef,
+        this.authorizationInput(stored.record, "reconciliation-only", this.runtime.now()),
+      );
+      return this.repository.recordProviderObject(stored.record.upload_session_id, owner, metadata, this.runtime.now());
+    } catch (error) {
+      if (error instanceof UploadSizeMismatch) {
+        throw new DomainError(409, "upload-incomplete", `The provider has ${error.providerBytes} of ${stored.record.expected_byte_size} bytes`);
+      }
+      if (error instanceof UploadChecksumMismatch) {
+        throw new DomainError(422, "upload-checksum-mismatch", "The uploaded file does not match its expected checksum");
+      }
+      throw error;
+    }
+  }
+
   async uploadBytes(
     uploadSessionId: string,
     token: string,
@@ -117,6 +172,9 @@ export class IntakeService implements OnApplicationShutdown {
     const tokenHash = this.hash(requireText(token, "upload token", 512));
     const current = await this.repository.findUploadByToken(id, tokenHash, this.runtime.now());
     if (!current) throw new DomainError(401, "upload-authorization-invalid", "Upload authorization is invalid or expired");
+    if (current.transferProvider !== "local_api") {
+      throw new DomainError(409, "upload-provider-conflict", "Use the authorised storage provider for this upload");
+    }
     if (offset !== current.record.bytes_received) {
       throw new DomainError(409, "upload-offset-conflict", `Resume this upload at byte ${current.record.bytes_received}`);
     }
@@ -142,7 +200,7 @@ export class IntakeService implements OnApplicationShutdown {
 
   async cancel(headers: Headers, uploadSessionId: string): Promise<{ schema_version: string; upload_session: UploadSessionRecord }> {
     const id = requireId(uploadSessionId, "upload session id");
-    const stored = await this.requireAccessible(headers, id);
+    const stored = await this.requireAccessible(headers, id, "upload.cancel");
     const owner = this.owner(stored.record);
     const cancelled = await this.repository.cancelUpload(id, owner, this.runtime.now());
     await this.objects.remove(cancelled.quarantineRef);
@@ -252,6 +310,7 @@ export class IntakeService implements OnApplicationShutdown {
     const displayName = this.fileName(body["display_name"]);
     const expectedMediaType = requireText(body["media_type"], "media type", 200).toLowerCase();
     const expectedByteSize = requireByteSize(body["byte_size"]);
+    const expectedSha256 = this.optionalSha256(body["expected_sha256"]);
     if (expectedByteSize < 1 || expectedByteSize > CONSTRAINTS.max_bytes) {
       throw new DomainError(413, "upload-too-large", "Choose a file smaller than 100 MB");
     }
@@ -272,6 +331,8 @@ export class IntakeService implements OnApplicationShutdown {
       display_name: displayName,
       expected_media_type: expectedMediaType,
       expected_byte_size: expectedByteSize,
+      expected_sha256: expectedSha256,
+      verified_sha256: null,
       bytes_received: 0,
       state: "initiated",
       constraints: CONSTRAINTS,
@@ -291,6 +352,7 @@ export class IntakeService implements OnApplicationShutdown {
       displayName,
       expectedMediaType,
       expectedByteSize,
+      expectedSha256,
     });
     try {
       const created = await this.repository.createUpload(
@@ -299,6 +361,9 @@ export class IntakeService implements OnApplicationShutdown {
           quarantineRef,
           uploadTokenHash: this.hash(uploadToken),
           uploadTokenExpiresAt,
+          transferProvider: this.objects.provider,
+          protectedProviderSession: null,
+          providerMetadata: null,
         },
         {
           ownerScope: owner.ownerScope,
@@ -321,12 +386,25 @@ export class IntakeService implements OnApplicationShutdown {
       } else if (owner.ownerKind === "actor") {
         await this.product.recordExternalMutation(command, owner.workspaceId!, "upload.created", "upload_session", uploadSessionId);
       }
-      const authorization = await this.objects.authorizeUpload(
-        active.quarantineRef,
-        active.record.upload_session_id,
-        uploadToken,
-        uploadTokenExpiresAt,
-      );
+      const authorization = created.replayed
+        ? await this.objects.resumeUpload(
+          active.quarantineRef,
+          active.protectedProviderSession,
+          this.authorizationInput(active.record, uploadToken, uploadTokenExpiresAt),
+        )
+        : await this.objects.authorizeUpload(
+          active.quarantineRef,
+          this.authorizationInput(active.record, uploadToken, uploadTokenExpiresAt),
+        );
+      if (!created.replayed) {
+        active = await this.repository.setUploadProviderState(
+          active.record.upload_session_id,
+          owner,
+          authorization.provider,
+          authorization.protectedProviderSession ?? null,
+          now,
+        );
+      }
       const commandResult: IdempotentCommandResult = {
         schema_version: PRODUCT_SCHEMA_VERSION,
         idempotency_key: command.idempotencyKey,
@@ -337,14 +415,7 @@ export class IntakeService implements OnApplicationShutdown {
       return {
         schema_version: PRODUCT_SCHEMA_VERSION,
         upload_session: active.record,
-        authorization: {
-          schema_version: PRODUCT_SCHEMA_VERSION,
-          transfer_kind: "resumable",
-          method: authorization.method,
-          upload_url: authorization.uploadUrl,
-          expires_at: authorization.expiresAt,
-          required_headers: authorization.requiredHeaders,
-        },
+        authorization: this.publicAuthorization(authorization, uploadToken),
         command: commandResult,
       };
     } catch (error) {
@@ -353,7 +424,7 @@ export class IntakeService implements OnApplicationShutdown {
     }
   }
 
-  private async requireAccessible(headers: Headers, uploadSessionId: string) {
+  private async requireAccessible(headers: Headers, uploadSessionId: string, permission = "upload.read") {
     const guestToken = this.header(headers, "x-ipw-guest-token");
     if (guestToken) {
       const guest = await this.repository.findGuest(this.hash(guestToken), this.runtime.now());
@@ -370,7 +441,7 @@ export class IntakeService implements OnApplicationShutdown {
     const stored = await this.repository.findUploadByActor(uploadSessionId, principal.actorId);
     if (!stored?.record.workspace_id) throw new DomainError(404, "upload-not-found", "Upload session was not found");
     const context = await this.product.workspaceContext(principal.actorId, stored.record.workspace_id);
-    if (!context?.effectivePermissions.some((item) => item.permission === "upload.read" && item.allowed)) {
+    if (!context?.effectivePermissions.some((item) => item.permission === permission && item.allowed)) {
       throw new DomainError(404, "upload-not-found", "Upload session was not found");
     }
     return stored;
@@ -407,6 +478,47 @@ export class IntakeService implements OnApplicationShutdown {
       throw new DomainError(400, "filename-invalid", "Choose a file with a valid name");
     }
     return name;
+  }
+
+  private optionalSha256(value: unknown): string | null {
+    if (value === undefined || value === null || value === "") return null;
+    const digest = requireText(value, "expected SHA-256", 64).toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(digest)) {
+      throw new DomainError(400, "checksum-invalid", "Expected SHA-256 must contain 64 hexadecimal characters");
+    }
+    return digest;
+  }
+
+  private authorizationInput(
+    record: UploadSessionRecord,
+    resumeToken: string,
+    expiresAt: string,
+  ): UploadAuthorizationInput {
+    return {
+      uploadSessionId: record.upload_session_id,
+      resumeToken,
+      expiresAt,
+      expectedByteSize: record.expected_byte_size,
+      expectedMediaType: record.expected_media_type,
+      expectedSha256: record.expected_sha256 ?? null,
+    };
+  }
+
+  private publicAuthorization(
+    authorization: Awaited<ReturnType<PrivateObjectStore["authorizeUpload"]>>,
+    resumeToken: string,
+  ): UploadSessionCreated["authorization"] {
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      transfer_kind: "resumable",
+      provider: authorization.provider,
+      protocol: authorization.protocol,
+      method: authorization.method,
+      upload_url: authorization.uploadUrl,
+      expires_at: authorization.expiresAt,
+      resume_token: resumeToken,
+      required_headers: authorization.requiredHeaders,
+    };
   }
 
   private header(headers: Headers, name: string): string | undefined {

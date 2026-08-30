@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import { appendFile, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
@@ -9,23 +9,47 @@ export interface PrivateObjectRef {
   ownerScope: string;
   objectKey: string;
   zone: ObjectZone;
+  generation?: string;
 }
 
 export interface UploadAuthorizationResult {
   method: "PUT";
+  provider: "local_api" | "google_cloud_storage";
+  protocol: "ipw_offset_json" | "gcs_resumable";
   uploadUrl: string;
   expiresAt: string;
   requiredHeaders: Record<string, string>;
+  protectedProviderSession?: string;
+}
+
+export interface UploadAuthorizationInput {
+  uploadSessionId: string;
+  resumeToken: string;
+  expiresAt: string;
+  expectedByteSize: number;
+  expectedMediaType: string;
+  expectedSha256: string | null;
+}
+
+export interface ProviderObjectMetadata {
+  byteSize: number;
+  generation: string;
+  mediaType: string;
+  uploadSessionId: string;
+  expectedSha256: string | null;
+  calculatedSha256: string | null;
 }
 
 export interface PrivateObjectStore {
+  readonly provider: "local_api" | "google_cloud_storage";
   createQuarantine(ownerScope: string, uploadSessionId: string): Promise<PrivateObjectRef>;
-  authorizeUpload(
+  authorizeUpload(ref: PrivateObjectRef, input: UploadAuthorizationInput): Promise<UploadAuthorizationResult>;
+  resumeUpload(
     ref: PrivateObjectRef,
-    uploadSessionId: string,
-    token: string,
-    expiresAt: string,
+    protectedProviderSession: string | null,
+    input: UploadAuthorizationInput,
   ): Promise<UploadAuthorizationResult>;
+  reconcile(ref: PrivateObjectRef, input: UploadAuthorizationInput): Promise<ProviderObjectMetadata>;
   append(ref: PrivateObjectRef, bytes: Uint8Array, expectedOffset: number, maxBytes: number): Promise<number>;
   read(ref: PrivateObjectRef, maxBytes: number): Promise<Uint8Array>;
   promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef>;
@@ -44,6 +68,7 @@ function immutableKey(ownerScope: string, sha256: string): string {
 }
 
 export class MemoryPrivateObjectStore implements PrivateObjectStore {
+  readonly provider = "local_api" as const;
   private readonly objects = new Map<string, Uint8Array>();
 
   async createQuarantine(ownerScope: string, uploadSessionId: string): Promise<PrivateObjectRef> {
@@ -59,15 +84,38 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
 
   async authorizeUpload(
     _ref: PrivateObjectRef,
-    uploadSessionId: string,
-    token: string,
-    expiresAt: string,
+    input: UploadAuthorizationInput,
   ): Promise<UploadAuthorizationResult> {
     return {
       method: "PUT",
-      uploadUrl: `/v1/uploads/${uploadSessionId}/content?token=${encodeURIComponent(token)}`,
-      expiresAt,
+      provider: this.provider,
+      protocol: "ipw_offset_json",
+      uploadUrl: `/v1/uploads/${input.uploadSessionId}/content?token=${encodeURIComponent(input.resumeToken)}`,
+      expiresAt: input.expiresAt,
       requiredHeaders: { "content-type": "application/octet-stream", "upload-offset": "0" },
+    };
+  }
+
+  resumeUpload(
+    ref: PrivateObjectRef,
+    _protectedProviderSession: string | null,
+    input: UploadAuthorizationInput,
+  ): Promise<UploadAuthorizationResult> {
+    return this.authorizeUpload(ref, input);
+  }
+
+  async reconcile(ref: PrivateObjectRef, input: UploadAuthorizationInput): Promise<ProviderObjectMetadata> {
+    const bytes = await this.read(ref, input.expectedByteSize);
+    if (bytes.byteLength !== input.expectedByteSize) throw new UploadSizeMismatch(bytes.byteLength);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    if (input.expectedSha256 && input.expectedSha256 !== sha256) throw new UploadChecksumMismatch();
+    return {
+      byteSize: bytes.byteLength,
+      generation: sha256,
+      mediaType: input.expectedMediaType,
+      uploadSessionId: input.uploadSessionId,
+      expectedSha256: input.expectedSha256,
+      calculatedSha256: sha256,
     };
   }
 
@@ -123,6 +171,7 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
 }
 
 export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
+  readonly provider = "local_api" as const;
   constructor(private readonly root: string) {}
 
   async createQuarantine(ownerScope: string, uploadSessionId: string): Promise<PrivateObjectRef> {
@@ -139,15 +188,38 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
 
   async authorizeUpload(
     _ref: PrivateObjectRef,
-    uploadSessionId: string,
-    token: string,
-    expiresAt: string,
+    input: UploadAuthorizationInput,
   ): Promise<UploadAuthorizationResult> {
     return {
       method: "PUT",
-      uploadUrl: `/v1/uploads/${uploadSessionId}/content?token=${encodeURIComponent(token)}`,
-      expiresAt,
+      provider: this.provider,
+      protocol: "ipw_offset_json",
+      uploadUrl: `/v1/uploads/${input.uploadSessionId}/content?token=${encodeURIComponent(input.resumeToken)}`,
+      expiresAt: input.expiresAt,
       requiredHeaders: { "content-type": "application/octet-stream", "upload-offset": "0" },
+    };
+  }
+
+  resumeUpload(
+    ref: PrivateObjectRef,
+    _protectedProviderSession: string | null,
+    input: UploadAuthorizationInput,
+  ): Promise<UploadAuthorizationResult> {
+    return this.authorizeUpload(ref, input);
+  }
+
+  async reconcile(ref: PrivateObjectRef, input: UploadAuthorizationInput): Promise<ProviderObjectMetadata> {
+    const bytes = await this.read(ref, input.expectedByteSize);
+    if (bytes.byteLength !== input.expectedByteSize) throw new UploadSizeMismatch(bytes.byteLength);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    if (input.expectedSha256 && input.expectedSha256 !== sha256) throw new UploadChecksumMismatch();
+    return {
+      byteSize: bytes.byteLength,
+      generation: sha256,
+      mediaType: input.expectedMediaType,
+      uploadSessionId: input.uploadSessionId,
+      expectedSha256: input.expectedSha256,
+      calculatedSha256: sha256,
     };
   }
 
@@ -222,16 +294,55 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
 }
 
 export interface GcsPrivateClient {
-  createPrivateObject(objectKey: string): Promise<void>;
-  signedWriteUrl(objectKey: string, expiresAt: string): Promise<string>;
-  append(objectKey: string, bytes: Uint8Array, expectedOffset: number, maxBytes: number): Promise<number>;
+  initiateResumableUpload(input: {
+    objectKey: string;
+    uploadSessionId: string;
+    expectedByteSize: number;
+    expectedMediaType: string;
+    expectedSha256: string | null;
+  }): Promise<string>;
+  metadata(objectKey: string): Promise<ProviderObjectMetadata>;
   read(objectKey: string, maxBytes: number): Promise<Uint8Array>;
-  copyIfAbsent(sourceKey: string, targetKey: string): Promise<void>;
-  remove(objectKey: string): Promise<void>;
+  copyIfAbsent(sourceKey: string, sourceGeneration: string, targetKey: string, sha256: string): Promise<string>;
+  remove(objectKey: string, generation?: string): Promise<void>;
+}
+
+export class ResumableSessionProtector {
+  private readonly key: Buffer;
+
+  constructor(secret: string) {
+    if (secret.length < 32) throw new Error("IPW_UPLOAD_SESSION_SECRET must contain at least 32 characters");
+    this.key = createHash("sha256").update(secret, "utf8").digest();
+  }
+
+  protect(uri: string): string {
+    const nonce = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", this.key, nonce);
+    const ciphertext = Buffer.concat([cipher.update(uri, "utf8"), cipher.final()]);
+    return `v1.${Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]).toString("base64url")}`;
+  }
+
+  reveal(protectedValue: string): string {
+    if (!protectedValue.startsWith("v1.")) throw new Error("protected resumable session has an unsupported format");
+    try {
+      const value = Buffer.from(protectedValue.slice(3), "base64url");
+      if (value.byteLength < 29) throw new Error("invalid protected value");
+      const decipher = createDecipheriv("aes-256-gcm", this.key, value.subarray(0, 12));
+      decipher.setAuthTag(value.subarray(12, 28));
+      return Buffer.concat([decipher.update(value.subarray(28)), decipher.final()]).toString("utf8");
+    } catch {
+      throw new Error("protected resumable session could not be decrypted");
+    }
+  }
 }
 
 export class GcsPrivateObjectStore implements PrivateObjectStore {
-  constructor(private readonly client: GcsPrivateClient) {}
+  readonly provider = "google_cloud_storage" as const;
+
+  constructor(
+    private readonly client: GcsPrivateClient,
+    private readonly protector: ResumableSessionProtector,
+  ) {}
 
   async createQuarantine(ownerScope: string, uploadSessionId: string): Promise<PrivateObjectRef> {
     const ref: PrivateObjectRef = {
@@ -239,26 +350,52 @@ export class GcsPrivateObjectStore implements PrivateObjectStore {
       objectKey: `quarantine/${safeSegment(ownerScope, "owner scope")}/${safeSegment(uploadSessionId, "upload id")}`,
       zone: "quarantine",
     };
-    await this.client.createPrivateObject(ref.objectKey);
     return ref;
   }
 
   async authorizeUpload(
     ref: PrivateObjectRef,
-    _uploadSessionId: string,
-    _token: string,
-    expiresAt: string,
+    input: UploadAuthorizationInput,
   ): Promise<UploadAuthorizationResult> {
+    const uri = await this.client.initiateResumableUpload({ objectKey: ref.objectKey, ...input });
     return {
       method: "PUT",
-      uploadUrl: await this.client.signedWriteUrl(ref.objectKey, expiresAt),
-      expiresAt,
-      requiredHeaders: { "content-type": "application/octet-stream" },
+      provider: this.provider,
+      protocol: "gcs_resumable",
+      uploadUrl: uri,
+      expiresAt: input.expiresAt,
+      requiredHeaders: { "content-type": input.expectedMediaType },
+      protectedProviderSession: this.protector.protect(uri),
     };
   }
 
-  append(ref: PrivateObjectRef, bytes: Uint8Array, expectedOffset: number, maxBytes: number): Promise<number> {
-    return this.client.append(ref.objectKey, bytes, expectedOffset, maxBytes);
+  async resumeUpload(
+    _ref: PrivateObjectRef,
+    protectedProviderSession: string | null,
+    input: UploadAuthorizationInput,
+  ): Promise<UploadAuthorizationResult> {
+    if (!protectedProviderSession) throw new Error("resumable provider session is unavailable");
+    return {
+      method: "PUT",
+      provider: this.provider,
+      protocol: "gcs_resumable",
+      uploadUrl: this.protector.reveal(protectedProviderSession),
+      expiresAt: input.expiresAt,
+      requiredHeaders: { "content-type": input.expectedMediaType },
+    };
+  }
+
+  append(_ref: PrivateObjectRef, _bytes: Uint8Array, _expectedOffset: number, _maxBytes: number): Promise<number> {
+    throw new Error("GCS resumable transfers must be sent directly to the provider");
+  }
+
+  async reconcile(ref: PrivateObjectRef, input: UploadAuthorizationInput): Promise<ProviderObjectMetadata> {
+    const metadata = await this.client.metadata(ref.objectKey);
+    if (metadata.byteSize !== input.expectedByteSize) throw new UploadSizeMismatch(metadata.byteSize);
+    if (metadata.uploadSessionId !== input.uploadSessionId) throw new Error("provider upload-session metadata mismatch");
+    if (metadata.mediaType !== input.expectedMediaType) throw new Error("provider media-type metadata mismatch");
+    if (metadata.expectedSha256 !== input.expectedSha256) throw new Error("provider checksum metadata mismatch");
+    return metadata;
   }
 
   read(ref: PrivateObjectRef, maxBytes: number): Promise<Uint8Array> {
@@ -266,13 +403,14 @@ export class GcsPrivateObjectStore implements PrivateObjectStore {
   }
 
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {
+    if (!ref.generation) throw new Error("source generation is required for conditional promotion");
     const target = { ownerScope: ref.ownerScope, objectKey: immutableKey(ref.ownerScope, sha256), zone: "immutable" as const };
-    await this.client.copyIfAbsent(ref.objectKey, target.objectKey);
-    return target;
+    const generation = await this.client.copyIfAbsent(ref.objectKey, ref.generation, target.objectKey, sha256);
+    return { ...target, generation };
   }
 
   remove(ref: PrivateObjectRef): Promise<void> {
-    return this.client.remove(ref.objectKey);
+    return this.client.remove(ref.objectKey, ref.generation);
   }
 
   async rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef> {
@@ -281,8 +419,9 @@ export class GcsPrivateObjectStore implements PrivateObjectStore {
       objectKey: immutableKey(targetOwnerScope, sha256),
       zone: "immutable" as const,
     };
-    await this.client.copyIfAbsent(ref.objectKey, target.objectKey);
-    return target;
+    if (!ref.generation) throw new Error("source generation is required for conditional rehome");
+    const generation = await this.client.copyIfAbsent(ref.objectKey, ref.generation, target.objectKey, sha256);
+    return { ...target, generation };
   }
 }
 
@@ -293,5 +432,17 @@ export class UploadOffsetConflict extends Error {
 }
 
 export class UploadLimitExceeded extends Error {}
+
+export class UploadSizeMismatch extends Error {
+  constructor(readonly providerBytes: number) {
+    super("provider object size does not match the expected upload size");
+  }
+}
+
+export class UploadChecksumMismatch extends Error {
+  constructor() {
+    super("calculated upload checksum does not match the expected checksum");
+  }
+}
 
 export const PRIVATE_OBJECT_STORE = Symbol("PRIVATE_OBJECT_STORE");

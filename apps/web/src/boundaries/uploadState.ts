@@ -66,6 +66,18 @@ export function mediaTypeFor(file: File): string {
   } as Record<string, string>)[extension ?? ""] ?? "";
 }
 
+export function nextGcsOffset(status: number, range: string | null, totalBytes: number): number {
+  if (status >= 200 && status < 300) return totalBytes;
+  if (status !== 308) throw new Error("The file transfer was interrupted");
+  if (!range) return 0;
+  const match = /^bytes=0-(\d+)$/.exec(range.trim());
+  const last = match ? Number(match[1]) : Number.NaN;
+  if (!Number.isSafeInteger(last) || last < 0 || last >= totalBytes) {
+    throw new Error("The storage provider returned an invalid resume position");
+  }
+  return last + 1;
+}
+
 export function parseActiveUpload(value: string | null): ActiveUploadReference | null {
   if (!value) return null;
   try {

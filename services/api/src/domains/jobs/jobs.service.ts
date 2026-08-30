@@ -32,7 +32,7 @@ export class JobsService implements OnApplicationShutdown {
   ) {}
 
   async finalise(headers: Headers, uploadSessionId: string) {
-    const stored = await this.intake.requireForInternal(headers, uploadSessionId);
+    const stored = await this.intake.reconcileForFinalise(headers, uploadSessionId);
     const owner = this.intake.ownerFor(stored.record);
     const now = this.runtime.now();
     const context = this.command(headers, owner, "upload.finalise", { uploadSessionId: stored.record.upload_session_id });

@@ -300,6 +300,16 @@ class UploadTransferKind(StrEnum):
     RESUMABLE = "resumable"
 
 
+class UploadTransferProvider(StrEnum):
+    LOCAL_API = "local_api"
+    GOOGLE_CLOUD_STORAGE = "google_cloud_storage"
+
+
+class UploadTransferProtocol(StrEnum):
+    IPW_OFFSET_JSON = "ipw_offset_json"
+    GCS_RESUMABLE = "gcs_resumable"
+
+
 class UploadSessionState(StrEnum):
     INITIATED = "initiated"
     UPLOADING = "uploading"
@@ -331,6 +341,8 @@ class MalwareScanState(StrEnum):
     CLEAN = "clean"
     MALICIOUS = "malicious"
     UNAVAILABLE = "unavailable"
+    TIMEOUT = "timeout"
+    ERROR = "error"
 
 
 class UploadConstraints(ProductKernelContractModel):
@@ -375,9 +387,12 @@ class IntakeFailure(ProductKernelContractModel):
 
 class UploadAuthorization(ProductKernelContractModel):
     transfer_kind: UploadTransferKind
+    provider: UploadTransferProvider
+    protocol: UploadTransferProtocol
     method: Literal["PUT"] = "PUT"
     upload_url: NonEmptyStr
     expires_at: NonEmptyStr
+    resume_token: NonEmptyStr
     required_headers: dict[str, str] = Field(default_factory=dict)
 
 
@@ -390,6 +405,8 @@ class UploadSessionRecord(ProductKernelContractModel):
     display_name: NonEmptyStr
     expected_media_type: NonEmptyStr
     expected_byte_size: int = Field(ge=1)
+    expected_sha256: Sha256Hex | None = None
+    verified_sha256: Sha256Hex | None = None
     bytes_received: int = Field(ge=0)
     state: UploadSessionState
     constraints: UploadConstraints

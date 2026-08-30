@@ -42,7 +42,7 @@
       "$ref": "#/$defs/Permission"
     },
     "schema_version": {
-      "default": "1.8.0",
+      "default": "1.9.0",
       "title": "Schema Version",
       "type": "string"
     },

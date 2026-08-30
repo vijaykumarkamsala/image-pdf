@@ -34,6 +34,11 @@ export class IntakeController {
     return this.intake.get(headers, uploadSessionId);
   }
 
+  @Post("upload-sessions/:uploadSessionId/resume")
+  resume(@Headers() headers: RequestHeaders, @Param("uploadSessionId") uploadSessionId: string) {
+    return this.intake.resume(headers, uploadSessionId);
+  }
+
   @Delete("upload-sessions/:uploadSessionId")
   cancel(@Headers() headers: RequestHeaders, @Param("uploadSessionId") uploadSessionId: string) {
     return this.intake.cancel(headers, uploadSessionId);

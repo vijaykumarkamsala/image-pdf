@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   mediaTypeFor,
+  nextGcsOffset,
   parseActiveUpload,
   phaseFromRecords,
   presentationFor,
@@ -36,4 +37,12 @@ test("active upload recovery accepts identifiers but rejects malformed state", (
   assert.deepEqual(parseActiveUpload(JSON.stringify(reference)), reference);
   assert.equal(parseActiveUpload('{"uploadSessionId":"upload-001"}'), null);
   assert.equal(parseActiveUpload("not json"), null);
+});
+
+test("GCS resumable responses advance from 308 Range without expecting JSON", () => {
+  assert.equal(nextGcsOffset(308, null, 100), 0);
+  assert.equal(nextGcsOffset(308, "bytes=0-63", 100), 64);
+  assert.equal(nextGcsOffset(200, null, 100), 100);
+  assert.throws(() => nextGcsOffset(308, "bytes=4-63", 100), /invalid resume position/);
+  assert.throws(() => nextGcsOffset(503, null, 100), /interrupted/);
 });

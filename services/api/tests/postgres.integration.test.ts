@@ -151,7 +151,7 @@ test(
 
       const intake = new PostgresIntakeRepository(pool);
       await intake.createGuest(
-        { schema_version: "1.8.0", guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
+        { schema_version: "1.9.0", guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
         "c".repeat(64),
         "2026-08-30T00:00:00.000Z",
       );
@@ -160,7 +160,7 @@ test(
         "guest-pg",
       );
       const uploadRecord = {
-        schema_version: "1.8.0" as const,
+        schema_version: "1.9.0" as const,
         upload_session_id: "upload-pg",
         owner_kind: "actor" as const,
         workspace_id: first.workspace.workspace_id,
@@ -172,7 +172,7 @@ test(
         bytes_received: 0,
         state: "initiated" as const,
         constraints: {
-          schema_version: "1.8.0" as const,
+          schema_version: "1.9.0" as const,
           allowed_media_types: ["image/png"],
           max_bytes: 4,
           max_pixels: 100,
@@ -197,6 +197,9 @@ test(
         },
         uploadTokenHash: "d".repeat(64),
         uploadTokenExpiresAt: "2026-08-30T01:00:00.000Z",
+        transferProvider: "local_api" as const,
+        protectedProviderSession: null,
+        providerMetadata: null,
       };
       const command = {
         ownerScope: first.workspace.workspace_id,
@@ -265,7 +268,7 @@ test(
       );
       const durableJobs = new PostgresDurableJobRepository(pool);
       const jobRecord = {
-        schema_version: "1.8.0" as const,
+        schema_version: "1.9.0" as const,
         job_id: "job-pg",
         kind: "file_intake_inspection" as const,
         owner_kind: "actor" as const,
@@ -332,7 +335,7 @@ test(
       const retry = await durableJobs.fail(
         "job-pg",
         "3".repeat(64),
-        { schema_version: "1.8.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        { schema_version: "1.9.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
         "2026-08-30T00:07:40.000Z",
         "2026-08-30T00:10:00.000Z",
         "trace-postgres-job",
@@ -407,7 +410,7 @@ test(
         "trace-postgres-accepted",
       );
       const sourceFacts = {
-        schema_version: "1.8.0" as const,
+        schema_version: "1.9.0" as const,
         sha256: "9".repeat(64),
         detected_media_type: "image/png",
         byte_size: 4,

@@ -13,6 +13,7 @@ import type {
   WorkspaceFile,
   WorkspaceProjectPolicy,
 } from "ipw-contracts-ts/product";
+import { nextGcsOffset } from "./uploadState.ts";
 
 export interface WorkspaceContextResponse {
   schema_version: string;
@@ -61,6 +62,10 @@ export interface UploadContentResponse {
 export interface UploadStatusResponse {
   schema_version: string;
   upload_session: UploadSessionRecord;
+}
+
+export interface UploadResumeResponse extends UploadStatusResponse {
+  authorization: UploadAuthorization;
 }
 
 export interface JobStatusResponse {
@@ -118,6 +123,11 @@ function xhrError(xhr: XMLHttpRequest): ApiError {
   );
 }
 
+interface ChunkResult {
+  uploadOffset: number;
+  uploadSession?: UploadSessionRecord;
+}
+
 function uploadChunk(
   authorization: UploadAuthorization,
   chunk: Blob,
@@ -125,18 +135,25 @@ function uploadChunk(
   totalBytes: number,
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
-): Promise<UploadContentResponse> {
+): Promise<ChunkResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(authorization.method ?? "PUT", authorization.upload_url);
+    const protocol = authorization.protocol ?? "ipw_offset_json";
     for (const [name, value] of Object.entries(authorization.required_headers ?? {})) {
       const normalized = name.toLowerCase();
       if (value !== undefined && normalized !== "upload-offset" && normalized !== "content-type") {
         xhr.setRequestHeader(name, value);
       }
     }
-    xhr.setRequestHeader("content-type", "application/octet-stream");
-    xhr.setRequestHeader("upload-offset", String(offset));
+    xhr.setRequestHeader("content-type", protocol === "gcs_resumable"
+      ? authorization.required_headers?.["content-type"] ?? "application/octet-stream"
+      : "application/octet-stream");
+    if (protocol === "gcs_resumable") {
+      xhr.setRequestHeader("content-range", `bytes ${offset}-${offset + chunk.size - 1}/${totalBytes}`);
+    } else {
+      xhr.setRequestHeader("upload-offset", String(offset));
+    }
     xhr.upload.addEventListener("progress", (event) => {
       const sent = offset + (event.lengthComputable ? event.loaded : 0);
       onProgress(Math.min(100, Math.round((sent / totalBytes) * 100)));
@@ -144,12 +161,18 @@ function uploadChunk(
     xhr.addEventListener("error", () => reject(new ApiError(503, "upload-transfer-failed", "The file transfer was interrupted")));
     xhr.addEventListener("abort", () => reject(new ApiError(499, "upload-cancelled", "The file transfer was cancelled")));
     xhr.addEventListener("load", () => {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject(xhrError(xhr));
+      if (protocol === "gcs_resumable") {
+        try {
+          resolve({ uploadOffset: nextGcsOffset(xhr.status, xhr.getResponseHeader("range"), totalBytes) });
+        } catch (error) {
+          reject(error);
+        }
         return;
       }
+      if (xhr.status < 200 || xhr.status >= 300) return reject(xhrError(xhr));
       try {
-        resolve(JSON.parse(xhr.responseText) as UploadContentResponse);
+        const result = JSON.parse(xhr.responseText) as UploadContentResponse;
+        resolve({ uploadOffset: result.upload_offset, uploadSession: result.upload_session });
       } catch {
         reject(new ApiError(502, "upload-response-invalid", "The upload service returned an invalid response"));
       }
@@ -165,28 +188,56 @@ function uploadChunk(
   });
 }
 
+function queryGcsOffset(
+  authorization: UploadAuthorization,
+  totalBytes: number,
+  signal?: AbortSignal,
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", authorization.upload_url);
+    xhr.setRequestHeader("content-range", `bytes */${totalBytes}`);
+    xhr.addEventListener("error", () => reject(new ApiError(503, "upload-transfer-failed", "The upload position could not be recovered")));
+    xhr.addEventListener("abort", () => reject(new ApiError(499, "upload-cancelled", "The file transfer was cancelled")));
+    xhr.addEventListener("load", () => {
+      try {
+        resolve(nextGcsOffset(xhr.status, xhr.getResponseHeader("range"), totalBytes));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    if (signal) {
+      if (signal.aborted) return xhr.abort();
+      signal.addEventListener("abort", () => xhr.abort(), { once: true });
+    }
+    xhr.send();
+  });
+}
+
 async function transferFile(
   authorization: UploadAuthorization,
   file: File,
   startingOffset: number,
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
-): Promise<UploadSessionRecord> {
-  const chunkSize = 4 * 1024 * 1024;
-  let offset = startingOffset;
+): Promise<{ bytesReceived: number; uploadSession?: UploadSessionRecord }> {
+  const chunkSize = authorization.protocol === "gcs_resumable" ? 8 * 1024 * 1024 : 4 * 1024 * 1024;
+  let offset = authorization.protocol === "gcs_resumable"
+    ? await queryGcsOffset(authorization, file.size, signal)
+    : startingOffset;
   let latest: UploadSessionRecord | null = null;
   while (offset < file.size) {
     const end = Math.min(file.size, offset + chunkSize);
     const result = await uploadChunk(authorization, file.slice(offset, end), offset, file.size, onProgress, signal);
-    if (result.upload_offset <= offset || result.upload_offset > file.size) {
+    if (result.uploadOffset <= offset || result.uploadOffset > file.size) {
       throw new ApiError(502, "upload-offset-invalid", "The upload service returned an invalid resume position");
     }
-    offset = result.upload_offset;
-    latest = result.upload_session;
+    offset = result.uploadOffset;
+    latest = result.uploadSession ?? latest;
   }
-  if (!latest) throw new ApiError(400, "upload-empty", "Choose a non-empty image or PDF file");
+  if (offset === 0) throw new ApiError(400, "upload-empty", "Choose a non-empty image or PDF file");
   onProgress(100);
-  return latest;
+  return { bytesReceived: offset, uploadSession: latest ?? undefined };
 }
 
 export const api = {
@@ -220,6 +271,9 @@ export const api = {
     }, { traceId });
   },
   transferFile,
+  resumeUploadSession(uploadSessionId: string, traceId: string): Promise<UploadResumeResponse> {
+    return request(`/upload-sessions/${uploadSessionId}/resume`, { method: "POST" }, { traceId });
+  },
   finaliseUpload(uploadSessionId: string, traceId: string): Promise<UploadFinaliseResponse> {
     return request(`/upload-sessions/${uploadSessionId}/finalise`, {
       method: "POST",

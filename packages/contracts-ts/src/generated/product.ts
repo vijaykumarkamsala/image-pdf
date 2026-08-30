@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.8.0";
+export const PRODUCT_SCHEMA_VERSION = "1.9.0";
 
 export interface Actor {
   schema_version?: string;
@@ -106,8 +106,8 @@ export interface JobEventRecord {
   trace_id: string;
 }
 
-export type MalwareScanState = "pending" | "clean" | "malicious" | "unavailable";
-export const MalwareScanStateValues: readonly MalwareScanState[] = ["pending", "clean", "malicious", "unavailable"] as const;
+export type MalwareScanState = "pending" | "clean" | "malicious" | "unavailable" | "timeout" | "error";
+export const MalwareScanStateValues: readonly MalwareScanState[] = ["pending", "clean", "malicious", "unavailable", "timeout", "error"] as const;
 
 export interface Membership {
   schema_version?: string;
@@ -163,9 +163,12 @@ export interface SourceFacts {
 export interface UploadAuthorization {
   schema_version?: string;
   transfer_kind: UploadTransferKind;
+  provider: UploadTransferProvider;
+  protocol: UploadTransferProtocol;
   method?: "PUT";
   upload_url: string;
   expires_at: string;
+  resume_token: string;
   required_headers?: Partial<Record<string, string>>;
 }
 
@@ -190,6 +193,8 @@ export interface UploadSessionRecord {
   display_name: string;
   expected_media_type: string;
   expected_byte_size: number;
+  expected_sha256?: string | null;
+  verified_sha256?: string | null;
   bytes_received: number;
   state: UploadSessionState;
   constraints: UploadConstraints;
@@ -209,6 +214,12 @@ export const UploadSessionStateValues: readonly UploadSessionState[] = ["initiat
 
 export type UploadTransferKind = "single" | "resumable";
 export const UploadTransferKindValues: readonly UploadTransferKind[] = ["single", "resumable"] as const;
+
+export type UploadTransferProtocol = "ipw_offset_json" | "gcs_resumable";
+export const UploadTransferProtocolValues: readonly UploadTransferProtocol[] = ["ipw_offset_json", "gcs_resumable"] as const;
+
+export type UploadTransferProvider = "local_api" | "google_cloud_storage";
+export const UploadTransferProviderValues: readonly UploadTransferProvider[] = ["local_api", "google_cloud_storage"] as const;
 
 export interface UsageEvent {
   schema_version?: string;

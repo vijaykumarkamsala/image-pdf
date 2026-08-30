@@ -9,6 +9,7 @@ import type {
   UploadCreateResult,
 } from "./intake.types.js";
 import type { PrivateObjectRef } from "./private-object-store.js";
+import type { ProviderObjectMetadata } from "./private-object-store.js";
 
 interface GuestEntry {
   record: GuestSessionRecord;
@@ -71,6 +72,18 @@ export class MemoryIntakeRepository implements IntakeRepository {
     return updated;
   }
 
+  async setUploadProviderState(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+    transferProvider: StoredUploadSession["transferProvider"],
+    protectedProviderSession: string | null,
+  ): Promise<StoredUploadSession> {
+    const stored = this.requireOwned(uploadSessionId, owner);
+    const updated = { ...stored, transferProvider, protectedProviderSession };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
+
   async findUpload(uploadSessionId: string, owner: IntakeOwner): Promise<StoredUploadSession | null> {
     const stored = this.uploads.get(uploadSessionId);
     return stored && this.ownedBy(stored.record, owner) ? stored : null;
@@ -101,6 +114,32 @@ export class MemoryIntakeRepository implements IntakeRepository {
     const updated: StoredUploadSession = {
       ...stored,
       record: { ...stored.record, bytes_received: bytesReceived, state: "uploading", updated_at: now },
+    };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
+
+  async recordProviderObject(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+    metadata: ProviderObjectMetadata,
+    now: string,
+  ): Promise<StoredUploadSession> {
+    const stored = this.requireOwned(uploadSessionId, owner);
+    if (!["initiated", "uploading"].includes(stored.record.state)) {
+      throw new DomainError(409, "upload-not-writable", "This upload cannot be reconciled in its current state");
+    }
+    const updated: StoredUploadSession = {
+      ...stored,
+      quarantineRef: { ...stored.quarantineRef, generation: metadata.generation },
+      providerMetadata: metadata,
+      record: {
+        ...stored.record,
+        bytes_received: metadata.byteSize,
+        verified_sha256: metadata.calculatedSha256,
+        state: "uploading",
+        updated_at: now,
+      },
     };
     this.uploads.set(uploadSessionId, updated);
     return updated;

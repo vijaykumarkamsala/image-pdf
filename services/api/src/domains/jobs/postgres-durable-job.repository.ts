@@ -54,6 +54,8 @@ function upload(row: QueryResultRow): UploadSessionRecord {
     display_name: String(row["display_name"]),
     expected_media_type: String(row["expected_media_type"]),
     expected_byte_size: Number(row["expected_byte_size"]),
+    expected_sha256: row["expected_sha256"] ? String(row["expected_sha256"]) : null,
+    verified_sha256: row["verified_sha256"] ? String(row["verified_sha256"]) : null,
     bytes_received: Number(row["bytes_received"]),
     state: String(row["state"]) as UploadSessionRecord["state"],
     constraints: row["constraints"] as UploadSessionRecord["constraints"],

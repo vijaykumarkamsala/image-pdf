@@ -24,7 +24,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.8.0",
+          "default": "1.9.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -58,7 +58,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.8.0",
+          "default": "1.9.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -75,7 +75,9 @@
         "pending",
         "clean",
         "malicious",
-        "unavailable"
+        "unavailable",
+        "timeout",
+        "error"
       ],
       "title": "MalwareScanState",
       "type": "string"
@@ -201,7 +203,7 @@
           "title": "Page Count"
         },
         "schema_version": {
-          "default": "1.8.0",
+          "default": "1.9.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -259,6 +261,12 @@
           "title": "Method",
           "type": "string"
         },
+        "protocol": {
+          "$ref": "#/$defs/UploadTransferProtocol"
+        },
+        "provider": {
+          "$ref": "#/$defs/UploadTransferProvider"
+        },
         "required_headers": {
           "additionalProperties": {
             "type": "string"
@@ -266,8 +274,14 @@
           "title": "Required Headers",
           "type": "object"
         },
+        "resume_token": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Resume Token",
+          "type": "string"
+        },
         "schema_version": {
-          "default": "1.8.0",
+          "default": "1.9.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -283,8 +297,11 @@
       },
       "required": [
         "transfer_kind",
+        "provider",
+        "protocol",
         "upload_url",
-        "expires_at"
+        "expires_at",
+        "resume_token"
       ],
       "title": "UploadAuthorization",
       "type": "object"
@@ -317,7 +334,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.8.0",
+          "default": "1.9.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -399,6 +416,20 @@
           "title": "Expected Media Type",
           "type": "string"
         },
+        "expected_sha256": {
+          "anyOf": [
+            {
+              "description": "Lower-case hexadecimal SHA-256 digest.",
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Sha256"
+        },
         "expires_at": {
           "maxLength": 2048,
           "minLength": 1,
@@ -459,7 +490,7 @@
           "$ref": "#/$defs/UploadOwnerKind"
         },
         "schema_version": {
-          "default": "1.8.0",
+          "default": "1.9.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -500,6 +531,20 @@
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
           "title": "Upload Session Id",
           "type": "string"
+        },
+        "verified_sha256": {
+          "anyOf": [
+            {
+              "description": "Lower-case hexadecimal SHA-256 digest.",
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verified Sha256"
         },
         "workspace_id": {
           "anyOf": [
@@ -552,6 +597,22 @@
       ],
       "title": "UploadTransferKind",
       "type": "string"
+    },
+    "UploadTransferProtocol": {
+      "enum": [
+        "ipw_offset_json",
+        "gcs_resumable"
+      ],
+      "title": "UploadTransferProtocol",
+      "type": "string"
+    },
+    "UploadTransferProvider": {
+      "enum": [
+        "local_api",
+        "google_cloud_storage"
+      ],
+      "title": "UploadTransferProvider",
+      "type": "string"
     }
   },
   "$id": "https://image-pdf-workspace.packages/schemas/product-v1/upload-session-created.schema.json",
@@ -565,7 +626,7 @@
       "$ref": "#/$defs/IdempotentCommandResult"
     },
     "schema_version": {
-      "default": "1.8.0",
+      "default": "1.9.0",
       "title": "Schema Version",
       "type": "string"
     },

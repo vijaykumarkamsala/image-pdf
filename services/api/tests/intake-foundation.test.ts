@@ -56,6 +56,9 @@ test("authenticated upload authorization is resumable, private, isolated and can
     const created = await body(createdResponse);
     assert.equal(created.upload_session.state, "initiated");
     assert.equal(created.authorization.transfer_kind, "resumable");
+    assert.equal(created.authorization.provider, "local_api");
+    assert.equal(created.authorization.protocol, "ipw_offset_json");
+    assert.match(created.authorization.resume_token, /^[A-Za-z0-9_-]{40,}$/);
     assert.match(created.authorization.upload_url, /^\/v1\/uploads\//);
     assert.ok(!JSON.stringify(created).includes("quarantine/"));
 
@@ -64,7 +67,29 @@ test("authenticated upload authorization is resumable, private, isolated and can
     assert.equal(replay.upload_session.upload_session_id, created.upload_session.upload_session_id);
     assert.notEqual(replay.authorization.upload_url, created.authorization.upload_url);
 
-    const firstUrl = new URL(replay.authorization.upload_url, "http://local");
+    const idempotencyConflict = await server.request(`/workspaces/${workspaceId}/upload-sessions`, {
+      ...createOptions,
+      body: JSON.stringify({ display_name: "different.png", media_type: "image/png", byte_size: 4 }),
+    });
+    assert.equal(idempotencyConflict.status, 409);
+    assert.equal((await body(idempotencyConflict)).error.code, "idempotency-conflict");
+
+    const resumed = await body(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/resume`,
+      { method: "POST" },
+    ));
+    assert.notEqual(resumed.authorization.resume_token, replay.authorization.resume_token);
+    assert.notEqual(resumed.authorization.upload_url, replay.authorization.upload_url);
+
+    const expiredAuthorization = new URL(replay.authorization.upload_url, "http://local");
+    const expired = await server.request(`${expiredAuthorization.pathname.replace("/v1", "")}${expiredAuthorization.search}`, {
+      method: "PUT",
+      headers: { "content-type": "application/octet-stream", "upload-offset": "0" },
+      body: new Uint8Array([1]),
+    });
+    assert.equal(expired.status, 401);
+
+    const firstUrl = new URL(resumed.authorization.upload_url, "http://local");
     const first = await server.request(`${firstUrl.pathname.replace("/v1", "")}${firstUrl.search}`, {
       method: "PUT",
       headers: { "content-type": "application/octet-stream", "upload-offset": "0" },

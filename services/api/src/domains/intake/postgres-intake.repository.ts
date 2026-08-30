@@ -12,6 +12,7 @@ import type {
   UploadCreateResult,
 } from "./intake.types.js";
 import type { PrivateObjectRef } from "./private-object-store.js";
+import type { ProviderObjectMetadata } from "./private-object-store.js";
 
 function instant(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -30,6 +31,8 @@ function stored(row: QueryResultRow): StoredUploadSession {
       display_name: String(row["display_name"]),
       expected_media_type: String(row["expected_media_type"]),
       expected_byte_size: Number(row["expected_byte_size"]),
+      expected_sha256: row["expected_sha256"] ? String(row["expected_sha256"]) : null,
+      verified_sha256: row["verified_sha256"] ? String(row["verified_sha256"]) : null,
       bytes_received: Number(row["bytes_received"]),
       state: String(row["state"]) as UploadSessionRecord["state"],
       constraints: row["constraints"] as UploadSessionRecord["constraints"],
@@ -47,9 +50,13 @@ function stored(row: QueryResultRow): StoredUploadSession {
       ownerScope: ownerKind === "actor" ? String(row["workspace_id"]) : String(row["guest_session_id"]),
       objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
       zone: row["immutable_object_key"] ? "immutable" : "quarantine",
+      generation: row["provider_generation"] ? String(row["provider_generation"]) : undefined,
     },
     uploadTokenHash: String(row["upload_token_hash"]),
     uploadTokenExpiresAt: instant(row["upload_token_expires_at"] as Date | string),
+    transferProvider: String(row["transfer_provider"]) as StoredUploadSession["transferProvider"],
+    protectedProviderSession: row["protected_resumable_uri"] ? String(row["protected_resumable_uri"]) : null,
+    providerMetadata: (row["provider_metadata"] as ProviderObjectMetadata | null) ?? null,
   };
 }
 
@@ -110,15 +117,15 @@ export class PostgresIntakeRepository implements IntakeRepository {
       await client.query(
         `INSERT INTO upload_sessions(
           upload_session_id, owner_kind, workspace_id, actor_id, guest_session_id,
-          display_name, expected_media_type, expected_byte_size, bytes_received, state,
+          display_name, expected_media_type, expected_byte_size, expected_sha256, bytes_received, state,
           constraints, upload_token_hash, upload_token_expires_at, quarantine_object_key,
-          created_at, expires_at, updated_at
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+          transfer_provider, created_at, expires_at, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [record.upload_session_id, record.owner_kind, record.workspace_id, record.actor_id,
           record.guest_session_id, record.display_name, record.expected_media_type,
-          record.expected_byte_size, record.bytes_received, record.state, record.constraints,
+          record.expected_byte_size, record.expected_sha256, record.bytes_received, record.state, record.constraints,
           value.uploadTokenHash, value.uploadTokenExpiresAt, value.quarantineRef.objectKey,
-          record.created_at, record.expires_at, record.updated_at],
+          value.transferProvider, record.created_at, record.expires_at, record.updated_at],
       );
       await client.query(
         `INSERT INTO intake_idempotency_records(owner_scope, idempotency_key, command_name,
@@ -160,6 +167,22 @@ export class PostgresIntakeRepository implements IntakeRepository {
     return result.rows[0] ? stored(result.rows[0]) : null;
   }
 
+  async setUploadProviderState(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+    transferProvider: StoredUploadSession["transferProvider"],
+    protectedProviderSession: string | null,
+    updatedAt: string,
+  ): Promise<StoredUploadSession> {
+    const result = await this.pool.query(
+      `UPDATE upload_sessions SET transfer_provider=$1,protected_resumable_uri=$2,updated_at=$3
+       WHERE upload_session_id=$4 AND ${this.ownerSql(owner, 5)} RETURNING *`,
+      [transferProvider, protectedProviderSession, updatedAt, uploadSessionId, ...this.ownerValues(owner)],
+    );
+    if (!result.rows[0]) throw new DomainError(404, "upload-not-found", "Upload session was not found");
+    return stored(result.rows[0]);
+  }
+
   async findUploadByActor(uploadSessionId: string, actorId: string): Promise<StoredUploadSession | null> {
     const result = await this.pool.query(
       "SELECT * FROM upload_sessions WHERE upload_session_id=$1 AND owner_kind='actor' AND actor_id=$2",
@@ -190,6 +213,23 @@ export class PostgresIntakeRepository implements IntakeRepository {
       [bytesReceived, now, uploadSessionId, tokenHash],
     );
     if (!result.rows[0]) throw new DomainError(401, "upload-authorization-invalid", "Upload authorization is invalid or expired");
+    return stored(result.rows[0]);
+  }
+
+  async recordProviderObject(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+    metadata: ProviderObjectMetadata,
+    now: string,
+  ): Promise<StoredUploadSession> {
+    const result = await this.pool.query(
+      `UPDATE upload_sessions SET bytes_received=$1,state='uploading',provider_generation=$2,
+       provider_metadata=$3,verified_sha256=$4,updated_at=$5
+       WHERE upload_session_id=$6 AND ${this.ownerSql(owner, 7)}
+       AND state IN ('initiated','uploading') RETURNING *`,
+      [metadata.byteSize, metadata.generation, metadata, metadata.calculatedSha256, now, uploadSessionId, ...this.ownerValues(owner)],
+    );
+    if (!result.rows[0]) throw new DomainError(409, "upload-state-conflict", "Upload cannot be reconciled in its current state");
     return stored(result.rows[0]);
   }
 

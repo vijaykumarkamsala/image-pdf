@@ -1,6 +1,6 @@
 import type { GuestSessionRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
 
-import type { PrivateObjectRef } from "./private-object-store.js";
+import type { PrivateObjectRef, ProviderObjectMetadata } from "./private-object-store.js";
 
 export interface IntakeOwner {
   ownerKind: "actor" | "guest";
@@ -22,6 +22,9 @@ export interface StoredUploadSession {
   quarantineRef: PrivateObjectRef;
   uploadTokenHash: string;
   uploadTokenExpiresAt: string;
+  transferProvider: "local_api" | "google_cloud_storage";
+  protectedProviderSession: string | null;
+  providerMetadata: ProviderObjectMetadata | null;
 }
 
 export interface UploadCreateResult {
@@ -44,6 +47,13 @@ export interface IntakeRepository {
     expiresAt: string,
     updatedAt: string,
   ): Promise<StoredUploadSession>;
+  setUploadProviderState(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+    transferProvider: StoredUploadSession["transferProvider"],
+    protectedProviderSession: string | null,
+    updatedAt: string,
+  ): Promise<StoredUploadSession>;
   findUpload(uploadSessionId: string, owner: IntakeOwner): Promise<StoredUploadSession | null>;
   findUploadByActor(uploadSessionId: string, actorId: string): Promise<StoredUploadSession | null>;
   findUploadByToken(uploadSessionId: string, tokenHash: string, now: string): Promise<StoredUploadSession | null>;
@@ -51,6 +61,12 @@ export interface IntakeRepository {
     uploadSessionId: string,
     tokenHash: string,
     bytesReceived: number,
+    now: string,
+  ): Promise<StoredUploadSession>;
+  recordProviderObject(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+    metadata: ProviderObjectMetadata,
     now: string,
   ): Promise<StoredUploadSession>;
   cancelUpload(uploadSessionId: string, owner: IntakeOwner, now: string): Promise<StoredUploadSession>;
