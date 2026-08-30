@@ -1,0 +1,30 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/customer-usage-activity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "event_kind": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Event Kind",
+      "type": "string"
+    },
+    "occurred_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.9.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_kind",
+    "occurred_at"
+  ],
+  "title": "CustomerUsageActivity",
+  "type": "object"
+}

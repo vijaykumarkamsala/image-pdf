@@ -95,11 +95,17 @@ export class JobsService implements OnApplicationShutdown {
 
   async cancel(headers: Headers, jobId: string) {
     const id = requireId(jobId, "job id");
-    const { owner } = await this.requireAccessible(headers, id);
+    const { job: current, owner } = await this.requireAccessible(headers, id, "job.cancel");
+    if (["succeeded", "failed", "cancelled", "cancel_requested"].includes(current.state)) {
+      return { schema_version: PRODUCT_SCHEMA_VERSION, job: current };
+    }
     const context = this.command(headers, owner, "job.cancel", { jobId: id });
     const job = await this.repository.requestCancel(id, owner, this.runtime.now(), context.traceId);
     if (owner.ownerKind === "actor") {
-      await this.product.recordExternalMutation(context, owner.workspaceId!, "job.cancel-requested", "processing_job", id);
+      await this.product.recordExternalMutation(context, owner.workspaceId!, "job.cancellation-requested", "processing_job", id);
+      if (job.state === "cancelled") {
+        await this.product.recordExternalMutation(context, owner.workspaceId!, "job.cancelled", "processing_job", id);
+      }
     }
     return { schema_version: PRODUCT_SCHEMA_VERSION, job };
   }
@@ -108,7 +114,11 @@ export class JobsService implements OnApplicationShutdown {
     await this.repository.close();
   }
 
-  private async requireAccessible(headers: Headers, jobId: string): Promise<{ job: ProcessingJobRecord; owner: IntakeOwner }> {
+  private async requireAccessible(
+    headers: Headers,
+    jobId: string,
+    permission = "job.read",
+  ): Promise<{ job: ProcessingJobRecord; owner: IntakeOwner }> {
     if (this.intake.hasGuestToken(headers)) {
       const owner = await this.intake.guestOwner(headers);
       const job = await this.repository.findJob(jobId, owner);
@@ -119,7 +129,7 @@ export class JobsService implements OnApplicationShutdown {
     const job = await this.repository.findJobByActor(jobId, principal.actorId);
     if (!job?.workspace_id) throw new DomainError(404, "job-not-found", "Job was not found");
     const context = await this.product.workspaceContext(principal.actorId, job.workspace_id);
-    if (!context?.effectivePermissions.some((item) => item.permission === "job.read" && item.allowed)) {
+    if (!context?.effectivePermissions.some((item) => item.permission === permission && item.allowed)) {
       throw new DomainError(404, "job-not-found", "Job was not found");
     }
     return {

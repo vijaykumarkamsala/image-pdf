@@ -177,10 +177,12 @@ test("tenant isolation, idempotency conflicts, audit and zero-charge ledger are 
     const audit = await json<any>(await server.request(`/workspaces/${workspaceId}/audit-events`));
     const usage = await json<any>(await server.request(`/workspaces/${workspaceId}/usage-summary`));
     assert.ok(audit.events.some((event: any) => event.action === "project.created"));
-    assert.equal(usage.customer_total, "0.00");
-    assert.equal(usage.credit_debit_total, 0);
-    assert.ok(usage.events.every((event: any) => event.customer_amount === "0.00" && event.credit_debit === 0));
-    assert.ok(usage.events.every((event: any) => !("dimensions" in event)));
+    assert.equal(usage.files, 0);
+    assert.equal(usage.storage_bytes, 0);
+    assert.equal(usage.jobs, 0);
+    assert.equal(usage.high_cost_processing, 0);
+    assert.ok(usage.activities.some((event: any) => event.event_kind === "project.created"));
+    assert.doesNotMatch(JSON.stringify(usage), /amount|currency|credit_debit/i);
   } finally {
     await server.close();
   }

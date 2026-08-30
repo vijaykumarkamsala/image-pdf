@@ -201,20 +201,59 @@ export class IntakeService implements OnApplicationShutdown {
   async cancel(headers: Headers, uploadSessionId: string): Promise<{ schema_version: string; upload_session: UploadSessionRecord }> {
     const id = requireId(uploadSessionId, "upload session id");
     const stored = await this.requireAccessible(headers, id, "upload.cancel");
+    if (["ready", "rejected", "expired", "cancelled"].includes(stored.record.state)) {
+      return { schema_version: PRODUCT_SCHEMA_VERSION, upload_session: stored.record };
+    }
     const owner = this.owner(stored.record);
     const cancelled = await this.repository.cancelUpload(id, owner, this.runtime.now());
     await this.objects.remove(cancelled.quarantineRef);
     if (owner.ownerKind === "actor") {
       const command = this.commandContext(headers, owner, "upload.cancel", { uploadSessionId: id });
+      await this.product.recordExternalMutation(command, owner.workspaceId!, "upload.cancellation-requested", "upload_session", id);
       await this.product.recordExternalMutation(command, owner.workspaceId!, "upload.cancelled", "upload_session", id);
+      await this.product.recordExternalMutation(command, owner.workspaceId!, "source.cleanup", "upload_session", id);
     }
     return { schema_version: PRODUCT_SCHEMA_VERSION, upload_session: cancelled.record };
   }
 
-  async cleanupExpired(): Promise<number> {
-    const refs = await this.repository.expireUploads(this.runtime.now());
-    await Promise.all(refs.map((ref) => this.objects.remove(ref)));
-    return refs.length;
+  async cleanupExpired(limit = 100): Promise<{ cleaned: number; failed: number }> {
+    const now = this.runtime.now();
+    const workerId = this.runtime.id("cleanup");
+    const candidates = await this.repository.claimCleanup(workerId, now, this.after(now, 90), limit);
+    let cleaned = 0;
+    let failed = 0;
+    for (const candidate of candidates) {
+      try {
+        await this.objects.remove(candidate.object);
+        if (candidate.owner.ownerKind === "actor") {
+          const traceId = `trace-cleanup-${candidate.uploadSessionId}`;
+          await this.product.recordExternalMutation(
+            {
+              principal: {
+                actorId: candidate.owner.actorId!,
+                displayName: "intake-cleanup",
+              },
+              idempotencyKey: `cleanup-${candidate.uploadSessionId}`,
+              traceId,
+              requestHash: requestDigest({
+                command: "source.cleanup",
+                uploadSessionId: candidate.uploadSessionId,
+              }),
+            },
+            candidate.owner.workspaceId!,
+            "source.cleanup",
+            "upload_session",
+            candidate.uploadSessionId,
+          );
+        }
+        await this.repository.completeCleanup(candidate.uploadSessionId, workerId, this.runtime.now());
+        cleaned += 1;
+      } catch {
+        failed += 1;
+        await this.repository.releaseCleanup(candidate.uploadSessionId, workerId);
+      }
+    }
+    return { cleaned, failed };
   }
 
   async handoffGuest(headers: Headers, uploadSessionId: string, body: Record<string, unknown>) {
@@ -306,7 +345,6 @@ export class IntakeService implements OnApplicationShutdown {
   }
 
   private async create(headers: Headers, owner: IntakeOwner, body: Record<string, unknown>): Promise<UploadSessionCreated> {
-    await this.cleanupExpired();
     const displayName = this.fileName(body["display_name"]);
     const expectedMediaType = requireText(body["media_type"], "media type", 200).toLowerCase();
     const expectedByteSize = requireByteSize(body["byte_size"]);

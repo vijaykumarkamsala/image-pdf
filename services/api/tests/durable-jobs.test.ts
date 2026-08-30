@@ -105,8 +105,16 @@ test("finalisation atomically creates one durable job with reconnectable ordered
       headers: { "idempotency-key": "cancel-jobs" },
     }));
     assert.equal(cancelled.job.state, "cancelled");
+    const repeatedCancel = await json(await server.request(`/jobs/${finalised.job.job_id}/cancel`, {
+      method: "POST",
+      headers: { "idempotency-key": "cancel-jobs-again" },
+    }));
+    assert.equal(repeatedCancel.job.state, "cancelled");
     const afterCancel = await json(await server.request(`/jobs/${finalised.job.job_id}/events?after=0&limit=20`));
     assert.deepEqual(afterCancel.events.map((event: any) => event.event_kind), ["job.queued", "job.cancelled"]);
+    const audit = await json(await server.request(`/workspaces/${workspaceId}/audit-events`));
+    assert.equal(audit.events.filter((event: any) => event.action === "job.cancellation-requested").length, 1);
+    assert.equal(audit.events.filter((event: any) => event.action === "job.cancelled").length, 1);
   } finally {
     await server.close();
   }

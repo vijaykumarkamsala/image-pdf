@@ -32,6 +32,12 @@ export interface UploadCreateResult {
   replayed: boolean;
 }
 
+export interface CleanupCandidate {
+  uploadSessionId: string;
+  owner: IntakeOwner;
+  object: PrivateObjectRef;
+}
+
 export interface IntakeRepository {
   createGuest(record: GuestSessionRecord, tokenHash: string, createdAt: string): Promise<void>;
   findGuest(tokenHash: string, now: string): Promise<GuestSessionRecord | null>;
@@ -70,7 +76,14 @@ export interface IntakeRepository {
     now: string,
   ): Promise<StoredUploadSession>;
   cancelUpload(uploadSessionId: string, owner: IntakeOwner, now: string): Promise<StoredUploadSession>;
-  expireUploads(now: string): Promise<PrivateObjectRef[]>;
+  claimCleanup(
+    workerId: string,
+    now: string,
+    leaseExpiresAt: string,
+    limit: number,
+  ): Promise<CleanupCandidate[]>;
+  completeCleanup(uploadSessionId: string, workerId: string, now: string): Promise<void>;
+  releaseCleanup(uploadSessionId: string, workerId: string): Promise<void>;
   close(): Promise<void>;
 }
 

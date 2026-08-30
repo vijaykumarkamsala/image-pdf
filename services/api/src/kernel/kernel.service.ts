@@ -216,12 +216,7 @@ export class ProductKernelService implements OnApplicationShutdown {
     const principal = this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "usage.read");
-    return {
-      schema_version: PRODUCT_SCHEMA_VERSION,
-      events: await this.repository.listUsageEvents(principal.actorId, id),
-      customer_total: "0.00",
-      credit_debit_total: 0,
-    };
+    return this.repository.customerUsageSummary(principal.actorId, id);
   }
 
   async onApplicationShutdown(): Promise<void> {

@@ -13,9 +13,11 @@ export type UploadPhase =
 
 export interface ActiveUploadReference {
   uploadSessionId: string;
-  jobId: string;
+  jobId?: string;
   displayName: string;
+  byteSize: number;
   traceId: string;
+  stage: "transferring" | "processing" | "ready";
 }
 
 export interface UploadPresentation {
@@ -41,9 +43,9 @@ export function presentationFor(phase: UploadPhase, progress = 0): UploadPresent
 }
 
 export function phaseFromRecords(job: ProcessingJobRecord, upload: UploadSessionRecord): UploadPhase {
-  if (upload.state === "ready" || job.state === "succeeded") return "ready";
   if (upload.state === "rejected" || job.state === "failed") return "rejected";
   if (upload.state === "cancelled" || job.state === "cancelled") return "cancelled";
+  if (upload.state === "ready" || job.state === "succeeded") return "ready";
   if (job.state === "leased" || job.state === "running" || upload.state === "inspecting") return "inspecting";
   return "queued";
 }
@@ -84,12 +86,28 @@ export function parseActiveUpload(value: string | null): ActiveUploadReference |
     const candidate = JSON.parse(value) as Partial<ActiveUploadReference>;
     if (
       typeof candidate.uploadSessionId === "string"
-      && typeof candidate.jobId === "string"
       && typeof candidate.displayName === "string"
+      && typeof candidate.byteSize === "number"
       && typeof candidate.traceId === "string"
+      && ["transferring", "processing", "ready"].includes(candidate.stage ?? "")
+      && (candidate.jobId === undefined || typeof candidate.jobId === "string")
     ) return candidate as ActiveUploadReference;
   } catch {
     return null;
   }
   return null;
+}
+
+export function parseActiveUploads(value: string | null): ActiveUploadReference[] {
+  if (!value) return [];
+  try {
+    const candidate = JSON.parse(value) as unknown;
+    if (!Array.isArray(candidate)) return [];
+    return candidate.flatMap((entry) => {
+      const parsed = parseActiveUpload(JSON.stringify(entry));
+      return parsed ? [parsed] : [];
+    });
+  } catch {
+    return [];
+  }
 }

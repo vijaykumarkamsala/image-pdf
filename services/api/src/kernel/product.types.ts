@@ -11,6 +11,7 @@ import type {
   ReusableFileReference,
   SourceVersionRecord,
   UsageEvent,
+  UsageSummary,
   Workspace,
   WorkspaceFile,
   WorkspaceProjectPolicy,
@@ -130,6 +131,7 @@ export interface ProductKernelRepository {
   listFileReferences(actorId: string, workspaceId: string, fileId: string): Promise<ReusableFileReference[]>;
   listAuditEvents(actorId: string, workspaceId: string): Promise<AuditEvent[]>;
   listUsageEvents(actorId: string, workspaceId: string): Promise<UsageEvent[]>;
+  customerUsageSummary(actorId: string, workspaceId: string): Promise<UsageSummary>;
   recordExternalMutation(
     context: CommandContext,
     workspaceId: string,

@@ -115,10 +115,20 @@ test("authenticated upload authorization is resumable, private, isolated and can
     });
     assert.equal(cancelled.status, 200);
     assert.equal((await body(cancelled)).upload_session.state, "cancelled");
+    const repeatedCancel = await server.request(`/upload-sessions/${created.upload_session.upload_session_id}`, {
+      method: "DELETE",
+      headers: { "idempotency-key": "upload-cancel-002" },
+    });
+    assert.equal((await body(repeatedCancel)).upload_session.state, "cancelled");
+
+    const audit = await body(await server.request(`/workspaces/${workspaceId}/audit-events`));
+    assert.equal(audit.events.filter((event: any) => event.action === "upload.cancellation-requested").length, 1);
+    assert.equal(audit.events.filter((event: any) => event.action === "upload.cancelled").length, 1);
+    assert.equal(audit.events.filter((event: any) => event.action === "source.cleanup").length, 1);
 
     const usage = await body(await server.request(`/workspaces/${workspaceId}/usage-summary`));
-    assert.ok(usage.events.some((event: any) => event.event_kind === "upload.created"));
-    assert.ok(usage.events.every((event: any) => event.customer_amount === "0.00" && event.credit_debit === 0));
+    assert.ok(usage.activities.some((event: any) => event.event_kind === "upload.created"));
+    assert.doesNotMatch(JSON.stringify(usage), /amount|currency|credit_debit/i);
   } finally {
     await server.close();
   }

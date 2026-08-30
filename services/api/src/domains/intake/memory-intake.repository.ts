@@ -3,6 +3,7 @@ import type { GuestSessionRecord, ProcessingJobRecord, UploadSessionRecord } fro
 import { DomainError } from "../../kernel/errors.js";
 import type {
   IntakeCommand,
+  CleanupCandidate,
   IntakeOwner,
   IntakeRepository,
   StoredUploadSession,
@@ -27,6 +28,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
   private readonly guests = new Map<string, GuestEntry>();
   private readonly uploads = new Map<string, StoredUploadSession>();
   private readonly commands = new Map<string, CommandEntry>();
+  private readonly cleanup = new Map<string, { workerId: string; expiresAt: string; completedAt?: string }>();
 
   async createGuest(record: GuestSessionRecord, tokenHash: string): Promise<void> {
     this.guests.set(record.guest_session_id, { record, tokenHash });
@@ -153,17 +155,49 @@ export class MemoryIntakeRepository implements IntakeRepository {
     return updated;
   }
 
-  async expireUploads(now: string): Promise<PrivateObjectRef[]> {
-    const refs: PrivateObjectRef[] = [];
+  async claimCleanup(
+    workerId: string,
+    now: string,
+    leaseExpiresAt: string,
+    limit: number,
+  ): Promise<CleanupCandidate[]> {
+    const candidates: CleanupCandidate[] = [];
     for (const [id, stored] of this.uploads) {
       const active = !["ready", "rejected", "expired", "cancelled"].includes(stored.record.state);
       const retainedGuest = stored.record.owner_kind === "guest" && ["ready", "rejected"].includes(stored.record.state);
       if ((active || retainedGuest) && stored.record.expires_at <= now) {
-        refs.push(stored.quarantineRef);
         this.uploads.set(id, { ...stored, record: { ...stored.record, state: "expired", updated_at: now } });
       }
+      const current = this.uploads.get(id)!;
+      const lease = this.cleanup.get(id);
+      if (
+        candidates.length < limit
+        && ["expired", "rejected", "cancelled"].includes(current.record.state)
+        && !lease?.completedAt
+        && (!lease || lease.expiresAt <= now)
+      ) {
+        this.cleanup.set(id, { workerId, expiresAt: leaseExpiresAt });
+        candidates.push({
+          uploadSessionId: id,
+          owner: this.owner(current.record),
+          object: current.quarantineRef,
+        });
+      }
     }
-    return refs;
+    return candidates;
+  }
+
+  async completeCleanup(uploadSessionId: string, workerId: string, now: string): Promise<void> {
+    const lease = this.cleanup.get(uploadSessionId);
+    if (!lease || lease.workerId !== workerId || lease.completedAt) {
+      throw new DomainError(409, "cleanup-lease-invalid", "Cleanup lease is invalid");
+    }
+    this.cleanup.set(uploadSessionId, { ...lease, completedAt: now });
+  }
+
+  async releaseCleanup(uploadSessionId: string, workerId: string): Promise<void> {
+    const lease = this.cleanup.get(uploadSessionId);
+    if (lease?.workerId === workerId && !lease.completedAt) this.cleanup.delete(uploadSessionId);
   }
 
   async close(): Promise<void> {}
@@ -247,5 +281,20 @@ export class MemoryIntakeRepository implements IntakeRepository {
     return owner.ownerKind === "actor"
       ? record.owner_kind === "actor" && record.workspace_id === owner.workspaceId && record.actor_id === owner.actorId
       : record.owner_kind === "guest" && record.guest_session_id === owner.guestSessionId;
+  }
+
+  private owner(record: UploadSessionRecord): IntakeOwner {
+    return record.owner_kind === "actor"
+      ? {
+          ownerKind: "actor",
+          ownerScope: record.workspace_id!,
+          workspaceId: record.workspace_id!,
+          actorId: record.actor_id!,
+        }
+      : {
+          ownerKind: "guest",
+          ownerScope: record.guest_session_id!,
+          guestSessionId: record.guest_session_id!,
+        };
   }
 }

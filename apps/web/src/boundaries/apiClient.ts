@@ -2,6 +2,7 @@ import type {
   Actor,
   DefaultFilesLocation,
   EffectivePermission,
+  GuestSessionAuthorization,
   JobEventList,
   Membership,
   ProcessingJobRecord,
@@ -75,6 +76,8 @@ export interface JobStatusResponse {
 
 interface RequestOptions {
   traceId?: string;
+  guestToken?: string;
+  includeActor?: boolean;
 }
 
 const actorId = localStorage.getItem("ipw-actor-id") ?? "actor-local";
@@ -91,8 +94,11 @@ export function createTraceId(): string {
 async function request<T>(path: string, init: RequestInit = {}, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
-  headers.set("x-ipw-actor-id", actorId);
-  headers.set("x-ipw-actor-name", actorName);
+  if (options.includeActor !== false) {
+    headers.set("x-ipw-actor-id", actorId);
+    headers.set("x-ipw-actor-name", actorName);
+  }
+  if (options.guestToken) headers.set("x-ipw-guest-token", options.guestToken);
   headers.set("x-trace-id", options.traceId ?? createTraceId());
   const response = await fetch(`/v1${path}`, {
     ...init,
@@ -270,35 +276,74 @@ export const api = {
       body: JSON.stringify({ display_name: file.name, media_type: mediaType, byte_size: file.size }),
     }, { traceId });
   },
-  transferFile,
-  resumeUploadSession(uploadSessionId: string, traceId: string): Promise<UploadResumeResponse> {
-    return request(`/upload-sessions/${uploadSessionId}/resume`, { method: "POST" }, { traceId });
+  createGuestSession(): Promise<GuestSessionAuthorization> {
+    return request("/guest-sessions", { method: "POST" }, { includeActor: false });
   },
-  finaliseUpload(uploadSessionId: string, traceId: string): Promise<UploadFinaliseResponse> {
+  createGuestUploadSession(
+    guestToken: string,
+    file: File,
+    mediaType: string,
+    traceId: string,
+  ): Promise<UploadSessionCreated> {
+    return request("/guest/upload-sessions", {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("guest-upload") },
+      body: JSON.stringify({ display_name: file.name, media_type: mediaType, byte_size: file.size }),
+    }, { traceId, guestToken, includeActor: false });
+  },
+  transferFile,
+  resumeUploadSession(
+    uploadSessionId: string,
+    traceId: string,
+    guestToken?: string,
+  ): Promise<UploadResumeResponse> {
+    return request(
+      `/upload-sessions/${uploadSessionId}/resume`,
+      { method: "POST" },
+      { traceId, guestToken },
+    );
+  },
+  finaliseUpload(
+    uploadSessionId: string,
+    traceId: string,
+    guestToken?: string,
+  ): Promise<UploadFinaliseResponse> {
     return request(`/upload-sessions/${uploadSessionId}/finalise`, {
       method: "POST",
       headers: { "idempotency-key": commandKey("finalise") },
-    }, { traceId });
+    }, { traceId, guestToken });
   },
-  uploadStatus(uploadSessionId: string, traceId: string): Promise<UploadStatusResponse> {
-    return request(`/upload-sessions/${uploadSessionId}`, {}, { traceId });
+  uploadStatus(uploadSessionId: string, traceId: string, guestToken?: string): Promise<UploadStatusResponse> {
+    return request(`/upload-sessions/${uploadSessionId}`, {}, { traceId, guestToken });
   },
-  jobStatus(jobId: string, traceId: string): Promise<JobStatusResponse> {
-    return request(`/jobs/${jobId}`, {}, { traceId });
+  jobStatus(jobId: string, traceId: string, guestToken?: string): Promise<JobStatusResponse> {
+    return request(`/jobs/${jobId}`, {}, { traceId, guestToken });
   },
-  jobEvents(jobId: string, after: number, traceId: string): Promise<JobEventList> {
-    return request(`/jobs/${jobId}/events?after=${after}&limit=100`, {}, { traceId });
+  jobEvents(jobId: string, after: number, traceId: string, guestToken?: string): Promise<JobEventList> {
+    return request(`/jobs/${jobId}/events?after=${after}&limit=100`, {}, { traceId, guestToken });
   },
-  cancelUpload(uploadSessionId: string, traceId: string): Promise<UploadStatusResponse> {
+  cancelUpload(uploadSessionId: string, traceId: string, guestToken?: string): Promise<UploadStatusResponse> {
     return request(`/upload-sessions/${uploadSessionId}`, {
       method: "DELETE",
       headers: { "idempotency-key": commandKey("upload-cancel") },
-    }, { traceId });
+    }, { traceId, guestToken });
   },
-  cancelJob(jobId: string, traceId: string): Promise<JobStatusResponse> {
+  cancelJob(jobId: string, traceId: string, guestToken?: string): Promise<JobStatusResponse> {
     return request(`/jobs/${jobId}/cancel`, {
       method: "POST",
       headers: { "idempotency-key": commandKey("job-cancel") },
-    }, { traceId });
+    }, { traceId, guestToken });
+  },
+  handoffGuest(
+    uploadSessionId: string,
+    guestToken: string,
+    workspaceId: string,
+    traceId: string,
+  ): Promise<{ file: WorkspaceFile; asset_original_id: string; source_version_id: string }> {
+    return request(`/upload-sessions/${uploadSessionId}/handoff`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("guest-handoff") },
+      body: JSON.stringify({ workspace_id: workspaceId }),
+    }, { traceId, guestToken });
   },
 };

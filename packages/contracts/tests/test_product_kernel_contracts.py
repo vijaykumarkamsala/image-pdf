@@ -16,6 +16,7 @@ from ipw.contracts.product_kernel import (
     UploadSessionRecord,
     UploadSessionState,
     UsageEvent,
+    UsageSummary,
     WorkspaceFile,
 )
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
@@ -51,6 +52,14 @@ def test_zero_charge_fields_cannot_be_changed() -> None:
             customer_amount="1.00",  # type: ignore[arg-type]
             occurred_at="2026-08-30T00:00:00.000Z",
         )
+
+
+def test_customer_usage_summary_contains_no_monetary_fields() -> None:
+    summary = UsageSummary(files=2, storage_bytes=4096, jobs=3, high_cost_processing=0)
+
+    payload = summary.model_dump(mode="json")
+    assert payload["files"] == 2
+    assert not {"amount", "currency", "credit_debit"} & set(payload)
 
 
 def test_canonical_location_is_separate_from_asset_identity() -> None:

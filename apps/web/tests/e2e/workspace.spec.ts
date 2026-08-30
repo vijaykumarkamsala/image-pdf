@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -49,9 +50,9 @@ test("real API secure upload becomes a preserved Default Files source", async ({
   const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
-  await page.getByRole("button", { name: "Upload", exact: true }).last().click();
-  await expect(page.getByRole("heading", { name: "File ready" })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("link", { name: "Files" }).first().click();
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
@@ -71,11 +72,81 @@ test("an in-flight upload can be cancelled and its temporary source is removed",
     mimeType: "image/png",
     buffer: Buffer.alloc(4096, 1),
   });
-  await page.getByRole("button", { name: "Upload", exact: true }).last().click();
-  await expect(page.getByRole("heading", { name: "Uploading securely" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel upload" }).click();
-  await expect(page.getByRole("heading", { name: "Upload cancelled" })).toBeVisible();
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("Uploading securely")).toBeVisible();
+  await page.getByTitle("Cancel cancelled.png").click();
+  await expect(page.getByText("Upload cancelled")).toBeVisible();
   releaseTransfer?.();
+});
+
+test("multiple files keep completed and failed states isolated", async ({ page }) => {
+  await openWorkspace(page, "upload-multiple");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "synthetic-alpha-32.png", mimeType: "image/png", buffer: readFileSync(fixture) },
+    { name: "unsupported.txt", mimeType: "text/plain", buffer: Buffer.from("not an image") },
+  ]);
+  await expect(page.getByRole("listitem")).toHaveCount(2);
+  await page.getByRole("button", { name: "Upload 2" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Choose a supported image or PDF file/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
+});
+
+test("an interrupted transfer resumes the same file after browser refresh", async ({ page }) => {
+  let releaseTransfer: (() => void) | undefined;
+  let markTransferStarted: (() => void) | undefined;
+  const transferStarted = new Promise<void>((resolve) => { markTransferStarted = resolve; });
+  await page.route("**/v1/uploads/**", async (route) => {
+    markTransferStarted?.();
+    await new Promise<void>((resolve) => { releaseTransfer = resolve; });
+    await route.abort().catch(() => undefined);
+  });
+  await openWorkspace(page, "upload-refresh");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const file = {
+    name: "resume.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(4096, 1),
+  };
+  await page.locator('input[type="file"]').setInputFiles(file);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("Uploading securely")).toBeVisible();
+  await transferStarted;
+  releaseTransfer?.();
+  await expect(page.getByText("The file transfer was interrupted")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Choose the same file to resume")).toBeVisible();
+  await page.unroute("**/v1/uploads/**");
+  await page.locator('input[type="file"]').setInputFiles(file);
+  await expect(page.getByText("Ready to resume from the verified upload position.")).toBeVisible();
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File not accepted")).toBeVisible({ timeout: 15_000 });
+});
+
+test("guest upload signs in to save the exact accepted source", async ({ page }) => {
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-upload-page")).toBeVisible();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/expire after 24 hours/)).toBeVisible();
+  const guestState = await page.evaluate(() => sessionStorage.getItem("ipw-guest-session"));
+  expect(guestState).toContain("guestSessionId");
+  expect(await page.locator("body").innerText()).not.toContain(JSON.parse(guestState!).token);
+  await page.getByRole("button", { name: "Sign in to save" }).click();
+  await expect(page.getByText("Your original source was saved without changing its identity.")).toBeVisible();
+  await page.getByRole("button", { name: "Open Default Files" }).click();
+  await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
+});
+
+test("guest upload has no detectable accessibility violations", async ({ page }) => {
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-upload-page")).toBeVisible();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
 });
 
 test("customer copy discloses testing and inactive product areas without internal or monetary language", async ({ page }) => {

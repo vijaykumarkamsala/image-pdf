@@ -6,6 +6,7 @@ import { DomainError } from "../../kernel/errors.js";
 import { runMigrations } from "../../kernel/migrations.js";
 import type {
   IntakeCommand,
+  CleanupCandidate,
   IntakeOwner,
   IntakeRepository,
   StoredUploadSession,
@@ -245,20 +246,73 @@ export class PostgresIntakeRepository implements IntakeRepository {
     return stored(result.rows[0]);
   }
 
-  async expireUploads(now: string): Promise<PrivateObjectRef[]> {
-    const result = await this.pool.query(
+  async claimCleanup(
+    workerId: string,
+    now: string,
+    leaseExpiresAt: string,
+    limit: number,
+  ): Promise<CleanupCandidate[]> {
+    await this.pool.query(
       `UPDATE upload_sessions SET state='expired', updated_at=$1
        WHERE expires_at <= $1 AND (
          state IN ('initiated','uploading') OR (owner_kind='guest' AND state IN ('ready','rejected'))
-       )
-       RETURNING owner_kind, workspace_id, guest_session_id, quarantine_object_key, immutable_object_key`,
+       )`,
       [now],
     );
+    const result = await this.pool.query(
+      `WITH candidates AS (
+         SELECT upload_session_id FROM upload_sessions
+         WHERE cleanup_completed_at IS NULL
+           AND state IN ('expired','rejected','cancelled')
+           AND (cleanup_lease_expires_at IS NULL OR cleanup_lease_expires_at <= $2)
+         ORDER BY expires_at,created_at FOR UPDATE SKIP LOCKED LIMIT $4
+       )
+       UPDATE upload_sessions upload SET cleanup_lease_owner=$1,cleanup_lease_expires_at=$3
+       FROM candidates WHERE upload.upload_session_id=candidates.upload_session_id
+       RETURNING upload.upload_session_id,upload.owner_kind,upload.workspace_id,upload.actor_id,
+         upload.guest_session_id,upload.quarantine_object_key,upload.immutable_object_key,
+         upload.provider_generation`,
+      [workerId, now, leaseExpiresAt, limit],
+    );
     return result.rows.map((row) => ({
-      ownerScope: String(row["owner_kind"] === "actor" ? row["workspace_id"] : row["guest_session_id"]),
-      objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
-      zone: row["immutable_object_key"] ? "immutable" : "quarantine",
+      uploadSessionId: String(row["upload_session_id"]),
+      owner: row["owner_kind"] === "actor"
+        ? {
+            ownerKind: "actor" as const,
+            ownerScope: String(row["workspace_id"]),
+            workspaceId: String(row["workspace_id"]),
+            actorId: String(row["actor_id"]),
+          }
+        : {
+            ownerKind: "guest" as const,
+            ownerScope: String(row["guest_session_id"]),
+            guestSessionId: String(row["guest_session_id"]),
+          },
+      object: {
+        ownerScope: String(row["owner_kind"] === "actor" ? row["workspace_id"] : row["guest_session_id"]),
+        objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
+        zone: row["immutable_object_key"] ? "immutable" as const : "quarantine" as const,
+        generation: row["provider_generation"] ? String(row["provider_generation"]) : undefined,
+      },
     }));
+  }
+
+  async completeCleanup(uploadSessionId: string, workerId: string, now: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE upload_sessions SET cleanup_completed_at=$1,cleanup_lease_owner=NULL,
+       cleanup_lease_expires_at=NULL WHERE upload_session_id=$2 AND cleanup_lease_owner=$3
+       AND cleanup_completed_at IS NULL`,
+      [now, uploadSessionId, workerId],
+    );
+    if (!result.rowCount) throw new DomainError(409, "cleanup-lease-invalid", "Cleanup lease is invalid");
+  }
+
+  async releaseCleanup(uploadSessionId: string, workerId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE upload_sessions SET cleanup_lease_owner=NULL,cleanup_lease_expires_at=NULL
+       WHERE upload_session_id=$1 AND cleanup_lease_owner=$2 AND cleanup_completed_at IS NULL`,
+      [uploadSessionId, workerId],
+    );
   }
 
   async close(): Promise<void> {

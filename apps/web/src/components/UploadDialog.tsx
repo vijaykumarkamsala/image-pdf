@@ -12,9 +12,10 @@ import {
 import type { ProcessingJobRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
 
 import { ApiError, api, createTraceId } from "../boundaries/apiClient.ts";
+import type { StoredGuestSession } from "../boundaries/session.ts";
 import {
   mediaTypeFor,
-  parseActiveUpload,
+  parseActiveUploads,
   phaseFromRecords,
   presentationFor,
   type ActiveUploadReference,
@@ -23,15 +24,34 @@ import {
 
 interface UploadDialogProps {
   open: boolean;
-  workspaceId: string;
+  workspaceId?: string;
+  guestSession?: StoredGuestSession;
+  embedded?: boolean;
   onOpenChange: (open: boolean) => void;
   onReady: () => void;
+  onGuestSaved?: (workspaceId: string) => void;
+}
+
+interface UploadItem {
+  id: string;
+  file?: File;
+  displayName: string;
+  byteSize: number;
+  phase: UploadPhase;
+  progress: number;
+  errorMessage?: string;
+  retryEligible: boolean;
+  needsFile: boolean;
+  saved: boolean;
+  upload?: UploadSessionRecord;
+  job?: ProcessingJobRecord;
+  traceId: string;
 }
 
 const terminalPhases = new Set<UploadPhase>(["ready", "rejected", "cancelled", "error"]);
 
-function storageKey(workspaceId: string): string {
-  return `ipw-active-upload-${workspaceId}`;
+function storageKey(ownerScope: string): string {
+  return `ipw-active-uploads-${ownerScope}`;
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -43,70 +63,109 @@ function customerError(error: unknown): string {
   return "The upload could not be completed. Please try again.";
 }
 
-export function UploadDialog({ open, workspaceId, onOpenChange, onReady }: UploadDialogProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [phase, setPhase] = useState<UploadPhase>("selecting");
-  const [progress, setProgress] = useState(0);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [upload, setUpload] = useState<UploadSessionRecord | null>(null);
-  const [job, setJob] = useState<ProcessingJobRecord | null>(null);
-  const [traceId, setTraceId] = useState<string | null>(null);
+function canRetry(error: unknown): boolean {
+  return error instanceof ApiError
+    ? error.status >= 500 || ["upload-transfer-failed", "upload-response-invalid"].includes(error.code)
+    : true;
+}
+
+function phaseLabel(item: UploadItem): string {
+  if (item.needsFile) return "Choose the same file to resume";
+  if (item.saved) return "Saved to Default Files";
+  return presentationFor(item.phase, item.progress).title;
+}
+
+export function UploadDialog({
+  open,
+  workspaceId,
+  guestSession,
+  embedded = false,
+  onOpenChange,
+  onReady,
+  onGuestSaved,
+}: UploadDialogProps) {
+  const ownerScope = guestSession?.guestSessionId ?? workspaceId ?? "unavailable";
+  const [items, setItems] = useState<UploadItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const generation = useRef(0);
-  const transfer = useRef<AbortController | null>(null);
+  const itemsRef = useRef<UploadItem[]>([]);
+  const transfers = useRef(new Map<string, AbortController>());
+  const monitors = useRef(new Map<string, number>());
   const wasOpen = useRef(open);
 
-  const presentation = presentationFor(phase, progress);
-  const busy = ["authorising", "uploading", "queued", "inspecting"].includes(phase);
+  const setQueue = (next: UploadItem[]) => {
+    itemsRef.current = next;
+    setItems(next);
+  };
 
-  function reset() {
-    generation.current += 1;
-    transfer.current?.abort();
-    transfer.current = null;
-    setFile(null);
-    setPhase("selecting");
-    setProgress(0);
-    setErrorMessage(null);
-    setUpload(null);
-    setJob(null);
-    setTraceId(null);
+  const patchItem = (id: string, patch: Partial<UploadItem>) => {
+    setQueue(itemsRef.current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  };
+
+  function references(): ActiveUploadReference[] {
+    return parseActiveUploads(sessionStorage.getItem(storageKey(ownerScope)));
   }
 
-  async function monitor(reference: ActiveUploadReference) {
-    const activeGeneration = ++generation.current;
+  function persist(reference: ActiveUploadReference): void {
+    const next = [...references().filter((item) => item.uploadSessionId !== reference.uploadSessionId), reference];
+    sessionStorage.setItem(storageKey(ownerScope), JSON.stringify(next));
+  }
+
+  function forget(uploadSessionId: string): void {
+    const next = references().filter((item) => item.uploadSessionId !== uploadSessionId);
+    if (next.length) sessionStorage.setItem(storageKey(ownerScope), JSON.stringify(next));
+    else sessionStorage.removeItem(storageKey(ownerScope));
+  }
+
+  function stop(id: string): void {
+    monitors.current.set(id, (monitors.current.get(id) ?? 0) + 1);
+    transfers.current.get(id)?.abort();
+    transfers.current.delete(id);
+  }
+
+  async function monitor(id: string, reference: ActiveUploadReference): Promise<void> {
+    if (!reference.jobId) return;
+    const version = (monitors.current.get(id) ?? 0) + 1;
+    monitors.current.set(id, version);
     let cursor = 0;
     let temporaryFailures = 0;
-    while (generation.current === activeGeneration) {
+    while (monitors.current.get(id) === version) {
       try {
         const [uploadResult, jobResult, eventsResult] = await Promise.all([
-          api.uploadStatus(reference.uploadSessionId, reference.traceId),
-          api.jobStatus(reference.jobId, reference.traceId),
-          api.jobEvents(reference.jobId, cursor, reference.traceId),
+          api.uploadStatus(reference.uploadSessionId, reference.traceId, guestSession?.token),
+          api.jobStatus(reference.jobId, reference.traceId, guestSession?.token),
+          api.jobEvents(reference.jobId, cursor, reference.traceId, guestSession?.token),
         ]);
-        if (generation.current !== activeGeneration) return;
+        if (monitors.current.get(id) !== version) return;
         temporaryFailures = 0;
         cursor = eventsResult.next_cursor;
         const latestEvent = eventsResult.events.at(-1);
         const nextPhase = phaseFromRecords(jobResult.job, uploadResult.upload_session);
-        setUpload(uploadResult.upload_session);
-        setJob(jobResult.job);
-        setProgress(latestEvent?.progress_percent ?? jobResult.job.progress_percent);
-        setPhase(nextPhase);
+        patchItem(id, {
+          upload: uploadResult.upload_session,
+          job: jobResult.job,
+          progress: latestEvent?.progress_percent ?? jobResult.job.progress_percent,
+          phase: nextPhase,
+          errorMessage: uploadResult.upload_session.failure?.message ?? jobResult.job.failure?.message ?? undefined,
+          retryEligible: Boolean(uploadResult.upload_session.failure?.retryable || jobResult.job.failure?.retryable),
+        });
         if (nextPhase === "ready") {
-          sessionStorage.removeItem(storageKey(workspaceId));
+          if (guestSession) persist({ ...reference, stage: "ready" });
+          else forget(reference.uploadSessionId);
           onReady();
           return;
         }
         if (nextPhase === "rejected" || nextPhase === "cancelled") {
-          sessionStorage.removeItem(storageKey(workspaceId));
-          setErrorMessage(uploadResult.upload_session.failure?.message ?? jobResult.job.failure?.message ?? null);
+          forget(reference.uploadSessionId);
           return;
         }
       } catch (error) {
         temporaryFailures += 1;
         if (temporaryFailures >= 5) {
-          setPhase("error");
-          setErrorMessage(customerError(error));
+          patchItem(id, {
+            phase: "error",
+            errorMessage: customerError(error),
+            retryEligible: true,
+          });
           return;
         }
       }
@@ -114,155 +173,312 @@ export function UploadDialog({ open, workspaceId, onOpenChange, onReady }: Uploa
     }
   }
 
-  useEffect(() => {
-    const reference = parseActiveUpload(sessionStorage.getItem(storageKey(workspaceId)));
-    if (!reference) return;
-    setPhase("queued");
-    setTraceId(reference.traceId);
-    setUpload({ upload_session_id: reference.uploadSessionId, display_name: reference.displayName } as UploadSessionRecord);
-    setJob({ job_id: reference.jobId } as ProcessingJobRecord);
-    onOpenChange(true);
-    void monitor(reference);
-    return () => { generation.current += 1; };
-    // Recovery runs once for each workspace; callbacks remain stable for this shell.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId]);
-
-  useEffect(() => {
-    if (open && !wasOpen.current && terminalPhases.has(phase)) reset();
-    wasOpen.current = open;
-  }, [open, phase]);
-
-  function selectFile(selected: File | null) {
-    if (!selected) return;
-    reset();
-    setFile(selected);
-  }
-
-  async function begin() {
-    if (!file) return;
-    const mediaType = mediaTypeFor(file);
+  async function processItem(id: string): Promise<void> {
+    const selected = itemsRef.current.find((item) => item.id === id);
+    if (!selected?.file) return;
+    const mediaType = mediaTypeFor(selected.file);
     if (!mediaType) {
-      setPhase("error");
-      setErrorMessage("Choose a supported image or PDF file.");
+      patchItem(id, {
+        phase: "error",
+        errorMessage: "Choose a supported image or PDF file.",
+        retryEligible: false,
+      });
       return;
     }
-    const operationTrace = createTraceId();
-    setTraceId(operationTrace);
-    setErrorMessage(null);
-    setPhase("authorising");
+    const traceId = selected.traceId || createTraceId();
+    patchItem(id, { phase: "authorising", errorMessage: undefined, traceId, needsFile: false });
     try {
-      const created = await api.createUploadSession(workspaceId, file, mediaType, operationTrace);
-      setUpload(created.upload_session);
-      setPhase("uploading");
-      transfer.current = new AbortController();
-      const transferred = await api.transferFile(
-        created.authorization,
-        file,
-        created.upload_session.bytes_received,
-        setProgress,
-        transfer.current.signal,
-      );
-      transfer.current = null;
-      setUpload(transferred.uploadSession ?? {
-        ...created.upload_session,
-        bytes_received: transferred.bytesReceived,
-        state: "uploading",
+      let upload = selected.upload;
+      let authorization;
+      if (upload && !selected.job) {
+        const resumed = await api.resumeUploadSession(upload.upload_session_id, traceId, guestSession?.token);
+        upload = resumed.upload_session;
+        authorization = resumed.authorization;
+      } else {
+        const created = guestSession
+          ? await api.createGuestUploadSession(guestSession.token, selected.file, mediaType, traceId)
+          : await api.createUploadSession(workspaceId!, selected.file, mediaType, traceId);
+        upload = created.upload_session;
+        authorization = created.authorization;
+      }
+      patchItem(id, { upload, phase: "uploading" });
+      persist({
+        uploadSessionId: upload.upload_session_id,
+        displayName: selected.displayName,
+        byteSize: selected.byteSize,
+        traceId,
+        stage: "transferring",
       });
-      setPhase("queued");
-      const finalised = await api.finaliseUpload(created.upload_session.upload_session_id, operationTrace);
-      setUpload(finalised.upload_session);
-      setJob(finalised.job);
+      const transfer = new AbortController();
+      transfers.current.set(id, transfer);
+      const transferred = await api.transferFile(
+        authorization,
+        selected.file,
+        upload.bytes_received,
+        (progress) => patchItem(id, { progress }),
+        transfer.signal,
+      );
+      transfers.current.delete(id);
+      patchItem(id, {
+        upload: transferred.uploadSession ?? {
+          ...upload,
+          bytes_received: transferred.bytesReceived,
+          state: "uploading",
+        },
+        phase: "queued",
+      });
+      const finalised = await api.finaliseUpload(upload.upload_session_id, traceId, guestSession?.token);
       const reference: ActiveUploadReference = {
-        uploadSessionId: created.upload_session.upload_session_id,
+        uploadSessionId: upload.upload_session_id,
         jobId: finalised.job.job_id,
-        displayName: file.name,
-        traceId: operationTrace,
+        displayName: selected.displayName,
+        byteSize: selected.byteSize,
+        traceId,
+        stage: "processing",
       };
-      sessionStorage.setItem(storageKey(workspaceId), JSON.stringify(reference));
-      await monitor(reference);
+      patchItem(id, { upload: finalised.upload_session, job: finalised.job, phase: "queued" });
+      persist(reference);
+      await monitor(id, reference);
     } catch (error) {
       if (error instanceof ApiError && error.code === "upload-cancelled") return;
-      setPhase("error");
-      setErrorMessage(customerError(error));
+      patchItem(id, {
+        phase: "error",
+        errorMessage: customerError(error),
+        retryEligible: canRetry(error),
+      });
     }
   }
 
-  async function cancel() {
-    generation.current += 1;
-    transfer.current?.abort();
-    transfer.current = null;
+  async function cancel(item: UploadItem): Promise<void> {
+    stop(item.id);
     try {
-      if (job?.job_id) await api.cancelJob(job.job_id, traceId ?? createTraceId());
-      else if (upload?.upload_session_id) await api.cancelUpload(upload.upload_session_id, traceId ?? createTraceId());
-      sessionStorage.removeItem(storageKey(workspaceId));
-      setPhase("cancelled");
-      setErrorMessage(null);
+      if (item.job?.job_id) {
+        await api.cancelJob(item.job.job_id, item.traceId, guestSession?.token);
+      } else if (item.upload?.upload_session_id) {
+        await api.cancelUpload(item.upload.upload_session_id, item.traceId, guestSession?.token);
+      }
+      if (item.upload?.upload_session_id) forget(item.upload.upload_session_id);
+      patchItem(item.id, { phase: "cancelled", progress: 0, errorMessage: undefined, retryEligible: false });
     } catch (error) {
-      setPhase("error");
-      setErrorMessage(customerError(error));
+      patchItem(item.id, { phase: "error", errorMessage: customerError(error), retryEligible: true });
     }
   }
+
+  async function saveGuest(item: UploadItem): Promise<void> {
+    if (!guestSession || !item.upload?.upload_session_id) return;
+    patchItem(item.id, { phase: "authorising", errorMessage: undefined });
+    try {
+      const context = await api.bootstrap();
+      await api.handoffGuest(
+        item.upload.upload_session_id,
+        guestSession.token,
+        context.workspace.workspace_id,
+        item.traceId,
+      );
+      forget(item.upload.upload_session_id);
+      patchItem(item.id, { phase: "ready", saved: true });
+      onGuestSaved?.(context.workspace.workspace_id);
+    } catch (error) {
+      patchItem(item.id, { phase: "ready", errorMessage: customerError(error) });
+    }
+  }
+
+  function selectFiles(selected: File[]): void {
+    // A recovered queue can render before the ref update is observed by this
+    // input event. Prefer the fuller snapshot so reselecting never replaces it.
+    const current = items.length > itemsRef.current.length ? items : itemsRef.current;
+    let next = [...current];
+    for (const file of selected) {
+      const recoveredIndex = next.findIndex((item) => item.needsFile
+        && item.displayName === file.name && item.byteSize === file.size);
+      if (recoveredIndex >= 0) {
+        next = next.map((item, index) => index === recoveredIndex ? {
+          ...item,
+          file,
+          needsFile: false,
+          retryEligible: true,
+          errorMessage: "Ready to resume from the verified upload position.",
+        } : item);
+      } else {
+        next.push({
+          id: crypto.randomUUID(),
+          file,
+          displayName: file.name,
+          byteSize: file.size,
+          phase: "selecting",
+          progress: 0,
+          retryEligible: false,
+          needsFile: false,
+          saved: false,
+          traceId: createTraceId(),
+        });
+      }
+    }
+    setQueue(next);
+  }
+
+  function reset(): void {
+    for (const item of itemsRef.current) stop(item.id);
+    setQueue([]);
+  }
+
+  useEffect(() => {
+    const recovered = references();
+    if (!recovered.length) return;
+    const restored = recovered.map<UploadItem>((reference) => ({
+      id: reference.uploadSessionId,
+      displayName: reference.displayName,
+      byteSize: reference.byteSize,
+      phase: reference.stage === "transferring" ? "error" : "queued",
+      progress: 0,
+      errorMessage: reference.stage === "transferring"
+        ? "Choose the same file to continue this upload."
+        : undefined,
+      retryEligible: reference.stage !== "transferring",
+      needsFile: reference.stage === "transferring",
+      saved: false,
+      upload: { upload_session_id: reference.uploadSessionId, display_name: reference.displayName } as UploadSessionRecord,
+      job: reference.jobId ? { job_id: reference.jobId } as ProcessingJobRecord : undefined,
+      traceId: reference.traceId,
+    }));
+    setQueue(restored);
+    onOpenChange(true);
+    for (const [index, reference] of recovered.entries()) {
+      if (reference.jobId) void monitor(restored[index].id, reference);
+    }
+    return () => {
+      for (const item of restored) stop(item.id);
+    };
+    // Recovery is keyed by the server-issued owner scope.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerScope]);
+
+  useEffect(() => {
+    if (open && !wasOpen.current && items.length > 0
+      && items.every((item) => terminalPhases.has(item.phase) && !item.needsFile)) {
+      reset();
+    }
+    wasOpen.current = open;
+    // Reset only on a closed-to-open transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
-  const StatusIcon = phase === "ready" ? CheckCircle2 : phase === "rejected" || phase === "error" ? AlertTriangle : busy ? LoaderCircle : FileUp;
+  const busy = items.some((item) => ["authorising", "uploading", "queued", "inspecting"].includes(item.phase));
+  const eligible = items.filter((item) => item.file && (
+    item.phase === "selecting" || (item.phase === "error" && item.retryEligible)
+  ));
+  const content = (
+    <section
+      className={embedded ? "upload-workspace" : "dialog upload-dialog upload-dialog-multi"}
+      role={embedded ? undefined : "dialog"}
+      aria-modal={embedded ? undefined : "true"}
+      aria-labelledby="upload-dialog-title"
+    >
+      <div className="dialog-heading">
+        <div className="upload-title">
+          <span className="upload-status-icon phase-selecting"><FileUp aria-hidden="true" /></span>
+          <div>
+            <h2 id="upload-dialog-title">{items.length ? `${items.length} ${items.length === 1 ? "file" : "files"} selected` : "Upload files"}</h2>
+            <p>Each file is checked separately before it becomes available.</p>
+          </div>
+        </div>
+        {!embedded && <button type="button" className="icon-button" onClick={() => onOpenChange(false)} title="Close"><X aria-hidden="true" /></button>}
+      </div>
+
+      <label
+        className={dragActive ? "upload-drop upload-drop-compact active" : "upload-drop upload-drop-compact"}
+        onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragActive(false);
+          selectFiles([...event.dataTransfer.files]);
+        }}
+      >
+        <Upload aria-hidden="true" />
+        <strong>Drop images or PDFs here</strong>
+        <span>or choose files from this device</span>
+        <span className="button upload-choose">Choose files</span>
+        <input
+          type="file"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          onChange={(event) => selectFiles([...(event.target.files ?? [])])}
+        />
+      </label>
+
+      {items.length > 0 && (
+        <ul className="upload-queue" aria-label="Selected files">
+          {items.map((item) => {
+            const active = ["authorising", "uploading", "queued", "inspecting"].includes(item.phase);
+            const Icon = item.phase === "ready"
+              ? CheckCircle2
+              : item.phase === "error" || item.phase === "rejected"
+                ? AlertTriangle
+                : active ? LoaderCircle : FileUp;
+            return (
+              <li className={`upload-item phase-${item.phase}`} key={item.id}>
+                <span className="upload-item-icon"><Icon aria-hidden="true" /></span>
+                <div className="upload-item-copy">
+                  <strong>{item.displayName}</strong>
+                  <span>{phaseLabel(item)}</span>
+                  {active && <progress value={item.progress} max="100">{item.progress}%</progress>}
+                  {item.errorMessage && <span className="upload-item-error" role="alert">{item.errorMessage}</span>}
+                </div>
+                <div className="upload-item-actions">
+                  {active && <button type="button" className="icon-button" title={`Cancel ${item.displayName}`} onClick={() => void cancel(item)}><X aria-hidden="true" /></button>}
+                  {item.phase === "error" && item.retryEligible && !item.needsFile && (
+                    <button type="button" className="button compact" onClick={() => item.job ? void monitor(item.id, {
+                      uploadSessionId: item.upload!.upload_session_id,
+                      jobId: item.job.job_id,
+                      displayName: item.displayName,
+                      byteSize: item.byteSize,
+                      traceId: item.traceId,
+                      stage: "processing",
+                    }) : void processItem(item.id)}><RotateCcw aria-hidden="true" />Retry</button>
+                  )}
+                  {guestSession && item.phase === "ready" && !item.saved && (
+                    <button type="button" className="button primary compact" onClick={() => void saveGuest(item)}>Sign in to save</button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="upload-privacy">
+        <ShieldCheck aria-hidden="true" />
+        <span>{guestSession
+          ? "Temporary files stay private and expire after 24 hours unless you sign in to save them."
+          : "Files stay private while they are checked and added to this workspace."}</span>
+      </div>
+
+      <div className="dialog-actions upload-actions">
+        {!embedded && <button type="button" className="button" onClick={() => onOpenChange(false)}>Close</button>}
+        {items.length > 0 && items.every((item) => terminalPhases.has(item.phase)) && !busy && (
+          <button type="button" className="button" onClick={reset}>Clear</button>
+        )}
+        <button
+          type="button"
+          className="button primary"
+          disabled={!eligible.length || busy}
+          onClick={() => void Promise.allSettled(eligible.map((item) => processItem(item.id)))}
+        >
+          <Upload aria-hidden="true" />Upload {eligible.length || "files"}
+        </button>
+      </div>
+    </section>
+  );
+
+  if (embedded) return content;
   return (
     <div className="dialog-layer" role="presentation">
       <button className="dialog-scrim" aria-label="Close upload" onClick={() => onOpenChange(false)} />
-      <section className="dialog upload-dialog" role="dialog" aria-modal="true" aria-labelledby="upload-dialog-title">
-        <div className="dialog-heading">
-          <div className="upload-title"><span className={`upload-status-icon phase-${phase}`}><StatusIcon aria-hidden="true" /></span><div><h2 id="upload-dialog-title">{presentation.title}</h2><p>{presentation.description}</p></div></div>
-          <button type="button" className="icon-button" onClick={() => onOpenChange(false)} title="Close"><X aria-hidden="true" /></button>
-        </div>
-
-        {phase === "selecting" && (
-          <>
-            <label
-              className={dragActive ? "upload-drop active" : "upload-drop"}
-              onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={(event) => { event.preventDefault(); setDragActive(false); selectFile(event.dataTransfer.files.item(0)); }}
-            >
-              <Upload aria-hidden="true" />
-              <strong>{file ? file.name : "Drop an image or PDF here"}</strong>
-              <span>{file ? `${Math.max(1, Math.ceil(file.size / 1024))} KB selected` : "or choose a file from this device"}</span>
-              <span className="button upload-choose">Choose file</span>
-              <input type="file" accept="image/*,.pdf,application/pdf" onChange={(event) => selectFile(event.target.files?.item(0) ?? null)} />
-            </label>
-            <div className="upload-privacy"><ShieldCheck aria-hidden="true" /><span>Your file stays private while it is checked and added to this workspace.</span></div>
-          </>
-        )}
-
-        {phase !== "selecting" && (
-          <div className="upload-progress" aria-live="polite">
-            <div className="upload-file-line"><FileUp aria-hidden="true" /><span>{file?.name ?? upload?.display_name ?? "Selected file"}</span><strong>{presentation.progress}%</strong></div>
-            <progress value={presentation.progress} max="100">{presentation.progress}%</progress>
-            {(errorMessage || upload?.failure?.message || job?.failure?.message) && (
-              <div className="upload-message" role="alert">{errorMessage ?? upload?.failure?.message ?? job?.failure?.message}</div>
-            )}
-          </div>
-        )}
-
-        {(traceId || upload?.upload_session_id || job?.job_id) && (
-          <details className="upload-details">
-            <summary>Advanced details</summary>
-            <dl>
-              {upload?.upload_session_id && <><dt>Upload ID</dt><dd>{upload.upload_session_id}</dd></>}
-              {job?.job_id && <><dt>Job ID</dt><dd>{job.job_id}</dd></>}
-              {traceId && <><dt>Trace ID</dt><dd>{traceId}</dd></>}
-            </dl>
-          </details>
-        )}
-
-        <div className="dialog-actions upload-actions">
-          {phase === "selecting" && <><button type="button" className="button" onClick={() => onOpenChange(false)}>Cancel</button><button type="button" className="button primary" disabled={!file} onClick={() => void begin()}><Upload aria-hidden="true" />Upload</button></>}
-          {busy && <button type="button" className="button" onClick={() => void cancel()}>Cancel upload</button>}
-          {phase === "ready" && <button type="button" className="button primary" onClick={() => onOpenChange(false)}><CheckCircle2 aria-hidden="true" />Done</button>}
-          {(phase === "rejected" || phase === "cancelled" || phase === "error") && <button type="button" className="button primary" onClick={reset}><RotateCcw aria-hidden="true" />Choose another file</button>}
-        </div>
-      </section>
+      {content}
     </div>
   );
 }

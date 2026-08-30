@@ -5,6 +5,7 @@ import {
   mediaTypeFor,
   nextGcsOffset,
   parseActiveUpload,
+  parseActiveUploads,
   phaseFromRecords,
   presentationFor,
 } from "../src/boundaries/uploadState.ts";
@@ -17,6 +18,8 @@ test("durable records map to customer-safe upload phases", () => {
   assert.equal(phaseFromRecords(job, upload), "inspecting");
   assert.equal(phaseFromRecords({ ...job, state: "failed" }, { ...upload, state: "rejected" }), "rejected");
   assert.equal(phaseFromRecords({ ...job, state: "succeeded" }, { ...upload, state: "ready" }), "ready");
+  assert.equal(phaseFromRecords({ ...job, state: "succeeded" }, { ...upload, state: "rejected" }), "rejected");
+  assert.equal(phaseFromRecords({ ...job, state: "succeeded" }, { ...upload, state: "cancelled" }), "cancelled");
   assert.equal(presentationFor("uploading", 41.6).progress, 42);
   assert.doesNotMatch(presentationFor("queued").description, /recovery|benchmark|object key/i);
 });
@@ -32,9 +35,12 @@ test("active upload recovery accepts identifiers but rejects malformed state", (
     uploadSessionId: "upload-001",
     jobId: "job-001",
     displayName: "source.png",
+    byteSize: 1024,
     traceId: "trace-001",
+    stage: "processing" as const,
   };
   assert.deepEqual(parseActiveUpload(JSON.stringify(reference)), reference);
+  assert.deepEqual(parseActiveUploads(JSON.stringify([reference, { nope: true }])), [reference]);
   assert.equal(parseActiveUpload('{"uploadSessionId":"upload-001"}'), null);
   assert.equal(parseActiveUpload("not json"), null);
 });

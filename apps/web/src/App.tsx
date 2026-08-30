@@ -8,6 +8,7 @@ import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
 import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiClient.ts";
 import { productFeatureState } from "./boundaries/featureFlags.ts";
+import { loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session.ts";
 import { UploadDialog } from "./components/UploadDialog.tsx";
 import { futureOutcomes, workspacePath, workspaceRoutes } from "./routes.ts";
 
@@ -227,6 +228,67 @@ function RoutedApp() {
   })} />;
 }
 
+function GuestUploadPage() {
+  const navigate = useNavigate();
+  const [guest, setGuest] = useState<StoredGuestSession | null>(() => loadGuestSession());
+  const [error, setError] = useState<Error | null>(null);
+  const [savedWorkspace, setSavedWorkspace] = useState<string | null>(null);
+  useEffect(() => {
+    if (guest) return;
+    let active = true;
+    api.createGuestSession().then((created) => {
+      if (!active) return;
+      const session = {
+        token: created.token,
+        guestSessionId: created.guest_session.guest_session_id,
+        expiresAt: created.guest_session.expires_at,
+      };
+      storeGuestSession(session);
+      setGuest(session);
+    }, (reason: unknown) => {
+      if (active) setError(reason instanceof Error ? reason : new Error("Guest upload is unavailable"));
+    });
+    return () => { active = false; };
+  }, [guest]);
+
+  if (error) return <AppError error={error} retry={() => { setError(null); setGuest(null); }} />;
+  if (!guest) return <AppLoading />;
+  return (
+    <div className="guest-shell">
+      <header className="guest-header"><span className="wordmark"><span className="wordmark-symbol">V</span><span>Visual Workspace</span></span></header>
+      <main className="guest-page" data-testid="guest-upload-page">
+        <section className="guest-heading">
+          <p className="eyebrow">Private upload</p>
+          <h1>Check files before you sign in</h1>
+          <p>Upload images and PDFs now, then sign in only when you are ready to save accepted files.</p>
+        </section>
+        <UploadDialog
+          open
+          embedded
+          guestSession={guest}
+          onOpenChange={() => undefined}
+          onReady={() => undefined}
+          onGuestSaved={setSavedWorkspace}
+        />
+        {savedWorkspace && (
+          <div className="guest-saved" role="status">
+            <CheckCircle2 aria-hidden="true" />
+            <span>Your original source was saved without changing its identity.</span>
+            <button className="button primary" onClick={() => navigate(workspacePath(savedWorkspace, "files"))}>Open Default Files</button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
 export default function App() {
-  return <BrowserRouter><RoutedApp /></BrowserRouter>;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/guest/upload" element={<GuestUploadPage />} />
+        <Route path="*" element={<RoutedApp />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }

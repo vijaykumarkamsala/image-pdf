@@ -146,7 +146,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .dialog input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--canvas); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
 
-.upload-dialog { width: min(570px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; }
+.upload-dialog { width: min(680px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; }
 .upload-title { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .upload-title h2 { margin-top: 1px; }
 .upload-title p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
@@ -178,6 +178,31 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .upload-details dt { color: var(--muted); }
 .upload-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .upload-actions { min-height: 44px; }
+.upload-drop-compact { min-height: 150px; padding: 20px; }
+.upload-queue { display: grid; gap: 8px; max-height: min(310px, 38vh); margin: 14px 0 0; padding: 0; overflow-y: auto; list-style: none; }
+.upload-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 70px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--canvas); }
+.upload-item-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; color: var(--accent); background: var(--accent-soft); }
+.upload-item.phase-error .upload-item-icon, .upload-item.phase-rejected .upload-item-icon { color: var(--error); background: var(--danger-soft); }
+.upload-item-icon svg { width: 17px; height: 17px; }
+.upload-item.phase-authorising .upload-item-icon svg, .upload-item.phase-uploading .upload-item-icon svg, .upload-item.phase-queued .upload-item-icon svg, .upload-item.phase-inspecting .upload-item-icon svg { animation: spin 1.2s linear infinite; }
+.upload-item-copy { display: grid; min-width: 0; gap: 3px; }
+.upload-item-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.upload-item-copy > span { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.upload-item-copy .upload-item-error { color: var(--error); }
+.upload-item-copy progress { width: 100%; height: 6px; border: 0; overflow: hidden; accent-color: var(--accent); }
+.upload-item-actions { display: flex; align-items: center; gap: 6px; }
+.upload-item-actions .icon-button { width: 44px; height: 44px; }
+.button.compact { min-height: 40px; padding-inline: 11px; font-size: 12px; white-space: nowrap; }
+.guest-shell { min-height: 100vh; }
+.guest-header { height: 68px; padding: 10px max(18px, calc((100vw - 980px) / 2)); color: #f7faf8; background: #1a2623; border-bottom: 1px solid #31413c; }
+.guest-page { width: min(980px, 100%); margin: 0 auto; padding: 40px 24px 64px; }
+.guest-heading { max-width: 650px; margin-bottom: 28px; }
+.guest-heading h1 { margin: 5px 0 10px; font-size: 32px; line-height: 1.2; }
+.guest-heading p { margin: 0; color: var(--muted); line-height: 1.55; }
+.upload-workspace { padding: 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); }
+.guest-saved { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 14px 0; color: var(--accent); }
+.guest-saved span { color: var(--ink); }
+.guest-saved .button { margin-left: auto; }
 
 .center-state { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 28px; text-align: center; }
 .center-state h1 { margin: 10px 0 0; font-size: 26px; }
@@ -240,6 +265,14 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .dialog { width: 100%; border-radius: 8px 8px 0 0; padding-bottom: 28px; }
   .upload-dialog { max-height: calc(100vh - 20px); }
   .upload-drop { min-height: 220px; padding: 24px 16px; }
+  .upload-drop-compact { min-height: 132px; padding: 16px; }
+  .upload-item { grid-template-columns: 30px minmax(0, 1fr); }
+  .upload-item-actions { grid-column: 2; justify-content: flex-start; }
+  .guest-page { padding: 28px 18px 44px; }
+  .guest-heading h1 { font-size: 27px; }
+  .upload-workspace { margin-inline: -18px; padding: 20px 18px; }
+  .guest-saved { align-items: flex-start; flex-wrap: wrap; }
+  .guest-saved .button { width: 100%; margin-left: 0; }
   .upload-actions .button { min-height: 44px; }
 }
 

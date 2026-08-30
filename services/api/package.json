@@ -27,6 +27,7 @@
     "test": "npm run build --silent && node --test dist/tests/*.test.js",
     "test:postgres": "npm run build --silent && node -e \"if(!process.env.IPW_TEST_DATABASE_URL){console.error('IPW_TEST_DATABASE_URL is required');process.exit(1)}\" && node --test dist/tests/postgres.integration.test.js",
     "start": "node dist/src/main.js",
-    "relay:outbox": "node dist/src/outbox-relay.main.js"
+    "relay:outbox": "node dist/src/outbox-relay.main.js",
+    "cleanup:intake": "node dist/src/intake-cleanup.main.js"
   }
 }

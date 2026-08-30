@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { randomUUID } from "node:crypto";
 
 import { Pool } from "pg";
 
@@ -133,6 +134,10 @@ test(
       assert.ok(usage.every((event) => event.customer_amount === "0.00" && event.credit_debit === 0));
       const dimensions = await pool.query("SELECT dimensions FROM usage_admin_dimensions");
       assert.ok(dimensions.rowCount && dimensions.rowCount >= usage.length);
+      const customerUsage = await repository.customerUsageSummary("actor-pg", first.workspace.workspace_id);
+      assert.ok(customerUsage.files >= 1);
+      assert.ok(customerUsage.storage_bytes >= 4096);
+      assert.doesNotMatch(JSON.stringify(customerUsage), /customer_amount|credit_debit|currency/i);
 
       await assert.rejects(
         pool.query("UPDATE asset_originals SET original_filename = 'mutated' WHERE asset_original_id = $1", [
@@ -241,6 +246,68 @@ test(
         pool.query("UPDATE upload_sessions SET bytes_received=3 WHERE upload_session_id='upload-pg'"),
         /terminal upload sessions are immutable/,
       );
+
+      const cleanupUploadId = `upload-cleanup-pg-${randomUUID()}`;
+      const cleanupUpload = {
+        ...storedUpload,
+        record: {
+          ...uploadRecord,
+          upload_session_id: cleanupUploadId,
+          display_name: "cleanup.png",
+        },
+        quarantineRef: {
+          ...storedUpload.quarantineRef,
+          objectKey: `quarantine/${first.workspace.workspace_id}/${cleanupUploadId}`,
+        },
+      };
+      await intake.createUpload(
+        cleanupUpload,
+        { ...command, idempotencyKey: cleanupUploadId, requestHash: "9".repeat(64) },
+        uploadRecord.created_at,
+      );
+      await intake.cancelUpload(
+        cleanupUploadId,
+        {
+          ownerKind: "actor",
+          ownerScope: first.workspace.workspace_id,
+          workspaceId: first.workspace.workspace_id,
+          actorId: "actor-pg",
+        },
+        "2026-08-30T00:06:00.000Z",
+      );
+      const claimedCleanup = await intake.claimCleanup(
+        "cleanup-pg-a",
+        "2026-08-30T00:07:00.000Z",
+        "2026-08-30T00:08:00.000Z",
+        100,
+      );
+      assert.ok(claimedCleanup.some((candidate) => candidate.uploadSessionId === cleanupUploadId));
+      for (const candidate of claimedCleanup) {
+        if (candidate.uploadSessionId !== cleanupUploadId) {
+          await intake.releaseCleanup(candidate.uploadSessionId, "cleanup-pg-a");
+        }
+      }
+      const concurrentCleanup = await intake.claimCleanup(
+        "cleanup-pg-b",
+        "2026-08-30T00:07:00.000Z",
+        "2026-08-30T00:08:00.000Z",
+        100,
+      );
+      assert.ok(concurrentCleanup.every((candidate) => candidate.uploadSessionId !== cleanupUploadId));
+      for (const candidate of concurrentCleanup) {
+        await intake.releaseCleanup(candidate.uploadSessionId, "cleanup-pg-b");
+      }
+      await intake.completeCleanup(cleanupUploadId, "cleanup-pg-a", "2026-08-30T00:07:10.000Z");
+      const completedCleanup = await intake.claimCleanup(
+        "cleanup-pg-c",
+        "2026-08-30T00:09:00.000Z",
+        "2026-08-30T00:10:00.000Z",
+        100,
+      );
+      assert.ok(completedCleanup.every((candidate) => candidate.uploadSessionId !== cleanupUploadId));
+      for (const candidate of completedCleanup) {
+        await intake.releaseCleanup(candidate.uploadSessionId, "cleanup-pg-c");
+      }
 
       const jobUpload = {
         ...storedUpload,
@@ -579,6 +646,9 @@ test(
         .find((file) => file.file_id === handedOff.fileId);
       assert.equal(guestFile?.asset_original_id, "asset-guest-preserved");
       assert.equal(guestFile?.current_source_version_id, "source-guest-preserved");
+      const handoffAudit = await repository.listAuditEvents("actor-pg", first.workspace.workspace_id);
+      assert.ok(handoffAudit.some((event) => event.action === "guest-source.handed-off"
+        && event.resource_id === handedOff.fileId));
     } finally {
       await repository.close();
     }

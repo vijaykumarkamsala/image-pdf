@@ -142,6 +142,16 @@ class PostgresWorkerRepository:
             )
             attempt, max_attempts = cursor.fetchone()
             self._event(cursor, job_id, "job.leased", "leased", 0, instant, trace_id)
+            if int(attempt) > 1:
+                self._audit_row(
+                    cursor,
+                    row,
+                    "job.retry-performed",
+                    "processing_job",
+                    job_id,
+                    instant,
+                    trace_id,
+                )
             self._connection.commit()
             owner_kind = str(row["owner_kind"])
             workspace_id = str(row["workspace_id"]) if row["workspace_id"] else None
@@ -390,6 +400,29 @@ class PostgresWorkerRepository:
                 instant,
             )
             self._audit(cursor, lease, "source.promoted", "asset_original", asset_id, instant)
+            if lease.owner_kind == "actor" and lease.workspace_id and lease.actor_id:
+                usage_id = f"usage-{uuid.uuid4()}"
+                cursor.execute(
+                    """INSERT INTO usage_events(usage_event_id,workspace_id,actor_id,event_kind,
+                         customer_amount,credit_debit,currency,occurred_at)
+                       VALUES (%s,%s,%s,'file.intake-ready',0,0,'USD',%s)""",
+                    (usage_id, lease.workspace_id, lease.actor_id, instant),
+                )
+                cursor.execute(
+                    """INSERT INTO usage_admin_dimensions(usage_event_id,dimensions)
+                       VALUES (%s,%s::jsonb)""",
+                    (
+                        usage_id,
+                        json.dumps(
+                            {
+                                "resource_kind": "file",
+                                "operation": "secure_intake",
+                                "storage_bytes": str(facts["byte_size"]),
+                                "high_cost_processing": "false",
+                            }
+                        ),
+                    ),
+                )
             self._connection.commit()
         except Exception:
             self._connection.rollback()
@@ -501,6 +534,14 @@ class PostgresWorkerRepository:
                 lease.trace_id,
             )
             if will_retry:
+                self._audit(
+                    cursor,
+                    lease,
+                    "job.retry-requested",
+                    "processing_job",
+                    lease.job_id,
+                    instant,
+                )
                 cursor.execute(
                     """INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
                        VALUES (%s,%s,'process_job',%s::jsonb,%s,%s,%s)""",
@@ -518,6 +559,14 @@ class PostgresWorkerRepository:
                     """UPDATE upload_sessions SET state='rejected',failure=%s::jsonb,updated_at=%s
                        WHERE upload_session_id=%s AND state='inspecting'""",
                     (json.dumps(failure), instant, lease.upload_session_id),
+                )
+                self._audit(
+                    cursor,
+                    lease,
+                    f"inspection.rejected.{code}",
+                    "upload_session",
+                    lease.upload_session_id,
+                    instant,
                 )
             self._connection.commit()
             return state
@@ -553,6 +602,15 @@ class PostgresWorkerRepository:
             (instant, row["upload_session_id"]),
         )
         self._event(cursor, str(row["job_id"]), "job.cancelled", "cancelled", 0, instant, trace_id)
+        self._audit_row(
+            cursor,
+            row,
+            "job.cancelled",
+            "processing_job",
+            str(row["job_id"]),
+            instant,
+            trace_id,
+        )
 
     def _event(
         self,
@@ -593,6 +651,33 @@ class PostgresWorkerRepository:
                 resource_id,
                 instant,
                 lease.trace_id,
+            ),
+        )
+
+    def _audit_row(
+        self,
+        cursor: Any,
+        row: dict[str, Any],
+        action: str,
+        resource_kind: str,
+        resource_id: str,
+        instant: datetime,
+        trace_id: str,
+    ) -> None:
+        if row["owner_kind"] != "actor" or not row["workspace_id"] or not row["actor_id"]:
+            return
+        cursor.execute(
+            """INSERT INTO audit_events(audit_event_id,workspace_id,actor_id,action,resource_kind,resource_id,occurred_at,trace_id)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                f"audit-{uuid.uuid4()}",
+                row["workspace_id"],
+                row["actor_id"],
+                action,
+                resource_kind,
+                resource_id,
+                instant,
+                trace_id,
             ),
         )
 

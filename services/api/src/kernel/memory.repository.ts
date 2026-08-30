@@ -10,6 +10,7 @@ import type {
   ReusableFileReference,
   SourceVersionRecord,
   UsageEvent,
+  UsageSummary,
   Workspace,
   WorkspaceFile,
   WorkspaceProjectPolicy,
@@ -335,6 +336,25 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
     return this.usage.filter((item) => item.workspace_id === workspaceId);
   }
 
+  async customerUsageSummary(actorId: string, workspaceId: string): Promise<UsageSummary> {
+    this.requireMember(actorId, workspaceId);
+    const events = this.usage.filter((item) => item.workspace_id === workspaceId);
+    return {
+      schema_version: VERSION,
+      files: [...this.files.values()].filter((item) => item.workspace_id === workspaceId).length,
+      storage_bytes: [...this.objectReferences.values()]
+        .filter((item) => item.workspace_id === workspaceId)
+        .reduce((total, item) => total + item.byte_size, 0),
+      jobs: events.filter((item) => item.event_kind === "upload.finalised").length,
+      high_cost_processing: events.filter((item) => item.event_kind.includes("high-cost")).length,
+      activities: events.map((item) => ({
+        schema_version: VERSION,
+        event_kind: item.event_kind,
+        occurred_at: item.occurred_at,
+      })),
+    };
+  }
+
   async recordExternalMutation(
     context: CommandContext,
     workspaceId: string,
@@ -343,6 +363,13 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
     resourceId: string,
   ): Promise<void> {
     this.requireMember(context.principal.actorId, workspaceId);
+    if (this.audits.some((event) =>
+      event.workspace_id === workspaceId
+      && event.action === action
+      && event.resource_kind === resourceKind
+      && event.resource_id === resourceId
+      && event.trace_id === context.traceId
+    )) return;
     this.recordMutation(context, workspaceId, action, resourceKind, resourceId);
   }
 

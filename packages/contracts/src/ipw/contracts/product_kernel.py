@@ -284,10 +284,17 @@ class AuditEventList(ProductKernelContractModel):
     events: tuple[AuditEvent, ...]
 
 
+class CustomerUsageActivity(ProductKernelContractModel):
+    event_kind: NonEmptyStr
+    occurred_at: NonEmptyStr
+
+
 class UsageSummary(ProductKernelContractModel):
-    events: tuple[UsageEvent, ...]
-    customer_total: Literal["0.00"] = "0.00"
-    credit_debit_total: Literal[0] = 0
+    files: int = Field(ge=0)
+    storage_bytes: int = Field(ge=0)
+    jobs: int = Field(ge=0)
+    high_cost_processing: int = Field(ge=0)
+    activities: tuple[CustomerUsageActivity, ...] = ()
 
 
 class UploadOwnerKind(StrEnum):
@@ -503,6 +510,7 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "audit-event": AuditEvent,
     "usage-event": UsageEvent,
     "usage-admin-dimensions": UsageAdminDimensions,
+    "customer-usage-activity": CustomerUsageActivity,
     "idempotent-command-result": IdempotentCommandResult,
     "error-envelope": ErrorEnvelope,
     "workspace-context": WorkspaceContext,

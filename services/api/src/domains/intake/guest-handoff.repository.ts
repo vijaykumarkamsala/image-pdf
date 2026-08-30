@@ -74,6 +74,13 @@ export class MemoryGuestHandoffRepository implements GuestHandoffRepository {
       mediaType: input.mediaType,
       byteSize: input.byteSize,
     });
+    await this.product.recordExternalMutation(
+      input.command,
+      input.workspaceId,
+      "guest-source.handed-off",
+      "file",
+      input.fileId,
+    );
     this.results.set(key, { requestHash: input.command.requestHash, fileId: input.fileId });
     return { fileId: input.fileId, replayed: false };
   }

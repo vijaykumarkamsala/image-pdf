@@ -9,6 +9,7 @@ import type {
   ReusableFileReference,
   SourceVersionRecord,
   UsageEvent,
+  UsageSummary,
   Workspace,
   WorkspaceFile,
   WorkspaceProjectPolicy,
@@ -495,6 +496,37 @@ export class PostgresProductKernelRepository implements ProductKernelRepository 
     }));
   }
 
+  async customerUsageSummary(actorId: string, workspaceId: string): Promise<UsageSummary> {
+    await this.requireMember(this.pool, actorId, workspaceId);
+    const [files, storage, jobs, highCost, activities] = await Promise.all([
+      this.pool.query("SELECT count(*)::integer AS value FROM workspace_files WHERE workspace_id=$1", [workspaceId]),
+      this.pool.query("SELECT coalesce(sum(byte_size),0)::bigint AS value FROM object_references WHERE workspace_id=$1", [workspaceId]),
+      this.pool.query("SELECT count(*)::integer AS value FROM processing_jobs WHERE workspace_id=$1", [workspaceId]),
+      this.pool.query(
+        `SELECT count(*)::integer AS value FROM usage_admin_dimensions dimensions
+         JOIN usage_events usage USING(usage_event_id)
+         WHERE usage.workspace_id=$1 AND dimensions.dimensions->>'high_cost_processing'='true'`,
+        [workspaceId],
+      ),
+      this.pool.query(
+        "SELECT event_kind,occurred_at FROM usage_events WHERE workspace_id=$1 ORDER BY occurred_at",
+        [workspaceId],
+      ),
+    ]);
+    return {
+      schema_version: VERSION,
+      files: Number(files.rows[0]?.["value"] ?? 0),
+      storage_bytes: Number(storage.rows[0]?.["value"] ?? 0),
+      jobs: Number(jobs.rows[0]?.["value"] ?? 0),
+      high_cost_processing: Number(highCost.rows[0]?.["value"] ?? 0),
+      activities: activities.rows.map((row) => ({
+        schema_version: VERSION,
+        event_kind: String(row["event_kind"]),
+        occurred_at: timestamp(row["occurred_at"] as Date),
+      })),
+    };
+  }
+
   async recordExternalMutation(
     context: CommandContext,
     workspaceId: string,
@@ -506,7 +538,14 @@ export class PostgresProductKernelRepository implements ProductKernelRepository 
     try {
       await client.query("BEGIN");
       await this.requireMember(client, context.principal.actorId, workspaceId);
-      await this.recordMutation(client, context, workspaceId, action, resourceKind, resourceId);
+      const prior = await client.query(
+        `SELECT 1 FROM audit_events WHERE workspace_id=$1 AND action=$2 AND resource_kind=$3
+         AND resource_id=$4 AND trace_id=$5`,
+        [workspaceId, action, resourceKind, resourceId, context.traceId],
+      );
+      if (!prior.rowCount) {
+        await this.recordMutation(client, context, workspaceId, action, resourceKind, resourceId);
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");

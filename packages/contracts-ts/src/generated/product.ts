@@ -34,6 +34,12 @@ export interface Collection {
   name: string;
 }
 
+export interface CustomerUsageActivity {
+  schema_version?: string;
+  event_kind: string;
+  occurred_at: string;
+}
+
 export interface DefaultFilesLocation {
   schema_version?: string;
   default_files_id: string;
@@ -221,18 +227,6 @@ export const UploadTransferProtocolValues: readonly UploadTransferProtocol[] = [
 export type UploadTransferProvider = "local_api" | "google_cloud_storage";
 export const UploadTransferProviderValues: readonly UploadTransferProvider[] = ["local_api", "google_cloud_storage"] as const;
 
-export interface UsageEvent {
-  schema_version?: string;
-  usage_event_id: string;
-  workspace_id: string;
-  actor_id: string;
-  event_kind: string;
-  customer_amount?: "0.00";
-  credit_debit?: 0;
-  currency?: "USD";
-  occurred_at: string;
-}
-
 export interface Workspace {
   schema_version?: string;
   workspace_id: string;
@@ -390,11 +384,25 @@ export interface UsageAdminDimensions {
   dimensions?: Partial<Record<string, string>>;
 }
 
+export interface UsageEvent {
+  schema_version?: string;
+  usage_event_id: string;
+  workspace_id: string;
+  actor_id: string;
+  event_kind: string;
+  customer_amount?: "0.00";
+  credit_debit?: 0;
+  currency?: "USD";
+  occurred_at: string;
+}
+
 export interface UsageSummary {
   schema_version?: string;
-  events: UsageEvent[];
-  customer_total?: "0.00";
-  credit_debit_total?: 0;
+  files: number;
+  storage_bytes: number;
+  jobs: number;
+  high_cost_processing: number;
+  activities?: CustomerUsageActivity[];
 }
 
 export interface WorkspaceContext {
