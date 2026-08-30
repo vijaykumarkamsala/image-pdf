@@ -1,0 +1,307 @@
+<section id="trash-retention-workspace" aria-label="Trash recovery retention and permanent deletion experience">
+  <style>
+    #trash-retention-workspace {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #trash-retention-workspace * { box-sizing: border-box; }
+    #trash-retention-workspace button,
+    #trash-retention-workspace input,
+    #trash-retention-workspace select { font: inherit; color: inherit; }
+    #trash-retention-workspace button { cursor: pointer; }
+    #trash-retention-workspace .tr-shell { min-height: 758px; position: relative; overflow: hidden; background: light-dark(#f7f8fb, #151b28); }
+    #trash-retention-workspace .tr-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #trash-retention-workspace .tr-button,
+    #trash-retention-workspace .tr-primary,
+    #trash-retention-workspace .tr-danger,
+    #trash-retention-workspace .tr-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #trash-retention-workspace .tr-icon-button { width: 37px; padding: 7px; }
+    #trash-retention-workspace .tr-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #trash-retention-workspace .tr-danger { border-color: light-dark(#d9a6a6, #7a5055); color: light-dark(#9a3131, #ffb4b4); background: light-dark(#fffafa, #302327); }
+    #trash-retention-workspace .tr-button svg,
+    #trash-retention-workspace .tr-primary svg,
+    #trash-retention-workspace .tr-danger svg,
+    #trash-retention-workspace .tr-icon-button svg { width: 16px; height: 16px; }
+    #trash-retention-workspace .tr-title-block { min-width: 245px; }
+    #trash-retention-workspace .tr-title { font-weight: 500; }
+    #trash-retention-workspace .tr-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #trash-retention-workspace .tr-spacer { flex: 1; }
+    #trash-retention-workspace .tr-audit { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #trash-retention-workspace .tr-audit svg { width: 15px; height: 15px; }
+    #trash-retention-workspace .tr-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 286px; min-height: 661px; }
+    #trash-retention-workspace .tr-nav,
+    #trash-retention-workspace .tr-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #trash-retention-workspace .tr-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #trash-retention-workspace .tr-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #trash-retention-workspace .tr-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #trash-retention-workspace .tr-nav-list { display: grid; gap: 3px; }
+    #trash-retention-workspace .tr-nav-button {
+      width: 100%; min-height: 40px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #trash-retention-workspace .tr-nav-button svg { width: 17px; height: 17px; }
+    #trash-retention-workspace .tr-nav-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #trash-retention-workspace .tr-count { min-width: 22px; text-align: center; border-radius: 10px; padding: 2px 6px; background: light-dark(#edf1f6, #2a3344); color: light-dark(#647087, #b4bfd0); }
+    #trash-retention-workspace .tr-nav-button[aria-pressed="true"] .tr-count { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #trash-retention-workspace .tr-nav-section { margin: 16px 7px 7px; color: light-dark(#707b8e, #a8b3c5); }
+    #trash-retention-workspace .tr-inactivity-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #trash-retention-workspace .tr-content { min-width: 0; padding: 18px 20px 25px; }
+    #trash-retention-workspace .tr-content-head { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 13px; }
+    #trash-retention-workspace .tr-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #trash-retention-workspace .tr-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #trash-retention-workspace .tr-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #trash-retention-workspace .tr-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #trash-retention-workspace .tr-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #trash-retention-workspace .tr-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 148px; gap: 8px; margin-bottom: 10px; }
+    #trash-retention-workspace .tr-input,
+    #trash-retention-workspace .tr-select { min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #trash-retention-workspace .tr-list-head { display: grid; grid-template-columns: minmax(0, 1fr) 114px 96px; gap: 9px; padding: 7px 9px; color: light-dark(#707b8f, #a7b2c5); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #trash-retention-workspace .tr-item {
+      width: 100%; border: 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); background: transparent; padding: 10px 9px;
+      display: grid; grid-template-columns: minmax(0, 1fr) 114px 96px; gap: 9px; align-items: center; text-align: left;
+    }
+    #trash-retention-workspace .tr-item[aria-pressed="true"] { background: light-dark(#edf2ff, #29354c); }
+    #trash-retention-workspace .tr-item-main { display: grid; grid-template-columns: 37px minmax(0, 1fr); gap: 9px; align-items: center; }
+    #trash-retention-workspace .tr-item-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #trash-retention-workspace .tr-item[aria-pressed="true"] .tr-item-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #trash-retention-workspace .tr-item-icon svg { width: 17px; height: 17px; }
+    #trash-retention-workspace .tr-item-name { font-weight: 500; }
+    #trash-retention-workspace .tr-item-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #trash-retention-workspace .tr-date { color: light-dark(#5f6c82, #b7c1d2); }
+    #trash-retention-workspace .tr-expiry { color: light-dark(#7a5422, #eec884); }
+    #trash-retention-workspace .tr-expiry.safe { color: light-dark(#1d7153, #8de0bf); }
+    #trash-retention-workspace .tr-selection-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+    #trash-retention-workspace .tr-selection-name { margin-right: auto; color: light-dark(#647087, #adb8ca); }
+    #trash-retention-workspace .tr-policy-banner { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 12px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #trash-retention-workspace .tr-policy-banner svg { width: 17px; height: 17px; margin-top: 1px; flex: 0 0 auto; }
+    #trash-retention-workspace .tr-policy-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 145px auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #trash-retention-workspace .tr-policy-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #trash-retention-workspace .tr-policy-icon svg { width: 18px; height: 18px; }
+    #trash-retention-workspace .tr-policy-name { font-weight: 500; }
+    #trash-retention-workspace .tr-policy-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #trash-retention-workspace .tr-policy-value { color: light-dark(#536078, #bec8d9); }
+    #trash-retention-workspace .tr-hold-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #trash-retention-workspace .tr-hold-status { display: inline-flex; align-items: center; gap: 6px; color: light-dark(#7a5422, #eec884); }
+    #trash-retention-workspace .tr-hold-status svg { width: 15px; height: 15px; }
+    #trash-retention-workspace .tr-log-row { display: grid; grid-template-columns: 108px minmax(0, 1fr) 130px; gap: 10px; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #trash-retention-workspace .tr-log-time { color: light-dark(#6b768a, #a8b3c5); }
+    #trash-retention-workspace .tr-log-title { font-weight: 500; }
+    #trash-retention-workspace .tr-log-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #trash-retention-workspace .tr-log-actor { text-align: right; color: light-dark(#536078, #bec8d9); }
+    #trash-retention-workspace .tr-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #trash-retention-workspace .tr-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #trash-retention-workspace .tr-selected-file { display: grid; grid-template-columns: 39px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #trash-retention-workspace .tr-selected-icon { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #trash-retention-workspace .tr-selected-icon svg { width: 18px; height: 18px; }
+    #trash-retention-workspace .tr-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #trash-retention-workspace .tr-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #trash-retention-workspace .tr-timeline { display: grid; }
+    #trash-retention-workspace .tr-step { display: grid; grid-template-columns: 27px minmax(0, 1fr); gap: 8px; padding: 7px 0; position: relative; }
+    #trash-retention-workspace .tr-step:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 32px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #trash-retention-workspace .tr-step-icon { width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #trash-retention-workspace .tr-step-icon.current { background: light-dark(#fff0d9, #46351f); color: light-dark(#a45e14, #f3c078); }
+    #trash-retention-workspace .tr-step-icon svg { width: 13px; height: 13px; }
+    #trash-retention-workspace .tr-step-title { font-weight: 500; }
+    #trash-retention-workspace .tr-step-meta { color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #trash-retention-workspace .tr-cloud-note { padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #trash-retention-workspace .tr-dialog {
+      position: absolute; z-index: 10; width: min(455px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px;
+      border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #trash-retention-workspace .tr-dialog[hidden] { display: none; }
+    #trash-retention-workspace .tr-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #trash-retention-workspace .tr-dialog p { margin: 0 0 10px; color: light-dark(#637087, #afb9ca); line-height: 1.45; }
+    #trash-retention-workspace .tr-dialog-summary { padding: 10px; border-radius: 8px; background: light-dark(#fff3f3, #38262a); color: light-dark(#7f3434, #f0b3b3); line-height: 1.5; }
+    #trash-retention-workspace .tr-check { display: flex; gap: 8px; align-items: flex-start; padding: 10px 0 2px; line-height: 1.4; }
+    #trash-retention-workspace .tr-check input { width: 18px; height: 18px; margin-top: 1px; accent-color: light-dark(#a63e3e, #e38d8d); }
+    #trash-retention-workspace .tr-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 11px; }
+    #trash-retention-workspace .tr-toast { position: absolute; z-index: 11; left: 50%; bottom: 48px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #trash-retention-workspace .tr-toast[hidden] { display: none; }
+    #trash-retention-workspace .tr-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #trash-retention-workspace .tr-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #trash-retention-workspace .tr-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #trash-retention-workspace .tr-inspector { display: none; }
+      #trash-retention-workspace .tr-audit { display: none; }
+    }
+    @media (max-width: 650px) {
+      #trash-retention-workspace .tr-header { flex-wrap: wrap; }
+      #trash-retention-workspace .tr-title-block { min-width: 0; flex: 1; }
+      #trash-retention-workspace .tr-primary span { display: none; }
+      #trash-retention-workspace .tr-main { display: block; }
+      #trash-retention-workspace .tr-nav { display: none; }
+      #trash-retention-workspace .tr-content { padding: 14px 11px 21px; }
+      #trash-retention-workspace .tr-content-head h2 { font-size: 18px; }
+      #trash-retention-workspace .tr-tabs { overflow-x: auto; }
+      #trash-retention-workspace .tr-tab { flex: 0 0 auto; }
+      #trash-retention-workspace .tr-toolbar { grid-template-columns: 1fr; }
+      #trash-retention-workspace .tr-list-head { display: none; }
+      #trash-retention-workspace .tr-item { grid-template-columns: 1fr auto; }
+      #trash-retention-workspace .tr-date { display: none; }
+      #trash-retention-workspace .tr-policy-row { grid-template-columns: 38px minmax(0, 1fr) auto; }
+      #trash-retention-workspace .tr-policy-value { grid-column: 2; }
+      #trash-retention-workspace .tr-log-row { grid-template-columns: 92px minmax(0, 1fr); }
+      #trash-retention-workspace .tr-log-actor { grid-column: 2; text-align: left; }
+      #trash-retention-workspace .tr-selection-actions { align-items: stretch; }
+      #trash-retention-workspace .tr-selection-name { display: none; }
+      #trash-retention-workspace .tr-bottom { display: none; }
+    }
+  </style>
+
+  <div class="tr-shell">
+    <header class="tr-header">
+      <button class="tr-icon-button" type="button" aria-label="Back to workspace"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="tr-title-block"><div class="tr-title">Recovery &amp; retention</div><div class="tr-subtitle">Northstar Studio · Workspace safeguards</div></div>
+      <div class="tr-spacer"></div>
+      <div class="tr-audit"><i data-lucide="shield-check" aria-hidden="true"></i>Every deletion and recovery is audited</div>
+      <button class="tr-button" type="button"><i data-lucide="settings-2" aria-hidden="true"></i>Workspace policy</button>
+    </header>
+
+    <div class="tr-main">
+      <aside class="tr-nav" aria-label="Recovery navigation">
+        <div class="tr-pane-head"><span>Data protection</span><i data-lucide="archive-restore" aria-hidden="true"></i></div>
+        <div class="tr-nav-list">
+          <button class="tr-nav-button" type="button" data-target="trash" aria-pressed="true"><i data-lucide="trash-2" aria-hidden="true"></i><span>Trash</span><span class="tr-count">4</span></button>
+          <button class="tr-nav-button" type="button" data-target="policies" aria-pressed="false"><i data-lucide="calendar-range" aria-hidden="true"></i><span>Retention policies</span></button>
+          <button class="tr-nav-button" type="button" data-target="holds" aria-pressed="false"><i data-lucide="shield-lock" aria-hidden="true"></i><span>Legal holds</span><span class="tr-count">2</span></button>
+          <button class="tr-nav-button" type="button" data-target="log" aria-pressed="false"><i data-lucide="scroll-text" aria-hidden="true"></i><span>Deletion log</span></button>
+        </div>
+        <div class="tr-nav-section">Protected categories</div>
+        <div class="tr-nav-list">
+          <button class="tr-nav-button" type="button" data-target="holds" aria-pressed="false"><i data-lucide="badge-check" aria-hidden="true"></i><span>Approved production</span></button>
+          <button class="tr-nav-button" type="button" data-target="holds" aria-pressed="false"><i data-lucide="file-signature" aria-hidden="true"></i><span>Completed e-sign</span></button>
+        </div>
+        <div class="tr-inactivity-note"><strong>Free-workspace inactivity</strong><br>The six-month rule applies only when the entire free workspace is inactive. Repeated warnings come before any cleanup.</div>
+      </aside>
+
+      <main class="tr-content">
+        <div class="tr-content-head"><div><h2 id="tr-heading">Trash</h2><div class="tr-content-subtitle" id="tr-subtitle">Deleted items remain recoverable until their disclosed purge date.</div></div></div>
+        <div class="tr-tabs" role="tablist" aria-label="Recovery and retention views">
+          <button class="tr-tab" type="button" data-panel="trash" aria-selected="true">Trash</button>
+          <button class="tr-tab" type="button" data-panel="policies" aria-selected="false">Policies</button>
+          <button class="tr-tab" type="button" data-panel="holds" aria-selected="false">Legal holds</button>
+          <button class="tr-tab" type="button" data-panel="log" aria-selected="false">Audit log</button>
+        </div>
+
+        <section data-content="trash">
+          <div class="tr-toolbar"><input class="tr-input" aria-label="Search trash" placeholder="Search deleted files and projects"><select class="tr-select" aria-label="Filter trash"><option>All deleted items</option><option>Files</option><option>Projects</option><option>Folders</option></select></div>
+          <div class="tr-list-head"><span>Item</span><span>Deleted</span><span>Purge in</span></div>
+          <div id="tr-trash-list">
+            <button class="tr-item" type="button" data-item="hedgehog" aria-pressed="true"><span class="tr-item-main"><span class="tr-item-icon"><i data-lucide="file-image" aria-hidden="true"></i></span><span><span class="tr-item-name">Hedgehog print master</span><span class="tr-item-meta">Kidswear 2027 / Woodland · 7 versions</span></span></span><span class="tr-date">28 Aug</span><span class="tr-expiry">28 days</span></button>
+            <button class="tr-item" type="button" data-item="catalogue" aria-pressed="false"><span class="tr-item-main"><span class="tr-item-icon"><i data-lucide="folder-kanban" aria-hidden="true"></i></span><span><span class="tr-item-name">Spring catalogue</span><span class="tr-item-meta">Project · 24 files · 3 collaborators</span></span></span><span class="tr-date">21 Aug</span><span class="tr-expiry">21 days</span></button>
+            <button class="tr-item" type="button" data-item="proof" aria-pressed="false"><span class="tr-item-main"><span class="tr-item-icon"><i data-lucide="file-check-2" aria-hidden="true"></i></span><span><span class="tr-item-name">Factory proof B</span><span class="tr-item-meta">Approved derivative · Approval preserved</span></span></span><span class="tr-date">12 Aug</span><span class="tr-expiry safe">Protected</span></button>
+            <button class="tr-item" type="button" data-item="draft" aria-pressed="false"><span class="tr-item-main"><span class="tr-item-icon"><i data-lucide="file-text" aria-hidden="true"></i></span><span><span class="tr-item-name">Packaging notes draft</span><span class="tr-item-meta">Default files · 2 versions</span></span></span><span class="tr-date">4 Aug</span><span class="tr-expiry">4 days</span></button>
+          </div>
+          <div class="tr-selection-actions"><span class="tr-selection-name" id="tr-selection-name">Hedgehog print master selected</span><button class="tr-danger" id="tr-delete" type="button"><i data-lucide="trash-2" aria-hidden="true"></i>Delete permanently</button><button class="tr-primary" id="tr-restore" type="button"><i data-lucide="archive-restore" aria-hidden="true"></i>Restore</button></div>
+        </section>
+
+        <section data-content="policies" hidden>
+          <div class="tr-policy-banner"><i data-lucide="info" aria-hidden="true"></i><span>Retention is inherited from the workspace by default. Projects may use an approved override, while legal holds always take priority.</span></div>
+          <div class="tr-policy-row"><span class="tr-policy-icon"><i data-lucide="trash-2" aria-hidden="true"></i></span><span><span class="tr-policy-name">Recoverable trash</span><span class="tr-policy-meta">Deleted items remain restorable before active-storage purge.</span></span><span class="tr-policy-value">30 days</span><button class="tr-button" type="button">Edit</button></div>
+          <div class="tr-policy-row"><span class="tr-policy-icon"><i data-lucide="archive" aria-hidden="true"></i></span><span><span class="tr-policy-name">Backup expiration</span><span class="tr-policy-meta">Purged data expires from backups within the disclosed operational window.</span></span><span class="tr-policy-value">Within 60 days</span><button class="tr-button" type="button">Edit</button></div>
+          <div class="tr-policy-row"><span class="tr-policy-icon"><i data-lucide="badge-check" aria-hidden="true"></i></span><span><span class="tr-policy-name">Approved production files</span><span class="tr-policy-meta">Excluded from ordinary cleanup; project policy or authorised release required.</span></span><span class="tr-policy-value">Protected</span><button class="tr-button" type="button">Review</button></div>
+          <div class="tr-policy-row"><span class="tr-policy-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span><span class="tr-policy-name">Completed e-sign packages</span><span class="tr-policy-meta">Retained with certificate, audit trail and jurisdiction-aware policy.</span></span><span class="tr-policy-value">Policy controlled</span><button class="tr-button" type="button">Review</button></div>
+          <div class="tr-policy-row"><span class="tr-policy-icon"><i data-lucide="moon" aria-hidden="true"></i></span><span><span class="tr-policy-name">Inactive free workspace</span><span class="tr-policy-meta">Only entirely inactive free workspaces; warnings at 30, 14, 7 and 1 day.</span></span><span class="tr-policy-value">6 months</span><button class="tr-button" type="button">Preview notices</button></div>
+        </section>
+
+        <section data-content="holds" hidden>
+          <div class="tr-policy-banner"><i data-lucide="shield-lock" aria-hidden="true"></i><span>Legal holds and protected-record policies override trash expiry, inactivity cleanup and ordinary project deletion.</span></div>
+          <div class="tr-hold-row"><span class="tr-policy-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span><span class="tr-policy-name">Vendor manufacturing agreement</span><span class="tr-policy-meta">Completed e-sign package · Envelope certificate retained</span></span><span class="tr-hold-status"><i data-lucide="lock-keyhole" aria-hidden="true"></i>Legal hold</span></div>
+          <div class="tr-hold-row"><span class="tr-policy-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span><span class="tr-policy-name">Woodland production release</span><span class="tr-policy-meta">Approved production file · Factory delivery record</span></span><span class="tr-hold-status"><i data-lucide="shield-check" aria-hidden="true"></i>Policy protected</span></div>
+          <div class="tr-selection-actions"><span class="tr-selection-name">Only authorised roles may create or release a hold.</span><button class="tr-primary" type="button"><i data-lucide="shield-plus" aria-hidden="true"></i>Create hold</button></div>
+        </section>
+
+        <section data-content="log" hidden>
+          <div class="tr-policy-banner"><i data-lucide="scroll-text" aria-hidden="true"></i><span>The audit trail records the actor, reason, affected scope, effective access revocation, restore and every purge stage.</span></div>
+          <div class="tr-log-row"><span class="tr-log-time">28 Aug · 14:10</span><span><span class="tr-log-title">Hedgehog print master moved to trash</span><span class="tr-log-meta">Sharing links revoked immediately · Restore available</span></span><span class="tr-log-actor">Vijay Kumar</span></div>
+          <div class="tr-log-row"><span class="tr-log-time">21 Aug · 09:34</span><span><span class="tr-log-title">Spring catalogue project deleted</span><span class="tr-log-meta">24 files entered recoverable trash together</span></span><span class="tr-log-actor">Asha Sharma</span></div>
+          <div class="tr-log-row"><span class="tr-log-time">12 Aug · 17:06</span><span><span class="tr-log-title">Factory proof B protected</span><span class="tr-log-meta">Production approval policy suspended scheduled purge</span></span><span class="tr-log-actor">System policy</span></div>
+          <div class="tr-log-row"><span class="tr-log-time">2 Aug · 08:00</span><span><span class="tr-log-title">Inactivity warning sent</span><span class="tr-log-meta">Workspace owners notified; any activity cancels cleanup</span></span><span class="tr-log-actor">Retention service</span></div>
+        </section>
+      </main>
+
+      <aside class="tr-inspector" aria-label="Selected deletion details">
+        <h3>Recovery details</h3><div class="tr-inspector-copy">A clear, reversible path before permanent purge—without touching connected provider originals.</div>
+        <div class="tr-selected-file"><span class="tr-selected-icon"><i data-lucide="file-image" aria-hidden="true"></i></span><span><span class="tr-item-name" id="tr-inspector-name">Hedgehog print master</span><span class="tr-item-meta" id="tr-inspector-meta">File · 7 durable versions</span></span></div>
+        <div class="tr-inspector-section"><div class="tr-inspector-title">Deletion lifecycle</div><div class="tr-timeline">
+          <div class="tr-step"><span class="tr-step-icon"><i data-lucide="lock" aria-hidden="true"></i></span><span><span class="tr-step-title">Access revoked</span><span class="tr-step-meta">Links disabled and editing stopped immediately.</span></span></div>
+          <div class="tr-step"><span class="tr-step-icon current"><i data-lucide="archive-restore" aria-hidden="true"></i></span><span><span class="tr-step-title">Recoverable trash</span><span class="tr-step-meta" id="tr-restore-window">28 days remain to restore all versions.</span></span></div>
+          <div class="tr-step"><span class="tr-step-icon"><i data-lucide="eraser" aria-hidden="true"></i></span><span><span class="tr-step-title">Active storage purge</span><span class="tr-step-meta">Runs after the disclosed trash window unless protected.</span></span></div>
+          <div class="tr-step"><span class="tr-step-icon"><i data-lucide="archive-x" aria-hidden="true"></i></span><span><span class="tr-step-title">Backup expiry</span><span class="tr-step-meta">Completes within the workspace’s documented backup window.</span></span></div>
+        </div></div>
+        <div class="tr-inspector-section"><div class="tr-inspector-title">Connected storage</div><div class="tr-cloud-note"><strong>Google Drive source is untouched.</strong><br>Deleting this app-managed file never removes or changes the external source. The source can be imported again later.</div></div>
+      </aside>
+    </div>
+
+    <section class="tr-dialog" id="tr-dialog" aria-label="Confirm permanent deletion" hidden>
+      <h3>Permanently delete this item?</h3>
+      <p>This bypasses the remaining recoverable-trash period. The action is restricted, audited and cannot be undone from active storage.</p>
+      <div class="tr-dialog-summary"><strong>Hedgehog print master</strong><br>7 app versions will be purged from active storage. Backup copies expire within the documented backup window. The connected Google Drive original will not be deleted.</div>
+      <label class="tr-check"><input id="tr-confirm-check" type="checkbox"><span>I understand the app-managed versions cannot be restored after active purge.</span></label>
+      <div class="tr-dialog-actions"><button class="tr-button" id="tr-dialog-cancel" type="button">Cancel</button><button class="tr-danger" id="tr-dialog-confirm" type="button" disabled>Delete permanently</button></div>
+    </section>
+
+    <div class="tr-toast" id="tr-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="tr-bottom"><span>Immediate access revocation</span><span>Recoverable trash</span><span>Policy inheritance</span><span class="tr-bottom-right"><span>Legal hold overrides</span><span>External files untouched</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('trash-retention-workspace');
+      const tabs = [...root.querySelectorAll('.tr-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const navButtons = [...root.querySelectorAll('.tr-nav-button')];
+      const titles = {
+        trash: ['Trash', 'Deleted items remain recoverable until their disclosed purge date.'],
+        policies: ['Retention policies', 'Workspace defaults, project overrides and protected record categories.'],
+        holds: ['Legal holds & protected records', 'Items that ordinary cleanup and deletion are not allowed to purge.'],
+        log: ['Deletion audit log', 'Trace every deletion, recovery, protection decision and purge stage.']
+      };
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+        navButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.target === name && button === navButtons.find((candidate) => candidate.dataset.target === name))));
+        root.querySelector('#tr-heading').textContent = titles[name][0];
+        root.querySelector('#tr-subtitle').textContent = titles[name][1];
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+      navButtons.forEach((button) => button.addEventListener('click', () => showPanel(button.dataset.target)));
+
+      const itemData = {
+        hedgehog: ['Hedgehog print master', 'File · 7 durable versions', '28 days remain to restore all versions.'],
+        catalogue: ['Spring catalogue', 'Project · 24 files · 3 collaborators', '21 days remain to restore the full project.'],
+        proof: ['Factory proof B', 'Approved derivative · Policy protected', 'Scheduled purge is suspended by production approval policy.'],
+        draft: ['Packaging notes draft', 'File · 2 durable versions', '4 days remain to restore all versions.']
+      };
+      const items = [...root.querySelectorAll('.tr-item')];
+      items.forEach((item) => item.addEventListener('click', () => {
+        items.forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === item)));
+        const [name, meta, windowText] = itemData[item.dataset.item];
+        root.querySelector('#tr-selection-name').textContent = name + ' selected';
+        root.querySelector('#tr-inspector-name').textContent = name;
+        root.querySelector('#tr-inspector-meta').textContent = meta;
+        root.querySelector('#tr-restore-window').textContent = windowText;
+      }));
+
+      const toast = root.querySelector('#tr-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2600); };
+      root.querySelector('#tr-restore').addEventListener('click', () => announce('Item restored with its versions, links and source history ready for review.'));
+
+      const dialog = root.querySelector('#tr-dialog');
+      const confirmCheck = root.querySelector('#tr-confirm-check');
+      const confirmButton = root.querySelector('#tr-dialog-confirm');
+      root.querySelector('#tr-delete').addEventListener('click', () => { dialog.hidden = false; confirmCheck.checked = false; confirmButton.disabled = true; });
+      root.querySelector('#tr-dialog-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      confirmCheck.addEventListener('change', () => { confirmButton.disabled = !confirmCheck.checked; });
+      confirmButton.addEventListener('click', () => { dialog.hidden = true; announce('Permanent deletion scheduled and recorded. External source remains untouched.'); });
+    })();
+  </script>
+</section>

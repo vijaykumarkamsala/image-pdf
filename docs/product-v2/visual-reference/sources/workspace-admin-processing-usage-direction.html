@@ -1,0 +1,277 @@
+<section id="workspace-admin-controls" aria-label="Workspace feature policies processing controls and free testing usage experience">
+  <style>
+    #workspace-admin-controls {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #workspace-admin-controls * { box-sizing: border-box; }
+    #workspace-admin-controls button,
+    #workspace-admin-controls input,
+    #workspace-admin-controls select { font: inherit; color: inherit; }
+    #workspace-admin-controls button { cursor: pointer; }
+    #workspace-admin-controls .wa-shell { min-height: 770px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #workspace-admin-controls .wa-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #workspace-admin-controls .wa-button,
+    #workspace-admin-controls .wa-primary,
+    #workspace-admin-controls .wa-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #workspace-admin-controls .wa-icon-button { width: 37px; padding: 7px; }
+    #workspace-admin-controls .wa-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #workspace-admin-controls .wa-button svg,
+    #workspace-admin-controls .wa-primary svg,
+    #workspace-admin-controls .wa-icon-button svg { width: 16px; height: 16px; }
+    #workspace-admin-controls .wa-title-block { min-width: 255px; }
+    #workspace-admin-controls .wa-title { font-weight: 500; }
+    #workspace-admin-controls .wa-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 390px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #workspace-admin-controls .wa-spacer { flex: 1; }
+    #workspace-admin-controls .wa-free { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #workspace-admin-controls .wa-free svg { width: 15px; height: 15px; }
+    #workspace-admin-controls .wa-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 286px; min-height: 673px; }
+    #workspace-admin-controls .wa-nav,
+    #workspace-admin-controls .wa-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #workspace-admin-controls .wa-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #workspace-admin-controls .wa-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #workspace-admin-controls .wa-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #workspace-admin-controls .wa-nav-list { display: grid; gap: 3px; }
+    #workspace-admin-controls .wa-nav-button {
+      width: 100%; min-height: 41px; border: 0; border-radius: 8px; background: transparent; padding: 8px; display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #workspace-admin-controls .wa-nav-button svg { width: 17px; height: 17px; }
+    #workspace-admin-controls .wa-nav-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #workspace-admin-controls .wa-nav-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #workspace-admin-controls .wa-content { min-width: 0; padding: 18px 20px 25px; }
+    #workspace-admin-controls .wa-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+    #workspace-admin-controls .wa-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #workspace-admin-controls .wa-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #workspace-admin-controls .wa-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #workspace-admin-controls .wa-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #workspace-admin-controls .wa-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #workspace-admin-controls .wa-policy-banner { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 12px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #workspace-admin-controls .wa-policy-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #workspace-admin-controls .wa-policy-head { display: grid; grid-template-columns: minmax(0, 1fr) 152px 90px; gap: 9px; padding: 7px 9px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#707b8f, #a7b2c5); }
+    #workspace-admin-controls .wa-policy {
+      width: 100%; border: 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); background: transparent; padding: 10px 9px;
+      display: grid; grid-template-columns: minmax(0, 1fr) 152px 90px; gap: 9px; align-items: center; text-align: left;
+    }
+    #workspace-admin-controls .wa-policy[aria-pressed="true"] { background: light-dark(#edf2ff, #29354c); }
+    #workspace-admin-controls .wa-policy-main { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; }
+    #workspace-admin-controls .wa-policy-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #workspace-admin-controls .wa-policy[aria-pressed="true"] .wa-policy-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #workspace-admin-controls .wa-policy-icon svg { width: 17px; height: 17px; }
+    #workspace-admin-controls .wa-policy-name { font-weight: 500; }
+    #workspace-admin-controls .wa-policy-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.35; }
+    #workspace-admin-controls .wa-access { color: light-dark(#536078, #bec8d9); }
+    #workspace-admin-controls .wa-state { color: light-dark(#1d7153, #8de0bf); }
+    #workspace-admin-controls .wa-state.review { color: light-dark(#7a5422, #eec884); }
+    #workspace-admin-controls .wa-processing-choice { display: grid; gap: 7px; }
+    #workspace-admin-controls .wa-choice { display: grid; grid-template-columns: 19px minmax(0, 1fr); gap: 9px; padding: 10px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); }
+    #workspace-admin-controls .wa-choice:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #workspace-admin-controls .wa-choice input { width: 17px; height: 17px; margin-top: 2px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #workspace-admin-controls .wa-choice strong { display: block; font-weight: 500; }
+    #workspace-admin-controls .wa-choice small { display: block; color: light-dark(#667187, #adb7ca); margin-top: 2px; line-height: 1.4; }
+    #workspace-admin-controls .wa-processing-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #workspace-admin-controls .wa-processing-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #workspace-admin-controls .wa-processing-icon svg { width: 18px; height: 18px; }
+    #workspace-admin-controls .wa-processing-name { font-weight: 500; }
+    #workspace-admin-controls .wa-processing-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #workspace-admin-controls .wa-select { min-height: 36px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 6px 8px; min-width: 142px; }
+    #workspace-admin-controls .wa-usage-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 13px; }
+    #workspace-admin-controls .wa-usage-item { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #workspace-admin-controls .wa-usage-label { color: light-dark(#687388, #aeb8ca); }
+    #workspace-admin-controls .wa-usage-value { font-weight: 500; font-size: 18px; margin-top: 4px; }
+    #workspace-admin-controls .wa-usage-context { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #workspace-admin-controls .wa-usage-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) 120px; gap: 10px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #workspace-admin-controls .wa-usage-meter { height: 5px; border-radius: 5px; overflow: hidden; background: light-dark(#e1e6ee, #333d50); margin-top: 6px; }
+    #workspace-admin-controls .wa-usage-meter span { display: block; height: 100%; background: light-dark(#2757cf, #8aa6ff); }
+    #workspace-admin-controls .wa-usage-end { text-align: right; color: light-dark(#536078, #bec8d9); }
+    #workspace-admin-controls .wa-fair-use { margin-top: 12px; padding: 11px; border-radius: 9px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #workspace-admin-controls .wa-role-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 138px; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #workspace-admin-controls .wa-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e3e8f0, #303a4d); color: light-dark(#46536a, #c8d1df); font-weight: 500; }
+    #workspace-admin-controls .wa-role-name { font-weight: 500; }
+    #workspace-admin-controls .wa-role-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #workspace-admin-controls .wa-role-value { text-align: right; color: light-dark(#536078, #bec8d9); }
+    #workspace-admin-controls .wa-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #workspace-admin-controls .wa-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #workspace-admin-controls .wa-selected { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #workspace-admin-controls .wa-selected-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #workspace-admin-controls .wa-selected-icon svg { width: 17px; height: 17px; }
+    #workspace-admin-controls .wa-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #workspace-admin-controls .wa-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #workspace-admin-controls .wa-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #workspace-admin-controls .wa-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #workspace-admin-controls .wa-fact strong { display: block; font-weight: 500; }
+    #workspace-admin-controls .wa-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #workspace-admin-controls .wa-shadow { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #workspace-admin-controls .wa-toast { position: absolute; z-index: 10; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #workspace-admin-controls .wa-toast[hidden] { display: none; }
+    #workspace-admin-controls .wa-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #workspace-admin-controls .wa-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #workspace-admin-controls .wa-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #workspace-admin-controls .wa-inspector { display: none; }
+      #workspace-admin-controls .wa-free { display: none; }
+      #workspace-admin-controls .wa-usage-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 650px) {
+      #workspace-admin-controls .wa-header { flex-wrap: wrap; }
+      #workspace-admin-controls .wa-title-block { min-width: 0; flex: 1; }
+      #workspace-admin-controls .wa-main { display: block; }
+      #workspace-admin-controls .wa-nav { display: none; }
+      #workspace-admin-controls .wa-content { padding: 14px 11px 22px; }
+      #workspace-admin-controls .wa-content-head h2 { font-size: 18px; }
+      #workspace-admin-controls .wa-tabs { overflow-x: auto; }
+      #workspace-admin-controls .wa-tab { flex: 0 0 auto; }
+      #workspace-admin-controls .wa-policy-head { display: none; }
+      #workspace-admin-controls .wa-policy { grid-template-columns: minmax(0, 1fr) auto; }
+      #workspace-admin-controls .wa-access { grid-column: 1; padding-left: 46px; }
+      #workspace-admin-controls .wa-processing-row { grid-template-columns: 38px minmax(0, 1fr); }
+      #workspace-admin-controls .wa-processing-row .wa-select { grid-column: 2; width: 100%; }
+      #workspace-admin-controls .wa-usage-summary { grid-template-columns: 1fr 1fr; }
+      #workspace-admin-controls .wa-usage-row { grid-template-columns: 38px minmax(0, 1fr); }
+      #workspace-admin-controls .wa-usage-end { grid-column: 2; text-align: left; }
+      #workspace-admin-controls .wa-bottom { display: none; }
+    }
+  </style>
+
+  <div class="wa-shell">
+    <header class="wa-header">
+      <button class="wa-icon-button" type="button" aria-label="Back to workspace"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="wa-title-block"><div class="wa-title">Workspace administration</div><div class="wa-subtitle">Northstar Studio · Policies without unnecessary complexity</div></div>
+      <div class="wa-spacer"></div>
+      <div class="wa-free"><i data-lucide="sparkles" aria-hidden="true"></i>Free during testing · No credits or charges</div>
+      <button class="wa-button" type="button"><i data-lucide="scroll-text" aria-hidden="true"></i>Policy history</button>
+      <button class="wa-primary" id="wa-save" type="button"><i data-lucide="check" aria-hidden="true"></i>Save changes</button>
+    </header>
+
+    <div class="wa-main">
+      <aside class="wa-nav" aria-label="Workspace administration navigation">
+        <div class="wa-pane-head"><span>Workspace controls</span><i data-lucide="settings-2" aria-hidden="true"></i></div>
+        <div class="wa-nav-list">
+          <button class="wa-nav-button" type="button" data-target="features" aria-pressed="true"><i data-lucide="shield-check" aria-hidden="true"></i>Feature access</button>
+          <button class="wa-nav-button" type="button" data-target="processing" aria-pressed="false"><i data-lucide="cpu" aria-hidden="true"></i>Processing policy</button>
+          <button class="wa-nav-button" type="button" data-target="people" aria-pressed="false"><i data-lucide="users" aria-hidden="true"></i>People &amp; roles</button>
+          <button class="wa-nav-button" type="button" data-target="usage" aria-pressed="false"><i data-lucide="activity" aria-hidden="true"></i>Usage &amp; fair use</button>
+        </div>
+        <div class="wa-nav-note"><strong>Administration should protect work, not slow it down.</strong><br>Everyday editing stays available. Only sensitive, generative, production-override and integration capabilities need policy controls.</div>
+      </aside>
+
+      <main class="wa-content">
+        <div class="wa-content-head"><div><h2 id="wa-heading">Feature access</h2><div class="wa-content-subtitle" id="wa-subtitle">Control sensitive capabilities while keeping ordinary creation available to everyone.</div></div></div>
+        <div class="wa-tabs" role="tablist" aria-label="Workspace administration views">
+          <button class="wa-tab" type="button" data-panel="features" aria-selected="true">Feature access</button>
+          <button class="wa-tab" type="button" data-panel="processing" aria-selected="false">Processing</button>
+          <button class="wa-tab" type="button" data-panel="people" aria-selected="false">People &amp; roles</button>
+          <button class="wa-tab" type="button" data-panel="usage" aria-selected="false">Usage</button>
+        </div>
+
+        <section data-content="features">
+          <div class="wa-policy-banner"><i data-lucide="info" aria-hidden="true"></i><span>These policies determine who may start a capability. File and project access still comes from workspace, project and subproject permissions.</span></div>
+          <div class="wa-policy-head"><span>Capability</span><span>Who may use it</span><span>Status</span></div>
+          <div>
+            <button class="wa-policy" type="button" data-policy="standard" aria-pressed="false"><span class="wa-policy-main"><span class="wa-policy-icon"><i data-lucide="wand-sparkles" aria-hidden="true"></i></span><span><span class="wa-policy-name">Standard editing &amp; safe enhancement</span><span class="wa-policy-meta">Non-destructive corrections, PDF editing and ordinary exports</span></span></span><span class="wa-access">All editors</span><span class="wa-state">Enabled</span></button>
+            <button class="wa-policy" type="button" data-policy="ai" aria-pressed="false"><span class="wa-policy-main"><span class="wa-policy-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span><span class="wa-policy-name">AI Enhance</span><span class="wa-policy-meta">Restoration and enhancement with visible provenance</span></span></span><span class="wa-access">All editors</span><span class="wa-state">Enabled</span></button>
+            <button class="wa-policy" type="button" data-policy="recreate" aria-pressed="true"><span class="wa-policy-main"><span class="wa-policy-icon"><i data-lucide="brain-circuit" aria-hidden="true"></i></span><span><span class="wa-policy-name">AI Recreate</span><span class="wa-policy-meta">Generative reconstruction that may invent source detail</span></span></span><span class="wa-access">Authorised editors</span><span class="wa-state review">Confirmation</span></button>
+            <button class="wa-policy" type="button" data-policy="override" aria-pressed="false"><span class="wa-policy-main"><span class="wa-policy-icon"><i data-lucide="printer-check" aria-hidden="true"></i></span><span><span class="wa-policy-name">Production export override</span><span class="wa-policy-meta">Export despite a non-strict critical preflight warning</span></span></span><span class="wa-access">Owner + approver</span><span class="wa-state review">Reason required</span></button>
+            <button class="wa-policy" type="button" data-policy="esign" aria-pressed="false"><span class="wa-policy-main"><span class="wa-policy-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span><span class="wa-policy-name">Send e-sign envelopes</span><span class="wa-policy-meta">Create secure signer links and completion evidence</span></span></span><span class="wa-access">Owner + selected</span><span class="wa-state">Enabled</span></button>
+            <button class="wa-policy" type="button" data-policy="api" aria-pressed="false"><span class="wa-policy-main"><span class="wa-policy-icon"><i data-lucide="braces" aria-hidden="true"></i></span><span><span class="wa-policy-name">API &amp; service accounts</span><span class="wa-policy-meta">Server integrations, OAuth applications and signed webhooks</span></span></span><span class="wa-access">Administrators</span><span class="wa-state">Enabled</span></button>
+          </div>
+        </section>
+
+        <section data-content="processing" hidden>
+          <div class="wa-policy-banner"><i data-lucide="route" aria-hidden="true"></i><span>Automatic routing remains the default. Customers see a clear processing explanation, while advanced users may override the route only when the operation safely supports both choices.</span></div>
+          <div class="wa-processing-choice">
+            <label class="wa-choice"><input type="radio" name="routing-policy" checked><span><strong>Automatic recommendation with Advanced override</strong><small>Choose local or cloud from file size, operation, device capability, durability, region and output requirements.</small></span></label>
+            <label class="wa-choice"><input type="radio" name="routing-policy"><span><strong>Automatic only</strong><small>Hide route selection and always follow the trusted workspace policy.</small></span></label>
+            <label class="wa-choice"><input type="radio" name="routing-policy"><span><strong>Local-only where possible</strong><small>Privacy-oriented mode; unavailable operations remain clearly identified instead of silently using cloud.</small></span></label>
+          </div>
+          <div class="wa-processing-row"><span class="wa-processing-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span><span><span class="wa-processing-name">Workspace home region</span><span class="wa-processing-meta">Keep storage and processing in India when supported.</span></span><select class="wa-select" aria-label="Workspace home region"><option>India</option><option>Asia Pacific</option><option>European Union</option></select></div>
+          <div class="wa-processing-row"><span class="wa-processing-icon"><i data-lucide="monitor-cog" aria-hidden="true"></i></span><span><span class="wa-processing-name">Browser-local output</span><span class="wa-processing-meta">Allow trusted small operations to finish on the customer device.</span></span><select class="wa-select" aria-label="Browser local output policy"><option>Allow when safe</option><option>Preview only</option><option>Disable</option></select></div>
+          <div class="wa-processing-row"><span class="wa-processing-icon"><i data-lucide="cloud-cog" aria-hidden="true"></i></span><span><span class="wa-processing-name">Durable cloud jobs</span><span class="wa-processing-meta">Required for batch, AI, large, saved, auditable and long-running outputs.</span></span><select class="wa-select" aria-label="Durable cloud jobs policy"><option>Automatic</option><option>Require approval</option></select></div>
+          <div class="wa-processing-row"><span class="wa-processing-icon"><i data-lucide="shield-alert" aria-hidden="true"></i></span><span><span class="wa-processing-name">Recreate operations</span><span class="wa-processing-meta">Always request explicit permission, highlight reconstructed regions and require production confirmation.</span></span><select class="wa-select" aria-label="Recreate operation policy"><option>Permission always</option></select></div>
+        </section>
+
+        <section data-content="people" hidden>
+          <div class="wa-policy-banner"><i data-lucide="users-round" aria-hidden="true"></i><span>Roles establish workspace responsibility. Projects and subprojects inherit access by default and may add explicit, visible overrides.</span></div>
+          <div class="wa-role-row"><span class="wa-avatar">VK</span><span><span class="wa-role-name">Vijay Kumar</span><span class="wa-role-meta">Full workspace control, retention and security</span></span><span class="wa-role-value">Owner</span></div>
+          <div class="wa-role-row"><span class="wa-avatar">AS</span><span><span class="wa-role-name">Asha Sharma</span><span class="wa-role-meta">Create, edit, export and collaborate</span></span><span class="wa-role-value">Editor</span></div>
+          <div class="wa-role-row"><span class="wa-avatar">RK</span><span><span class="wa-role-name">Ravi Kumar</span><span class="wa-role-meta">Editor with AI Recreate authorisation</span></span><span class="wa-role-value">Editor + capability</span></div>
+          <div class="wa-role-row"><span class="wa-avatar">MJ</span><span><span class="wa-role-name">Meera Jain</span><span class="wa-role-meta">Review, comment and approve production outputs</span></span><span class="wa-role-value">Viewer + approver</span></div>
+          <div class="wa-role-row"><span class="wa-avatar"><i data-lucide="key-round" aria-hidden="true"></i></span><span><span class="wa-role-name">Factory integration</span><span class="wa-role-meta">Scoped service account · Export status and downloads only</span></span><span class="wa-role-value">API scope</span></div>
+        </section>
+
+        <section data-content="usage" hidden>
+          <div class="wa-policy-banner"><i data-lucide="sparkles" aria-hidden="true"></i><span><strong>Free during testing.</strong> Customers see understandable operational usage, never experimental prices, credits or charges. Fair-use limits protect availability rather than simulate billing.</span></div>
+          <div class="wa-usage-summary"><div class="wa-usage-item"><div class="wa-usage-label">Processing jobs</div><div class="wa-usage-value">84</div><div class="wa-usage-context">This month</div></div><div class="wa-usage-item"><div class="wa-usage-label">Files</div><div class="wa-usage-value">112</div><div class="wa-usage-context">Active workspace</div></div><div class="wa-usage-item"><div class="wa-usage-label">Storage</div><div class="wa-usage-value">18.4 GB</div><div class="wa-usage-context">Originals + versions</div></div><div class="wa-usage-item"><div class="wa-usage-label">High-cost work</div><div class="wa-usage-value">6</div><div class="wa-usage-context">AI or very large</div></div></div>
+          <div class="wa-usage-row"><span class="wa-processing-icon"><i data-lucide="images" aria-hidden="true"></i></span><span><span class="wa-processing-name">Image and graphic processing</span><span class="wa-processing-meta">64 jobs · 9 long-running</span><span class="wa-usage-meter"><span style="width:48%"></span></span></span><span class="wa-usage-end">Healthy</span></div>
+          <div class="wa-usage-row"><span class="wa-processing-icon"><i data-lucide="file-text" aria-hidden="true"></i></span><span><span class="wa-processing-name">PDF processing</span><span class="wa-processing-meta">18 jobs · 3 OCR</span><span class="wa-usage-meter"><span style="width:29%"></span></span></span><span class="wa-usage-end">Healthy</span></div>
+          <div class="wa-usage-row"><span class="wa-processing-icon"><i data-lucide="brain-circuit" aria-hidden="true"></i></span><span><span class="wa-processing-name">High-cost AI processing</span><span class="wa-processing-meta">6 jobs · Recreate confirmations recorded</span><span class="wa-usage-meter"><span style="width:62%"></span></span></span><span class="wa-usage-end">Within fair use</span></div>
+          <div class="wa-fair-use"><strong>No sudden blocking.</strong> If safety or fair-use limits are approached, the workspace receives an explanation and may request an admin-approved temporary increase. Completed outputs remain available.</div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="wa-button" id="wa-request-increase" type="button">Request temporary increase</button></div>
+        </section>
+      </main>
+
+      <aside class="wa-inspector" aria-label="Selected capability policy">
+        <h3>Selected capability</h3><div class="wa-inspector-copy">Sensitive actions receive focused policy controls without turning the editor into an administrator console.</div>
+        <div class="wa-selected"><span class="wa-selected-icon"><i data-lucide="brain-circuit" aria-hidden="true"></i></span><span><span class="wa-policy-name" id="wa-selected-name">AI Recreate</span><span class="wa-policy-meta" id="wa-selected-meta">Generative reconstruction</span></span></div>
+        <div class="wa-inspector-section"><div class="wa-inspector-title">Current policy</div><div class="wa-fact"><i data-lucide="users" aria-hidden="true"></i><span><strong id="wa-selected-access">Authorised editors</strong><small>Capability grant is separate from file access</small></span></div><div class="wa-fact"><i data-lucide="shield-check" aria-hidden="true"></i><span><strong>Customer confirmation</strong><small>Required before every Recreate operation</small></span></div><div class="wa-fact"><i data-lucide="scan-eye" aria-hidden="true"></i><span><strong>Visible provenance</strong><small>Reconstructed regions highlighted for review</small></span></div><div class="wa-fact"><i data-lucide="printer-check" aria-hidden="true"></i><span><strong>Production confirmation</strong><small>Required before production export</small></span></div></div>
+        <div class="wa-inspector-section"><div class="wa-inspector-title">Pricing orchestration</div><div class="wa-shadow"><strong>Shadow mode only.</strong><br>Internal cost and future pricing calculations may run for product learning, but customers see zero charges and no credits until pricing is formally approved.</div></div>
+      </aside>
+    </div>
+
+    <div class="wa-toast" id="wa-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="wa-bottom"><span>Ordinary work stays easy</span><span>Sensitive capabilities governed</span><span>Automatic routing default</span><span class="wa-bottom-right"><span>Non-monetary usage</span><span>Shadow pricing hidden</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('workspace-admin-controls');
+      const tabs = [...root.querySelectorAll('.wa-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const navButtons = [...root.querySelectorAll('.wa-nav-button')];
+      const titles = {
+        features: ['Feature access', 'Control sensitive capabilities while keeping ordinary creation available to everyone.'],
+        processing: ['Processing policy', 'Automatic safe routing first, with transparent explanations and controlled advanced choices.'],
+        people: ['People & roles', 'Universal workspace roles combined with explicit capability grants and inherited project access.'],
+        usage: ['Usage & fair use', 'Understand operational usage during free testing without credits, charges or experimental pricing.']
+      };
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+        navButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.target === name)));
+        root.querySelector('#wa-heading').textContent = titles[name][0];
+        root.querySelector('#wa-subtitle').textContent = titles[name][1];
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+      navButtons.forEach((button) => button.addEventListener('click', () => showPanel(button.dataset.target)));
+
+      const policyData = {
+        standard: ['Standard editing & safe enhancement', 'Non-destructive everyday work', 'All editors'],
+        ai: ['AI Enhance', 'Restoration with provenance', 'All editors'],
+        recreate: ['AI Recreate', 'Generative reconstruction', 'Authorised editors'],
+        override: ['Production export override', 'Critical preflight exception', 'Owner + approver'],
+        esign: ['Send e-sign envelopes', 'Secure signing workflow', 'Owner + selected'],
+        api: ['API & service accounts', 'Scoped external integrations', 'Administrators']
+      };
+      const policies = [...root.querySelectorAll('.wa-policy')];
+      policies.forEach((policy) => policy.addEventListener('click', () => {
+        policies.forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === policy)));
+        const [name, meta, access] = policyData[policy.dataset.policy];
+        root.querySelector('#wa-selected-name').textContent = name;
+        root.querySelector('#wa-selected-meta').textContent = meta;
+        root.querySelector('#wa-selected-access').textContent = access;
+      }));
+
+      const toast = root.querySelector('#wa-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2500); };
+      root.querySelector('#wa-save').addEventListener('click', () => announce('Workspace policies saved and recorded in policy history.'));
+      root.querySelector('#wa-request-increase').addEventListener('click', () => announce('Temporary increase request opened with current usage and intended workload attached.'));
+    })();
+  </script>
+</section>

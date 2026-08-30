@@ -1,0 +1,299 @@
+<section id="file-version-history" aria-label="File lifecycle and version history experience">
+  <style>
+    #file-version-history {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff);
+      background: light-dark(#e9edf4, #111722);
+    }
+    #file-version-history * { box-sizing: border-box; }
+    #file-version-history button,
+    #file-version-history input,
+    #file-version-history select { font: inherit; color: inherit; }
+    #file-version-history button { cursor: pointer; }
+    #file-version-history .vh-shell { min-height: 760px; background: light-dark(#f7f8fb, #151b28); overflow: hidden; position: relative; }
+    #file-version-history .vh-header {
+      min-height: 61px;
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #file-version-history .vh-back,
+    #file-version-history .vh-icon-button,
+    #file-version-history .vh-button,
+    #file-version-history .vh-primary {
+      min-height: 37px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    #file-version-history .vh-back,
+    #file-version-history .vh-icon-button { width: 37px; padding: 7px; }
+    #file-version-history .vh-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #file-version-history .vh-back svg,
+    #file-version-history .vh-icon-button svg,
+    #file-version-history .vh-button svg,
+    #file-version-history .vh-primary svg { width: 16px; height: 16px; }
+    #file-version-history .vh-heading { min-width: 220px; }
+    #file-version-history .vh-title { font-weight: 500; }
+    #file-version-history .vh-subtitle { color: light-dark(#687388, #aeb8ca); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+    #file-version-history .vh-mode-switch { display: flex; gap: 3px; padding: 3px; border-radius: 8px; background: light-dark(#edf1f7, #252d3d); }
+    #file-version-history .vh-mode { min-height: 32px; border: 0; border-radius: 6px; padding: 6px 9px; background: transparent; color: light-dark(#5d687d, #b3bdd0); }
+    #file-version-history .vh-mode[aria-pressed="true"] { background: light-dark(#ffffff, #38445b); color: light-dark(#1c2942, #ffffff); box-shadow: 0 1px 3px light-dark(#cdd4e0, #0d111b); }
+    #file-version-history .vh-spacer { flex: 1; }
+    #file-version-history .vh-saved { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #file-version-history .vh-saved svg { width: 15px; height: 15px; }
+    #file-version-history .vh-main { display: grid; grid-template-columns: 252px minmax(0, 1fr) 290px; min-height: 661px; }
+    #file-version-history .vh-timeline,
+    #file-version-history .vh-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #file-version-history .vh-timeline { border-right: 1px solid light-dark(#dce2eb, #30394b); }
+    #file-version-history .vh-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #file-version-history .vh-timeline-head { padding: 14px 13px 10px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #file-version-history .vh-timeline-title { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-weight: 500; }
+    #file-version-history .vh-timeline-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.4; margin-top: 4px; }
+    #file-version-history .vh-filter { width: 100%; min-height: 35px; margin-top: 10px; border-radius: 7px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 6px 8px; }
+    #file-version-history .vh-events { padding: 8px; }
+    #file-version-history .vh-group-label { color: light-dark(#737d91, #9faabd); padding: 7px 8px 4px; }
+    #file-version-history .vh-event {
+      width: 100%;
+      min-height: 62px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      display: grid;
+      grid-template-columns: 31px 1fr;
+      gap: 8px;
+      padding: 8px;
+      text-align: left;
+      position: relative;
+    }
+    #file-version-history .vh-event::after { content: ""; position: absolute; left: 23px; top: 42px; bottom: -10px; width: 1px; background: light-dark(#d7dee8, #394356); }
+    #file-version-history .vh-event:last-of-type::after { display: none; }
+    #file-version-history .vh-event[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); border-color: light-dark(#9fb6f8, #657fca); }
+    #file-version-history .vh-event-icon { width: 31px; height: 31px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #file-version-history .vh-event[aria-pressed="true"] .vh-event-icon { background: light-dark(#d9e5ff, #3b4a69); color: light-dark(#204fc6, #c3cfff); }
+    #file-version-history .vh-event-icon svg { width: 15px; height: 15px; }
+    #file-version-history .vh-event-title { font-weight: 500; }
+    #file-version-history .vh-event-meta { color: light-dark(#6d778b, #a8b3c5); margin-top: 2px; line-height: 1.35; }
+    #file-version-history .vh-canvas {
+      min-width: 0;
+      padding: 18px 18px 50px;
+      position: relative;
+      background-color: light-dark(#e9edf4, #121824);
+      background-image: radial-gradient(light-dark(#ced6e2, #2e3647) .7px, transparent .7px);
+      background-size: 18px 18px;
+    }
+    #file-version-history .vh-canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 14px; }
+    #file-version-history .vh-selected-label { font-weight: 500; }
+    #file-version-history .vh-selected-meta { color: light-dark(#637087, #adb8ca); margin-top: 2px; }
+    #file-version-history .vh-compare-switch { display: flex; gap: 3px; padding: 3px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558); background: light-dark(#ffffff, #222a3a); }
+    #file-version-history .vh-compare-button { min-height: 30px; border: 0; border-radius: 6px; background: transparent; padding: 5px 8px; color: light-dark(#5f6a80, #b1bbce); }
+    #file-version-history .vh-compare-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #35415a); color: light-dark(#204fc6, #d0daff); }
+    #file-version-history .vh-preview-area { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: min(620px, 100%); margin: 0 auto; }
+    #file-version-history .vh-preview-column { min-width: 0; }
+    #file-version-history .vh-preview-head { display: flex; justify-content: space-between; gap: 7px; margin-bottom: 6px; color: light-dark(#5e697f, #b1bbce); }
+    #file-version-history .vh-artboard { aspect-ratio: 1; position: relative; overflow: hidden; display: grid; place-items: center; background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; box-shadow: 0 8px 22px light-dark(#bcc5d3, #080b12); }
+    #file-version-history .vh-artboard::before { content: ""; position: absolute; inset: 9%; border-radius: 48%; border: 1px solid #c4b69f; background: radial-gradient(circle at 25% 25%, #75805d 0 3%, transparent 3.5%), radial-gradient(circle at 76% 27%, #a57a54 0 3%, transparent 3.5%), radial-gradient(circle at 24% 74%, #687a59 0 4%, transparent 4.5%), radial-gradient(circle at 76% 75%, #956049 0 4%, transparent 4.5%), radial-gradient(circle at center, #f4ede1 0 29%, transparent 30%); }
+    #file-version-history .vh-art { position: relative; z-index: 2; font-size: 86px; filter: saturate(.74); }
+    #file-version-history .vh-artboard.previous { filter: saturate(.7) contrast(.94); }
+    #file-version-history .vh-change-pin { position: absolute; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; top: 29%; right: 24%; background: #315dcc; color: #ffffff; border: 2px solid #ffffff; }
+    #file-version-history .vh-change-pin svg { width: 12px; height: 12px; }
+    #file-version-history .vh-change-list { width: min(620px, 100%); margin: 12px auto 0; padding: 10px 0; border-top: 1px solid light-dark(#cfd6e1, #343e50); }
+    #file-version-history .vh-change-row { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: start; padding: 7px 0; }
+    #file-version-history .vh-change-row svg { width: 16px; height: 16px; color: light-dark(#267a5c, #75d8b7); }
+    #file-version-history .vh-change-title { font-weight: 500; }
+    #file-version-history .vh-change-detail { color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.35; }
+    #file-version-history .vh-change-origin { color: light-dark(#667288, #a7b3c6); white-space: nowrap; }
+    #file-version-history .vh-canvas-status { position: absolute; left: 15px; bottom: 10px; padding: 6px 9px; border-radius: 8px; border: 1px solid light-dark(#d6dde8, #3a4558); background: light-dark(#ffffff, #222a3a); color: light-dark(#5f6a80, #b1bbce); display: flex; align-items: center; gap: 7px; }
+    #file-version-history .vh-status-dot { width: 7px; height: 7px; border-radius: 50%; background: light-dark(#278563, #55d3a5); }
+    #file-version-history .vh-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #file-version-history .vh-help { color: light-dark(#6b758a, #aab4c7); margin-bottom: 13px; line-height: 1.45; }
+    #file-version-history .vh-type-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); margin-bottom: 12px; }
+    #file-version-history .vh-type-badge svg { width: 14px; height: 14px; }
+    #file-version-history .vh-detail-row { display: flex; justify-content: space-between; gap: 9px; padding: 6px 0; }
+    #file-version-history .vh-detail-row span:first-child { color: light-dark(#707a8e, #a2adbf); }
+    #file-version-history .vh-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #file-version-history .vh-section-title { font-weight: 500; margin-bottom: 8px; }
+    #file-version-history .vh-protection { padding: 10px; border-radius: 8px; background: light-dark(#edf8f3, #203a33); color: light-dark(#176749, #b9eedb); line-height: 1.45; }
+    #file-version-history .vh-action-list { display: grid; gap: 7px; }
+    #file-version-history .vh-action-list .vh-button { width: 100%; justify-content: flex-start; }
+    #file-version-history .vh-link-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid light-dark(#e2e6ed, #30394b); }
+    #file-version-history .vh-link-row svg { width: 16px; height: 16px; color: light-dark(#2453c4, #bdcaff); }
+    #file-version-history .vh-link-row span { flex: 1; }
+    #file-version-history .vh-restore-dialog {
+      position: absolute;
+      z-index: 7;
+      width: min(390px, calc(100% - 32px));
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 15px;
+      border-radius: 11px;
+      border: 1px solid light-dark(#d1d9e5, #3d485c);
+      background: light-dark(#ffffff, #1f2737);
+      box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #file-version-history .vh-restore-dialog[hidden] { display: none; }
+    #file-version-history .vh-dialog-title { font-weight: 500; margin-bottom: 5px; }
+    #file-version-history .vh-dialog-copy { color: light-dark(#687388, #aeb8ca); line-height: 1.45; margin-bottom: 13px; }
+    #file-version-history .vh-dialog-note { padding: 10px; border-radius: 8px; background: light-dark(#edf8f3, #203a33); color: light-dark(#176749, #b9eedb); line-height: 1.4; margin-bottom: 13px; }
+    #file-version-history .vh-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; }
+    #file-version-history .vh-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #file-version-history .vh-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 900px) {
+      #file-version-history .vh-main { grid-template-columns: 224px minmax(0, 1fr); }
+      #file-version-history .vh-inspector { display: none; }
+      #file-version-history .vh-saved { display: none; }
+    }
+    @media (max-width: 650px) {
+      #file-version-history .vh-header { flex-wrap: wrap; }
+      #file-version-history .vh-heading { min-width: 0; flex: 1; }
+      #file-version-history .vh-mode-switch { order: 3; width: 100%; }
+      #file-version-history .vh-mode { flex: 1; }
+      #file-version-history .vh-spacer { display: none; }
+      #file-version-history .vh-primary span { display: none; }
+      #file-version-history .vh-main { display: block; }
+      #file-version-history .vh-timeline { border-right: 0; }
+      #file-version-history .vh-events { display: flex; gap: 7px; overflow-x: auto; padding: 8px; }
+      #file-version-history .vh-group-label { display: none; }
+      #file-version-history .vh-event { min-width: 190px; }
+      #file-version-history .vh-event::after { display: none; }
+      #file-version-history .vh-canvas { padding: 13px 9px 47px; }
+      #file-version-history .vh-preview-area { gap: 7px; }
+      #file-version-history .vh-art { font-size: 55px; }
+      #file-version-history .vh-change-row { grid-template-columns: 18px 1fr; }
+      #file-version-history .vh-change-origin { grid-column: 2; }
+      #file-version-history .vh-bottom { display: none; }
+    }
+  </style>
+
+  <div class="vh-shell">
+    <header class="vh-header">
+      <button class="vh-back" type="button" aria-label="Back to project"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="vh-heading"><div class="vh-title">Hedgehog textile design</div><div class="vh-subtitle">Woodland collection · Current version 12</div></div>
+      <div class="vh-mode-switch" aria-label="File view"><button class="vh-mode" type="button" aria-pressed="false">Document</button><button class="vh-mode" type="button" aria-pressed="true">History</button><button class="vh-mode" type="button" aria-pressed="false">Activity</button></div>
+      <div class="vh-spacer"></div>
+      <div class="vh-saved"><i data-lucide="cloud-check" aria-hidden="true"></i>All changes saved</div>
+      <button class="vh-button" type="button"><i data-lucide="bookmark-plus" aria-hidden="true"></i>Name version</button>
+      <button class="vh-primary" type="button"><i data-lucide="pen-line" aria-hidden="true"></i><span>Open editor</span></button>
+    </header>
+
+    <div class="vh-main">
+      <aside class="vh-timeline" aria-label="Version timeline">
+        <div class="vh-timeline-head"><div class="vh-timeline-title"><span>Complete history</span><span>12 versions</span></div><div class="vh-timeline-copy">Autosaves, named milestones, source updates, variants and exports.</div><select class="vh-filter" aria-label="Filter history"><option>All history</option><option>Document versions</option><option>Source versions</option><option>Variants</option><option>Exports</option></select></div>
+        <div class="vh-events">
+          <div class="vh-group-label">Today</div>
+          <button class="vh-event" type="button" data-event="v12" aria-pressed="true"><span class="vh-event-icon"><i data-lucide="bookmark-check" aria-hidden="true"></i></span><span><span class="vh-event-title">v12 · Print review</span><span class="vh-event-meta">Named version · Vijay · Just now</span></span></button>
+          <button class="vh-event" type="button" data-event="v11" aria-pressed="false"><span class="vh-event-icon"><i data-lucide="save" aria-hidden="true"></i></span><span><span class="vh-event-title">v11 · Automatic</span><span class="vh-event-meta">3 safe adjustments · 22 min ago</span></span></button>
+          <button class="vh-event" type="button" data-event="export" aria-pressed="false"><span class="vh-event-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span><span class="vh-event-title">Production export</span><span class="vh-event-meta">3 derivatives · Checks passed</span></span></button>
+          <div class="vh-group-label">Yesterday</div>
+          <button class="vh-event" type="button" data-event="variant" aria-pressed="false"><span class="vh-event-icon"><i data-lucide="git-branch" aria-hidden="true"></i></span><span><span class="vh-event-title">Strong color variant</span><span class="vh-event-meta">Alternative direction · Kept separately</span></span></button>
+          <button class="vh-event" type="button" data-event="source" aria-pressed="false"><span class="vh-event-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><span><span class="vh-event-title">Source version 4</span><span class="vh-event-meta">Accepted from Google Drive · Original kept</span></span></button>
+          <button class="vh-event" type="button" data-event="original" aria-pressed="false"><span class="vh-event-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><span><span class="vh-event-title">Original source</span><span class="vh-event-meta">First imported · Never modified</span></span></button>
+        </div>
+      </aside>
+
+      <main class="vh-canvas">
+        <div class="vh-canvas-head"><div><div class="vh-selected-label" id="vh-selected-label">v12 · Print review</div><div class="vh-selected-meta" id="vh-selected-meta">Compared with v10 · Two visual changes</div></div><div class="vh-compare-switch" aria-label="Comparison view"><button class="vh-compare-button" type="button" data-compare="single" aria-pressed="false">Selected</button><button class="vh-compare-button" type="button" data-compare="side" aria-pressed="true">Side by side</button></div></div>
+        <div class="vh-preview-area" id="vh-preview-area">
+          <div class="vh-preview-column" id="vh-before-column"><div class="vh-preview-head"><strong>v10</strong><span>Before</span></div><div class="vh-artboard previous"><div class="vh-art" aria-hidden="true">🦔</div></div></div>
+          <div class="vh-preview-column"><div class="vh-preview-head"><strong id="vh-current-version">v12</strong><span>Selected</span></div><div class="vh-artboard"><div class="vh-art" aria-hidden="true">🦔</div><span class="vh-change-pin"><i data-lucide="sparkles" aria-hidden="true"></i></span></div></div>
+        </div>
+        <div class="vh-change-list">
+          <div class="vh-change-row"><i data-lucide="check" aria-hidden="true"></i><div><div class="vh-change-title" id="vh-change-one">Fine outlines protected</div><div class="vh-change-detail" id="vh-change-one-detail">Non-destructive mask retained; no reconstructed region.</div></div><span class="vh-change-origin">Adjustment</span></div>
+          <div class="vh-change-row"><i data-lucide="check" aria-hidden="true"></i><div><div class="vh-change-title" id="vh-change-two">Light botanical tones balanced</div><div class="vh-change-detail" id="vh-change-two-detail">Workspace production profile applied to preview only.</div></div><span class="vh-change-origin">Profile</span></div>
+        </div>
+        <div class="vh-canvas-status"><span class="vh-status-dot"></span><span id="vh-canvas-status">Viewing history · Current work remains untouched</span></div>
+      </main>
+
+      <aside class="vh-inspector" aria-label="Selected version details">
+        <h3 id="vh-detail-title">Print review</h3><div class="vh-help" id="vh-detail-help">A durable named document version created by Vijay.</div>
+        <div class="vh-type-badge" id="vh-type-badge"><i data-lucide="bookmark-check" aria-hidden="true"></i>Document version</div>
+        <div class="vh-detail-row"><span>Version</span><strong id="vh-version-value">12</strong></div>
+        <div class="vh-detail-row"><span>Source basis</span><strong id="vh-source-value">Source v4</strong></div>
+        <div class="vh-detail-row"><span>Created</span><strong id="vh-created-value">Just now</strong></div>
+        <div class="vh-detail-row"><span>Comments</span><strong>2 linked</strong></div>
+        <div class="vh-section"><div class="vh-section-title">Protection</div><div class="vh-protection" id="vh-protection"><strong>Nothing will be overwritten.</strong><br>Restoring this version creates a new current version and keeps every later version available.</div></div>
+        <div class="vh-section"><div class="vh-section-title">Actions</div><div class="vh-action-list"><button class="vh-button" id="vh-restore-open" type="button"><i data-lucide="history" aria-hidden="true"></i>Restore as new current</button><button class="vh-button" type="button"><i data-lucide="git-branch" aria-hidden="true"></i>Create variant from here</button><button class="vh-button" type="button"><i data-lucide="copy-plus" aria-hidden="true"></i>Save as separate file</button></div></div>
+        <div class="vh-section"><div class="vh-section-title">Related results</div><div class="vh-link-row"><i data-lucide="image" aria-hidden="true"></i><span>Textile master PNG</span><strong>Export</strong></div><div class="vh-link-row"><i data-lucide="file-type-2" aria-hidden="true"></i><span>Production proof PDF</span><strong>Export</strong></div></div>
+      </aside>
+    </div>
+
+    <section class="vh-restore-dialog" id="vh-restore-dialog" aria-label="Restore selected version" hidden>
+      <div class="vh-dialog-title">Restore v12 as the current version?</div>
+      <div class="vh-dialog-copy">Your current work will be preserved. The restored state becomes a new version at the top of the history.</div>
+      <div class="vh-dialog-note"><strong>Safe restoration</strong><br>No original, source version, document version, comment, variant or export is deleted.</div>
+      <div class="vh-dialog-actions"><button class="vh-button" id="vh-restore-cancel" type="button">Cancel</button><button class="vh-primary" id="vh-restore-confirm" type="button"><i data-lucide="history" aria-hidden="true"></i>Create restored version</button></div>
+    </section>
+
+    <footer class="vh-bottom"><span>Original source immutable</span><span>Continuous autosave</span><span>Persistent undo and redo</span><span class="vh-bottom-right"><span>Named versions durable</span><span>Exports independently traceable</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('file-version-history');
+      const events = [...root.querySelectorAll('.vh-event')];
+      const selectedLabel = root.querySelector('#vh-selected-label');
+      const selectedMeta = root.querySelector('#vh-selected-meta');
+      const currentVersion = root.querySelector('#vh-current-version');
+      const detailTitle = root.querySelector('#vh-detail-title');
+      const detailHelp = root.querySelector('#vh-detail-help');
+      const typeBadge = root.querySelector('#vh-type-badge');
+      const versionValue = root.querySelector('#vh-version-value');
+      const sourceValue = root.querySelector('#vh-source-value');
+      const createdValue = root.querySelector('#vh-created-value');
+      const changeOne = root.querySelector('#vh-change-one');
+      const changeOneDetail = root.querySelector('#vh-change-one-detail');
+      const changeTwo = root.querySelector('#vh-change-two');
+      const changeTwoDetail = root.querySelector('#vh-change-two-detail');
+      const protection = root.querySelector('#vh-protection');
+      const eventData = {
+        v12: ['v12 · Print review', 'Compared with v10 · Two visual changes', 'v12', 'Print review', 'A durable named document version created by Vijay.', 'bookmark-check', 'Document version', '12', 'Source v4', 'Just now', 'Fine outlines protected', 'Non-destructive mask retained; no reconstructed region.', 'Light botanical tones balanced', 'Workspace production profile applied to preview only.'],
+        v11: ['v11 · Automatic', 'Autosaved after three safe adjustments', 'v11', 'Automatic save', 'A durable automatic document version.', 'save', 'Document version', '11', 'Source v4', '22 min ago', 'Sharpen mask changed', 'Editable adjustment retained.', 'White balance refined', 'Preview recalculated without touching source pixels.'],
+        export: ['Production export', 'Three immutable derivatives from document v12', 'Export', 'Production export', 'A completed output job linked to its exact source and document versions.', 'package-check', 'Export result', 'Job 184', 'Document v12', 'Today', 'Textile master created', 'PNG output passed production checks.', 'Proof PDF created', 'PDF/X output includes the approved production profile.'],
+        variant: ['Strong color variant', 'Alternative direction branched from v10', 'Variant', 'Strong color variant', 'An alternative editing direction that does not replace the main document.', 'git-branch', 'Named variant', 'Variant 2', 'Document v10', 'Yesterday', 'Color strength increased', 'Alternative choice remains isolated from the main direction.', 'Previous result retained', 'Switch or compare without overwriting either direction.'],
+        source: ['Source version 4', 'Accepted external update from Google Drive', 'Source v4', 'Google Drive source update', 'A new immutable source version accepted after comparison.', 'refresh-cw', 'Source version', '4', 'Original source', 'Yesterday', 'External pixels changed', 'Accepted only after customer confirmation.', 'Existing document preserved', 'No document or variant was silently replaced.'],
+        original: ['Original source', 'First imported file · never modified', 'Original', 'Original source', 'The immutable first file imported into the workspace.', 'shield-check', 'Original asset', '1', 'None', 'First import', 'Original bytes preserved', 'Integrity hash remains unchanged.', 'All work is derivative', 'Edits, variants and exports reference this source without overwriting it.']
+      };
+      events.forEach((button) => button.addEventListener('click', () => {
+        events.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const d = eventData[button.dataset.event];
+        selectedLabel.textContent = d[0]; selectedMeta.textContent = d[1]; currentVersion.textContent = d[2];
+        detailTitle.textContent = d[3]; detailHelp.textContent = d[4];
+        typeBadge.innerHTML = '<i data-lucide="' + d[5] + '" aria-hidden="true"></i>' + d[6];
+        versionValue.textContent = d[7]; sourceValue.textContent = d[8]; createdValue.textContent = d[9];
+        changeOne.textContent = d[10]; changeOneDetail.textContent = d[11]; changeTwo.textContent = d[12]; changeTwoDetail.textContent = d[13];
+        protection.innerHTML = button.dataset.event === 'original' ? '<strong>Permanent protection.</strong><br>The original file can be downloaded or referenced, but never modified in place.' : '<strong>Nothing will be overwritten.</strong><br>Restoring creates a new current version and keeps every later version available.';
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+
+      const compareButtons = [...root.querySelectorAll('.vh-compare-button')];
+      const beforeColumn = root.querySelector('#vh-before-column');
+      const previewArea = root.querySelector('#vh-preview-area');
+      compareButtons.forEach((button) => button.addEventListener('click', () => {
+        compareButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const single = button.dataset.compare === 'single';
+        beforeColumn.hidden = single;
+        previewArea.style.gridTemplateColumns = single ? '1fr' : '1fr 1fr';
+      }));
+
+      const dialog = root.querySelector('#vh-restore-dialog');
+      root.querySelector('#vh-restore-open').addEventListener('click', () => { dialog.hidden = false; });
+      root.querySelector('#vh-restore-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      root.querySelector('#vh-restore-confirm').addEventListener('click', () => {
+        dialog.hidden = true;
+        root.querySelector('#vh-canvas-status').textContent = 'Restored safely as version 13 · Previous history preserved';
+      });
+    })();
+  </script>
+</section>

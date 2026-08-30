@@ -1,0 +1,323 @@
+<section id="connected-storage-workflows" aria-label="Connected cloud storage import save back and conflict handling experience">
+  <style>
+    #connected-storage-workflows {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #connected-storage-workflows * { box-sizing: border-box; }
+    #connected-storage-workflows button,
+    #connected-storage-workflows input,
+    #connected-storage-workflows select { font: inherit; color: inherit; }
+    #connected-storage-workflows button { cursor: pointer; }
+    #connected-storage-workflows .cs-shell { min-height: 760px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #connected-storage-workflows .cs-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #connected-storage-workflows .cs-button,
+    #connected-storage-workflows .cs-primary,
+    #connected-storage-workflows .cs-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #connected-storage-workflows .cs-icon-button { width: 37px; padding: 7px; }
+    #connected-storage-workflows .cs-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #connected-storage-workflows .cs-button svg,
+    #connected-storage-workflows .cs-primary svg,
+    #connected-storage-workflows .cs-icon-button svg { width: 16px; height: 16px; }
+    #connected-storage-workflows .cs-title-block { min-width: 250px; }
+    #connected-storage-workflows .cs-title { font-weight: 500; }
+    #connected-storage-workflows .cs-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 390px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #connected-storage-workflows .cs-spacer { flex: 1; }
+    #connected-storage-workflows .cs-safe { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #connected-storage-workflows .cs-safe svg { width: 15px; height: 15px; }
+    #connected-storage-workflows .cs-main { display: grid; grid-template-columns: 222px minmax(0, 1fr) 286px; min-height: 663px; }
+    #connected-storage-workflows .cs-connections,
+    #connected-storage-workflows .cs-inspector { background: light-dark(#ffffff, #1b2232); min-width: 0; }
+    #connected-storage-workflows .cs-connections { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #connected-storage-workflows .cs-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #connected-storage-workflows .cs-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #connected-storage-workflows .cs-provider-list { display: grid; gap: 4px; }
+    #connected-storage-workflows .cs-provider {
+      width: 100%; min-height: 58px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left;
+    }
+    #connected-storage-workflows .cs-provider[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); }
+    #connected-storage-workflows .cs-provider-icon { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#4d5b73, #c3cddd); }
+    #connected-storage-workflows .cs-provider[aria-pressed="true"] .cs-provider-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #connected-storage-workflows .cs-provider-icon svg { width: 17px; height: 17px; }
+    #connected-storage-workflows .cs-provider-name { font-weight: 500; }
+    #connected-storage-workflows .cs-provider-meta { color: light-dark(#6d778b, #a9b4c6); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #connected-storage-workflows .cs-status-dot { width: 8px; height: 8px; border-radius: 50%; background: light-dark(#2a8b66, #78d7b4); }
+    #connected-storage-workflows .cs-add-connection { width: 100%; margin-top: 9px; }
+    #connected-storage-workflows .cs-scope-note { margin: 14px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #connected-storage-workflows .cs-content { min-width: 0; padding: 18px 20px 25px; }
+    #connected-storage-workflows .cs-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    #connected-storage-workflows .cs-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #connected-storage-workflows .cs-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #connected-storage-workflows .cs-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #connected-storage-workflows .cs-tab { min-height: 39px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #connected-storage-workflows .cs-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #connected-storage-workflows .cs-update-banner {
+      display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 13px;
+      background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42;
+    }
+    #connected-storage-workflows .cs-update-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #connected-storage-workflows .cs-file-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+    #connected-storage-workflows .cs-file-icon { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #connected-storage-workflows .cs-file-icon svg { width: 18px; height: 18px; }
+    #connected-storage-workflows .cs-file-name { font-weight: 500; }
+    #connected-storage-workflows .cs-file-path { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #connected-storage-workflows .cs-compare { display: grid; grid-template-columns: 1fr 38px 1fr; gap: 10px; align-items: stretch; }
+    #connected-storage-workflows .cs-version {
+      border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; padding: 11px; background: light-dark(#ffffff, #1d2534); min-width: 0;
+    }
+    #connected-storage-workflows .cs-version.new { border-color: light-dark(#b8c8ed, #506897); background: light-dark(#f7f9ff, #202b3e); }
+    #connected-storage-workflows .cs-version-label { display: flex; align-items: center; justify-content: space-between; gap: 7px; color: light-dark(#667187, #adb7ca); margin-bottom: 8px; }
+    #connected-storage-workflows .cs-version-state { color: light-dark(#1d7153, #8de0bf); }
+    #connected-storage-workflows .cs-preview { height: 122px; border-radius: 7px; overflow: hidden; position: relative; background: light-dark(#ebe3d6, #3a352e); display: grid; place-items: center; }
+    #connected-storage-workflows .cs-preview::before { content: ""; position: absolute; width: 76px; height: 72px; border-radius: 50% 50% 45% 45%; background: light-dark(#f4efe7, #d9d1c6); bottom: 14px; left: calc(50% - 36px); }
+    #connected-storage-workflows .cs-preview::after { content: ""; position: absolute; width: 72px; height: 58px; border-radius: 58% 42% 45% 55%; background: repeating-linear-gradient(75deg, light-dark(#6e4e37, #8a674d) 0 5px, light-dark(#b38b68, #b79270) 5px 9px); bottom: 31px; left: calc(50% - 62px); transform: rotate(-11deg); }
+    #connected-storage-workflows .cs-preview-change { position: absolute; z-index: 2; width: 24px; height: 24px; border: 2px solid light-dark(#d37522, #f4b56d); border-radius: 50%; right: 24%; top: 27%; }
+    #connected-storage-workflows .cs-version-meta { display: grid; gap: 5px; margin-top: 9px; color: light-dark(#5f6d84, #b5c0d2); }
+    #connected-storage-workflows .cs-version-meta div { display: flex; justify-content: space-between; gap: 8px; }
+    #connected-storage-workflows .cs-version-meta strong { color: light-dark(#243149, #e2e7f1); font-weight: 500; text-align: right; }
+    #connected-storage-workflows .cs-arrow { display: grid; place-items: center; color: light-dark(#738096, #9ca9bd); }
+    #connected-storage-workflows .cs-arrow svg { width: 19px; height: 19px; }
+    #connected-storage-workflows .cs-choice-title { font-weight: 500; margin: 14px 0 7px; }
+    #connected-storage-workflows .cs-choice-list { display: grid; gap: 7px; }
+    #connected-storage-workflows .cs-choice {
+      display: grid; grid-template-columns: 19px minmax(0, 1fr); gap: 9px; align-items: flex-start; padding: 9px 10px; border-radius: 8px; border: 1px solid light-dark(#d8dee8, #394356); background: light-dark(#ffffff, #1d2534);
+    }
+    #connected-storage-workflows .cs-choice:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #connected-storage-workflows .cs-choice input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #connected-storage-workflows .cs-choice strong { display: block; font-weight: 500; }
+    #connected-storage-workflows .cs-choice small { display: block; color: light-dark(#667187, #adb7ca); margin-top: 2px; line-height: 1.4; }
+    #connected-storage-workflows .cs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    #connected-storage-workflows .cs-remember { display: inline-flex; gap: 7px; align-items: center; margin-right: auto; color: light-dark(#56637a, #b8c3d5); }
+    #connected-storage-workflows .cs-remember input { width: 17px; height: 17px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #connected-storage-workflows .cs-browser-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 11px; }
+    #connected-storage-workflows .cs-input,
+    #connected-storage-workflows .cs-select { min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #connected-storage-workflows .cs-folder-row { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 9px 4px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #connected-storage-workflows .cs-folder-row svg { width: 17px; height: 17px; color: light-dark(#5c6a81, #b4bfd0); }
+    #connected-storage-workflows .cs-folder-name { font-weight: 500; }
+    #connected-storage-workflows .cs-folder-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #connected-storage-workflows .cs-save-callout { padding: 11px; border-radius: 9px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; margin-bottom: 12px; }
+    #connected-storage-workflows .cs-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #connected-storage-workflows .cs-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #connected-storage-workflows .cs-field .cs-select,
+    #connected-storage-workflows .cs-field .cs-input { width: 100%; }
+    #connected-storage-workflows .cs-risk-note { margin-top: 10px; padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #connected-storage-workflows .cs-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #connected-storage-workflows .cs-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #connected-storage-workflows .cs-lineage { display: grid; gap: 0; }
+    #connected-storage-workflows .cs-lineage-item { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; padding: 8px 0; position: relative; }
+    #connected-storage-workflows .cs-lineage-item:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 35px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #connected-storage-workflows .cs-lineage-icon { width: 29px; height: 29px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #connected-storage-workflows .cs-lineage-icon svg { width: 14px; height: 14px; }
+    #connected-storage-workflows .cs-lineage-title { font-weight: 500; }
+    #connected-storage-workflows .cs-lineage-meta { color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #connected-storage-workflows .cs-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #connected-storage-workflows .cs-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #connected-storage-workflows .cs-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #connected-storage-workflows .cs-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #connected-storage-workflows .cs-fact strong { display: block; font-weight: 500; }
+    #connected-storage-workflows .cs-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; }
+    #connected-storage-workflows .cs-provider-rule { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #connected-storage-workflows .cs-toast { position: absolute; z-index: 8; left: 50%; bottom: 48px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #connected-storage-workflows .cs-toast[hidden] { display: none; }
+    #connected-storage-workflows .cs-dialog {
+      position: absolute; z-index: 10; width: min(440px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px;
+      border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #connected-storage-workflows .cs-dialog[hidden] { display: none; }
+    #connected-storage-workflows .cs-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #connected-storage-workflows .cs-dialog p { color: light-dark(#637087, #afb9ca); line-height: 1.45; margin: 0 0 10px; }
+    #connected-storage-workflows .cs-dialog-summary { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); line-height: 1.5; }
+    #connected-storage-workflows .cs-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
+    #connected-storage-workflows .cs-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #connected-storage-workflows .cs-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #connected-storage-workflows .cs-main { grid-template-columns: 205px minmax(0, 1fr); }
+      #connected-storage-workflows .cs-inspector { display: none; }
+      #connected-storage-workflows .cs-safe { display: none; }
+    }
+    @media (max-width: 650px) {
+      #connected-storage-workflows .cs-header { flex-wrap: wrap; }
+      #connected-storage-workflows .cs-title-block { min-width: 0; flex: 1; }
+      #connected-storage-workflows .cs-primary span { display: none; }
+      #connected-storage-workflows .cs-main { display: block; }
+      #connected-storage-workflows .cs-connections { display: none; }
+      #connected-storage-workflows .cs-content { padding: 14px 11px 21px; }
+      #connected-storage-workflows .cs-content-head h2 { font-size: 18px; }
+      #connected-storage-workflows .cs-tabs { overflow-x: auto; }
+      #connected-storage-workflows .cs-tab { flex: 0 0 auto; }
+      #connected-storage-workflows .cs-compare { grid-template-columns: 1fr; }
+      #connected-storage-workflows .cs-arrow { min-height: 24px; transform: rotate(90deg); }
+      #connected-storage-workflows .cs-form-grid { grid-template-columns: 1fr; }
+      #connected-storage-workflows .cs-bottom { display: none; }
+    }
+  </style>
+
+  <div class="cs-shell">
+    <header class="cs-header">
+      <button class="cs-icon-button" type="button" aria-label="Back to project"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="cs-title-block"><div class="cs-title">Connected storage</div><div class="cs-subtitle">Kidswear 2027 / Woodland collection</div></div>
+      <div class="cs-spacer"></div>
+      <div class="cs-safe"><i data-lucide="shield-check" aria-hidden="true"></i>External originals stay untouched</div>
+      <button class="cs-button" id="cs-disconnect" type="button"><i data-lucide="unplug" aria-hidden="true"></i>Disconnect</button>
+      <button class="cs-primary" id="cs-save-header" type="button"><i data-lucide="cloud-upload" aria-hidden="true"></i><span>Save to cloud</span></button>
+    </header>
+
+    <div class="cs-main">
+      <aside class="cs-connections" aria-label="Connected providers">
+        <div class="cs-pane-head"><span>Connections</span><i data-lucide="cloud" aria-hidden="true"></i></div>
+        <div class="cs-provider-list">
+          <button class="cs-provider" type="button" data-provider="drive" aria-pressed="true"><span class="cs-provider-icon"><i data-lucide="triangle" aria-hidden="true"></i></span><span><span class="cs-provider-name">Google Drive</span><span class="cs-provider-meta">Personal · Design Sources</span></span><span class="cs-status-dot" aria-label="Connected"></span></button>
+          <button class="cs-provider" type="button" data-provider="sharepoint" aria-pressed="false"><span class="cs-provider-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span><span class="cs-provider-name">SharePoint</span><span class="cs-provider-meta">Workspace · Production</span></span><span class="cs-status-dot" aria-label="Connected"></span></button>
+          <button class="cs-provider" type="button" data-provider="dropbox" aria-pressed="false"><span class="cs-provider-icon"><i data-lucide="box" aria-hidden="true"></i></span><span><span class="cs-provider-name">Dropbox</span><span class="cs-provider-meta">Personal · Client files</span></span><span class="cs-status-dot" aria-label="Connected"></span></button>
+        </div>
+        <button class="cs-button cs-add-connection" type="button"><i data-lucide="plus" aria-hidden="true"></i>Add connection</button>
+        <div class="cs-scope-note"><strong>Least-privilege access</strong><br>Each connection sees only the folders the owner or workspace administrator explicitly permits.</div>
+      </aside>
+
+      <main class="cs-content">
+        <div class="cs-content-head"><div><h2 id="cs-provider-heading">Google Drive</h2><div class="cs-content-subtitle" id="cs-provider-subtitle">Personal connection · Access limited to Design Sources</div></div><button class="cs-button" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Check updates</button></div>
+        <div class="cs-tabs" role="tablist" aria-label="Connected storage tasks">
+          <button class="cs-tab" type="button" data-panel="browse" aria-selected="false">Browse &amp; import</button>
+          <button class="cs-tab" type="button" data-panel="save" aria-selected="false">Save back</button>
+          <button class="cs-tab" type="button" data-panel="updates" aria-selected="true">Updates &amp; conflicts <span aria-label="One update">1</span></button>
+          <button class="cs-tab" type="button" data-panel="connections" aria-selected="false">Connection details</button>
+        </div>
+
+        <section data-content="updates">
+          <div class="cs-update-banner"><i data-lucide="refresh-cw" aria-hidden="true"></i><span><strong>The source changed in Google Drive.</strong> We created a safe source-version proposal. Your current design has not changed.</span></div>
+          <div class="cs-file-head"><span class="cs-file-icon"><i data-lucide="file-image" aria-hidden="true"></i></span><div><div class="cs-file-name">hedgehog-watercolour.png</div><div class="cs-file-path">Design Sources / Kidswear / Woodland</div></div></div>
+          <div class="cs-compare">
+            <article class="cs-version"><div class="cs-version-label"><span>Current project source</span><span>v4</span></div><div class="cs-preview" aria-label="Current hedgehog artwork preview"></div><div class="cs-version-meta"><div><span>Linked</span><strong>28 Aug, 14:42</strong></div><div><span>Size</span><strong>4,096 × 4,096</strong></div><div><span>Used by</span><strong>3 artboards</strong></div></div></article>
+            <div class="cs-arrow"><i data-lucide="arrow-right" aria-hidden="true"></i></div>
+            <article class="cs-version new"><div class="cs-version-label"><span>External source update</span><span class="cs-version-state">New v5</span></div><div class="cs-preview" aria-label="Updated hedgehog artwork preview"><span class="cs-preview-change" aria-hidden="true"></span></div><div class="cs-version-meta"><div><span>Changed</span><strong>Today, 09:18</strong></div><div><span>Size</span><strong>4,096 × 4,096</strong></div><div><span>Difference</span><strong>Colour + detail</strong></div></div></article>
+          </div>
+          <div class="cs-choice-title">What should happen?</div>
+          <div class="cs-choice-list">
+            <label class="cs-choice"><input type="radio" name="update-action" value="review" checked><span><strong>Add as source version v5 and review</strong><small>Safest: preserve v4, create a reversible version and let me choose which artboards update.</small></span></label>
+            <label class="cs-choice"><input type="radio" name="update-action" value="keep"><span><strong>Keep using v4</strong><small>Dismiss this update for now. The external file remains available later.</small></span></label>
+            <label class="cs-choice"><input type="radio" name="update-action" value="fork"><span><strong>Create an independent copy</strong><small>Stop following external changes for this asset while preserving its source history.</small></span></label>
+          </div>
+          <div class="cs-actions"><label class="cs-remember"><input type="checkbox" id="cs-remember-rule">Remember for this source</label><button class="cs-button" id="cs-compare-action" type="button"><i data-lucide="columns-2" aria-hidden="true"></i>Compare detail</button><button class="cs-primary" id="cs-update-action" type="button"><i data-lucide="git-branch" aria-hidden="true"></i>Continue safely</button></div>
+        </section>
+
+        <section data-content="browse" hidden>
+          <div class="cs-save-callout"><strong>Import without surrendering control.</strong> The application records the provider source, preserves its external original and creates a protected project source version for editing.</div>
+          <div class="cs-browser-toolbar"><input class="cs-input" aria-label="Search connected folder" placeholder="Search Design Sources"><button class="cs-button" type="button"><i data-lucide="upload" aria-hidden="true"></i>Import selected</button></div>
+          <div class="cs-folder-row"><i data-lucide="folder" aria-hidden="true"></i><div><div class="cs-folder-name">Kidswear</div><div class="cs-folder-meta">18 files · Updated today</div></div><button class="cs-icon-button" type="button" aria-label="Open Kidswear"><i data-lucide="chevron-right" aria-hidden="true"></i></button></div>
+          <div class="cs-folder-row"><i data-lucide="folder" aria-hidden="true"></i><div><div class="cs-folder-name">Brand assets</div><div class="cs-folder-meta">12 files · Workspace-approved</div></div><button class="cs-icon-button" type="button" aria-label="Open Brand assets"><i data-lucide="chevron-right" aria-hidden="true"></i></button></div>
+          <div class="cs-folder-row"><i data-lucide="file-image" aria-hidden="true"></i><div><div class="cs-folder-name">hedgehog-watercolour.png</div><div class="cs-folder-meta">4,096 × 4,096 · External source</div></div><label><span class="sr-only">Select hedgehog watercolour</span><input type="checkbox" checked></label></div>
+          <div class="cs-folder-row"><i data-lucide="file-text" aria-hidden="true"></i><div><div class="cs-folder-name">factory-colour-notes.pdf</div><div class="cs-folder-meta">6 pages · External source</div></div><label><span class="sr-only">Select factory colour notes</span><input type="checkbox"></label></div>
+        </section>
+
+        <section data-content="save" hidden>
+          <div class="cs-save-callout"><strong>Explicit save-back only.</strong> Exporting inside the application never silently replaces a connected cloud file.</div>
+          <div class="cs-choice-list">
+            <label class="cs-choice"><input type="radio" name="save-mode" value="new" checked><span><strong>Create a new cloud file</strong><small>Recommended default. Keeps the provider original and app project version separate.</small></span></label>
+            <label class="cs-choice"><input type="radio" name="save-mode" value="provider-version"><span><strong>Add a new provider version</strong><small>Available only where provider permissions and versioning support it.</small></span></label>
+            <label class="cs-choice"><input type="radio" name="save-mode" value="replace"><span><strong>Replace the current cloud file</strong><small>Requires replace permission, a fresh conflict check and final confirmation.</small></span></label>
+          </div>
+          <div class="cs-form-grid" style="margin-top:12px"><div class="cs-field"><label for="cs-destination">Destination</label><select id="cs-destination" class="cs-select"><option>Design Sources / Approved Exports</option><option>Design Sources / Kidswear / Woodland</option></select></div><div class="cs-field"><label for="cs-filename">File name</label><input id="cs-filename" class="cs-input" value="hedgehog-print-approved-v7.png"></div></div>
+          <div class="cs-risk-note" id="cs-save-warning"><strong>No overwrite risk.</strong> A new file will be created and linked to this export result.</div>
+          <div class="cs-actions" style="justify-content:flex-end"><button class="cs-button" type="button">Review export</button><button class="cs-primary" id="cs-save-action" type="button"><i data-lucide="cloud-upload" aria-hidden="true"></i>Save new file</button></div>
+        </section>
+
+        <section data-content="connections" hidden>
+          <div class="cs-form-grid"><div class="cs-field"><label>Connection owner</label><select class="cs-select"><option>Vijay Kumar · Personal</option></select></div><div class="cs-field"><label>Allowed scope</label><select class="cs-select"><option>Design Sources only</option></select></div></div>
+          <div class="cs-file-head" style="margin-top:18px"><span class="cs-file-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><div><div class="cs-file-name">Least-privilege connection</div><div class="cs-file-path">Read selected source folders · Write Approved Exports only</div></div></div>
+          <div class="cs-choice-list">
+            <div class="cs-choice"><i data-lucide="user" aria-hidden="true"></i><span><strong>Personal connections</strong><small>Owned by one customer and available only where that customer has project access.</small></span></div>
+            <div class="cs-choice"><i data-lucide="building-2" aria-hidden="true"></i><span><strong>Workspace connections</strong><small>Managed by authorised administrators with explicit folders and audit history.</small></span></div>
+            <div class="cs-choice"><i data-lucide="unlink" aria-hidden="true"></i><span><strong>Safe disconnection</strong><small>Disconnecting never removes external files. App copies follow project retention policy.</small></span></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="cs-inspector" aria-label="Source relationship details">
+        <h3>Source relationship</h3><div class="cs-inspector-copy">The provider file and application versions remain traceable without becoming the same mutable object.</div>
+        <div class="cs-lineage">
+          <div class="cs-lineage-item"><span class="cs-lineage-icon"><i data-lucide="cloud" aria-hidden="true"></i></span><span><span class="cs-lineage-title">Google Drive source</span><span class="cs-lineage-meta">External original · Provider permissions</span></span></div>
+          <div class="cs-lineage-item"><span class="cs-lineage-icon"><i data-lucide="git-branch" aria-hidden="true"></i></span><span><span class="cs-lineage-title">Source versions</span><span class="cs-lineage-meta">v1–v4 retained · v5 awaiting review</span></span></div>
+          <div class="cs-lineage-item"><span class="cs-lineage-icon"><i data-lucide="layers-3" aria-hidden="true"></i></span><span><span class="cs-lineage-title">Editable asset</span><span class="cs-lineage-meta">Used by three linked artboards</span></span></div>
+          <div class="cs-lineage-item"><span class="cs-lineage-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span><span class="cs-lineage-title">Export results</span><span class="cs-lineage-meta">Saved back only when explicitly requested</span></span></div>
+        </div>
+        <div class="cs-inspector-section"><div class="cs-inspector-title">Safe defaults</div><div class="cs-fact"><i data-lucide="file-plus-2" aria-hidden="true"></i><span><strong>Import as new source version</strong><small>Never replace active work automatically</small></span></div><div class="cs-fact"><i data-lucide="scan-search" aria-hidden="true"></i><span><strong>Conflict check before write</strong><small>External changes block silent overwrite</small></span></div><div class="cs-fact"><i data-lucide="history" aria-hidden="true"></i><span><strong>Complete provenance</strong><small>Provider, version, user and time recorded</small></span></div></div>
+        <div class="cs-inspector-section"><div class="cs-inspector-title">Sharing boundary</div><div class="cs-provider-rule"><strong>Provider access stays separate.</strong><br>Google Drive, SharePoint and Dropbox sharing never silently changes application project access—and application invites never alter provider permissions.</div></div>
+      </aside>
+    </div>
+
+    <div class="cs-toast" id="cs-toast" role="status" aria-live="polite" hidden></div>
+    <section class="cs-dialog" id="cs-dialog" aria-label="Disconnect Google Drive" hidden>
+      <h3>Disconnect Google Drive?</h3>
+      <p>The connection will stop syncing. Nothing in Google Drive will be deleted.</p>
+      <div class="cs-dialog-summary"><strong>After disconnection</strong><br>• Existing app copies remain available under project retention.<br>• External source links become unavailable until reconnected.<br>• Future updates and save-back stop.</div>
+      <div class="cs-dialog-actions"><button class="cs-button" id="cs-dialog-cancel" type="button">Keep connected</button><button class="cs-primary" id="cs-dialog-confirm" type="button">Disconnect safely</button></div>
+    </section>
+    <footer class="cs-bottom"><span>External originals protected</span><span>Least privilege</span><span>Version-aware import</span><span class="cs-bottom-right"><span>Conflict-safe writes</span><span>Separate sharing boundaries</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('connected-storage-workflows');
+      const tabs = [...root.querySelectorAll('.cs-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+      root.querySelector('#cs-save-header').addEventListener('click', () => showPanel('save'));
+
+      const providerData = {
+        drive: ['Google Drive', 'Personal connection · Access limited to Design Sources'],
+        sharepoint: ['SharePoint', 'Workspace connection · Access limited to Production Library'],
+        dropbox: ['Dropbox', 'Personal connection · Access limited to Client files']
+      };
+      const providers = [...root.querySelectorAll('.cs-provider')];
+      providers.forEach((provider) => provider.addEventListener('click', () => {
+        providers.forEach((item) => item.setAttribute('aria-pressed', String(item === provider)));
+        const [heading, subtitle] = providerData[provider.dataset.provider];
+        root.querySelector('#cs-provider-heading').textContent = heading;
+        root.querySelector('#cs-provider-subtitle').textContent = subtitle;
+      }));
+
+      const toast = root.querySelector('#cs-toast');
+      let toastTimer;
+      const announce = (message) => {
+        clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false;
+        toastTimer = setTimeout(() => { toast.hidden = true; }, 2600);
+      };
+      root.querySelector('#cs-compare-action').addEventListener('click', () => announce('Detail comparison opened: changed regions are highlighted.'));
+      root.querySelector('#cs-update-action').addEventListener('click', () => {
+        const selected = root.querySelector('input[name="update-action"]:checked').value;
+        const remembered = root.querySelector('#cs-remember-rule').checked ? ' Rule saved for this source.' : '';
+        const messages = { review: 'Source version v5 created. Current artboards remain on v4.', keep: 'Update dismissed. Current source remains v4.', fork: 'Independent source copy created. External following stopped.' };
+        announce(messages[selected] + remembered);
+      });
+
+      const saveWarning = root.querySelector('#cs-save-warning');
+      const saveAction = root.querySelector('#cs-save-action');
+      root.querySelectorAll('input[name="save-mode"]').forEach((radio) => radio.addEventListener('change', () => {
+        const mode = root.querySelector('input[name="save-mode"]:checked').value;
+        if (mode === 'new') { saveWarning.innerHTML = '<strong>No overwrite risk.</strong> A new file will be created and linked to this export result.'; saveAction.innerHTML = '<i data-lucide="cloud-upload" aria-hidden="true"></i>Save new file'; }
+        if (mode === 'provider-version') { saveWarning.innerHTML = '<strong>Provider version check required.</strong> The app will verify provider versioning and permissions before writing.'; saveAction.innerHTML = '<i data-lucide="history" aria-hidden="true"></i>Add provider version'; }
+        if (mode === 'replace') { saveWarning.innerHTML = '<strong>Protected action.</strong> A fresh conflict check and explicit replacement confirmation are required.'; saveAction.innerHTML = '<i data-lucide="shield-alert" aria-hidden="true"></i>Review replacement'; }
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+      saveAction.addEventListener('click', () => announce('Save-back preflight complete. No external change detected.'));
+
+      const dialog = root.querySelector('#cs-dialog');
+      root.querySelector('#cs-disconnect').addEventListener('click', () => { dialog.hidden = false; });
+      root.querySelector('#cs-dialog-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      root.querySelector('#cs-dialog-confirm').addEventListener('click', () => { dialog.hidden = true; announce('Connection safely disconnected. External files were not changed.'); });
+    })();
+  </script>
+</section>

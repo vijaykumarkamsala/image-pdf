@@ -1,0 +1,206 @@
+<style>
+  #graphic-studio-v2 {
+    --gs-page: light-dark(#f3f6fa, #10141c);
+    --gs-surface: light-dark(#ffffff, #181e28);
+    --gs-raised: light-dark(#f8fafc, #202733);
+    --gs-canvas: light-dark(#dce3eb, #0d1219);
+    --gs-text: light-dark(#162033, #edf3fb);
+    --gs-muted: light-dark(#647188, #aab5c6);
+    --gs-line: light-dark(#dce4ed, #344052);
+    --gs-blue: light-dark(#3559e0, #88a1ff);
+    --gs-blue-ink: light-dark(#2946bd, #b7c5ff);
+    --gs-blue-soft: light-dark(#edf1ff, #222c50);
+    --gs-green: light-dark(#177a59, #72d9b2);
+    --gs-green-soft: light-dark(#e8f7f0, #17392f);
+    --gs-orange: light-dark(#a9600f, #ffc078);
+    --gs-orange-soft: light-dark(#fff3e4, #46301a);
+    width: 100%;
+    color: var(--gs-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  #graphic-studio-v2 * { box-sizing: border-box; }
+  #graphic-studio-v2 button, #graphic-studio-v2 input, #graphic-studio-v2 select, #graphic-studio-v2 textarea { font: inherit; }
+  #graphic-studio-v2 .gs-window { min-height: 770px; overflow: hidden; border: 1px solid var(--gs-line); border-radius: 14px; background: var(--gs-page); box-shadow: 0 18px 48px light-dark(rgba(40,55,82,.12),rgba(0,0,0,.28)); }
+
+  #graphic-studio-v2 .gs-topbar { height: 58px; padding: 0 12px; display: flex; align-items: center; gap: 8px; background: var(--gs-surface); border-bottom: 1px solid var(--gs-line); }
+  #graphic-studio-v2 .gs-button { appearance: none; border: 1px solid var(--gs-line); background: var(--gs-surface); color: var(--gs-text); border-radius: 8px; padding: 8px 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+  #graphic-studio-v2 .gs-button-primary { background: var(--gs-blue); border-color: var(--gs-blue); color: light-dark(#ffffff,#0d1428); }
+  #graphic-studio-v2 .gs-icon-button { width: 36px; height: 36px; padding: 0; }
+  #graphic-studio-v2 .gs-doc { min-width: 205px; margin-left: 2px; }
+  #graphic-studio-v2 .gs-doc strong { display: block; font-weight: 500; }
+  #graphic-studio-v2 .gs-small { color: var(--gs-muted); font-size: 12px; }
+  #graphic-studio-v2 .gs-grow { flex: 1; }
+  #graphic-studio-v2 .gs-mode { display: flex; padding: 3px; border: 1px solid var(--gs-line); border-radius: 8px; background: var(--gs-raised); }
+  #graphic-studio-v2 .gs-mode button { appearance: none; border: 0; background: transparent; color: var(--gs-muted); padding: 6px 9px; border-radius: 5px; cursor: pointer; }
+  #graphic-studio-v2 .gs-mode button[aria-pressed="true"] { background: var(--gs-surface); color: var(--gs-blue-ink); box-shadow: 0 1px 4px light-dark(rgba(26,40,67,.12),rgba(0,0,0,.25)); }
+
+  #graphic-studio-v2 .gs-workspace { display: grid; grid-template-columns: 190px minmax(0,1fr) 305px; min-height: 654px; }
+  #graphic-studio-v2 .gs-tools { background: var(--gs-raised); border-right: 1px solid var(--gs-line); padding: 10px; }
+  #graphic-studio-v2 .gs-tool-search { display: flex; align-items: center; gap: 7px; padding: 8px 9px; border: 1px solid var(--gs-line); border-radius: 8px; background: var(--gs-surface); color: var(--gs-muted); margin-bottom: 12px; }
+  #graphic-studio-v2 .gs-group { margin-bottom: 14px; }
+  #graphic-studio-v2 .gs-group-label { color: var(--gs-muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; }
+  #graphic-studio-v2 .gs-tool { width: 100%; appearance: none; border: 0; background: transparent; color: var(--gs-text); border-radius: 7px; padding: 8px; display: flex; align-items: center; gap: 9px; text-align: left; cursor: pointer; }
+  #graphic-studio-v2 .gs-tool.is-active { background: var(--gs-blue-soft); color: var(--gs-blue-ink); }
+  #graphic-studio-v2 .gs-tool .gs-tool-status { margin-left: auto; color: var(--gs-orange); }
+
+  #graphic-studio-v2 .gs-center { min-width: 0; display: grid; grid-template-rows: 43px minmax(0,1fr) 90px; background: var(--gs-canvas); }
+  #graphic-studio-v2 .gs-contextbar { background: var(--gs-surface); border-bottom: 1px solid var(--gs-line); display: flex; align-items: center; gap: 7px; padding: 0 10px; }
+  #graphic-studio-v2 .gs-context-label { color: var(--gs-muted); font-size: 12px; }
+  #graphic-studio-v2 .gs-context-input { min-width: 70px; padding: 6px 7px; border: 1px solid var(--gs-line); border-radius: 6px; background: var(--gs-raised); color: var(--gs-text); font-size: 12px; }
+
+  #graphic-studio-v2 .gs-stage { min-height: 0; position: relative; display: grid; place-items: center; padding: 28px 30px 62px; overflow: hidden; }
+  #graphic-studio-v2 .gs-artboard { width: min(500px,82%); aspect-ratio: 4/3; position: relative; overflow: hidden; background: linear-gradient(140deg,light-dark(#efe4d0,#4f453d),light-dark(#dce5ca,#374737)); box-shadow: 0 16px 42px rgba(0,0,0,.24); }
+  #graphic-studio-v2 .gs-animal { position: absolute; width: 44%; aspect-ratio: 1; left: 28%; top: 22%; border-radius: 54% 46% 42% 58%; background: radial-gradient(circle at 65% 39%, light-dark(#231c16,#18120e) 0 3%, transparent 4%), radial-gradient(ellipse at 59% 58%, light-dark(#f1e4d5,#b09177) 0 31%, transparent 32%), repeating-radial-gradient(ellipse at 34% 55%, light-dark(#67452c,#2d1b11) 0 4px, light-dark(#c4a07a,#725139) 5px 9px); }
+  #graphic-studio-v2 .gs-plant { position: absolute; bottom: 9%; width: 2px; height: 42%; background: light-dark(#69745e,#8da082); transform-origin: bottom; }
+  #graphic-studio-v2 .gs-plant::before, #graphic-studio-v2 .gs-plant::after { content:""; position:absolute; width:17px; height:8px; border-radius:80% 20% 80% 20%; background:light-dark(#829174,#78906e); }
+  #graphic-studio-v2 .gs-plant::before { left:-16px; top:28%; transform:rotate(25deg); }
+  #graphic-studio-v2 .gs-plant::after { left:1px; top:47%; transform:rotate(-25deg); }
+  #graphic-studio-v2 .gs-plant.p1 { left:17%; transform:rotate(-10deg); }
+  #graphic-studio-v2 .gs-plant.p2 { right:18%; transform:rotate(12deg); height:51%; }
+  #graphic-studio-v2 .gs-plant.p3 { right:34%; transform:rotate(-4deg); height:31%; }
+  #graphic-studio-v2 .gs-selection { position:absolute; left:25%; top:18%; width:50%; height:62%; border:1px solid var(--gs-blue); }
+  #graphic-studio-v2 .gs-selection::before, #graphic-studio-v2 .gs-selection::after { content:""; position:absolute; width:7px; height:7px; background:var(--gs-surface); border:1px solid var(--gs-blue); }
+  #graphic-studio-v2 .gs-selection::before { left:-4px; top:-4px; }
+  #graphic-studio-v2 .gs-selection::after { right:-4px; bottom:-4px; }
+  #graphic-studio-v2 .gs-ai-context { position:absolute; right:-4px; top:-40px; border:1px solid var(--gs-blue); background:var(--gs-surface); color:var(--gs-blue-ink); border-radius:8px; padding:7px 9px; display:flex; align-items:center; gap:6px; white-space:nowrap; font-size:12px; }
+  #graphic-studio-v2 .gs-trust-note { position:absolute; left:15px; bottom:16px; max-width:70%; background:var(--gs-surface); border:1px solid var(--gs-line); color:var(--gs-muted); border-radius:8px; padding:8px 10px; display:flex; align-items:center; gap:7px; font-size:12px; }
+  #graphic-studio-v2 .gs-zoom { position:absolute; right:15px; bottom:14px; display:flex; gap:5px; }
+
+  #graphic-studio-v2 .gs-artboards { background:var(--gs-surface); border-top:1px solid var(--gs-line); display:flex; align-items:center; gap:10px; padding:9px 12px; }
+  #graphic-studio-v2 .gs-artboard-thumb { width:86px; height:62px; border:1px solid var(--gs-line); border-radius:7px; background:linear-gradient(140deg,light-dark(#efe4d0,#4f453d),light-dark(#dce5ca,#374737)); position:relative; }
+  #graphic-studio-v2 .gs-artboard-thumb.is-active { border:2px solid var(--gs-blue); }
+  #graphic-studio-v2 .gs-artboard-thumb span { position:absolute; left:4px; bottom:3px; background:var(--gs-surface); padding:2px 4px; border-radius:3px; font-size:10px; }
+  #graphic-studio-v2 .gs-add-artboard { height:62px; min-width:88px; border:1px dashed var(--gs-line); border-radius:7px; background:transparent; color:var(--gs-muted); cursor:pointer; }
+
+  #graphic-studio-v2 .gs-inspector { background:var(--gs-surface); border-left:1px solid var(--gs-line); min-width:0; }
+  #graphic-studio-v2 .gs-tabs { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid var(--gs-line); }
+  #graphic-studio-v2 .gs-tab { appearance:none; border:0; background:transparent; color:var(--gs-muted); padding:12px 5px; cursor:pointer; font-size:12px; }
+  #graphic-studio-v2 .gs-tab[aria-selected="true"] { color:var(--gs-blue-ink); box-shadow:inset 0 -2px var(--gs-blue); }
+  #graphic-studio-v2 .gs-panel { display:none; padding:14px; }
+  #graphic-studio-v2 .gs-panel.is-active { display:block; }
+  #graphic-studio-v2 .gs-panel-head { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  #graphic-studio-v2 .gs-panel-head h2 { margin:0; font-size:18px; font-weight:500; }
+  #graphic-studio-v2 .gs-panel-section { padding:12px 0; border-bottom:1px solid var(--gs-line); }
+  #graphic-studio-v2 .gs-panel-section:last-child { border-bottom:0; }
+  #graphic-studio-v2 .gs-panel-label { display:block; font-weight:500; margin-bottom:7px; }
+  #graphic-studio-v2 .gs-select { width:100%; padding:8px; border:1px solid var(--gs-line); border-radius:7px; background:var(--gs-surface); color:var(--gs-text); }
+  #graphic-studio-v2 .gs-range-row { display:flex; align-items:center; gap:8px; color:var(--gs-muted); font-size:12px; }
+  #graphic-studio-v2 .gs-range-row input { flex:1; }
+  #graphic-studio-v2 .gs-safety { margin-top:10px; padding:9px; border-left:3px solid var(--gs-green); background:var(--gs-green-soft); color:var(--gs-green); font-size:12px; line-height:1.45; }
+  #graphic-studio-v2 .gs-layer { display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:8px; align-items:center; padding:8px; border-radius:7px; margin-bottom:4px; }
+  #graphic-studio-v2 .gs-layer.is-active { background:var(--gs-blue-soft); }
+  #graphic-studio-v2 .gs-layer-preview { width:27px; height:27px; display:grid; place-items:center; border-radius:5px; background:var(--gs-raised); color:var(--gs-blue-ink); }
+  #graphic-studio-v2 .gs-chat { display:flex; flex-direction:column; min-height:525px; }
+  #graphic-studio-v2 .gs-chat-context { padding:10px; border-radius:8px; background:var(--gs-blue-soft); margin-bottom:11px; font-size:12px; color:var(--gs-blue-ink); }
+  #graphic-studio-v2 .gs-message { max-width:90%; padding:9px 10px; border-radius:9px; margin-bottom:8px; line-height:1.45; font-size:13px; }
+  #graphic-studio-v2 .gs-message.assistant { background:var(--gs-raised); }
+  #graphic-studio-v2 .gs-message.user { margin-left:auto; background:var(--gs-blue); color:light-dark(#ffffff,#0d1428); }
+  #graphic-studio-v2 .gs-chat-compose { margin-top:auto; border:1px solid var(--gs-line); border-radius:9px; background:var(--gs-surface); padding:8px; }
+  #graphic-studio-v2 .gs-chat-compose textarea { width:100%; min-height:60px; resize:none; border:0; background:transparent; color:var(--gs-text); }
+  #graphic-studio-v2 .gs-chat-actions { display:flex; justify-content:flex-end; }
+
+  #graphic-studio-v2 .gs-statusbar { height:58px; padding:0 12px; display:flex; align-items:center; gap:8px; background:var(--gs-surface); border-top:1px solid var(--gs-line); color:var(--gs-muted); font-size:12px; }
+  #graphic-studio-v2 .gs-history-step { padding:5px 7px; border-radius:5px; background:var(--gs-raised); color:var(--gs-text); }
+  #graphic-studio-v2 .gs-production { color:var(--gs-orange); display:flex; align-items:center; gap:5px; }
+
+  @media (max-width:920px) {
+    #graphic-studio-v2 .gs-mode, #graphic-studio-v2 .gs-topbar .gs-button:not(.gs-button-primary):not(.gs-icon-button) { display:none; }
+    #graphic-studio-v2 .gs-workspace { grid-template-columns:58px minmax(0,1fr); }
+    #graphic-studio-v2 .gs-tools { padding:7px 5px; }
+    #graphic-studio-v2 .gs-tool-search, #graphic-studio-v2 .gs-group-label, #graphic-studio-v2 .gs-tool span { display:none; }
+    #graphic-studio-v2 .gs-tool { justify-content:center; min-height:42px; }
+    #graphic-studio-v2 .gs-inspector { grid-column:1/-1; border-left:0; border-top:1px solid var(--gs-line); }
+    #graphic-studio-v2 .gs-panel { min-height:260px; }
+    #graphic-studio-v2 .gs-chat { min-height:260px; }
+  }
+  @media (max-width:560px) {
+    #graphic-studio-v2 .gs-window { min-height:0; }
+    #graphic-studio-v2 .gs-doc { min-width:0; flex:1; }
+    #graphic-studio-v2 .gs-topbar .gs-icon-button:nth-of-type(n+2) { display:none; }
+    #graphic-studio-v2 .gs-contextbar { overflow:hidden; }
+    #graphic-studio-v2 .gs-contextbar > :nth-child(n+5) { display:none; }
+    #graphic-studio-v2 .gs-center { grid-template-rows:43px minmax(360px,1fr) 78px; }
+    #graphic-studio-v2 .gs-stage { padding:24px 8px 66px; }
+    #graphic-studio-v2 .gs-artboard { width:94%; }
+    #graphic-studio-v2 .gs-trust-note { max-width:76%; }
+    #graphic-studio-v2 .gs-artboard-thumb { width:72px; height:52px; }
+    #graphic-studio-v2 .gs-add-artboard { height:52px; min-width:70px; }
+    #graphic-studio-v2 .gs-statusbar .gs-history-step:nth-of-type(n+2), #graphic-studio-v2 .gs-production { display:none; }
+  }
+</style>
+
+<div id="graphic-studio-v2">
+  <div class="gs-window">
+    <header class="gs-topbar">
+      <button class="gs-button gs-icon-button" type="button" aria-label="Back to project"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="gs-doc"><strong>Hedgehog textile artwork</strong><span class="gs-small">Summer collection · Saved just now</span></div>
+      <button class="gs-button gs-icon-button" type="button" aria-label="Undo"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+      <button class="gs-button gs-icon-button" type="button" aria-label="Redo"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+      <div class="gs-mode" aria-label="Enhancement mode"><button type="button" aria-pressed="true">Preserve</button><button type="button" aria-pressed="false">Restore</button><button type="button" aria-pressed="false">Recreate</button></div>
+      <div class="gs-grow"></div>
+      <button class="gs-button" type="button"><i data-lucide="columns-2" aria-hidden="true"></i> Compare</button>
+      <button class="gs-button" type="button"><i data-lucide="message-square" aria-hidden="true"></i> Share</button>
+      <button class="gs-button gs-button-primary" type="button"><i data-lucide="package-check" aria-hidden="true"></i> Export</button>
+    </header>
+
+    <div class="gs-workspace">
+      <aside class="gs-tools">
+        <div class="gs-tool-search"><i data-lucide="search" aria-hidden="true"></i> Search all tools</div>
+        <div class="gs-group"><div class="gs-group-label">Recommended</div><button class="gs-tool is-active" type="button"><i data-lucide="scan-search" aria-hidden="true"></i><span>Analysis</span><span class="gs-tool-status">2</span></button><button class="gs-tool" type="button"><i data-lucide="wand-sparkles" aria-hidden="true"></i><span>Restore detail</span></button></div>
+        <div class="gs-group"><div class="gs-group-label">Edit</div><button class="gs-tool" type="button"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i><span>Select</span></button><button class="gs-tool" type="button"><i data-lucide="crop" aria-hidden="true"></i><span>Crop &amp; resize</span></button><button class="gs-tool" type="button"><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>Light &amp; colour</span></button><button class="gs-tool" type="button"><i data-lucide="eraser" aria-hidden="true"></i><span>Clean up</span></button></div>
+        <div class="gs-group"><div class="gs-group-label">Create</div><button class="gs-tool" type="button"><i data-lucide="type" aria-hidden="true"></i><span>Text</span></button><button class="gs-tool" type="button"><i data-lucide="shapes" aria-hidden="true"></i><span>Shapes</span></button><button class="gs-tool" type="button"><i data-lucide="pen-tool" aria-hidden="true"></i><span>Draw &amp; vector</span></button><button class="gs-tool" type="button"><i data-lucide="image-plus" aria-hidden="true"></i><span>Assets</span></button></div>
+        <div class="gs-group"><div class="gs-group-label">Output</div><button class="gs-tool" type="button"><i data-lucide="printer" aria-hidden="true"></i><span>Production</span><span class="gs-tool-status">!</span></button></div>
+      </aside>
+
+      <section class="gs-center">
+        <div class="gs-contextbar"><span class="gs-context-label">Selected layer</span><button class="gs-button" type="button"><i data-lucide="move" aria-hidden="true"></i> Position</button><input class="gs-context-input" value="100%" aria-label="Layer opacity"><button class="gs-button" type="button"><i data-lucide="copy" aria-hidden="true"></i></button><button class="gs-button" type="button"><i data-lucide="lock" aria-hidden="true"></i></button><div class="gs-grow"></div><button class="gs-button" id="gs-ai-open" type="button"><i data-lucide="sparkles" aria-hidden="true"></i> Ask AI</button></div>
+        <div class="gs-stage">
+          <div class="gs-artboard" role="img" aria-label="Layered hedgehog textile artboard"><span class="gs-plant p1"></span><span class="gs-plant p2"></span><span class="gs-plant p3"></span><span class="gs-animal"></span><div class="gs-selection"><button class="gs-ai-context" id="gs-context-ai" type="button"><i data-lucide="sparkles" aria-hidden="true"></i> Edit this selection with AI</button></div></div>
+          <div class="gs-trust-note"><i data-lucide="shield-check" aria-hidden="true"></i> Trustworthy at 20 × 15 cm · 300 PPI · original preserved</div>
+          <div class="gs-zoom"><button class="gs-button gs-icon-button" type="button" aria-label="Zoom out"><i data-lucide="minus" aria-hidden="true"></i></button><button class="gs-button" type="button">64%</button><button class="gs-button gs-icon-button" type="button" aria-label="Zoom in"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+        </div>
+        <div class="gs-artboards"><div class="gs-artboard-thumb is-active"><span>Original size</span></div><div class="gs-artboard-thumb"><span>T-shirt front</span></div><button class="gs-add-artboard" type="button"><i data-lucide="plus" aria-hidden="true"></i><br>Add artboard</button><div class="gs-grow"></div><button class="gs-button" type="button"><i data-lucide="maximize-2" aria-hidden="true"></i> Smart Resize</button></div>
+      </section>
+
+      <aside class="gs-inspector">
+        <div class="gs-tabs" role="tablist" aria-label="Editor panels"><button class="gs-tab" type="button" role="tab" aria-selected="true" data-panel="properties">Properties</button><button class="gs-tab" type="button" role="tab" aria-selected="false" data-panel="layers">Layers</button><button class="gs-tab" type="button" role="tab" aria-selected="false" data-panel="assistant">AI assistant</button></div>
+        <div class="gs-panel is-active" data-panel-content="properties">
+          <div class="gs-panel-head"><h2>Selected artwork</h2><div class="gs-grow"></div><button class="gs-button gs-icon-button" type="button" aria-label="Detach panel"><i data-lucide="panel-right-open" aria-hidden="true"></i></button></div>
+          <div class="gs-panel-section"><label class="gs-panel-label" for="gs-purpose">Intended output</label><select class="gs-select" id="gs-purpose"><option>DTF textile print</option><option>Digital image</option><option>Paper print</option></select><div class="gs-safety"><strong>Preserve mode</strong><br>No new visual content will be invented.</div></div>
+          <div class="gs-panel-section"><span class="gs-panel-label">Prepared corrections</span><label class="gs-range-row"><span>Compression repair</span><input type="range" min="0" max="100" value="58"><span>58%</span></label><label class="gs-range-row"><span>Colour balance</span><input type="range" min="0" max="100" value="34"><span>34%</span></label><label class="gs-range-row"><span>Edge clarity</span><input type="range" min="0" max="100" value="22"><span>22%</span></label></div>
+          <div class="gs-panel-section"><span class="gs-panel-label">Output confidence</span><div class="gs-small">Current source supports 20 × 15 cm at 300 PPI. For a larger print, Restore can be reviewed; Recreate requires explicit permission.</div><button class="gs-button" style="margin-top:10px" type="button">View size limits</button></div>
+        </div>
+        <div class="gs-panel" data-panel-content="layers">
+          <div class="gs-panel-head"><h2>Layers</h2><div class="gs-grow"></div><button class="gs-button gs-icon-button" type="button" aria-label="Add layer"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+          <div class="gs-layer is-active"><span class="gs-layer-preview"><i data-lucide="image" aria-hidden="true"></i></span><div><strong>Restored artwork</strong><div class="gs-small">Non-destructive variant</div></div><i data-lucide="eye" aria-hidden="true"></i></div>
+          <div class="gs-layer"><span class="gs-layer-preview"><i data-lucide="shield" aria-hidden="true"></i></span><div><strong>Protected outlines</strong><div class="gs-small">Mask</div></div><i data-lucide="eye" aria-hidden="true"></i></div>
+          <div class="gs-layer"><span class="gs-layer-preview"><i data-lucide="flower-2" aria-hidden="true"></i></span><div><strong>Botanical details</strong><div class="gs-small">Linked group</div></div><i data-lucide="eye" aria-hidden="true"></i></div>
+          <div class="gs-layer"><span class="gs-layer-preview"><i data-lucide="image" aria-hidden="true"></i></span><div><strong>Original source</strong><div class="gs-small">Locked · immutable</div></div><i data-lucide="lock" aria-hidden="true"></i></div>
+        </div>
+        <div class="gs-panel" data-panel-content="assistant">
+          <div class="gs-panel-head"><h2>AI assistant</h2><div class="gs-grow"></div><button class="gs-button gs-icon-button" type="button" aria-label="Detach panel"><i data-lucide="panel-right-open" aria-hidden="true"></i></button></div>
+          <div class="gs-chat"><div class="gs-chat-context"><i data-lucide="crosshair" aria-hidden="true"></i> Context: selected hedgehog artwork layer</div><div class="gs-message assistant">I’ll protect the face, nails, outline and existing colour regions. What would you like to change?</div><div class="gs-message user">Make the fur and flowers clearer, but do not change the illustration style.</div><div class="gs-message assistant">I can prepare two Restore candidates for those regions. Nothing will be applied until you choose one.</div><div class="gs-chat-compose"><textarea aria-label="Message AI assistant" placeholder="Describe the result you want…"></textarea><div class="gs-chat-actions"><button class="gs-button gs-button-primary" type="button"><i data-lucide="send" aria-hidden="true"></i> Send</button></div></div></div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="gs-statusbar"><span>History</span><span class="gs-history-step">Original</span><i data-lucide="chevron-right" aria-hidden="true"></i><span class="gs-history-step">Safe correction preview</span><i data-lucide="chevron-right" aria-hidden="true"></i><span class="gs-history-step">Current</span><div class="gs-grow"></div><span class="gs-production"><i data-lucide="triangle-alert" aria-hidden="true"></i> Production profile needs review</span><span>Autosaved</span></footer>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const root = document.getElementById("graphic-studio-v2");
+    if (!root) return;
+    const tabs = [...root.querySelectorAll(".gs-tab")];
+    const panels = [...root.querySelectorAll("[data-panel-content]")];
+    const activate = (name) => {
+      tabs.forEach((tab) => tab.setAttribute("aria-selected", tab.getAttribute("data-panel") === name ? "true" : "false"));
+      panels.forEach((panel) => panel.classList.toggle("is-active", panel.getAttribute("data-panel-content") === name));
+    };
+    tabs.forEach((tab) => tab.addEventListener("click", () => activate(tab.getAttribute("data-panel"))));
+    [root.querySelector("#gs-ai-open"), root.querySelector("#gs-context-ai")].forEach((button) => { if (button) button.addEventListener("click", () => activate("assistant")); });
+    const modes = [...root.querySelectorAll(".gs-mode button")];
+    modes.forEach((button) => button.addEventListener("click", () => modes.forEach((item) => item.setAttribute("aria-pressed", item === button ? "true" : "false"))));
+  })();
+</script>

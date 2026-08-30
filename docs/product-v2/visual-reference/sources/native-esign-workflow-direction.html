@@ -1,0 +1,299 @@
+<section id="native-esign-workflow" aria-label="Native electronic signature envelope routing and secure recipient experience">
+  <style>
+    #native-esign-workflow {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #native-esign-workflow * { box-sizing: border-box; }
+    #native-esign-workflow button,
+    #native-esign-workflow input,
+    #native-esign-workflow select { font: inherit; color: inherit; }
+    #native-esign-workflow button { cursor: pointer; }
+    #native-esign-workflow .es-shell { min-height: 774px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #native-esign-workflow .es-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #native-esign-workflow .es-button,
+    #native-esign-workflow .es-primary,
+    #native-esign-workflow .es-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #native-esign-workflow .es-icon-button { width: 37px; padding: 7px; }
+    #native-esign-workflow .es-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #native-esign-workflow .es-button svg,
+    #native-esign-workflow .es-primary svg,
+    #native-esign-workflow .es-icon-button svg { width: 16px; height: 16px; }
+    #native-esign-workflow .es-title-block { min-width: 278px; }
+    #native-esign-workflow .es-title { font-weight: 500; }
+    #native-esign-workflow .es-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #native-esign-workflow .es-spacer { flex: 1; }
+    #native-esign-workflow .es-security { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #native-esign-workflow .es-security svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-tabs { display: flex; gap: 3px; padding: 0 14px; background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #native-esign-workflow .es-tab { min-height: 42px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 8px 12px; color: light-dark(#667187, #adb7ca); }
+    #native-esign-workflow .es-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #native-esign-workflow .es-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 288px; min-height: 635px; }
+    #native-esign-workflow .es-left,
+    #native-esign-workflow .es-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #native-esign-workflow .es-left { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #native-esign-workflow .es-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #native-esign-workflow .es-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #native-esign-workflow .es-doc-summary { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 9px; align-items: center; padding: 9px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #native-esign-workflow .es-doc-icon { width: 39px; height: 39px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#f4e6e6, #3a292d); color: light-dark(#984141, #efaaaa); }
+    #native-esign-workflow .es-doc-icon svg { width: 18px; height: 18px; }
+    #native-esign-workflow .es-doc-name { font-weight: 500; }
+    #native-esign-workflow .es-doc-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-left-heading { margin: 15px 6px 7px; color: light-dark(#707b8e, #a8b3c5); }
+    #native-esign-workflow .es-step-list { display: grid; gap: 3px; }
+    #native-esign-workflow .es-step {
+      width: 100%; min-height: 42px; border: 0; border-radius: 8px; background: transparent; padding: 7px 8px;
+      display: grid; grid-template-columns: 27px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #native-esign-workflow .es-step[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #native-esign-workflow .es-step-number { width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#5d6a80, #b6c0d1); }
+    #native-esign-workflow .es-step[aria-pressed="true"] .es-step-number { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #native-esign-workflow .es-step-check { color: light-dark(#1d7153, #8de0bf); }
+    #native-esign-workflow .es-step-check svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-left-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #native-esign-workflow .es-content { min-width: 0; padding: 17px 19px 24px; }
+    #native-esign-workflow .es-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    #native-esign-workflow .es-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #native-esign-workflow .es-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #native-esign-workflow .es-status { display: inline-flex; align-items: center; gap: 6px; color: light-dark(#1d7153, #8de0bf); white-space: nowrap; }
+    #native-esign-workflow .es-status svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-route { display: grid; gap: 8px; }
+    #native-esign-workflow .es-route-group { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; position: relative; }
+    #native-esign-workflow .es-route-group:not(:last-child)::after { content: ""; position: absolute; left: 21px; top: 44px; bottom: -9px; width: 2px; background: light-dark(#d4dbe6, #414c60); }
+    #native-esign-workflow .es-route-order { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); font-weight: 500; z-index: 1; }
+    #native-esign-workflow .es-route-body { min-width: 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); padding-bottom: 8px; }
+    #native-esign-workflow .es-route-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    #native-esign-workflow .es-route-title strong { font-weight: 500; }
+    #native-esign-workflow .es-route-mode { color: light-dark(#687388, #aeb8ca); }
+    #native-esign-workflow .es-recipient-list { display: grid; gap: 6px; }
+    #native-esign-workflow .es-recipient {
+      width: 100%; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); padding: 8px;
+      display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left;
+    }
+    #native-esign-workflow .es-recipient[aria-pressed="true"] { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #native-esign-workflow .es-recipient-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e3e8f0, #303a4d); color: light-dark(#46536a, #c8d1df); font-weight: 500; }
+    #native-esign-workflow .es-recipient-name { font-weight: 500; }
+    #native-esign-workflow .es-recipient-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-role { color: light-dark(#526078, #b8c2d3); text-align: right; }
+    #native-esign-workflow .es-role strong { display: block; font-weight: 500; color: light-dark(#26334a, #e2e7f1); }
+    #native-esign-workflow .es-add-row { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+    #native-esign-workflow .es-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #native-esign-workflow .es-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #native-esign-workflow .es-input,
+    #native-esign-workflow .es-select { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #native-esign-workflow .es-prepare-row { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #native-esign-workflow .es-prepare-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #native-esign-workflow .es-prepare-icon svg { width: 18px; height: 18px; }
+    #native-esign-workflow .es-prepare-title { font-weight: 500; }
+    #native-esign-workflow .es-prepare-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #native-esign-workflow .es-page-editor { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
+    #native-esign-workflow .es-pages { display: grid; gap: 7px; align-content: start; }
+    #native-esign-workflow .es-page-thumb { height: 104px; border-radius: 7px; border: 1px solid light-dark(#d6dde8, #3d485b); background: light-dark(#ffffff, #202838); display: grid; place-items: center; color: light-dark(#7a8496, #9da9bc); }
+    #native-esign-workflow .es-page-thumb.selected { border-color: light-dark(#5379d8, #829cf0); box-shadow: 0 0 0 2px light-dark(rgba(61,100,196,.13), rgba(136,165,255,.16)); }
+    #native-esign-workflow .es-document-page { min-height: 442px; border-radius: 4px; background: light-dark(#ffffff, #f5f6fa); color: light-dark(#263041, #202735); box-shadow: 0 4px 18px light-dark(rgba(59,72,95,.17), rgba(0,0,0,.35)); padding: 34px 38px; position: relative; }
+    #native-esign-workflow .es-doc-heading { font-weight: 500; margin-bottom: 14px; text-align: center; }
+    #native-esign-workflow .es-doc-line { height: 7px; border-radius: 4px; background: light-dark(#d7dce5, #cfd5df); margin: 8px 0; }
+    #native-esign-workflow .es-doc-line.short { width: 67%; }
+    #native-esign-workflow .es-sign-field { position: absolute; border: 1px solid light-dark(#5c7ed3, #4868b0); background: light-dark(#eaf0ff, #dfe8ff); color: light-dark(#244dba, #1d3f94); border-radius: 5px; padding: 7px 9px; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+    #native-esign-workflow .es-sign-field svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-signature { right: 34px; bottom: 72px; }
+    #native-esign-workflow .es-date { left: 38px; bottom: 72px; }
+    #native-esign-workflow .es-signer-shell { border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; overflow: hidden; background: light-dark(#ffffff, #1d2534); }
+    #native-esign-workflow .es-signer-header { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #native-esign-workflow .es-signer-copy { flex: 1; }
+    #native-esign-workflow .es-signer-title { font-weight: 500; }
+    #native-esign-workflow .es-signer-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-signer-body { padding: 15px; display: grid; grid-template-columns: minmax(0, 1fr) 196px; gap: 13px; }
+    #native-esign-workflow .es-signer-page { min-height: 374px; border-radius: 4px; padding: 28px; position: relative; background: light-dark(#ffffff, #f5f6fa); color: light-dark(#263041, #202735); box-shadow: 0 3px 14px light-dark(rgba(59,72,95,.15), rgba(0,0,0,.3)); }
+    #native-esign-workflow .es-required-field { position: absolute; border: 2px solid light-dark(#315eca, #4868b0); background: light-dark(#eef3ff, #dfe8ff); color: light-dark(#214cb8, #1d3f94); border-radius: 6px; padding: 7px 9px; font-weight: 500; }
+    #native-esign-workflow .es-required-sign { right: 24px; bottom: 62px; }
+    #native-esign-workflow .es-required-date { left: 26px; bottom: 62px; }
+    #native-esign-workflow .es-signer-guide { display: grid; align-content: start; gap: 8px; }
+    #native-esign-workflow .es-guide-box { padding: 10px; border-radius: 8px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #native-esign-workflow .es-guide-step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 7px; padding: 7px 0; }
+    #native-esign-workflow .es-guide-number { width: 23px; height: 23px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e7ecf4, #303a4d); color: light-dark(#536078, #bec8d9); }
+    #native-esign-workflow .es-audit-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #native-esign-workflow .es-audit-icon { width: 33px; height: 33px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #native-esign-workflow .es-audit-icon svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-audit-title { font-weight: 500; }
+    #native-esign-workflow .es-audit-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #native-esign-workflow .es-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #native-esign-workflow .es-selected-person { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #native-esign-workflow .es-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #native-esign-workflow .es-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #native-esign-workflow .es-recommendation { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #native-esign-workflow .es-auth-options { display: grid; gap: 6px; }
+    #native-esign-workflow .es-auth {
+      display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px; padding: 7px; border-radius: 7px; border: 1px solid light-dark(#d8dee8, #394356); background: light-dark(#ffffff, #1d2534);
+    }
+    #native-esign-workflow .es-auth:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #native-esign-workflow .es-auth input { width: 16px; height: 16px; margin-top: 2px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #native-esign-workflow .es-auth strong { display: block; font-weight: 500; }
+    #native-esign-workflow .es-auth small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; }
+    #native-esign-workflow .es-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #native-esign-workflow .es-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #native-esign-workflow .es-fact strong { display: block; font-weight: 500; }
+    #native-esign-workflow .es-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #native-esign-workflow .es-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #native-esign-workflow .es-toast[hidden] { display: none; }
+    #native-esign-workflow .es-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #native-esign-workflow .es-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #native-esign-workflow .es-main { grid-template-columns: 200px minmax(0, 1fr); }
+      #native-esign-workflow .es-inspector { display: none; }
+      #native-esign-workflow .es-security { display: none; }
+    }
+    @media (max-width: 650px) {
+      #native-esign-workflow .es-header { flex-wrap: wrap; }
+      #native-esign-workflow .es-title-block { min-width: 0; flex: 1; }
+      #native-esign-workflow .es-primary span { display: none; }
+      #native-esign-workflow .es-tabs { overflow-x: auto; }
+      #native-esign-workflow .es-tab { flex: 0 0 auto; }
+      #native-esign-workflow .es-main { display: block; }
+      #native-esign-workflow .es-left { display: none; }
+      #native-esign-workflow .es-content { padding: 14px 11px 22px; }
+      #native-esign-workflow .es-content-head h2 { font-size: 18px; }
+      #native-esign-workflow .es-form-grid { grid-template-columns: 1fr; }
+      #native-esign-workflow .es-page-editor { grid-template-columns: 1fr; }
+      #native-esign-workflow .es-pages { display: none; }
+      #native-esign-workflow .es-document-page { min-height: 390px; padding-inline: 22px; }
+      #native-esign-workflow .es-signer-body { grid-template-columns: 1fr; }
+      #native-esign-workflow .es-signer-page { min-height: 330px; }
+      #native-esign-workflow .es-bottom { display: none; }
+    }
+  </style>
+
+  <div class="es-shell">
+    <header class="es-header">
+      <button class="es-icon-button" type="button" aria-label="Back to PDF workspace"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="es-title-block"><div class="es-title">Vendor manufacturing agreement</div><div class="es-subtitle">E-sign envelope · Draft autosaved</div></div>
+      <div class="es-spacer"></div>
+      <div class="es-security"><i data-lucide="shield-check" aria-hidden="true"></i>Original PDF and signed evidence protected</div>
+      <button class="es-button" type="button"><i data-lucide="eye" aria-hidden="true"></i>Preview</button>
+      <button class="es-primary" id="es-review-send" type="button"><i data-lucide="send" aria-hidden="true"></i><span>Review &amp; send</span></button>
+    </header>
+
+    <div class="es-tabs" role="tablist" aria-label="Electronic signature workflow">
+      <button class="es-tab" type="button" data-panel="prepare" aria-selected="false">Prepare</button>
+      <button class="es-tab" type="button" data-panel="routing" aria-selected="true">Recipients &amp; routing</button>
+      <button class="es-tab" type="button" data-panel="fields" aria-selected="false">Fields</button>
+      <button class="es-tab" type="button" data-panel="signer" aria-selected="false">Signer experience</button>
+      <button class="es-tab" type="button" data-panel="audit" aria-selected="false">Completion &amp; audit</button>
+    </div>
+
+    <div class="es-main">
+      <aside class="es-left" aria-label="Envelope progress">
+        <div class="es-pane-head"><span>Envelope</span><i data-lucide="file-signature" aria-hidden="true"></i></div>
+        <div class="es-doc-summary"><span class="es-doc-icon"><i data-lucide="file-text" aria-hidden="true"></i></span><span><span class="es-doc-name">Agreement.pdf</span><span class="es-doc-meta">8 pages · Protected source</span></span></div>
+        <div class="es-left-heading">Setup</div>
+        <div class="es-step-list">
+          <button class="es-step" type="button" data-step="prepare" aria-pressed="false"><span class="es-step-number">1</span><span>Prepare</span><span class="es-step-check"><i data-lucide="check" aria-hidden="true"></i></span></button>
+          <button class="es-step" type="button" data-step="routing" aria-pressed="true"><span class="es-step-number">2</span><span>Recipients</span><span></span></button>
+          <button class="es-step" type="button" data-step="fields" aria-pressed="false"><span class="es-step-number">3</span><span>Assign fields</span><span></span></button>
+          <button class="es-step" type="button" data-step="signer" aria-pressed="false"><span class="es-step-number">4</span><span>Preview signing</span><span></span></button>
+          <button class="es-step" type="button" data-step="audit" aria-pressed="false"><span class="es-step-number">5</span><span>Audit package</span><span></span></button>
+        </div>
+        <div class="es-left-note"><strong>Accounts remain optional for recipients.</strong><br>Each signer receives a secure one-time envelope link with the authentication required by this envelope.</div>
+      </aside>
+
+      <main class="es-content">
+        <section data-content="routing">
+          <div class="es-content-head"><div><h2>Recipients &amp; routing</h2><div class="es-content-subtitle">Use sequential, parallel or mixed groups without exposing technical workflow language.</div></div><span class="es-status"><i data-lucide="check-circle-2" aria-hidden="true"></i>4 recipients</span></div>
+          <div class="es-route">
+            <div class="es-route-group"><span class="es-route-order">1</span><div class="es-route-body"><div class="es-route-title"><strong>Review first</strong><span class="es-route-mode">Sequential</span></div><div class="es-recipient-list"><button class="es-recipient" type="button" data-recipient="meera" aria-pressed="false"><span class="es-recipient-avatar">MJ</span><span><span class="es-recipient-name">Meera Jain</span><span class="es-recipient-meta">meera@factory.example</span></span><span class="es-role"><strong>Approver</strong>Email</span></button></div></div></div>
+            <div class="es-route-group"><span class="es-route-order">2</span><div class="es-route-body"><div class="es-route-title"><strong>Sign together</strong><span class="es-route-mode">Parallel group</span></div><div class="es-recipient-list"><button class="es-recipient" type="button" data-recipient="ravi" aria-pressed="true"><span class="es-recipient-avatar">RK</span><span><span class="es-recipient-name">Ravi Kumar</span><span class="es-recipient-meta">ravi@supplier.example</span></span><span class="es-role"><strong>Signer</strong>Email OTP</span></button><button class="es-recipient" type="button" data-recipient="asha" aria-pressed="false"><span class="es-recipient-avatar">AS</span><span><span class="es-recipient-name">Asha Sharma</span><span class="es-recipient-meta">asha@northstar.example</span></span><span class="es-role"><strong>Signer</strong>Email OTP</span></button></div></div></div>
+            <div class="es-route-group"><span class="es-route-order">3</span><div class="es-route-body"><div class="es-route-title"><strong>Witness after signing</strong><span class="es-route-mode">Sequential</span></div><div class="es-recipient-list"><button class="es-recipient" type="button" data-recipient="anil" aria-pressed="false"><span class="es-recipient-avatar">AN</span><span><span class="es-recipient-name">Anil Nair</span><span class="es-recipient-meta">anil@legal.example</span></span><span class="es-role"><strong>Witness</strong>Identity check</span></button></div></div></div>
+            <div class="es-route-group"><span class="es-route-order"><i data-lucide="mail" aria-hidden="true"></i></span><div class="es-route-body"><div class="es-route-title"><strong>Receive completed copy</strong><span class="es-route-mode">After completion</span></div><div class="es-recipient-list"><button class="es-recipient" type="button" data-recipient="finance" aria-pressed="false"><span class="es-recipient-avatar"><i data-lucide="building-2" aria-hidden="true"></i></span><span><span class="es-recipient-name">Finance archive</span><span class="es-recipient-meta">contracts@northstar.example</span></span><span class="es-role"><strong>Copy</strong>No action</span></button></div></div></div>
+          </div>
+          <div class="es-add-row"><button class="es-button" type="button"><i data-lucide="users-round" aria-hidden="true"></i>Add routing group</button><button class="es-primary" type="button"><i data-lucide="user-plus" aria-hidden="true"></i>Add recipient</button></div>
+        </section>
+
+        <section data-content="prepare" hidden>
+          <div class="es-content-head"><div><h2>Prepare envelope</h2><div class="es-content-subtitle">The signed original is protected; envelope settings create a controlled signing copy and evidence package.</div></div><span class="es-status"><i data-lucide="check-circle-2" aria-hidden="true"></i>Document ready</span></div>
+          <div class="es-form-grid"><div class="es-field"><label for="es-envelope-name">Envelope name</label><input id="es-envelope-name" class="es-input" value="Vendor manufacturing agreement"></div><div class="es-field"><label for="es-expiry">Signing deadline</label><input id="es-expiry" class="es-input" type="date" value="2026-09-15"></div></div>
+          <div class="es-prepare-row"><span class="es-prepare-icon"><i data-lucide="file-check-2" aria-hidden="true"></i></span><span><span class="es-prepare-title">Agreement.pdf</span><span class="es-prepare-meta">8 pages · Active content checked · Source fingerprint recorded</span></span><button class="es-button" type="button">Replace safely</button></div>
+          <div class="es-prepare-row"><span class="es-prepare-icon"><i data-lucide="message-square-text" aria-hidden="true"></i></span><span><span class="es-prepare-title">Recipient message</span><span class="es-prepare-meta">Please review and sign the manufacturing terms by 15 September.</span></span><button class="es-button" type="button">Edit</button></div>
+          <div class="es-prepare-row"><span class="es-prepare-icon"><i data-lucide="bell-ring" aria-hidden="true"></i></span><span><span class="es-prepare-title">Reminders</span><span class="es-prepare-meta">After 2 days, then every 3 days until completion or expiry</span></span><button class="es-button" type="button">Change</button></div>
+          <div class="es-prepare-row"><span class="es-prepare-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><span><span class="es-prepare-title">Authentication policy</span><span class="es-prepare-meta">Risk-aware recommendation with per-recipient authorised override</span></span><button class="es-button" type="button">Review</button></div>
+        </section>
+
+        <section data-content="fields" hidden>
+          <div class="es-content-head"><div><h2>Assign signing fields</h2><div class="es-content-subtitle">Signature, name, date, initials, text, checkbox and attachment fields remain editable canvas objects.</div></div><span class="es-status"><i data-lucide="check-circle-2" aria-hidden="true"></i>6 required fields</span></div>
+          <div class="es-page-editor"><div class="es-pages"><div class="es-page-thumb selected">Page 8</div><div class="es-page-thumb">Page 7</div><div class="es-page-thumb">Page 6</div></div><div class="es-document-page"><div class="es-doc-heading">MANUFACTURING AGREEMENT</div><div class="es-doc-line"></div><div class="es-doc-line"></div><div class="es-doc-line short"></div><div class="es-doc-line"></div><div class="es-doc-line short"></div><div class="es-sign-field es-date"><i data-lucide="calendar" aria-hidden="true"></i>Date · Ravi</div><div class="es-sign-field es-signature"><i data-lucide="pen-line" aria-hidden="true"></i>Signature · Ravi</div></div></div>
+        </section>
+
+        <section data-content="signer" hidden>
+          <div class="es-content-head"><div><h2>Secure signer experience</h2><div class="es-content-subtitle">Focused document review with only required input fields—no application account or editor complexity.</div></div><span class="es-status"><i data-lucide="lock-keyhole" aria-hidden="true"></i>OTP verified</span></div>
+          <div class="es-signer-shell"><div class="es-signer-header"><span class="es-doc-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span class="es-signer-copy"><span class="es-signer-title">Vendor manufacturing agreement</span><span class="es-signer-meta">Northstar Studio · Secure signing session · Expires 15 Sep</span></span><button class="es-button" type="button">Download copy</button></div><div class="es-signer-body"><div class="es-signer-page"><div class="es-doc-heading">MANUFACTURING AGREEMENT</div><div class="es-doc-line"></div><div class="es-doc-line"></div><div class="es-doc-line short"></div><div class="es-doc-line"></div><button class="es-required-field es-required-date" type="button">Add date</button><button class="es-required-field es-required-sign" type="button">Sign here</button></div><aside class="es-signer-guide"><div class="es-guide-box"><strong>2 required fields</strong><br>Your entries are saved securely. You can review everything before final submission.</div><div class="es-guide-step"><span class="es-guide-number">1</span><span>Review the full document</span></div><div class="es-guide-step"><span class="es-guide-number">2</span><span>Complete highlighted fields</span></div><div class="es-guide-step"><span class="es-guide-number">3</span><span>Consent and submit once</span></div><button class="es-primary" id="es-finish-signing" type="button">Finish &amp; submit</button></aside></div></div>
+        </section>
+
+        <section data-content="audit" hidden>
+          <div class="es-content-head"><div><h2>Completion &amp; audit package</h2><div class="es-content-subtitle">A completed envelope produces the signed PDF, certificate, evidence timeline and protected retention record.</div></div><span class="es-status"><i data-lucide="shield-check" aria-hidden="true"></i>Evidence sealed</span></div>
+          <div class="es-prepare-row"><span class="es-prepare-icon"><i data-lucide="file-check-2" aria-hidden="true"></i></span><span><span class="es-prepare-title">Signed agreement.pdf</span><span class="es-prepare-meta">Final signed derivative · Original source remains protected</span></span><button class="es-button" type="button">View</button></div>
+          <div class="es-prepare-row"><span class="es-prepare-icon"><i data-lucide="badge-check" aria-hidden="true"></i></span><span><span class="es-prepare-title">Certificate of completion</span><span class="es-prepare-meta">Envelope identity, consent, authentication and document fingerprint</span></span><button class="es-button" type="button">Download</button></div>
+          <div class="es-audit-row"><span class="es-audit-icon"><i data-lucide="send" aria-hidden="true"></i></span><span><span class="es-audit-title">Envelope sent</span><span class="es-audit-meta">Sender identity and document fingerprint recorded</span></span><span>10:02</span></div>
+          <div class="es-audit-row"><span class="es-audit-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><span><span class="es-audit-title">Ravi authenticated</span><span class="es-audit-meta">Email OTP · Device and network evidence safely recorded</span></span><span>10:18</span></div>
+          <div class="es-audit-row"><span class="es-audit-icon"><i data-lucide="pen-line" aria-hidden="true"></i></span><span><span class="es-audit-title">Signature submitted</span><span class="es-audit-meta">Consent, field values and signed document hash sealed</span></span><span>10:24</span></div>
+          <div class="es-audit-row"><span class="es-audit-icon"><i data-lucide="archive" aria-hidden="true"></i></span><span><span class="es-audit-title">Retention policy applied</span><span class="es-audit-meta">Completed package excluded from ordinary project cleanup</span></span><span>10:25</span></div>
+        </section>
+      </main>
+
+      <aside class="es-inspector" aria-label="Selected recipient settings">
+        <h3>Recipient settings</h3><div class="es-inspector-copy">Authentication is recommended from document risk and policy, then enforced specifically for this recipient.</div>
+        <div class="es-selected-person"><span class="es-recipient-avatar" id="es-inspector-avatar">RK</span><span><span class="es-recipient-name" id="es-inspector-name">Ravi Kumar</span><span class="es-recipient-meta" id="es-inspector-role">Signer · Routing group 2</span></span></div>
+        <div class="es-inspector-section"><div class="es-inspector-title">Authentication</div><div class="es-recommendation" id="es-recommendation"><strong>Email OTP recommended</strong><br>Appropriate for this agreement’s configured risk and workspace policy.</div><div class="es-auth-options" style="margin-top:8px"><label class="es-auth"><input type="radio" name="recipient-auth" checked><span><strong>Email OTP</strong><small>One-time code before document access</small></span></label><label class="es-auth"><input type="radio" name="recipient-auth"><span><strong>Identity verification</strong><small>Use for higher-risk or jurisdictional needs</small></span></label><label class="es-auth"><input type="radio" name="recipient-auth"><span><strong>Qualified signing</strong><small>Provider-supported where legally required</small></span></label></div></div>
+        <div class="es-inspector-section"><div class="es-inspector-title">Secure delivery</div><div class="es-fact"><i data-lucide="link-2" aria-hidden="true"></i><span><strong>One-time envelope link</strong><small>Revocable and envelope-scoped</small></span></div><div class="es-fact"><i data-lucide="user-x" aria-hidden="true"></i><span><strong>No account required</strong><small>Authentication policy still applies</small></span></div><div class="es-fact"><i data-lucide="calendar-clock" aria-hidden="true"></i><span><strong>Expires 15 September</strong><small>Sender may extend or revoke</small></span></div></div>
+      </aside>
+    </div>
+
+    <div class="es-toast" id="es-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="es-bottom"><span>Native e-sign ownership</span><span>Mixed routing groups</span><span>Accounts optional</span><span class="es-bottom-right"><span>Risk-aware authentication</span><span>Protected evidence package</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('native-esign-workflow');
+      const tabs = [...root.querySelectorAll('.es-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const steps = [...root.querySelectorAll('[data-step]')];
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+        steps.forEach((step) => step.setAttribute('aria-pressed', String(step.dataset.step === name)));
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+      steps.forEach((step) => step.addEventListener('click', () => showPanel(step.dataset.step)));
+
+      const recipientData = {
+        meera: ['MJ', 'Meera Jain', 'Approver · Routing group 1', '<strong>Email access recommended</strong><br>Approval only; workspace policy permits verified email access.'],
+        ravi: ['RK', 'Ravi Kumar', 'Signer · Routing group 2', '<strong>Email OTP recommended</strong><br>Appropriate for this agreement’s configured risk and workspace policy.'],
+        asha: ['AS', 'Asha Sharma', 'Signer · Routing group 2', '<strong>Email OTP recommended</strong><br>Parallel signer with the same envelope authentication policy.'],
+        anil: ['AN', 'Anil Nair', 'Witness · Routing group 3', '<strong>Identity verification recommended</strong><br>Witness role requires stronger identity assurance for this envelope.'],
+        finance: ['AR', 'Finance archive', 'Copy recipient · After completion', '<strong>No signing authentication</strong><br>Receives the completed package through the workspace-controlled archive route.']
+      };
+      const recipients = [...root.querySelectorAll('.es-recipient')];
+      recipients.forEach((recipient) => recipient.addEventListener('click', () => {
+        recipients.forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === recipient)));
+        const [avatar, name, role, recommendation] = recipientData[recipient.dataset.recipient];
+        root.querySelector('#es-inspector-avatar').textContent = avatar;
+        root.querySelector('#es-inspector-name').textContent = name;
+        root.querySelector('#es-inspector-role').textContent = role;
+        root.querySelector('#es-recommendation').innerHTML = recommendation;
+      }));
+
+      const toast = root.querySelector('#es-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2600); };
+      root.querySelector('#es-review-send').addEventListener('click', () => announce('Envelope preflight opened: recipients, fields, authentication and evidence policy will be checked.'));
+      root.querySelector('#es-finish-signing').addEventListener('click', () => announce('Final consent review opened. Submission occurs only after signer confirmation.'));
+    })();
+  </script>
+</section>

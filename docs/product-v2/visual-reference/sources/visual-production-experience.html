@@ -1,0 +1,587 @@
+<style>
+  #ivp-experience {
+    --ivp-bg: light-dark(#f3f6fa, #11151d);
+    --ivp-window: light-dark(#ffffff, #171c26);
+    --ivp-panel: light-dark(#f8fafc, #1e2531);
+    --ivp-panel-strong: light-dark(#eef3f8, #252d3a);
+    --ivp-text: light-dark(#172033, #eef3fb);
+    --ivp-muted: light-dark(#647087, #aab5c7);
+    --ivp-line: light-dark(#dfe5ec, #344051);
+    --ivp-brand: light-dark(#3659e3, #86a0ff);
+    --ivp-brand-strong: light-dark(#2947c7, #a9b9ff);
+    --ivp-brand-soft: light-dark(#edf1ff, #222d55);
+    --ivp-good: light-dark(#167a59, #6dd6ae);
+    --ivp-warn: light-dark(#a85f10, #ffbd70);
+    --ivp-canvas: light-dark(#dfe5eb, #0e131b);
+    color: var(--ivp-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    width: 100%;
+  }
+
+  #ivp-experience * { box-sizing: border-box; }
+  #ivp-experience button, #ivp-experience input { font: inherit; }
+
+  #ivp-experience .ivp-preview-switcher {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  #ivp-experience .ivp-preview-switcher strong {
+    font-weight: 500;
+    margin-right: 6px;
+  }
+
+  #ivp-experience .ivp-view-button {
+    appearance: none;
+    border: 1px solid var(--ivp-line);
+    background: transparent;
+    color: var(--ivp-text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  #ivp-experience .ivp-view-button[aria-selected="true"] {
+    background: var(--ivp-brand);
+    border-color: var(--ivp-brand);
+    color: light-dark(#ffffff, #0d1428);
+  }
+
+  #ivp-experience .ivp-window {
+    background: var(--ivp-window);
+    border: 1px solid var(--ivp-line);
+    border-radius: 14px;
+    overflow: hidden;
+    min-height: 650px;
+    box-shadow: 0 18px 48px light-dark(rgba(38, 55, 86, 0.12), rgba(0, 0, 0, 0.28));
+  }
+
+  #ivp-experience .ivp-topbar {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--ivp-line);
+    background: var(--ivp-window);
+  }
+
+  #ivp-experience .ivp-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  #ivp-experience .ivp-mark {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--ivp-brand);
+    color: light-dark(#ffffff, #0d1428);
+  }
+
+  #ivp-experience .ivp-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: var(--ivp-muted);
+  }
+
+  #ivp-experience .ivp-nav a { color: inherit; text-decoration: none; }
+
+  #ivp-experience .ivp-grow { flex: 1; }
+
+  #ivp-experience .ivp-search {
+    min-width: 230px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: 1px solid var(--ivp-line);
+    border-radius: 9px;
+    color: var(--ivp-muted);
+    background: var(--ivp-panel);
+  }
+
+  #ivp-experience .ivp-action {
+    border: 1px solid var(--ivp-line);
+    background: var(--ivp-window);
+    color: var(--ivp-text);
+    border-radius: 9px;
+    padding: 9px 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  #ivp-experience .ivp-action-primary {
+    background: var(--ivp-brand);
+    color: light-dark(#ffffff, #0d1428);
+    border-color: var(--ivp-brand);
+  }
+
+  #ivp-experience .ivp-icon-action {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  #ivp-experience .ivp-screen { display: none; }
+  #ivp-experience .ivp-screen.is-active { display: block; }
+
+  #ivp-experience .ivp-home-main {
+    padding: 44px clamp(20px, 5vw, 72px) 38px;
+    background:
+      radial-gradient(circle at 10% 0%, light-dark(rgba(75, 104, 230, 0.12), rgba(83, 109, 220, 0.13)), transparent 32%),
+      var(--ivp-bg);
+    min-height: 589px;
+  }
+
+  #ivp-experience .ivp-hero {
+    max-width: 770px;
+    margin: 0 auto 28px;
+    text-align: center;
+  }
+
+  #ivp-experience .ivp-eyebrow {
+    color: var(--ivp-brand-strong);
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  #ivp-experience h1, #ivp-experience h2, #ivp-experience h3, #ivp-experience p { margin-top: 0; }
+  #ivp-experience h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; font-weight: 500; margin-bottom: 14px; }
+  #ivp-experience h2 { font-size: 22px; font-weight: 500; }
+  #ivp-experience h3 { font-size: 16px; font-weight: 500; margin-bottom: 7px; }
+  #ivp-experience p { color: var(--ivp-muted); line-height: 1.55; }
+
+  #ivp-experience .ivp-dropzone {
+    max-width: 900px;
+    margin: 0 auto 24px;
+    border: 1px dashed var(--ivp-brand);
+    background: var(--ivp-window);
+    border-radius: 14px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 18px;
+  }
+
+  #ivp-experience .ivp-drop-copy { display: flex; align-items: center; gap: 14px; }
+  #ivp-experience .ivp-drop-icon { color: var(--ivp-brand); }
+  #ivp-experience .ivp-drop-copy strong { display: block; font-weight: 500; margin-bottom: 3px; }
+  #ivp-experience .ivp-drop-copy span { color: var(--ivp-muted); }
+  #ivp-experience .ivp-drop-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+  #ivp-experience .ivp-outcomes {
+    max-width: 1040px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #ivp-experience .ivp-outcome {
+    background: var(--ivp-window);
+    border: 1px solid var(--ivp-line);
+    border-radius: 12px;
+    padding: 18px;
+    min-height: 154px;
+    cursor: pointer;
+  }
+
+  #ivp-experience .ivp-outcome:hover { border-color: var(--ivp-brand); }
+  #ivp-experience .ivp-outcome-icon { color: var(--ivp-brand); margin-bottom: 18px; }
+  #ivp-experience .ivp-outcome p { font-size: 13px; margin-bottom: 0; }
+
+  #ivp-experience .ivp-trust {
+    max-width: 1040px;
+    margin: 22px auto 0;
+    display: flex;
+    justify-content: center;
+    gap: 22px;
+    flex-wrap: wrap;
+    color: var(--ivp-muted);
+    font-size: 13px;
+  }
+
+  #ivp-experience .ivp-trust span { display: flex; align-items: center; gap: 6px; }
+
+  #ivp-experience .ivp-dashboard-layout {
+    min-height: 589px;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+  }
+
+  #ivp-experience .ivp-sidebar {
+    border-right: 1px solid var(--ivp-line);
+    padding: 18px 12px;
+    background: var(--ivp-panel);
+  }
+
+  #ivp-experience .ivp-sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ivp-muted);
+    text-decoration: none;
+    padding: 10px 11px;
+    border-radius: 8px;
+    margin-bottom: 3px;
+  }
+
+  #ivp-experience .ivp-sidebar a.is-active { background: var(--ivp-brand-soft); color: var(--ivp-brand-strong); }
+  #ivp-experience .ivp-side-label { margin: 22px 11px 8px; color: var(--ivp-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+
+  #ivp-experience .ivp-dashboard-main { padding: 28px; background: var(--ivp-bg); }
+  #ivp-experience .ivp-dashboard-heading { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 22px; }
+  #ivp-experience .ivp-dashboard-heading p { margin-bottom: 0; }
+
+  #ivp-experience .ivp-quick-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  #ivp-experience .ivp-quick {
+    background: var(--ivp-window);
+    border: 1px solid var(--ivp-line);
+    color: var(--ivp-text);
+    border-radius: 10px;
+    padding: 13px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  #ivp-experience .ivp-dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; }
+  #ivp-experience .ivp-section-head { display: flex; align-items: center; margin-bottom: 10px; }
+  #ivp-experience .ivp-section-head h2 { margin-bottom: 0; }
+  #ivp-experience .ivp-text-link { color: var(--ivp-brand-strong); text-decoration: none; }
+
+  #ivp-experience .ivp-file-list {
+    background: var(--ivp-window);
+    border: 1px solid var(--ivp-line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  #ivp-experience .ivp-file-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 110px 90px;
+    gap: 12px;
+    align-items: center;
+    padding: 13px 15px;
+    border-bottom: 1px solid var(--ivp-line);
+  }
+
+  #ivp-experience .ivp-file-row:last-child { border-bottom: 0; }
+  #ivp-experience .ivp-thumb { width: 42px; height: 42px; border-radius: 7px; background: linear-gradient(135deg, var(--ivp-brand-soft), var(--ivp-panel-strong)); display: grid; place-items: center; color: var(--ivp-brand); }
+  #ivp-experience .ivp-file-name { font-weight: 500; }
+  #ivp-experience .ivp-meta { color: var(--ivp-muted); font-size: 12px; }
+  #ivp-experience .ivp-status-good { color: var(--ivp-good); }
+  #ivp-experience .ivp-status-warn { color: var(--ivp-warn); }
+
+  #ivp-experience .ivp-jobs {
+    background: var(--ivp-window);
+    border: 1px solid var(--ivp-line);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  #ivp-experience .ivp-job { padding: 13px 0; border-bottom: 1px solid var(--ivp-line); }
+  #ivp-experience .ivp-job:last-child { border-bottom: 0; }
+  #ivp-experience .ivp-progress { height: 6px; margin-top: 9px; border-radius: 99px; background: var(--ivp-panel-strong); overflow: hidden; }
+  #ivp-experience .ivp-progress span { display: block; height: 100%; background: var(--ivp-brand); }
+
+  #ivp-experience .ivp-editor-topbar {
+    display: flex;
+    height: 54px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--ivp-line);
+  }
+
+  #ivp-experience .ivp-document-title { min-width: 180px; }
+  #ivp-experience .ivp-document-title strong { display: block; font-weight: 500; }
+  #ivp-experience .ivp-editor-body { display: grid; grid-template-columns: 180px minmax(0, 1fr) 282px; min-height: 595px; }
+  #ivp-experience .ivp-tools { background: var(--ivp-panel); border-right: 1px solid var(--ivp-line); padding: 10px; }
+  #ivp-experience .ivp-tool-group { margin-bottom: 16px; }
+  #ivp-experience .ivp-tool-group strong { display: block; color: var(--ivp-muted); font-size: 12px; padding: 6px 8px; text-transform: uppercase; letter-spacing: .05em; }
+  #ivp-experience .ivp-tool {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--ivp-text);
+    padding: 9px 8px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border-radius: 7px;
+    text-align: left;
+    cursor: pointer;
+  }
+  #ivp-experience .ivp-tool.is-active { background: var(--ivp-brand-soft); color: var(--ivp-brand-strong); }
+
+  #ivp-experience .ivp-stage {
+    min-width: 0;
+    background: var(--ivp-canvas);
+    position: relative;
+    padding: 32px 28px 70px;
+    display: grid;
+    place-items: center;
+  }
+
+  #ivp-experience .ivp-canvas-art {
+    width: min(460px, 86%);
+    aspect-ratio: 4 / 3;
+    background:
+      radial-gradient(circle at 50% 43%, light-dark(#f6ede1, #826d58) 0 14%, transparent 15%),
+      radial-gradient(ellipse at 50% 55%, light-dark(#caa47f, #6e4930) 0 28%, transparent 29%),
+      linear-gradient(140deg, light-dark(#f2e7d5, #4e463e), light-dark(#dbe3c8, #3a4938));
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .22);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #ivp-experience .ivp-canvas-art::before,
+  #ivp-experience .ivp-canvas-art::after {
+    content: "";
+    position: absolute;
+    inset: 8% 10%;
+    border: 1px dashed light-dark(rgba(40, 50, 40, .24), rgba(255, 255, 255, .28));
+  }
+
+  #ivp-experience .ivp-canvas-art::after { inset: 18% 20%; border-radius: 50%; }
+  #ivp-experience .ivp-size-note { position: absolute; bottom: 24px; background: var(--ivp-window); color: var(--ivp-muted); border: 1px solid var(--ivp-line); border-radius: 8px; padding: 7px 10px; font-size: 12px; }
+  #ivp-experience .ivp-zoom { position: absolute; bottom: 20px; right: 18px; display: flex; gap: 6px; }
+
+  #ivp-experience .ivp-inspector { background: var(--ivp-window); border-left: 1px solid var(--ivp-line); }
+  #ivp-experience .ivp-inspector-tabs { display: grid; grid-template-columns: repeat(2, 1fr); border-bottom: 1px solid var(--ivp-line); }
+  #ivp-experience .ivp-inspector-tabs button { border: 0; background: transparent; color: var(--ivp-muted); padding: 13px; cursor: pointer; }
+  #ivp-experience .ivp-inspector-tabs button.is-active { color: var(--ivp-brand-strong); box-shadow: inset 0 -2px var(--ivp-brand); }
+  #ivp-experience .ivp-inspector-content { padding: 15px; }
+  #ivp-experience .ivp-analysis-summary { background: var(--ivp-brand-soft); padding: 12px; border-radius: 9px; margin-bottom: 15px; }
+  #ivp-experience .ivp-analysis-summary strong { display: block; margin-bottom: 5px; font-weight: 500; }
+  #ivp-experience .ivp-check {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--ivp-line);
+  }
+  #ivp-experience .ivp-check:last-of-type { border-bottom: 0; }
+  #ivp-experience .ivp-check input { margin-top: 3px; }
+  #ivp-experience .ivp-check span { color: var(--ivp-muted); font-size: 12px; }
+  #ivp-experience .ivp-mode-note { margin: 14px 0; padding: 10px; border-left: 3px solid var(--ivp-good); background: var(--ivp-panel); color: var(--ivp-muted); font-size: 12px; }
+  #ivp-experience .ivp-apply { width: 100%; justify-content: center; }
+
+  #ivp-experience .ivp-history-bar {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 14px;
+    background: var(--ivp-window);
+    border: 1px solid var(--ivp-line);
+    border-radius: 9px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ivp-muted);
+    font-size: 12px;
+  }
+  #ivp-experience .ivp-history-step { padding: 4px 7px; background: var(--ivp-panel); border-radius: 5px; color: var(--ivp-text); }
+
+  @media (max-width: 850px) {
+    #ivp-experience .ivp-nav, #ivp-experience .ivp-search { display: none; }
+    #ivp-experience .ivp-outcomes, #ivp-experience .ivp-quick-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #ivp-experience .ivp-dashboard-grid { grid-template-columns: 1fr; }
+    #ivp-experience .ivp-jobs { display: none; }
+    #ivp-experience .ivp-editor-body { grid-template-columns: 58px minmax(0, 1fr); }
+    #ivp-experience .ivp-tools { padding: 8px 5px; }
+    #ivp-experience .ivp-tool span, #ivp-experience .ivp-tool-group strong, #ivp-experience .ivp-inspector { display: none; }
+    #ivp-experience .ivp-tool { justify-content: center; }
+  }
+
+  @media (max-width: 560px) {
+    #ivp-experience .ivp-window { min-height: 0; }
+    #ivp-experience .ivp-topbar { padding: 0 12px; }
+    #ivp-experience .ivp-brand span { display: none; }
+    #ivp-experience .ivp-dropzone { grid-template-columns: 1fr; }
+    #ivp-experience .ivp-drop-actions { justify-content: stretch; }
+    #ivp-experience .ivp-drop-actions .ivp-action { flex: 1; justify-content: center; }
+    #ivp-experience .ivp-outcomes { grid-template-columns: 1fr; }
+    #ivp-experience .ivp-dashboard-layout { grid-template-columns: 1fr; }
+    #ivp-experience .ivp-sidebar { display: none; }
+    #ivp-experience .ivp-dashboard-main { padding: 18px; }
+    #ivp-experience .ivp-quick-row { grid-template-columns: 1fr 1fr; }
+    #ivp-experience .ivp-file-row { grid-template-columns: 38px minmax(0, 1fr); }
+    #ivp-experience .ivp-file-row > :nth-child(n+3) { display: none; }
+    #ivp-experience .ivp-document-title { min-width: 0; flex: 1; }
+    #ivp-experience .ivp-editor-topbar .ivp-action:not(.ivp-action-primary), #ivp-experience .ivp-editor-topbar .ivp-icon-action { display: none; }
+    #ivp-experience .ivp-stage { padding: 18px 10px 72px; }
+  }
+</style>
+
+<div id="ivp-experience">
+  <div class="ivp-preview-switcher" role="tablist" aria-label="Experience preview">
+    <strong>Experience preview</strong>
+    <button class="ivp-view-button" type="button" role="tab" aria-selected="true" data-view="home">Guest home</button>
+    <button class="ivp-view-button" type="button" role="tab" aria-selected="false" data-view="dashboard">Workspace</button>
+    <button class="ivp-view-button" type="button" role="tab" aria-selected="false" data-view="editor">Editor</button>
+  </div>
+
+  <div class="ivp-window">
+    <section class="ivp-screen is-active" data-screen="home">
+      <header class="ivp-topbar">
+        <div class="ivp-brand"><span class="ivp-mark"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Visual Production</span></div>
+        <nav class="ivp-nav" aria-label="Public"><a href="#">Products</a><a href="#">How it works</a><a href="#">For production</a></nav>
+        <div class="ivp-grow"></div>
+        <button class="ivp-action" type="button">Sign in</button>
+        <button class="ivp-action ivp-action-primary" type="button">Create free</button>
+      </header>
+      <main class="ivp-home-main">
+        <div class="ivp-hero">
+          <div class="ivp-eyebrow">From imperfect source to purpose-ready output</div>
+          <h1>Make any image or document ready for where it needs to go.</h1>
+          <p>Improve, design, create PDFs and prepare files for digital or physical production—with every important change under your control.</p>
+        </div>
+        <div class="ivp-dropzone">
+          <div class="ivp-drop-copy">
+            <i class="ivp-drop-icon" data-lucide="upload-cloud" aria-hidden="true"></i>
+            <div><strong>Drop an image, PDF or design file</strong><span>We’ll inspect it safely and recommend the right workspace.</span></div>
+          </div>
+          <div class="ivp-drop-actions">
+            <button class="ivp-action ivp-action-primary" type="button">Choose files</button>
+            <button class="ivp-action" type="button"><i data-lucide="cloud" aria-hidden="true"></i> Import</button>
+          </div>
+        </div>
+        <div class="ivp-outcomes">
+          <article class="ivp-outcome"><i class="ivp-outcome-icon" data-lucide="image" aria-hidden="true"></i><h3>Image &amp; Graphic Studio</h3><p>Enhance, restore, design and prepare detailed graphics.</p></article>
+          <article class="ivp-outcome"><i class="ivp-outcome-icon" data-lucide="file-plus-2" aria-hidden="true"></i><h3>Create PDF</h3><p>Build polished, accessible PDFs from images, text and layouts.</p></article>
+          <article class="ivp-outcome"><i class="ivp-outcome-icon" data-lucide="files" aria-hidden="true"></i><h3>Edit &amp; Manage PDF</h3><p>Edit safely, organise pages, repair, convert and redact.</p></article>
+          <article class="ivp-outcome"><i class="ivp-outcome-icon" data-lucide="printer" aria-hidden="true"></i><h3>Print &amp; Production</h3><p>Validate files for paper, textile, signage and specialist output.</p></article>
+        </div>
+        <div class="ivp-trust"><span><i data-lucide="shield-check" aria-hidden="true"></i> Original always preserved</span><span><i data-lucide="wand-sparkles" aria-hidden="true"></i> AI changes clearly disclosed</span><span><i data-lucide="lock-keyhole" aria-hidden="true"></i> Private by default</span><span><i data-lucide="badge-check" aria-hidden="true"></i> Free during testing</span></div>
+      </main>
+    </section>
+
+    <section class="ivp-screen" data-screen="dashboard">
+      <header class="ivp-topbar">
+        <div class="ivp-brand"><span class="ivp-mark"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Visual Production</span></div>
+        <div class="ivp-search"><i data-lucide="search" aria-hidden="true"></i> Search projects, files and tools</div>
+        <div class="ivp-grow"></div>
+        <button class="ivp-action ivp-icon-action" type="button" aria-label="Background jobs"><i data-lucide="activity" aria-hidden="true"></i></button>
+        <button class="ivp-action ivp-action-primary" type="button"><i data-lucide="plus" aria-hidden="true"></i> Create</button>
+      </header>
+      <div class="ivp-dashboard-layout">
+        <aside class="ivp-sidebar">
+          <a class="is-active" href="#"><i data-lucide="home" aria-hidden="true"></i> Home</a>
+          <a href="#"><i data-lucide="folder-kanban" aria-hidden="true"></i> Projects</a>
+          <a href="#"><i data-lucide="files" aria-hidden="true"></i> Default files</a>
+          <a href="#"><i data-lucide="users" aria-hidden="true"></i> Shared with me</a>
+          <div class="ivp-side-label">Connected</div>
+          <a href="#"><i data-lucide="cloud" aria-hidden="true"></i> Cloud storage</a>
+          <div class="ivp-side-label">Workspace</div>
+          <a href="#"><i data-lucide="settings" aria-hidden="true"></i> Settings</a>
+        </aside>
+        <main class="ivp-dashboard-main">
+          <div class="ivp-dashboard-heading"><div><h2>Good morning, Vijay</h2><p>Continue your work or start with a file—the workspace will guide the right path.</p></div><div class="ivp-grow"></div><button class="ivp-action" type="button"><i data-lucide="upload" aria-hidden="true"></i> Upload</button></div>
+          <div class="ivp-quick-row">
+            <button class="ivp-quick" type="button"><i data-lucide="image" aria-hidden="true"></i> Enhance or design</button>
+            <button class="ivp-quick" type="button"><i data-lucide="file-plus-2" aria-hidden="true"></i> Create PDF</button>
+            <button class="ivp-quick" type="button"><i data-lucide="files" aria-hidden="true"></i> Edit PDF</button>
+            <button class="ivp-quick" type="button"><i data-lucide="printer" aria-hidden="true"></i> Prepare for production</button>
+          </div>
+          <div class="ivp-dashboard-grid">
+            <section>
+              <div class="ivp-section-head"><h2>Recent work</h2><div class="ivp-grow"></div><a class="ivp-text-link" href="#">View all</a></div>
+              <div class="ivp-file-list">
+                <div class="ivp-file-row"><span class="ivp-thumb"><i data-lucide="image" aria-hidden="true"></i></span><div><div class="ivp-file-name">Kidswear hedgehog artwork</div><div class="ivp-meta">Textile collection · autosaved 8 min ago</div></div><div class="ivp-status-warn">Needs review</div><div class="ivp-meta">2 versions</div></div>
+                <div class="ivp-file-row"><span class="ivp-thumb"><i data-lucide="file-text" aria-hidden="true"></i></span><div><div class="ivp-file-name">Prescription archive</div><div class="ivp-meta">Default files · yesterday</div></div><div class="ivp-status-good">Ready</div><div class="ivp-meta">12 pages</div></div>
+                <div class="ivp-file-row"><span class="ivp-thumb"><i data-lucide="layers-3" aria-hidden="true"></i></span><div><div class="ivp-file-name">Summer print collection</div><div class="ivp-meta">Shared project · 3 collaborators</div></div><div class="ivp-status-good">Approved</div><div class="ivp-meta">8 artboards</div></div>
+              </div>
+            </section>
+            <aside>
+              <div class="ivp-section-head"><h2>Processing</h2><div class="ivp-grow"></div><a class="ivp-text-link" href="#">All jobs</a></div>
+              <div class="ivp-jobs">
+                <div class="ivp-job"><div class="ivp-file-name">Restore 14 illustrations</div><div class="ivp-meta">9 of 14 completed · safe to close</div><div class="ivp-progress"><span style="width:64%"></span></div></div>
+                <div class="ivp-job"><div class="ivp-file-name">Print preflight</div><div class="ivp-meta ivp-status-warn">2 files need your decision</div></div>
+                <div class="ivp-job"><div class="ivp-file-name">PDF export</div><div class="ivp-meta ivp-status-good">Completed · ready to download</div></div>
+              </div>
+            </aside>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <section class="ivp-screen" data-screen="editor">
+      <header class="ivp-editor-topbar">
+        <button class="ivp-action ivp-icon-action" type="button" aria-label="Back"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+        <div class="ivp-document-title"><strong>Hedgehog textile artwork</strong><span class="ivp-meta">Saved · Version 3</span></div>
+        <button class="ivp-action ivp-icon-action" type="button" aria-label="Undo"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+        <button class="ivp-action ivp-icon-action" type="button" aria-label="Redo"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+        <div class="ivp-grow"></div>
+        <button class="ivp-action" type="button"><i data-lucide="message-square" aria-hidden="true"></i> Share</button>
+        <button class="ivp-action ivp-action-primary" type="button"><i data-lucide="package-check" aria-hidden="true"></i> Export</button>
+      </header>
+      <div class="ivp-editor-body">
+        <aside class="ivp-tools">
+          <div class="ivp-tool-group"><strong>Workspace</strong><button class="ivp-tool is-active" type="button"><i data-lucide="scan-search" aria-hidden="true"></i><span>Analysis</span></button><button class="ivp-tool" type="button"><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>Adjust</span></button><button class="ivp-tool" type="button"><i data-lucide="wand-sparkles" aria-hidden="true"></i><span>Restore</span></button></div>
+          <div class="ivp-tool-group"><strong>Create</strong><button class="ivp-tool" type="button"><i data-lucide="layers-3" aria-hidden="true"></i><span>Layers</span></button><button class="ivp-tool" type="button"><i data-lucide="type" aria-hidden="true"></i><span>Text</span></button><button class="ivp-tool" type="button"><i data-lucide="shapes" aria-hidden="true"></i><span>Shapes</span></button><button class="ivp-tool" type="button"><i data-lucide="pen-tool" aria-hidden="true"></i><span>Draw</span></button></div>
+          <div class="ivp-tool-group"><strong>Output</strong><button class="ivp-tool" type="button"><i data-lucide="printer" aria-hidden="true"></i><span>Production</span></button><button class="ivp-tool" type="button"><i data-lucide="history" aria-hidden="true"></i><span>Versions</span></button></div>
+        </aside>
+        <main class="ivp-stage">
+          <div class="ivp-canvas-art" role="img" aria-label="Textile illustration on the editable canvas"></div>
+          <div class="ivp-size-note">Trustworthy at 20 × 15 cm · 300 PPI · larger sizes need review</div>
+          <div class="ivp-zoom"><button class="ivp-action ivp-icon-action" type="button" aria-label="Zoom out"><i data-lucide="minus" aria-hidden="true"></i></button><button class="ivp-action" type="button">64%</button><button class="ivp-action ivp-icon-action" type="button" aria-label="Zoom in"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+          <div class="ivp-history-bar"><span>Original</span><i data-lucide="chevron-right" aria-hidden="true"></i><span class="ivp-history-step">Safe correction preview</span><i data-lucide="chevron-right" aria-hidden="true"></i><span>Current</span><div class="ivp-grow"></div><span>Autosaved</span></div>
+        </main>
+        <aside class="ivp-inspector">
+          <div class="ivp-inspector-tabs"><button class="is-active" type="button">Recommendations</button><button type="button">AI assistant</button></div>
+          <div class="ivp-inspector-content">
+            <div class="ivp-analysis-summary"><strong>Illustration detected</strong><span class="ivp-meta">Fine outlines, layered colour and textile intent need protection.</span></div>
+            <div class="ivp-check"><input type="checkbox" checked aria-label="Correct compression damage"><div><strong>Repair compression</strong><span>Recover cleaner edges without recreating the design.</span></div><span class="ivp-status-good">Safe</span></div>
+            <div class="ivp-check"><input type="checkbox" checked aria-label="Balance colour"><div><strong>Balance colour</strong><span>Correct the screenshot colour cast.</span></div><span class="ivp-status-good">Safe</span></div>
+            <div class="ivp-check"><input type="checkbox" aria-label="Restore fine detail"><div><strong>Restore fine detail</strong><span>Review fur, nails and flowers before applying.</span></div><span class="ivp-status-warn">Review</span></div>
+            <div class="ivp-mode-note">Preserve mode selected. No new visual content will be invented.</div>
+            <button class="ivp-action ivp-action-primary ivp-apply" type="button">Preview 2 selected corrections</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const root = document.getElementById("ivp-experience");
+    if (!root) return;
+    const buttons = [...root.querySelectorAll("[data-view]")];
+    const screens = [...root.querySelectorAll("[data-screen]")];
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const view = button.getAttribute("data-view");
+        buttons.forEach((item) => item.setAttribute("aria-selected", item === button ? "true" : "false"));
+        screens.forEach((screen) => screen.classList.toggle("is-active", screen.getAttribute("data-screen") === view));
+      });
+    });
+  })();
+</script>

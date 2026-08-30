@@ -1,0 +1,1746 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Release Command Center</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Release Command Center" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Release Command Center&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;release-command-center&quot; aria-label=&quot;Release Command Center interface concept&quot;&gt;
+  &lt;style&gt;
+    #release-command-center {
+      color-scheme: light dark;
+      --rc-bg: light-dark(#f4f6fa, #111622);
+      --rc-shell: light-dark(#ffffff, #171d2a);
+      --rc-panel: light-dark(#ffffff, #1b2231);
+      --rc-panel-2: light-dark(#f7f8fb, #202838);
+      --rc-text: light-dark(#172033, #edf1f8);
+      --rc-muted: light-dark(#677289, #a9b4c7);
+      --rc-border: light-dark(#dce2eb, #303a4d);
+      --rc-primary: light-dark(#2956cf, #90a9ff);
+      --rc-primary-soft: light-dark(#edf2ff, #243257);
+      --rc-primary-ink: light-dark(#244db6, #c9d4ff);
+      --rc-green: light-dark(#1b7756, #83dab7);
+      --rc-green-soft: light-dark(#eaf7f2, #20382f);
+      --rc-amber: light-dark(#a45f0e, #f3c271);
+      --rc-amber-soft: light-dark(#fff5df, #3f321e);
+      --rc-red: light-dark(#b6434f, #ff9da8);
+      --rc-red-soft: light-dark(#fff0f1, #43272d);
+      --rc-purple: light-dark(#7452c8, #c4afff);
+      --rc-purple-soft: light-dark(#f3efff, #312747);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: var(--rc-text);
+      width: 100%;
+      background: transparent;
+    }
+    #release-command-center * { box-sizing: border-box; }
+    #release-command-center button, #release-command-center input, #release-command-center select { font: inherit; color: inherit; }
+    #release-command-center .rc-shell { position: relative; width: 100%; overflow: hidden; background: var(--rc-shell); border: 1px solid var(--rc-border); border-radius: 14px; box-shadow: 0 14px 36px light-dark(rgba(35,48,72,.12), rgba(0,0,0,.34)); }
+    #release-command-center .rc-header { min-height: 60px; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid var(--rc-border); background: var(--rc-panel); }
+    #release-command-center .rc-brand { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 9px; display: grid; place-items: center; color: light-dark(#ffffff, #101522); background: var(--rc-primary); }
+    #release-command-center .rc-brand svg { width: 18px; height: 18px; }
+    #release-command-center .rc-title-wrap { min-width: 0; }
+    #release-command-center .rc-title { font-weight: 500; letter-spacing: -.01em; }
+    #release-command-center .rc-subtitle { margin-top: 2px; color: var(--rc-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #release-command-center .rc-spacer { flex: 1; }
+    #release-command-center .rc-environment { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 8px; background: var(--rc-green-soft); color: var(--rc-green); font-size: 12px; }
+    #release-command-center .rc-environment svg { width: 14px; height: 14px; }
+    #release-command-center .rc-button, #release-command-center .rc-primary, #release-command-center .rc-icon-button { min-height: 36px; border: 1px solid var(--rc-border); border-radius: 8px; background: var(--rc-panel); display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 7px 10px; cursor: pointer; }
+    #release-command-center .rc-button svg, #release-command-center .rc-primary svg, #release-command-center .rc-icon-button svg { width: 16px; height: 16px; }
+    #release-command-center .rc-primary { border-color: var(--rc-primary); background: var(--rc-primary); color: light-dark(#ffffff, #101522); }
+    #release-command-center .rc-icon-button { width: 36px; padding: 0; }
+    #release-command-center .rc-main { display: grid; grid-template-columns: 205px minmax(0, 1fr) 250px; min-height: 730px; }
+    #release-command-center .rc-nav { padding: 13px 10px; border-right: 1px solid var(--rc-border); background: var(--rc-panel-2); }
+    #release-command-center .rc-nav-label { padding: 6px 8px 8px; color: var(--rc-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    #release-command-center .rc-nav-button { width: 100%; min-height: 40px; border: 0; border-radius: 8px; background: transparent; padding: 8px 9px; display: flex; align-items: center; gap: 9px; color: var(--rc-muted); text-align: left; cursor: pointer; }
+    #release-command-center .rc-nav-button svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    #release-command-center .rc-nav-button[aria-pressed=&quot;true&quot;] { background: var(--rc-primary-soft); color: var(--rc-primary-ink); }
+    #release-command-center .rc-nav-count { margin-left: auto; min-width: 22px; text-align: center; padding: 2px 5px; border-radius: 999px; background: light-dark(#e4e9f2, #2b3446); color: var(--rc-muted); font-size: 11px; }
+    #release-command-center .rc-nav-divider { height: 1px; background: var(--rc-border); margin: 12px 8px; }
+    #release-command-center .rc-policy-note { margin-top: 16px; padding: 10px; border-radius: 9px; background: var(--rc-panel); color: var(--rc-muted); font-size: 12px; line-height: 1.45; }
+    #release-command-center .rc-policy-note strong { color: var(--rc-text); font-weight: 500; }
+    #release-command-center .rc-content { min-width: 0; padding: 17px 18px 25px; background: var(--rc-bg); }
+    #release-command-center .rc-heading-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    #release-command-center .rc-heading-row h2 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+    #release-command-center .rc-heading-copy { color: var(--rc-muted); margin-top: 4px; line-height: 1.4; }
+    #release-command-center .rc-heading-actions { margin-left: auto; display: flex; gap: 7px; }
+    #release-command-center .rc-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 13px; }
+    #release-command-center .rc-metric { padding: 11px 12px; border-radius: 10px; border: 1px solid var(--rc-border); background: var(--rc-panel); }
+    #release-command-center .rc-metric-label { display: flex; align-items: center; gap: 7px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-metric-label svg { width: 15px; height: 15px; }
+    #release-command-center .rc-metric-value { margin-top: 6px; font-size: 18px; font-weight: 500; }
+    #release-command-center .rc-metric-detail { color: var(--rc-muted); margin-top: 3px; font-size: 12px; }
+    #release-command-center .rc-release { border: 1px solid var(--rc-border); border-radius: 11px; background: var(--rc-panel); overflow: hidden; }
+    #release-command-center .rc-release-head { display: flex; align-items: center; gap: 10px; padding: 12px 13px; border-bottom: 1px solid var(--rc-border); }
+    #release-command-center .rc-release-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--rc-primary-soft); color: var(--rc-primary-ink); }
+    #release-command-center .rc-release-icon svg { width: 18px; height: 18px; }
+    #release-command-center .rc-release-name { font-weight: 500; }
+    #release-command-center .rc-release-meta { margin-top: 2px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-release-state { margin-left: auto; padding: 5px 8px; border-radius: 999px; background: var(--rc-amber-soft); color: var(--rc-amber); font-size: 12px; white-space: nowrap; }
+    #release-command-center .rc-gates { padding: 5px 13px 9px; }
+    #release-command-center .rc-gate { width: 100%; border: 0; border-bottom: 1px solid var(--rc-border); background: transparent; display: grid; grid-template-columns: 30px minmax(0, 1fr) 118px 90px; gap: 9px; align-items: center; padding: 11px 2px; text-align: left; cursor: pointer; }
+    #release-command-center .rc-gate:last-child { border-bottom: 0; }
+    #release-command-center .rc-gate[aria-pressed=&quot;true&quot;] { background: var(--rc-primary-soft); margin-inline: -6px; width: calc(100% + 12px); padding-inline: 8px; border-radius: 8px; border-bottom-color: transparent; }
+    #release-command-center .rc-gate-icon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--rc-panel-2); color: var(--rc-muted); }
+    #release-command-center .rc-gate-icon svg { width: 15px; height: 15px; }
+    #release-command-center .rc-gate-title { display: block; font-weight: 500; }
+    #release-command-center .rc-gate-sub { display: block; color: var(--rc-muted); font-size: 12px; margin-top: 2px; line-height: 1.35; }
+    #release-command-center .rc-owner { color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-status { justify-self: end; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+    #release-command-center .rc-status::before { content: &quot;&quot;; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    #release-command-center .rc-status.pass { color: var(--rc-green); }
+    #release-command-center .rc-status.review { color: var(--rc-amber); }
+    #release-command-center .rc-status.block { color: var(--rc-red); }
+    #release-command-center .rc-quality-list, #release-command-center .rc-model-list, #release-command-center .rc-cohort-list, #release-command-center .rc-incident-list { border: 1px solid var(--rc-border); border-radius: 11px; background: var(--rc-panel); overflow: hidden; }
+    #release-command-center .rc-list-head { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(120px, .8fr) 110px 100px; gap: 8px; padding: 9px 12px; background: var(--rc-panel-2); color: var(--rc-muted); font-size: 12px; border-bottom: 1px solid var(--rc-border); }
+    #release-command-center .rc-list-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(120px, .8fr) 110px 100px; gap: 8px; align-items: center; padding: 11px 12px; border-bottom: 1px solid var(--rc-border); }
+    #release-command-center .rc-list-row:last-child { border-bottom: 0; }
+    #release-command-center .rc-item-main { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    #release-command-center .rc-item-icon { width: 31px; height: 31px; border-radius: 8px; background: var(--rc-panel-2); display: grid; place-items: center; color: var(--rc-muted); flex: 0 0 auto; }
+    #release-command-center .rc-item-icon svg { width: 16px; height: 16px; }
+    #release-command-center .rc-item-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #release-command-center .rc-item-sub { margin-top: 2px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-cell-muted { color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-chip { width: max-content; padding: 4px 7px; border-radius: 999px; font-size: 12px; }
+    #release-command-center .rc-chip.green { color: var(--rc-green); background: var(--rc-green-soft); }
+    #release-command-center .rc-chip.amber { color: var(--rc-amber); background: var(--rc-amber-soft); }
+    #release-command-center .rc-chip.red { color: var(--rc-red); background: var(--rc-red-soft); }
+    #release-command-center .rc-chip.purple { color: var(--rc-purple); background: var(--rc-purple-soft); }
+    #release-command-center .rc-panel-banner { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 12px; padding: 10px 11px; border-radius: 9px; background: var(--rc-primary-soft); color: var(--rc-primary-ink); line-height: 1.42; }
+    #release-command-center .rc-panel-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #release-command-center [data-panel][hidden] { display: none; }
+    #release-command-center .rc-inspector { padding: 15px 13px; border-left: 1px solid var(--rc-border); background: var(--rc-panel); }
+    #release-command-center .rc-inspector h3 { margin: 0; font-size: inherit; font-weight: 500; }
+    #release-command-center .rc-inspector-intro { color: var(--rc-muted); font-size: 12px; line-height: 1.45; margin-top: 4px; }
+    #release-command-center .rc-selected { margin-top: 12px; padding: 10px; border-radius: 9px; background: var(--rc-panel-2); }
+    #release-command-center .rc-selected-title { font-weight: 500; }
+    #release-command-center .rc-selected-copy { margin-top: 4px; color: var(--rc-muted); font-size: 12px; line-height: 1.4; }
+    #release-command-center .rc-inspector-section { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--rc-border); }
+    #release-command-center .rc-inspector-label { font-weight: 500; margin-bottom: 8px; }
+    #release-command-center .rc-checkline { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; }
+    #release-command-center .rc-checkline svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; color: var(--rc-green); }
+    #release-command-center .rc-checkline.warning svg { color: var(--rc-amber); }
+    #release-command-center .rc-checkline.blocked svg { color: var(--rc-red); }
+    #release-command-center .rc-checkline strong { display: block; font-weight: 500; }
+    #release-command-center .rc-checkline small { display: block; color: var(--rc-muted); margin-top: 2px; line-height: 1.35; }
+    #release-command-center .rc-decision { margin-top: 12px; padding: 10px; border-radius: 9px; background: var(--rc-red-soft); color: var(--rc-red); font-size: 12px; line-height: 1.45; }
+    #release-command-center .rc-bottom { min-height: 38px; padding: 7px 12px; border-top: 1px solid var(--rc-border); background: var(--rc-panel); display: flex; align-items: center; gap: 14px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-bottom-item { display: flex; align-items: center; gap: 6px; }
+    #release-command-center .rc-bottom-item svg { width: 14px; height: 14px; }
+    #release-command-center .rc-bottom-right { margin-left: auto; display: flex; gap: 14px; }
+    #release-command-center .rc-dialog { position: absolute; z-index: 15; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(470px, calc(100% - 28px)); padding: 15px; border-radius: 11px; border: 1px solid var(--rc-border); background: var(--rc-panel); box-shadow: 0 20px 55px light-dark(rgba(35,47,70,.32), rgba(0,0,0,.62)); }
+    #release-command-center .rc-dialog[hidden], #release-command-center .rc-toast[hidden] { display: none; }
+    #release-command-center .rc-dialog h3 { margin: 0 0 5px; font-size: 18px; font-weight: 500; }
+    #release-command-center .rc-dialog p { margin: 0 0 11px; color: var(--rc-muted); line-height: 1.45; }
+    #release-command-center .rc-dialog-callout { padding: 10px; border-radius: 8px; background: var(--rc-amber-soft); color: var(--rc-amber); line-height: 1.42; }
+    #release-command-center .rc-field { display: block; margin-top: 10px; }
+    #release-command-center .rc-field span { display: block; color: var(--rc-muted); font-size: 12px; margin-bottom: 4px; }
+    #release-command-center .rc-select { width: 100%; min-height: 39px; border-radius: 8px; border: 1px solid var(--rc-border); background: var(--rc-panel-2); padding: 7px 9px; }
+    #release-command-center .rc-dialog-actions { margin-top: 13px; display: flex; justify-content: flex-end; gap: 7px; }
+    #release-command-center .rc-toast { position: absolute; z-index: 20; left: 50%; bottom: 48px; transform: translateX(-50%); max-width: calc(100% - 30px); padding: 9px 12px; border-radius: 9px; background: light-dark(#1e2839, #edf2ff); color: light-dark(#ffffff, #121827); box-shadow: 0 10px 30px light-dark(rgba(35,47,70,.25), rgba(0,0,0,.5)); }
+    @media (max-width: 930px) {
+      #release-command-center .rc-main { grid-template-columns: 190px minmax(0, 1fr); }
+      #release-command-center .rc-inspector { display: none; }
+      #release-command-center .rc-environment { display: none; }
+    }
+    @media (max-width: 680px) {
+      #release-command-center .rc-shell { border-radius: 10px; }
+      #release-command-center .rc-header { flex-wrap: wrap; }
+      #release-command-center .rc-subtitle { max-width: 190px; }
+      #release-command-center .rc-main { display: block; min-height: 0; }
+      #release-command-center .rc-nav { display: none; }
+      #release-command-center .rc-content { padding: 14px 10px 20px; }
+      #release-command-center .rc-heading-row { flex-wrap: wrap; }
+      #release-command-center .rc-heading-actions { width: 100%; margin-left: 0; }
+      #release-command-center .rc-heading-actions .rc-button, #release-command-center .rc-heading-actions .rc-primary { flex: 1; }
+      #release-command-center .rc-metrics { grid-template-columns: 1fr; }
+      #release-command-center .rc-gate { grid-template-columns: 30px minmax(0, 1fr) 80px; }
+      #release-command-center .rc-owner { display: none; }
+      #release-command-center .rc-list-head { display: none; }
+      #release-command-center .rc-list-row { grid-template-columns: minmax(0, 1fr) auto; }
+      #release-command-center .rc-list-row &gt; :nth-child(2) { grid-column: 1; padding-left: 40px; }
+      #release-command-center .rc-list-row &gt; :nth-child(3) { grid-column: 1; padding-left: 40px; }
+      #release-command-center .rc-list-row &gt; :nth-child(4) { grid-column: 2; grid-row: 1; }
+      #release-command-center .rc-bottom { display: none; }
+    }
+    @media (max-width: 400px) {
+      #release-command-center .rc-header .rc-button { display: none; }
+      #release-command-center .rc-primary { padding-inline: 9px; }
+      #release-command-center .rc-gate { grid-template-columns: 28px minmax(0, 1fr); }
+      #release-command-center .rc-status { grid-column: 2; justify-self: start; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;rc-shell&quot;&gt;
+    &lt;header class=&quot;rc-header&quot;&gt;
+      &lt;div class=&quot;rc-brand&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+      &lt;div class=&quot;rc-title-wrap&quot;&gt;&lt;div class=&quot;rc-title&quot;&gt;Release Command Center&lt;/div&gt;&lt;div class=&quot;rc-subtitle&quot;&gt;Northstar Studio · Controlled quality and production readiness&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;rc-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;rc-environment&quot;&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Production healthy&lt;/div&gt;
+      &lt;button class=&quot;rc-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;book-open-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Release policy&lt;/button&gt;
+      &lt;button class=&quot;rc-primary&quot; id=&quot;rc-review-release&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;clipboard-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Review release&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;rc-main&quot;&gt;
+      &lt;aside class=&quot;rc-nav&quot; aria-label=&quot;Release operations navigation&quot;&gt;
+        &lt;div class=&quot;rc-nav-label&quot;&gt;Release safety&lt;/div&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot; data-target=&quot;overview&quot; aria-pressed=&quot;true&quot;&gt;&lt;i data-lucide=&quot;layout-dashboard&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Release gates&lt;span class=&quot;rc-nav-count&quot;&gt;1&lt;/span&gt;&lt;/button&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot; data-target=&quot;quality&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;badge-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Quality evidence&lt;/button&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot; data-target=&quot;models&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;brain-circuit&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Models &amp; licences&lt;span class=&quot;rc-nav-count&quot;&gt;2&lt;/span&gt;&lt;/button&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot; data-target=&quot;cohorts&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;users-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Tester cohorts&lt;/button&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot; data-target=&quot;incidents&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;siren&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Incidents&lt;span class=&quot;rc-nav-count&quot;&gt;1&lt;/span&gt;&lt;/button&gt;
+        &lt;div class=&quot;rc-nav-divider&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;rc-nav-label&quot;&gt;Controls&lt;/div&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;toggle-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Feature flags&lt;/button&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Rollback history&lt;/button&gt;
+        &lt;button class=&quot;rc-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;scroll-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Audit log&lt;/button&gt;
+        &lt;div class=&quot;rc-policy-note&quot;&gt;&lt;strong&gt;Release cannot be approved by confidence alone.&lt;/strong&gt;&lt;br&gt;Every production capability needs evidence, ownership, licence clearance, monitored rollout and a tested rollback path.&lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;rc-content&quot;&gt;
+        &lt;div class=&quot;rc-heading-row&quot;&gt;
+          &lt;div&gt;&lt;h2 id=&quot;rc-page-title&quot;&gt;Release readiness&lt;/h2&gt;&lt;div class=&quot;rc-heading-copy&quot; id=&quot;rc-page-copy&quot;&gt;One decision surface for engineering, product, quality, security and operations.&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-heading-actions&quot;&gt;&lt;button class=&quot;rc-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;git-compare-arrows&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Compare build&lt;/button&gt;&lt;button class=&quot;rc-primary&quot; id=&quot;rc-start-review&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;play&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Start review&lt;/button&gt;&lt;/div&gt;
+        &lt;/div&gt;
+
+        &lt;section data-panel=&quot;overview&quot;&gt;
+          &lt;div class=&quot;rc-metrics&quot;&gt;
+            &lt;div class=&quot;rc-metric&quot;&gt;&lt;div class=&quot;rc-metric-label&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Required gates&lt;/div&gt;&lt;div class=&quot;rc-metric-value&quot;&gt;7 of 8 passed&lt;/div&gt;&lt;div class=&quot;rc-metric-detail&quot;&gt;One commercial licence blocker&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-metric&quot;&gt;&lt;div class=&quot;rc-metric-label&quot;&gt;&lt;i data-lucide=&quot;bug&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Known defects&lt;/div&gt;&lt;div class=&quot;rc-metric-value&quot;&gt;0 Critical · 0 High&lt;/div&gt;&lt;div class=&quot;rc-metric-detail&quot;&gt;2 Medium with owner and workaround&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-metric&quot;&gt;&lt;div class=&quot;rc-metric-label&quot;&gt;&lt;i data-lucide=&quot;users-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Current rollout&lt;/div&gt;&lt;div class=&quot;rc-metric-value&quot;&gt;Trusted users · 18&lt;/div&gt;&lt;div class=&quot;rc-metric-detail&quot;&gt;Feature-flagged with instant rollback&lt;/div&gt;&lt;/div&gt;
+          &lt;/div&gt;
+
+          &lt;div class=&quot;rc-release&quot;&gt;
+            &lt;div class=&quot;rc-release-head&quot;&gt;&lt;span class=&quot;rc-release-icon&quot;&gt;&lt;i data-lucide=&quot;package-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-release-name&quot;&gt;Candidate 2026.08.30-rc.4&lt;/span&gt;&lt;span class=&quot;rc-release-meta&quot;&gt;Image Studio · PDF Workspace · Production Export · Projects · E-sign&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-release-state&quot;&gt;Blocked from promotion&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-gates&quot;&gt;
+              &lt;button class=&quot;rc-gate&quot; type=&quot;button&quot; aria-pressed=&quot;true&quot; data-gate=&quot;journeys&quot;&gt;&lt;span class=&quot;rc-gate-icon&quot;&gt;&lt;i data-lucide=&quot;route&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-gate-title&quot;&gt;Approved customer journeys&lt;/span&gt;&lt;span class=&quot;rc-gate-sub&quot;&gt;No blocker across image, PDF, project, export, cloud and signing flows&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-owner&quot;&gt;Quality · Meera&lt;/span&gt;&lt;span class=&quot;rc-status pass&quot;&gt;Passed&lt;/span&gt;&lt;/button&gt;
+              &lt;button class=&quot;rc-gate&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot; data-gate=&quot;defects&quot;&gt;&lt;span class=&quot;rc-gate-icon&quot;&gt;&lt;i data-lucide=&quot;bug&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-gate-title&quot;&gt;Defect threshold&lt;/span&gt;&lt;span class=&quot;rc-gate-sub&quot;&gt;No Critical or High; accepted Medium requires owner and workaround&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-owner&quot;&gt;Engineering · Arun&lt;/span&gt;&lt;span class=&quot;rc-status pass&quot;&gt;Passed&lt;/span&gt;&lt;/button&gt;
+              &lt;button class=&quot;rc-gate&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot; data-gate=&quot;licence&quot;&gt;&lt;span class=&quot;rc-gate-icon&quot;&gt;&lt;i data-lucide=&quot;scale&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-gate-title&quot;&gt;Model and dependency licences&lt;/span&gt;&lt;span class=&quot;rc-gate-sub&quot;&gt;One AI weight lacks verified commercial-use permission&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-owner&quot;&gt;Legal · Unassigned&lt;/span&gt;&lt;span class=&quot;rc-status block&quot;&gt;Blocked&lt;/span&gt;&lt;/button&gt;
+              &lt;button class=&quot;rc-gate&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot; data-gate=&quot;quality&quot;&gt;&lt;span class=&quot;rc-gate-icon&quot;&gt;&lt;i data-lucide=&quot;scan-eye&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-gate-title&quot;&gt;Visual and production quality&lt;/span&gt;&lt;span class=&quot;rc-gate-sub&quot;&gt;Golden corpus, print profiles and human review evidence attached&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-owner&quot;&gt;Production · Neha&lt;/span&gt;&lt;span class=&quot;rc-status pass&quot;&gt;Passed&lt;/span&gt;&lt;/button&gt;
+              &lt;button class=&quot;rc-gate&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot; data-gate=&quot;security&quot;&gt;&lt;span class=&quot;rc-gate-icon&quot;&gt;&lt;i data-lucide=&quot;shield&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-gate-title&quot;&gt;Security and privacy&lt;/span&gt;&lt;span class=&quot;rc-gate-sub&quot;&gt;Threat checks, regional boundaries, safe logging and consent verified&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-owner&quot;&gt;Security · Daniel&lt;/span&gt;&lt;span class=&quot;rc-status pass&quot;&gt;Passed&lt;/span&gt;&lt;/button&gt;
+              &lt;button class=&quot;rc-gate&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot; data-gate=&quot;rollback&quot;&gt;&lt;span class=&quot;rc-gate-icon&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-gate-title&quot;&gt;Feature flags and rollback&lt;/span&gt;&lt;span class=&quot;rc-gate-sub&quot;&gt;Cohort targeting, kill switches and rollback rehearsal completed&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-owner&quot;&gt;Operations · Jia&lt;/span&gt;&lt;span class=&quot;rc-status pass&quot;&gt;Passed&lt;/span&gt;&lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-panel=&quot;quality&quot; hidden&gt;
+          &lt;div class=&quot;rc-panel-banner&quot;&gt;&lt;i data-lucide=&quot;badge-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Quality evidence is versioned with the exact code, processor, model, profile and corpus. A newer build cannot inherit an older approval silently.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-quality-list&quot;&gt;
+            &lt;div class=&quot;rc-list-head&quot;&gt;&lt;span&gt;Evidence set&lt;/span&gt;&lt;span&gt;Scope&lt;/span&gt;&lt;span&gt;Reviewed&lt;/span&gt;&lt;span&gt;Result&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;images&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Image preservation corpus&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Text, faces, logos, gradients, patterns&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;428 source/output pairs&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;30 Aug · 2 reviewers&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Approved&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;printer&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Production profile checks&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Textile, paper, signage and digital&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;16 profiles · 6 devices&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;29 Aug · 3 reviewers&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Approved&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;file-check-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;PDF compatibility corpus&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Forms, layers, fonts, signatures, tags&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;312 documents · 5 viewers&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;29 Aug · 2 reviewers&lt;/span&gt;&lt;span class=&quot;rc-chip amber&quot;&gt;Exceptions&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;accessibility&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Accessibility journeys&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Keyboard, screen reader and PDF tags&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;All approved journeys&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;28 Aug · 2 reviewers&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Approved&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-panel=&quot;models&quot; hidden&gt;
+          &lt;div class=&quot;rc-panel-banner&quot;&gt;&lt;i data-lucide=&quot;scale&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Technical availability never equals production approval. Each model, weight, dataset, dependency and hosted provider needs separate licence, quality, security and cost clearance.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-model-list&quot;&gt;
+            &lt;div class=&quot;rc-list-head&quot;&gt;&lt;span&gt;Processor&lt;/span&gt;&lt;span&gt;Approved use&lt;/span&gt;&lt;span&gt;Version&lt;/span&gt;&lt;span&gt;Release&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;wand-sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Preserve upscale&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Deterministic standard processor&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;All workspaces · production&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;3.2.1 · pinned&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Approved&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;brain-circuit&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Restore detail&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;AI-assisted restoration · regions disclosed&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Internal corpus only&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;weight 9c74…&lt;/span&gt;&lt;span class=&quot;rc-chip amber&quot;&gt;Review&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Recreate texture&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Generative candidate · explicit consent&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;No customer access&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;weight b214…&lt;/span&gt;&lt;span class=&quot;rc-chip red&quot;&gt;Blocked&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;scan-face&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Face restoration&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Identity-preservation benchmark pending&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Staff-only flag&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;adapter 0.8&lt;/span&gt;&lt;span class=&quot;rc-chip purple&quot;&gt;Quarantined&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-panel=&quot;cohorts&quot; hidden&gt;
+          &lt;div class=&quot;rc-panel-banner&quot;&gt;&lt;i data-lucide=&quot;users-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Rollout expands only after monitored evidence: internal quality team → trusted friends and domain users → closed customer cohort. Every step keeps feature flags and rollback.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-cohort-list&quot;&gt;
+            &lt;div class=&quot;rc-list-head&quot;&gt;&lt;span&gt;Cohort&lt;/span&gt;&lt;span&gt;Access&lt;/span&gt;&lt;span&gt;Monitoring&lt;/span&gt;&lt;span&gt;State&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Internal quality team&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Engineering, QA, security and production&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;All approved features&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Full traces · consented files&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Active&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;users&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Trusted domain users&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;18 invited users · textile and print focus&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Stable paths · flagged AI&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Journey and quality telemetry&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Active&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Closed customer cohort&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;Workspace policies and support readiness&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;After release gate approval&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Cohort dashboards · alerts&lt;/span&gt;&lt;span class=&quot;rc-chip amber&quot;&gt;Waiting&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-panel=&quot;incidents&quot; hidden&gt;
+          &lt;div class=&quot;rc-panel-banner&quot;&gt;&lt;i data-lucide=&quot;siren&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Operational failures are connected to trace IDs, affected processors, feature flags, customer-safe status and a tested recovery action. Customer content is never copied into incident records by default.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-incident-list&quot;&gt;
+            &lt;div class=&quot;rc-list-head&quot;&gt;&lt;span&gt;Incident&lt;/span&gt;&lt;span&gt;Impact&lt;/span&gt;&lt;span&gt;Control&lt;/span&gt;&lt;span&gt;State&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;clock-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;AI restore queue latency&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;INC-1842 · detected automatically&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;7 waiting jobs · no data loss&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;New jobs routed to safe processor&lt;/span&gt;&lt;span class=&quot;rc-chip amber&quot;&gt;Monitoring&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;rc-list-row&quot;&gt;&lt;span class=&quot;rc-item-main&quot;&gt;&lt;span class=&quot;rc-item-icon&quot;&gt;&lt;i data-lucide=&quot;cloud-off&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;rc-item-name&quot;&gt;Dropbox save-back timeout&lt;/span&gt;&lt;span class=&quot;rc-item-sub&quot;&gt;INC-1839 · provider recovered&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;3 retries · outputs preserved&lt;/span&gt;&lt;span class=&quot;rc-cell-muted&quot;&gt;Checkpoint resume completed&lt;/span&gt;&lt;span class=&quot;rc-chip green&quot;&gt;Resolved&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;rc-inspector&quot; aria-label=&quot;Selected release gate details&quot;&gt;
+        &lt;h3&gt;Gate evidence&lt;/h3&gt;&lt;div class=&quot;rc-inspector-intro&quot;&gt;The selected gate explains exactly what was checked, who owns it and why promotion is allowed or blocked.&lt;/div&gt;
+        &lt;div class=&quot;rc-selected&quot;&gt;&lt;div class=&quot;rc-selected-title&quot; id=&quot;rc-selected-title&quot;&gt;Approved customer journeys&lt;/div&gt;&lt;div class=&quot;rc-selected-copy&quot; id=&quot;rc-selected-copy&quot;&gt;All approved journeys completed on this exact candidate without a blocking defect.&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;rc-inspector-section&quot;&gt;&lt;div class=&quot;rc-inspector-label&quot;&gt;Evidence attached&lt;/div&gt;
+          &lt;div class=&quot;rc-checkline&quot;&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong id=&quot;rc-evidence-one&quot;&gt;38 end-to-end journeys&lt;/strong&gt;&lt;small&gt;Desktop, tablet and phone boundaries&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-checkline&quot;&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong id=&quot;rc-evidence-two&quot;&gt;Cross-role collaboration&lt;/strong&gt;&lt;small&gt;Owner, editor, viewer, approver and signer&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;rc-checkline warning&quot;&gt;&lt;i data-lucide=&quot;triangle-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong id=&quot;rc-evidence-three&quot;&gt;Two accepted Medium defects&lt;/strong&gt;&lt;small&gt;Documented workaround, owner and target fix&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;rc-inspector-section&quot;&gt;&lt;div class=&quot;rc-inspector-label&quot;&gt;Promotion rule&lt;/div&gt;&lt;div class=&quot;rc-checkline&quot;&gt;&lt;i data-lucide=&quot;user-round-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Independent approval&lt;/strong&gt;&lt;small&gt;Product owner cannot override security, legal or Critical/High defect gates alone.&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;rc-checkline&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Rollback is part of release&lt;/strong&gt;&lt;small&gt;Flags, prior build, migrations and customer communication are rehearsed.&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;rc-decision&quot; id=&quot;rc-decision&quot;&gt;This gate is approved. The overall release remains blocked until every mandatory gate passes.&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;footer class=&quot;rc-bottom&quot;&gt;&lt;span class=&quot;rc-bottom-item&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;No Critical or High defects&lt;/span&gt;&lt;span class=&quot;rc-bottom-item&quot;&gt;&lt;i data-lucide=&quot;scale&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Commercial clearance required&lt;/span&gt;&lt;span class=&quot;rc-bottom-right&quot;&gt;&lt;span class=&quot;rc-bottom-item&quot;&gt;&lt;i data-lucide=&quot;toggle-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Flag every risky capability&lt;/span&gt;&lt;span class=&quot;rc-bottom-item&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Rollback at every cohort&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+
+    &lt;div class=&quot;rc-dialog&quot; id=&quot;rc-dialog&quot; role=&quot;dialog&quot; aria-modal=&quot;true&quot; aria-labelledby=&quot;rc-dialog-title&quot; hidden&gt;
+      &lt;h3 id=&quot;rc-dialog-title&quot;&gt;Start release review&lt;/h3&gt;&lt;p&gt;This creates an immutable review record for the selected candidate and assigns every mandatory gate.&lt;/p&gt;
+      &lt;div class=&quot;rc-dialog-callout&quot;&gt;Candidate rc.4 currently has one blocking commercial-licence gate. Review may start, but promotion cannot complete until it is cleared or the capability is removed from this release.&lt;/div&gt;
+      &lt;label class=&quot;rc-field&quot;&gt;&lt;span&gt;Rollout target&lt;/span&gt;&lt;select class=&quot;rc-select&quot;&gt;&lt;option&gt;Trusted domain users&lt;/option&gt;&lt;option&gt;Closed customer cohort&lt;/option&gt;&lt;option&gt;Production&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+      &lt;label class=&quot;rc-field&quot;&gt;&lt;span&gt;Required approval policy&lt;/span&gt;&lt;select class=&quot;rc-select&quot;&gt;&lt;option&gt;Product + Quality + Security + Legal&lt;/option&gt;&lt;option&gt;Product + Quality + Security&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+      &lt;div class=&quot;rc-dialog-actions&quot;&gt;&lt;button class=&quot;rc-button&quot; id=&quot;rc-cancel-review&quot; type=&quot;button&quot;&gt;Cancel&lt;/button&gt;&lt;button class=&quot;rc-primary&quot; id=&quot;rc-confirm-review&quot; type=&quot;button&quot;&gt;Create review&lt;/button&gt;&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;rc-toast&quot; id=&quot;rc-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;release-command-center&#x27;);
+      const panels = [...root.querySelectorAll(&#x27;[data-panel]&#x27;)];
+      const navButtons = [...root.querySelectorAll(&#x27;.rc-nav-button[data-target]&#x27;)];
+      const headings = {
+        overview: [&#x27;Release readiness&#x27;, &#x27;One decision surface for engineering, product, quality, security and operations.&#x27;],
+        quality: [&#x27;Quality evidence&#x27;, &#x27;Versioned evidence for visual fidelity, production output, PDF compatibility and accessibility.&#x27;],
+        models: [&#x27;Models and licence registry&#x27;, &#x27;Only commercially cleared, quality-approved and operationally safe processors can reach customers.&#x27;],
+        cohorts: [&#x27;Controlled tester rollout&#x27;, &#x27;Expand access gradually with feature flags, monitored evidence and rollback at every stage.&#x27;],
+        incidents: [&#x27;Operational incidents&#x27;, &#x27;Customer-safe diagnosis, checkpoint recovery and controlled containment without exposing content.&#x27;]
+      };
+      function showPanel(name) {
+        panels.forEach(panel =&gt; { panel.hidden = panel.dataset.panel !== name; });
+        navButtons.forEach(button =&gt; { button.setAttribute(&#x27;aria-pressed&#x27;, String(button.dataset.target === name)); });
+        root.querySelector(&#x27;#rc-page-title&#x27;).textContent = headings[name][0];
+        root.querySelector(&#x27;#rc-page-copy&#x27;).textContent = headings[name][1];
+      }
+      navButtons.forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(button.dataset.target)));
+
+      const gateDetails = {
+        journeys: [&#x27;Approved customer journeys&#x27;, &#x27;All approved journeys completed on this exact candidate without a blocking defect.&#x27;, &#x27;38 end-to-end journeys&#x27;, &#x27;Cross-role collaboration&#x27;, &#x27;Two accepted Medium defects&#x27;, &#x27;This gate is approved. The overall release remains blocked until every mandatory gate passes.&#x27;, &#x27;approved&#x27;],
+        defects: [&#x27;Defect threshold&#x27;, &#x27;Known defects are classified consistently and linked to owner, workaround and resolution target.&#x27;, &#x27;0 Critical · 0 High&#x27;, &#x27;2 Medium with workarounds&#x27;, &#x27;Regression watch active&#x27;, &#x27;This gate is approved under the agreed release threshold.&#x27;, &#x27;approved&#x27;],
+        licence: [&#x27;Model and dependency licences&#x27;, &#x27;Every model, weight, dependency, dataset and provider must have verified commercial-use permission.&#x27;, &#x27;Model code reviewed&#x27;, &#x27;Dependency path documented&#x27;, &#x27;One weight lacks clearance&#x27;, &#x27;Blocked: remove this capability from the release or obtain verified commercial permission. No product-owner override.&#x27;, &#x27;blocked&#x27;],
+        quality: [&#x27;Visual and production quality&#x27;, &#x27;The exact processors and profiles passed objective checks and blind human review.&#x27;, &#x27;428-image golden corpus&#x27;, &#x27;16 production profiles&#x27;, &#x27;PDF exceptions documented&#x27;, &#x27;This gate is approved for the listed profiles and processor versions only.&#x27;, &#x27;approved&#x27;],
+        security: [&#x27;Security and privacy&#x27;, &#x27;Threat controls, content isolation, consent, data regions and safe diagnostics were verified.&#x27;, &#x27;Threat model completed&#x27;, &#x27;Safe logging verified&#x27;, &#x27;Provider exceptions disclosed&#x27;, &#x27;This gate is approved. Any material provider or data-flow change requires a new review.&#x27;, &#x27;approved&#x27;],
+        rollback: [&#x27;Feature flags and rollback&#x27;, &#x27;Every risky feature can be disabled independently without losing saved customer work.&#x27;, &#x27;Kill switches rehearsed&#x27;, &#x27;Prior build available&#x27;, &#x27;Customer communication ready&#x27;, &#x27;This gate is approved for the current cohort and deployment topology.&#x27;, &#x27;approved&#x27;]
+      };
+      root.querySelectorAll(&#x27;.rc-gate&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        root.querySelectorAll(&#x27;.rc-gate&#x27;).forEach(item =&gt; item.setAttribute(&#x27;aria-pressed&#x27;, &#x27;false&#x27;));
+        button.setAttribute(&#x27;aria-pressed&#x27;, &#x27;true&#x27;);
+        const data = gateDetails[button.dataset.gate];
+        root.querySelector(&#x27;#rc-selected-title&#x27;).textContent = data[0];
+        root.querySelector(&#x27;#rc-selected-copy&#x27;).textContent = data[1];
+        root.querySelector(&#x27;#rc-evidence-one&#x27;).textContent = data[2];
+        root.querySelector(&#x27;#rc-evidence-two&#x27;).textContent = data[3];
+        root.querySelector(&#x27;#rc-evidence-three&#x27;).textContent = data[4];
+        const decision = root.querySelector(&#x27;#rc-decision&#x27;);
+        decision.textContent = data[5];
+        decision.style.background = data[6] === &#x27;blocked&#x27; ? &#x27;var(--rc-red-soft)&#x27; : &#x27;var(--rc-green-soft)&#x27;;
+        decision.style.color = data[6] === &#x27;blocked&#x27; ? &#x27;var(--rc-red)&#x27; : &#x27;var(--rc-green)&#x27;;
+      }));
+
+      const dialog = root.querySelector(&#x27;#rc-dialog&#x27;);
+      const openDialog = () =&gt; { dialog.hidden = false; };
+      root.querySelector(&#x27;#rc-review-release&#x27;).addEventListener(&#x27;click&#x27;, openDialog);
+      root.querySelector(&#x27;#rc-start-review&#x27;).addEventListener(&#x27;click&#x27;, openDialog);
+      root.querySelector(&#x27;#rc-cancel-review&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; });
+      const toast = root.querySelector(&#x27;#rc-toast&#x27;);
+      let toastTimer;
+      root.querySelector(&#x27;#rc-confirm-review&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        dialog.hidden = true;
+        clearTimeout(toastTimer);
+        toast.textContent = &#x27;Release review created. Mandatory owners have been assigned; promotion remains blocked by licence clearance.&#x27;;
+        toast.hidden = false;
+        toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 3200);
+      });
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

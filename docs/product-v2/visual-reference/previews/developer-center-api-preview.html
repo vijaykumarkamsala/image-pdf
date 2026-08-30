@@ -1,0 +1,1726 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Developer Center Api Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Developer Center Api Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Developer Center Api Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;developer-center-api&quot; aria-label=&quot;Developer center API credentials asynchronous jobs webhooks and diagnostics experience&quot;&gt;
+  &lt;style&gt;
+    #developer-center-api {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #developer-center-api * { box-sizing: border-box; }
+    #developer-center-api button,
+    #developer-center-api input,
+    #developer-center-api select { font: inherit; color: inherit; }
+    #developer-center-api button { cursor: pointer; }
+    #developer-center-api .dc-shell { min-height: 776px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #developer-center-api .dc-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #developer-center-api .dc-button,
+    #developer-center-api .dc-primary,
+    #developer-center-api .dc-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #developer-center-api .dc-icon-button { width: 37px; padding: 7px; }
+    #developer-center-api .dc-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #developer-center-api .dc-button svg,
+    #developer-center-api .dc-primary svg,
+    #developer-center-api .dc-icon-button svg { width: 16px; height: 16px; }
+    #developer-center-api .dc-title-block { min-width: 240px; }
+    #developer-center-api .dc-title { font-weight: 500; }
+    #developer-center-api .dc-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #developer-center-api .dc-spacer { flex: 1; }
+    #developer-center-api .dc-version { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #developer-center-api .dc-version svg { width: 15px; height: 15px; }
+    #developer-center-api .dc-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 286px; min-height: 679px; }
+    #developer-center-api .dc-nav,
+    #developer-center-api .dc-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #developer-center-api .dc-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #developer-center-api .dc-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #developer-center-api .dc-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #developer-center-api .dc-nav-list { display: grid; gap: 3px; }
+    #developer-center-api .dc-nav-button {
+      width: 100%; min-height: 41px; border: 0; border-radius: 8px; background: transparent; padding: 8px; display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #developer-center-api .dc-nav-button svg { width: 17px; height: 17px; }
+    #developer-center-api .dc-nav-button[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #developer-center-api .dc-nav-count { margin-left: auto; min-width: 22px; text-align: center; border-radius: 10px; padding: 2px 6px; background: light-dark(#edf1f6, #2a3344); color: light-dark(#647087, #b4bfd0); }
+    #developer-center-api .dc-nav-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #developer-center-api .dc-content { min-width: 0; padding: 18px 20px 25px; }
+    #developer-center-api .dc-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+    #developer-center-api .dc-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #developer-center-api .dc-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #developer-center-api .dc-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #developer-center-api .dc-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #developer-center-api .dc-tab[aria-selected=&quot;true&quot;] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #developer-center-api .dc-banner { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 12px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #developer-center-api .dc-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #developer-center-api .dc-job-list { display: grid; gap: 7px; }
+    #developer-center-api .dc-job {
+      width: 100%; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); padding: 9px;
+      display: grid; grid-template-columns: 38px minmax(0, 1fr) 110px; gap: 9px; align-items: center; text-align: left;
+    }
+    #developer-center-api .dc-job[aria-pressed=&quot;true&quot;] { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #developer-center-api .dc-job-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #developer-center-api .dc-job[aria-pressed=&quot;true&quot;] .dc-job-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #developer-center-api .dc-job-icon svg { width: 17px; height: 17px; }
+    #developer-center-api .dc-job-name { font-weight: 500; }
+    #developer-center-api .dc-job-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.35; }
+    #developer-center-api .dc-job-state { text-align: right; color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-job-state strong { display: block; font-weight: 500; }
+    #developer-center-api .dc-job-state small { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #developer-center-api .dc-event-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 14px 0 7px; }
+    #developer-center-api .dc-section-title { font-weight: 500; }
+    #developer-center-api .dc-event { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; gap: 9px; padding: 8px 0; position: relative; }
+    #developer-center-api .dc-event:not(:last-child)::after { content: &quot;&quot;; position: absolute; left: 15px; top: 37px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #developer-center-api .dc-event-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #developer-center-api .dc-event-icon svg { width: 14px; height: 14px; }
+    #developer-center-api .dc-event-icon.active { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #developer-center-api .dc-event-title { font-weight: 500; }
+    #developer-center-api .dc-event-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #developer-center-api .dc-event-time { color: light-dark(#6b768a, #a8b3c5); white-space: nowrap; }
+    #developer-center-api .dc-credential-head { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px; gap: 9px; padding: 7px 9px; color: light-dark(#707b8f, #a7b2c5); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #developer-center-api .dc-credential { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px; gap: 9px; align-items: center; padding: 10px 9px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-credential-main { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; }
+    #developer-center-api .dc-credential-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #developer-center-api .dc-credential-icon svg { width: 17px; height: 17px; }
+    #developer-center-api .dc-credential-name { font-weight: 500; }
+    #developer-center-api .dc-credential-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #developer-center-api .dc-scope { color: light-dark(#536078, #bec8d9); }
+    #developer-center-api .dc-status { color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-code {
+      border-radius: 9px; padding: 12px; overflow-x: auto; white-space: pre; margin: 0 0 12px;
+      background: light-dark(#202838, #101621); color: light-dark(#e8edf8, #dce5f4); line-height: 1.55;
+    }
+    #developer-center-api .dc-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    #developer-center-api .dc-quick { padding: 10px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); }
+    #developer-center-api .dc-quick-title { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+    #developer-center-api .dc-quick-title svg { width: 16px; height: 16px; }
+    #developer-center-api .dc-quick-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 4px; line-height: 1.4; }
+    #developer-center-api .dc-webhook { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-webhook-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #developer-center-api .dc-webhook-icon svg { width: 18px; height: 18px; }
+    #developer-center-api .dc-webhook-name { font-weight: 500; }
+    #developer-center-api .dc-webhook-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #developer-center-api .dc-delivery { text-align: right; color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-log-head { display: grid; grid-template-columns: 76px minmax(0, 1fr) 98px 110px; gap: 9px; padding: 7px 9px; color: light-dark(#707b8f, #a7b2c5); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #developer-center-api .dc-log { display: grid; grid-template-columns: 76px minmax(0, 1fr) 98px 110px; gap: 9px; padding: 10px 9px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-log-method { font-weight: 500; }
+    #developer-center-api .dc-log-path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #developer-center-api .dc-log-result { color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-log-trace { color: light-dark(#536078, #bec8d9); }
+    #developer-center-api .dc-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #developer-center-api .dc-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #developer-center-api .dc-selected { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #developer-center-api .dc-selected-name { font-weight: 500; }
+    #developer-center-api .dc-selected-id { color: light-dark(#6b758a, #aab4c7); margin-top: 3px; word-break: break-all; }
+    #developer-center-api .dc-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #developer-center-api .dc-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #developer-center-api .dc-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #developer-center-api .dc-fact strong { display: block; font-weight: 500; }
+    #developer-center-api .dc-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; word-break: break-word; }
+    #developer-center-api .dc-contract-note { padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #developer-center-api .dc-dialog { position: absolute; z-index: 10; width: min(455px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px; border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6)); }
+    #developer-center-api .dc-dialog[hidden] { display: none; }
+    #developer-center-api .dc-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #developer-center-api .dc-dialog p { margin: 0 0 10px; color: light-dark(#637087, #afb9ca); line-height: 1.45; }
+    #developer-center-api .dc-field { display: block; margin-top: 9px; }
+    #developer-center-api .dc-field span { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #developer-center-api .dc-input,
+    #developer-center-api .dc-select { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; }
+    #developer-center-api .dc-check { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; line-height: 1.4; }
+    #developer-center-api .dc-check input { width: 18px; height: 18px; margin-top: 1px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #developer-center-api .dc-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 11px; }
+    #developer-center-api .dc-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #developer-center-api .dc-toast[hidden] { display: none; }
+    #developer-center-api .dc-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #developer-center-api .dc-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #developer-center-api .dc-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #developer-center-api .dc-inspector { display: none; }
+      #developer-center-api .dc-version { display: none; }
+    }
+    @media (max-width: 650px) {
+      #developer-center-api .dc-header { flex-wrap: wrap; }
+      #developer-center-api .dc-title-block { min-width: 0; flex: 1; }
+      #developer-center-api .dc-main { display: block; }
+      #developer-center-api .dc-nav { display: none; }
+      #developer-center-api .dc-content { padding: 14px 11px 22px; }
+      #developer-center-api .dc-content-head h2 { font-size: 18px; }
+      #developer-center-api .dc-tabs { overflow-x: auto; }
+      #developer-center-api .dc-tab { flex: 0 0 auto; }
+      #developer-center-api .dc-job { grid-template-columns: 37px minmax(0, 1fr); }
+      #developer-center-api .dc-job-state { grid-column: 2; text-align: left; }
+      #developer-center-api .dc-event { grid-template-columns: 31px minmax(0, 1fr); }
+      #developer-center-api .dc-event-time { grid-column: 2; }
+      #developer-center-api .dc-credential-head,
+      #developer-center-api .dc-log-head { display: none; }
+      #developer-center-api .dc-credential { grid-template-columns: 1fr auto; }
+      #developer-center-api .dc-scope { grid-column: 1; padding-left: 46px; }
+      #developer-center-api .dc-quick-grid { grid-template-columns: 1fr; }
+      #developer-center-api .dc-log { grid-template-columns: 68px minmax(0, 1fr); }
+      #developer-center-api .dc-log-result,
+      #developer-center-api .dc-log-trace { grid-column: 2; }
+      #developer-center-api .dc-bottom { display: none; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;dc-shell&quot;&gt;
+    &lt;header class=&quot;dc-header&quot;&gt;
+      &lt;button class=&quot;dc-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Back to workspace&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;dc-title-block&quot;&gt;&lt;div class=&quot;dc-title&quot;&gt;Developer Center&lt;/div&gt;&lt;div class=&quot;dc-subtitle&quot;&gt;Northstar Studio · Stable automation and integration surface&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;dc-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;dc-version&quot;&gt;&lt;i data-lucide=&quot;badge-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;API v1 · Stable contracts&lt;/div&gt;
+      &lt;button class=&quot;dc-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;book-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;API reference&lt;/button&gt;
+      &lt;button class=&quot;dc-primary&quot; id=&quot;dc-create-account&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;key-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Create service account&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;dc-main&quot;&gt;
+      &lt;aside class=&quot;dc-nav&quot; aria-label=&quot;Developer Center navigation&quot;&gt;
+        &lt;div class=&quot;dc-pane-head&quot;&gt;&lt;span&gt;Integrate&lt;/span&gt;&lt;i data-lucide=&quot;braces&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;dc-nav-list&quot;&gt;
+          &lt;button class=&quot;dc-nav-button&quot; type=&quot;button&quot; data-target=&quot;overview&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;rocket&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Overview&lt;/button&gt;
+          &lt;button class=&quot;dc-nav-button&quot; type=&quot;button&quot; data-target=&quot;credentials&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;key-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Credentials&lt;/button&gt;
+          &lt;button class=&quot;dc-nav-button&quot; type=&quot;button&quot; data-target=&quot;jobs&quot; aria-pressed=&quot;true&quot;&gt;&lt;i data-lucide=&quot;list-checks&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Jobs&lt;span class=&quot;dc-nav-count&quot;&gt;3&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;dc-nav-button&quot; type=&quot;button&quot; data-target=&quot;webhooks&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;webhook&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Webhooks&lt;/button&gt;
+          &lt;button class=&quot;dc-nav-button&quot; type=&quot;button&quot; data-target=&quot;logs&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;scroll-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Request logs&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;dc-nav-note&quot;&gt;&lt;strong&gt;One domain service layer.&lt;/strong&gt;&lt;br&gt;The customer UI and public API use the same permissions, jobs, provenance, exports and e-sign rules—preventing two different product behaviours.&lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;dc-content&quot;&gt;
+        &lt;div class=&quot;dc-content-head&quot;&gt;&lt;div&gt;&lt;h2 id=&quot;dc-heading&quot;&gt;Asynchronous jobs&lt;/h2&gt;&lt;div class=&quot;dc-content-subtitle&quot; id=&quot;dc-subtitle&quot;&gt;Long-running work returns immediately as a durable job with status, events and signed completion delivery.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;dc-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Developer Center views&quot;&gt;
+          &lt;button class=&quot;dc-tab&quot; type=&quot;button&quot; data-panel=&quot;overview&quot; aria-selected=&quot;false&quot;&gt;Overview&lt;/button&gt;
+          &lt;button class=&quot;dc-tab&quot; type=&quot;button&quot; data-panel=&quot;credentials&quot; aria-selected=&quot;false&quot;&gt;Credentials&lt;/button&gt;
+          &lt;button class=&quot;dc-tab&quot; type=&quot;button&quot; data-panel=&quot;jobs&quot; aria-selected=&quot;true&quot;&gt;Jobs&lt;/button&gt;
+          &lt;button class=&quot;dc-tab&quot; type=&quot;button&quot; data-panel=&quot;webhooks&quot; aria-selected=&quot;false&quot;&gt;Webhooks&lt;/button&gt;
+          &lt;button class=&quot;dc-tab&quot; type=&quot;button&quot; data-panel=&quot;logs&quot; aria-selected=&quot;false&quot;&gt;Logs&lt;/button&gt;
+        &lt;/div&gt;
+
+        &lt;section data-content=&quot;jobs&quot;&gt;
+          &lt;div class=&quot;dc-banner&quot;&gt;&lt;i data-lucide=&quot;route&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Large processing, batches, exports and e-sign actions are always durable. Proven small operations may respond synchronously, but use the same contracts and permissions.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-job-list&quot;&gt;
+            &lt;button class=&quot;dc-job&quot; type=&quot;button&quot; data-job=&quot;textile&quot; aria-pressed=&quot;true&quot;&gt;&lt;span class=&quot;dc-job-icon&quot;&gt;&lt;i data-lucide=&quot;images&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-job-name&quot;&gt;Textile batch enhancement&lt;/span&gt;&lt;span class=&quot;dc-job-meta&quot;&gt;POST /v1/processing/jobs · 24 files · Idempotent request&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-job-state&quot;&gt;&lt;strong&gt;Running&lt;/strong&gt;&lt;small&gt;17 / 24&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+            &lt;button class=&quot;dc-job&quot; type=&quot;button&quot; data-job=&quot;pdf&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;dc-job-icon&quot;&gt;&lt;i data-lucide=&quot;file-check-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-job-name&quot;&gt;Accessible PDF export&lt;/span&gt;&lt;span class=&quot;dc-job-meta&quot;&gt;POST /v1/exports · 3 output profiles&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-job-state&quot;&gt;&lt;strong&gt;Completed&lt;/strong&gt;&lt;small&gt;Webhook sent&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+            &lt;button class=&quot;dc-job&quot; type=&quot;button&quot; data-job=&quot;esign&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;dc-job-icon&quot;&gt;&lt;i data-lucide=&quot;file-signature&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-job-name&quot;&gt;Manufacturing agreement envelope&lt;/span&gt;&lt;span class=&quot;dc-job-meta&quot;&gt;POST /v1/esign/envelopes · Mixed recipient routing&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-job-state&quot;&gt;&lt;strong&gt;Waiting&lt;/strong&gt;&lt;small&gt;2 signers&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;dc-event-head&quot;&gt;&lt;span class=&quot;dc-section-title&quot;&gt;Selected job events&lt;/span&gt;&lt;button class=&quot;dc-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Refresh&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-event&quot;&gt;&lt;span class=&quot;dc-event-icon&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-event-title&quot;&gt;Job accepted&lt;/span&gt;&lt;span class=&quot;dc-event-meta&quot;&gt;Validated scopes, workspace access, idempotency key and input references&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-event-time&quot;&gt;09:42:01&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-event&quot;&gt;&lt;span class=&quot;dc-event-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-event-title&quot;&gt;Inspection and preflight complete&lt;/span&gt;&lt;span class=&quot;dc-event-meta&quot;&gt;Originals preserved; files grouped into compatible processing recipes&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-event-time&quot;&gt;09:42:18&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-event&quot;&gt;&lt;span class=&quot;dc-event-icon active&quot;&gt;&lt;i data-lucide=&quot;loader-circle&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-event-title&quot;&gt;Processing checkpoint 17 committed&lt;/span&gt;&lt;span class=&quot;dc-event-meta&quot;&gt;Completed outputs durable; pending items may be cancelled independently&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-event-time&quot;&gt;09:48:51&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-event&quot;&gt;&lt;span class=&quot;dc-event-icon&quot;&gt;&lt;i data-lucide=&quot;webhook&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-event-title&quot;&gt;Completion webhook pending&lt;/span&gt;&lt;span class=&quot;dc-event-meta&quot;&gt;Signed event will include job state and expiring result references, not file bytes&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-event-time&quot;&gt;After completion&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;overview&quot; hidden&gt;
+          &lt;div class=&quot;dc-banner&quot;&gt;&lt;i data-lucide=&quot;badge-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;All stable project, processing, export and e-sign capabilities are available where security permits. Unstable or quarantined processors never appear in production contracts.&lt;/span&gt;&lt;/div&gt;
+          &lt;pre class=&quot;dc-code&quot; aria-label=&quot;API request example&quot;&gt;POST /v1/processing/jobs
+Authorization: Bearer ••••••••••••
+Idempotency-Key: textile-order-4821
+
+{
+  &quot;projectId&quot;: &quot;prj_woodland&quot;,
+  &quot;assetVersionIds&quot;: [&quot;av_104&quot;, &quot;av_105&quot;],
+  &quot;recipeId&quot;: &quot;rcp_textile_preserve&quot;,
+  &quot;callbackProfileId&quot;: &quot;wh_factory&quot;
+}&lt;/pre&gt;
+          &lt;div class=&quot;dc-quick-grid&quot;&gt;&lt;div class=&quot;dc-quick&quot;&gt;&lt;div class=&quot;dc-quick-title&quot;&gt;&lt;i data-lucide=&quot;zap&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Small proven operations&lt;/div&gt;&lt;div class=&quot;dc-quick-meta&quot;&gt;May return synchronously when strict time, memory and output limits are satisfied.&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;dc-quick&quot;&gt;&lt;div class=&quot;dc-quick-title&quot;&gt;&lt;i data-lucide=&quot;clock-3&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Durable operations&lt;/div&gt;&lt;div class=&quot;dc-quick-meta&quot;&gt;Return a job resource immediately and continue after the client disconnects.&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;dc-quick&quot;&gt;&lt;div class=&quot;dc-quick-title&quot;&gt;&lt;i data-lucide=&quot;repeat-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Safe retries&lt;/div&gt;&lt;div class=&quot;dc-quick-meta&quot;&gt;Idempotency prevents duplicate processing, exports or signing envelopes.&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;dc-quick&quot;&gt;&lt;div class=&quot;dc-quick-title&quot;&gt;&lt;i data-lucide=&quot;webhook&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Signed completion&lt;/div&gt;&lt;div class=&quot;dc-quick-meta&quot;&gt;Webhook retries, signature verification and replay protection are built in.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;credentials&quot; hidden&gt;
+          &lt;div class=&quot;dc-banner&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Use workspace service accounts for server integrations and scoped OAuth for applications acting on behalf of a signed-in customer. Secrets are shown only once and may be rotated without downtime.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-credential-head&quot;&gt;&lt;span&gt;Identity&lt;/span&gt;&lt;span&gt;Scopes&lt;/span&gt;&lt;span&gt;Status&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-credential&quot;&gt;&lt;span class=&quot;dc-credential-main&quot;&gt;&lt;span class=&quot;dc-credential-icon&quot;&gt;&lt;i data-lucide=&quot;server&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-credential-name&quot;&gt;Factory production service&lt;/span&gt;&lt;span class=&quot;dc-credential-meta&quot;&gt;Service account · Last used 12 minutes ago&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-scope&quot;&gt;jobs:create, exports:read&lt;/span&gt;&lt;span class=&quot;dc-status&quot;&gt;Active&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-credential&quot;&gt;&lt;span class=&quot;dc-credential-main&quot;&gt;&lt;span class=&quot;dc-credential-icon&quot;&gt;&lt;i data-lucide=&quot;cloud&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-credential-name&quot;&gt;Cloud archive connector&lt;/span&gt;&lt;span class=&quot;dc-credential-meta&quot;&gt;Service account · Folder-limited write&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-scope&quot;&gt;assets:read, cloud:write&lt;/span&gt;&lt;span class=&quot;dc-status&quot;&gt;Active&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-credential&quot;&gt;&lt;span class=&quot;dc-credential-main&quot;&gt;&lt;span class=&quot;dc-credential-icon&quot;&gt;&lt;i data-lucide=&quot;user-round-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-credential-name&quot;&gt;Design review application&lt;/span&gt;&lt;span class=&quot;dc-credential-meta&quot;&gt;OAuth client · User-delegated access&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-scope&quot;&gt;projects:read, comments:write&lt;/span&gt;&lt;span class=&quot;dc-status&quot;&gt;Active&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;webhooks&quot; hidden&gt;
+          &lt;div class=&quot;dc-banner&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Webhook payloads are signed, timestamped and retryable. Consumers verify the raw payload, reject old timestamps and safely deduplicate event IDs.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-webhook&quot;&gt;&lt;span class=&quot;dc-webhook-icon&quot;&gt;&lt;i data-lucide=&quot;factory&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-webhook-name&quot;&gt;Factory operations&lt;/span&gt;&lt;span class=&quot;dc-webhook-meta&quot;&gt;https://factory.example/hooks/visual-workspace · job.* and export.*&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-delivery&quot;&gt;Healthy&lt;br&gt;200 · 184 ms&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-webhook&quot;&gt;&lt;span class=&quot;dc-webhook-icon&quot;&gt;&lt;i data-lucide=&quot;file-signature&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-webhook-name&quot;&gt;Contract system&lt;/span&gt;&lt;span class=&quot;dc-webhook-meta&quot;&gt;https://contracts.example/events · esign.envelope.*&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-delivery&quot;&gt;Healthy&lt;br&gt;200 · 241 ms&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-webhook&quot;&gt;&lt;span class=&quot;dc-webhook-icon&quot;&gt;&lt;i data-lucide=&quot;cloud&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;dc-webhook-name&quot;&gt;Archive workflow&lt;/span&gt;&lt;span class=&quot;dc-webhook-meta&quot;&gt;https://archive.example/ingest · export.completed&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;dc-delivery&quot;&gt;Retrying&lt;br&gt;503 · attempt 2&lt;/span&gt;&lt;/div&gt;
+          &lt;div style=&quot;display:flex;justify-content:flex-end;margin-top:11px&quot;&gt;&lt;button class=&quot;dc-primary&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Add endpoint&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;logs&quot; hidden&gt;
+          &lt;div class=&quot;dc-banner&quot;&gt;&lt;i data-lucide=&quot;scan-search&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Request logs expose stable identifiers, status, timing and sanitised errors. Customer content, credentials and signed download URLs are never logged.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-log-head&quot;&gt;&lt;span&gt;Method&lt;/span&gt;&lt;span&gt;Path&lt;/span&gt;&lt;span&gt;Result&lt;/span&gt;&lt;span&gt;Trace&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-log&quot;&gt;&lt;span class=&quot;dc-log-method&quot;&gt;POST&lt;/span&gt;&lt;span class=&quot;dc-log-path&quot;&gt;/v1/processing/jobs&lt;/span&gt;&lt;span class=&quot;dc-log-result&quot;&gt;202 Accepted&lt;/span&gt;&lt;span class=&quot;dc-log-trace&quot;&gt;TR-9A7C2&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-log&quot;&gt;&lt;span class=&quot;dc-log-method&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;dc-log-path&quot;&gt;/v1/jobs/job_01KJ8F&lt;/span&gt;&lt;span class=&quot;dc-log-result&quot;&gt;200 OK&lt;/span&gt;&lt;span class=&quot;dc-log-trace&quot;&gt;TR-2E8D1&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-log&quot;&gt;&lt;span class=&quot;dc-log-method&quot;&gt;POST&lt;/span&gt;&lt;span class=&quot;dc-log-path&quot;&gt;/v1/exports&lt;/span&gt;&lt;span class=&quot;dc-log-result&quot;&gt;202 Accepted&lt;/span&gt;&lt;span class=&quot;dc-log-trace&quot;&gt;TR-6C1B4&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;dc-log&quot;&gt;&lt;span class=&quot;dc-log-method&quot;&gt;POST&lt;/span&gt;&lt;span class=&quot;dc-log-path&quot;&gt;/v1/esign/envelopes&lt;/span&gt;&lt;span class=&quot;dc-log-result&quot;&gt;201 Created&lt;/span&gt;&lt;span class=&quot;dc-log-trace&quot;&gt;TR-4D7A0&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;dc-inspector&quot; aria-label=&quot;Selected API job details&quot;&gt;
+        &lt;h3&gt;Selected job&lt;/h3&gt;&lt;div class=&quot;dc-inspector-copy&quot;&gt;Stable identifiers connect the API request, processing checkpoints, webhook events and customer-visible activity.&lt;/div&gt;
+        &lt;div class=&quot;dc-selected&quot;&gt;&lt;div class=&quot;dc-selected-name&quot; id=&quot;dc-selected-name&quot;&gt;Textile batch enhancement&lt;/div&gt;&lt;div class=&quot;dc-selected-id&quot; id=&quot;dc-selected-id&quot;&gt;job_01KJ8F3QZ7A2P9M4&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;dc-inspector-section&quot;&gt;&lt;div class=&quot;dc-inspector-title&quot;&gt;Request contract&lt;/div&gt;&lt;div class=&quot;dc-fact&quot;&gt;&lt;i data-lucide=&quot;route&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong id=&quot;dc-selected-endpoint&quot;&gt;POST /v1/processing/jobs&lt;/strong&gt;&lt;small&gt;Returned 202 Accepted with job resource&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;dc-fact&quot;&gt;&lt;i data-lucide=&quot;repeat-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Idempotency protected&lt;/strong&gt;&lt;small&gt;textile-order-4821&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;dc-fact&quot;&gt;&lt;i data-lucide=&quot;map-pin&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;India region&lt;/strong&gt;&lt;small&gt;Storage and processing boundary honoured&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;dc-fact&quot;&gt;&lt;i data-lucide=&quot;webhook&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Signed webhook&lt;/strong&gt;&lt;small&gt;Factory operations endpoint&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;dc-inspector-section&quot;&gt;&lt;div class=&quot;dc-contract-note&quot;&gt;&lt;strong&gt;Contract-first extension point&lt;/strong&gt;&lt;br&gt;Future dynamic PDF variables, conditional layouts and document-generation APIs can extend versioned schemas without bypassing jobs, permissions, provenance or webhook security.&lt;/div&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;section class=&quot;dc-dialog&quot; id=&quot;dc-dialog&quot; aria-label=&quot;Create service account&quot; hidden&gt;
+      &lt;h3&gt;Create service account&lt;/h3&gt;&lt;p&gt;Choose the minimum workspace capabilities this server integration requires. A secret is displayed only once after creation.&lt;/p&gt;
+      &lt;label class=&quot;dc-field&quot;&gt;&lt;span&gt;Name&lt;/span&gt;&lt;input class=&quot;dc-input&quot; value=&quot;Factory production service&quot;&gt;&lt;/label&gt;
+      &lt;label class=&quot;dc-field&quot;&gt;&lt;span&gt;Purpose&lt;/span&gt;&lt;select class=&quot;dc-select&quot;&gt;&lt;option&gt;Create processing jobs and read approved exports&lt;/option&gt;&lt;option&gt;Read project assets&lt;/option&gt;&lt;option&gt;Send e-sign envelopes&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+      &lt;label class=&quot;dc-check&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;Restrict to Kidswear 2027 project&lt;/span&gt;&lt;/label&gt;
+      &lt;label class=&quot;dc-check&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;Require IP or network policy configured by workspace&lt;/span&gt;&lt;/label&gt;
+      &lt;div class=&quot;dc-dialog-actions&quot;&gt;&lt;button class=&quot;dc-button&quot; id=&quot;dc-dialog-cancel&quot; type=&quot;button&quot;&gt;Cancel&lt;/button&gt;&lt;button class=&quot;dc-primary&quot; id=&quot;dc-dialog-confirm&quot; type=&quot;button&quot;&gt;Create securely&lt;/button&gt;&lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;div class=&quot;dc-toast&quot; id=&quot;dc-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;/div&gt;
+    &lt;footer class=&quot;dc-bottom&quot;&gt;&lt;span&gt;UI and API parity&lt;/span&gt;&lt;span&gt;Scoped identities&lt;/span&gt;&lt;span&gt;Idempotent requests&lt;/span&gt;&lt;span class=&quot;dc-bottom-right&quot;&gt;&lt;span&gt;Durable jobs&lt;/span&gt;&lt;span&gt;Signed webhooks&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;developer-center-api&#x27;);
+      const tabs = [...root.querySelectorAll(&#x27;.dc-tab&#x27;)];
+      const panels = [...root.querySelectorAll(&#x27;[data-content]&#x27;)];
+      const navButtons = [...root.querySelectorAll(&#x27;.dc-nav-button&#x27;)];
+      const titles = {
+        overview: [&#x27;API overview&#x27;, &#x27;One versioned surface for stable project, processing, export and e-sign capabilities.&#x27;],
+        credentials: [&#x27;Credentials &amp; delegated access&#x27;, &#x27;Service accounts for servers, scoped OAuth for applications acting for customers.&#x27;],
+        jobs: [&#x27;Asynchronous jobs&#x27;, &#x27;Long-running work returns immediately as a durable job with status, events and signed completion delivery.&#x27;],
+        webhooks: [&#x27;Webhook endpoints&#x27;, &#x27;Deliver signed, retryable lifecycle events without polling or exposing file bytes.&#x27;],
+        logs: [&#x27;Request logs&#x27;, &#x27;Trace integrations with safe operational evidence and no customer content leakage.&#x27;]
+      };
+      const showPanel = (name) =&gt; {
+        tabs.forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab.dataset.panel === name)));
+        panels.forEach((panel) =&gt; { panel.hidden = panel.dataset.content !== name; });
+        navButtons.forEach((button) =&gt; button.setAttribute(&#x27;aria-pressed&#x27;, String(button.dataset.target === name)));
+        root.querySelector(&#x27;#dc-heading&#x27;).textContent = titles[name][0];
+        root.querySelector(&#x27;#dc-subtitle&#x27;).textContent = titles[name][1];
+      };
+      tabs.forEach((tab) =&gt; tab.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(tab.dataset.panel)));
+      navButtons.forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(button.dataset.target)));
+
+      const jobData = {
+        textile: [&#x27;Textile batch enhancement&#x27;, &#x27;job_01KJ8F3QZ7A2P9M4&#x27;, &#x27;POST /v1/processing/jobs&#x27;],
+        pdf: [&#x27;Accessible PDF export&#x27;, &#x27;job_01KJ7P1DW3F6R2C8&#x27;, &#x27;POST /v1/exports&#x27;],
+        esign: [&#x27;Manufacturing agreement envelope&#x27;, &#x27;env_01KJ6E8H2S5M0N7Q&#x27;, &#x27;POST /v1/esign/envelopes&#x27;]
+      };
+      const jobs = [...root.querySelectorAll(&#x27;.dc-job&#x27;)];
+      jobs.forEach((job) =&gt; job.addEventListener(&#x27;click&#x27;, () =&gt; {
+        jobs.forEach((candidate) =&gt; candidate.setAttribute(&#x27;aria-pressed&#x27;, String(candidate === job)));
+        const [name, id, endpoint] = jobData[job.dataset.job];
+        root.querySelector(&#x27;#dc-selected-name&#x27;).textContent = name;
+        root.querySelector(&#x27;#dc-selected-id&#x27;).textContent = id;
+        root.querySelector(&#x27;#dc-selected-endpoint&#x27;).textContent = endpoint;
+      }));
+
+      const toast = root.querySelector(&#x27;#dc-toast&#x27;);
+      let toastTimer;
+      const announce = (message) =&gt; { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 2500); };
+      const dialog = root.querySelector(&#x27;#dc-dialog&#x27;);
+      root.querySelector(&#x27;#dc-create-account&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = false; });
+      root.querySelector(&#x27;#dc-dialog-cancel&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; });
+      root.querySelector(&#x27;#dc-dialog-confirm&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; announce(&#x27;Service account created. The one-time secret is ready for secure copy.&#x27;); });
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

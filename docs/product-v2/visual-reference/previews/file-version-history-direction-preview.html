@@ -1,0 +1,1701 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>File Version History Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="File Version History Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;File Version History Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;file-version-history&quot; aria-label=&quot;File lifecycle and version history experience&quot;&gt;
+  &lt;style&gt;
+    #file-version-history {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: light-dark(#172033, #eef2ff);
+      background: light-dark(#e9edf4, #111722);
+    }
+    #file-version-history * { box-sizing: border-box; }
+    #file-version-history button,
+    #file-version-history input,
+    #file-version-history select { font: inherit; color: inherit; }
+    #file-version-history button { cursor: pointer; }
+    #file-version-history .vh-shell { min-height: 760px; background: light-dark(#f7f8fb, #151b28); overflow: hidden; position: relative; }
+    #file-version-history .vh-header {
+      min-height: 61px;
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #file-version-history .vh-back,
+    #file-version-history .vh-icon-button,
+    #file-version-history .vh-button,
+    #file-version-history .vh-primary {
+      min-height: 37px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    #file-version-history .vh-back,
+    #file-version-history .vh-icon-button { width: 37px; padding: 7px; }
+    #file-version-history .vh-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #file-version-history .vh-back svg,
+    #file-version-history .vh-icon-button svg,
+    #file-version-history .vh-button svg,
+    #file-version-history .vh-primary svg { width: 16px; height: 16px; }
+    #file-version-history .vh-heading { min-width: 220px; }
+    #file-version-history .vh-title { font-weight: 500; }
+    #file-version-history .vh-subtitle { color: light-dark(#687388, #aeb8ca); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+    #file-version-history .vh-mode-switch { display: flex; gap: 3px; padding: 3px; border-radius: 8px; background: light-dark(#edf1f7, #252d3d); }
+    #file-version-history .vh-mode { min-height: 32px; border: 0; border-radius: 6px; padding: 6px 9px; background: transparent; color: light-dark(#5d687d, #b3bdd0); }
+    #file-version-history .vh-mode[aria-pressed=&quot;true&quot;] { background: light-dark(#ffffff, #38445b); color: light-dark(#1c2942, #ffffff); box-shadow: 0 1px 3px light-dark(#cdd4e0, #0d111b); }
+    #file-version-history .vh-spacer { flex: 1; }
+    #file-version-history .vh-saved { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #file-version-history .vh-saved svg { width: 15px; height: 15px; }
+    #file-version-history .vh-main { display: grid; grid-template-columns: 252px minmax(0, 1fr) 290px; min-height: 661px; }
+    #file-version-history .vh-timeline,
+    #file-version-history .vh-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #file-version-history .vh-timeline { border-right: 1px solid light-dark(#dce2eb, #30394b); }
+    #file-version-history .vh-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #file-version-history .vh-timeline-head { padding: 14px 13px 10px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #file-version-history .vh-timeline-title { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-weight: 500; }
+    #file-version-history .vh-timeline-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.4; margin-top: 4px; }
+    #file-version-history .vh-filter { width: 100%; min-height: 35px; margin-top: 10px; border-radius: 7px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 6px 8px; }
+    #file-version-history .vh-events { padding: 8px; }
+    #file-version-history .vh-group-label { color: light-dark(#737d91, #9faabd); padding: 7px 8px 4px; }
+    #file-version-history .vh-event {
+      width: 100%;
+      min-height: 62px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      display: grid;
+      grid-template-columns: 31px 1fr;
+      gap: 8px;
+      padding: 8px;
+      text-align: left;
+      position: relative;
+    }
+    #file-version-history .vh-event::after { content: &quot;&quot;; position: absolute; left: 23px; top: 42px; bottom: -10px; width: 1px; background: light-dark(#d7dee8, #394356); }
+    #file-version-history .vh-event:last-of-type::after { display: none; }
+    #file-version-history .vh-event[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #2b3750); border-color: light-dark(#9fb6f8, #657fca); }
+    #file-version-history .vh-event-icon { width: 31px; height: 31px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #file-version-history .vh-event[aria-pressed=&quot;true&quot;] .vh-event-icon { background: light-dark(#d9e5ff, #3b4a69); color: light-dark(#204fc6, #c3cfff); }
+    #file-version-history .vh-event-icon svg { width: 15px; height: 15px; }
+    #file-version-history .vh-event-title { font-weight: 500; }
+    #file-version-history .vh-event-meta { color: light-dark(#6d778b, #a8b3c5); margin-top: 2px; line-height: 1.35; }
+    #file-version-history .vh-canvas {
+      min-width: 0;
+      padding: 18px 18px 50px;
+      position: relative;
+      background-color: light-dark(#e9edf4, #121824);
+      background-image: radial-gradient(light-dark(#ced6e2, #2e3647) .7px, transparent .7px);
+      background-size: 18px 18px;
+    }
+    #file-version-history .vh-canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 14px; }
+    #file-version-history .vh-selected-label { font-weight: 500; }
+    #file-version-history .vh-selected-meta { color: light-dark(#637087, #adb8ca); margin-top: 2px; }
+    #file-version-history .vh-compare-switch { display: flex; gap: 3px; padding: 3px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558); background: light-dark(#ffffff, #222a3a); }
+    #file-version-history .vh-compare-button { min-height: 30px; border: 0; border-radius: 6px; background: transparent; padding: 5px 8px; color: light-dark(#5f6a80, #b1bbce); }
+    #file-version-history .vh-compare-button[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #35415a); color: light-dark(#204fc6, #d0daff); }
+    #file-version-history .vh-preview-area { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: min(620px, 100%); margin: 0 auto; }
+    #file-version-history .vh-preview-column { min-width: 0; }
+    #file-version-history .vh-preview-head { display: flex; justify-content: space-between; gap: 7px; margin-bottom: 6px; color: light-dark(#5e697f, #b1bbce); }
+    #file-version-history .vh-artboard { aspect-ratio: 1; position: relative; overflow: hidden; display: grid; place-items: center; background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; box-shadow: 0 8px 22px light-dark(#bcc5d3, #080b12); }
+    #file-version-history .vh-artboard::before { content: &quot;&quot;; position: absolute; inset: 9%; border-radius: 48%; border: 1px solid #c4b69f; background: radial-gradient(circle at 25% 25%, #75805d 0 3%, transparent 3.5%), radial-gradient(circle at 76% 27%, #a57a54 0 3%, transparent 3.5%), radial-gradient(circle at 24% 74%, #687a59 0 4%, transparent 4.5%), radial-gradient(circle at 76% 75%, #956049 0 4%, transparent 4.5%), radial-gradient(circle at center, #f4ede1 0 29%, transparent 30%); }
+    #file-version-history .vh-art { position: relative; z-index: 2; font-size: 86px; filter: saturate(.74); }
+    #file-version-history .vh-artboard.previous { filter: saturate(.7) contrast(.94); }
+    #file-version-history .vh-change-pin { position: absolute; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; top: 29%; right: 24%; background: #315dcc; color: #ffffff; border: 2px solid #ffffff; }
+    #file-version-history .vh-change-pin svg { width: 12px; height: 12px; }
+    #file-version-history .vh-change-list { width: min(620px, 100%); margin: 12px auto 0; padding: 10px 0; border-top: 1px solid light-dark(#cfd6e1, #343e50); }
+    #file-version-history .vh-change-row { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: start; padding: 7px 0; }
+    #file-version-history .vh-change-row svg { width: 16px; height: 16px; color: light-dark(#267a5c, #75d8b7); }
+    #file-version-history .vh-change-title { font-weight: 500; }
+    #file-version-history .vh-change-detail { color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.35; }
+    #file-version-history .vh-change-origin { color: light-dark(#667288, #a7b3c6); white-space: nowrap; }
+    #file-version-history .vh-canvas-status { position: absolute; left: 15px; bottom: 10px; padding: 6px 9px; border-radius: 8px; border: 1px solid light-dark(#d6dde8, #3a4558); background: light-dark(#ffffff, #222a3a); color: light-dark(#5f6a80, #b1bbce); display: flex; align-items: center; gap: 7px; }
+    #file-version-history .vh-status-dot { width: 7px; height: 7px; border-radius: 50%; background: light-dark(#278563, #55d3a5); }
+    #file-version-history .vh-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #file-version-history .vh-help { color: light-dark(#6b758a, #aab4c7); margin-bottom: 13px; line-height: 1.45; }
+    #file-version-history .vh-type-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); margin-bottom: 12px; }
+    #file-version-history .vh-type-badge svg { width: 14px; height: 14px; }
+    #file-version-history .vh-detail-row { display: flex; justify-content: space-between; gap: 9px; padding: 6px 0; }
+    #file-version-history .vh-detail-row span:first-child { color: light-dark(#707a8e, #a2adbf); }
+    #file-version-history .vh-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #file-version-history .vh-section-title { font-weight: 500; margin-bottom: 8px; }
+    #file-version-history .vh-protection { padding: 10px; border-radius: 8px; background: light-dark(#edf8f3, #203a33); color: light-dark(#176749, #b9eedb); line-height: 1.45; }
+    #file-version-history .vh-action-list { display: grid; gap: 7px; }
+    #file-version-history .vh-action-list .vh-button { width: 100%; justify-content: flex-start; }
+    #file-version-history .vh-link-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid light-dark(#e2e6ed, #30394b); }
+    #file-version-history .vh-link-row svg { width: 16px; height: 16px; color: light-dark(#2453c4, #bdcaff); }
+    #file-version-history .vh-link-row span { flex: 1; }
+    #file-version-history .vh-restore-dialog {
+      position: absolute;
+      z-index: 7;
+      width: min(390px, calc(100% - 32px));
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 15px;
+      border-radius: 11px;
+      border: 1px solid light-dark(#d1d9e5, #3d485c);
+      background: light-dark(#ffffff, #1f2737);
+      box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #file-version-history .vh-restore-dialog[hidden] { display: none; }
+    #file-version-history .vh-dialog-title { font-weight: 500; margin-bottom: 5px; }
+    #file-version-history .vh-dialog-copy { color: light-dark(#687388, #aeb8ca); line-height: 1.45; margin-bottom: 13px; }
+    #file-version-history .vh-dialog-note { padding: 10px; border-radius: 8px; background: light-dark(#edf8f3, #203a33); color: light-dark(#176749, #b9eedb); line-height: 1.4; margin-bottom: 13px; }
+    #file-version-history .vh-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; }
+    #file-version-history .vh-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #file-version-history .vh-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 900px) {
+      #file-version-history .vh-main { grid-template-columns: 224px minmax(0, 1fr); }
+      #file-version-history .vh-inspector { display: none; }
+      #file-version-history .vh-saved { display: none; }
+    }
+    @media (max-width: 650px) {
+      #file-version-history .vh-header { flex-wrap: wrap; }
+      #file-version-history .vh-heading { min-width: 0; flex: 1; }
+      #file-version-history .vh-mode-switch { order: 3; width: 100%; }
+      #file-version-history .vh-mode { flex: 1; }
+      #file-version-history .vh-spacer { display: none; }
+      #file-version-history .vh-primary span { display: none; }
+      #file-version-history .vh-main { display: block; }
+      #file-version-history .vh-timeline { border-right: 0; }
+      #file-version-history .vh-events { display: flex; gap: 7px; overflow-x: auto; padding: 8px; }
+      #file-version-history .vh-group-label { display: none; }
+      #file-version-history .vh-event { min-width: 190px; }
+      #file-version-history .vh-event::after { display: none; }
+      #file-version-history .vh-canvas { padding: 13px 9px 47px; }
+      #file-version-history .vh-preview-area { gap: 7px; }
+      #file-version-history .vh-art { font-size: 55px; }
+      #file-version-history .vh-change-row { grid-template-columns: 18px 1fr; }
+      #file-version-history .vh-change-origin { grid-column: 2; }
+      #file-version-history .vh-bottom { display: none; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;vh-shell&quot;&gt;
+    &lt;header class=&quot;vh-header&quot;&gt;
+      &lt;button class=&quot;vh-back&quot; type=&quot;button&quot; aria-label=&quot;Back to project&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;vh-heading&quot;&gt;&lt;div class=&quot;vh-title&quot;&gt;Hedgehog textile design&lt;/div&gt;&lt;div class=&quot;vh-subtitle&quot;&gt;Woodland collection · Current version 12&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;vh-mode-switch&quot; aria-label=&quot;File view&quot;&gt;&lt;button class=&quot;vh-mode&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot;&gt;Document&lt;/button&gt;&lt;button class=&quot;vh-mode&quot; type=&quot;button&quot; aria-pressed=&quot;true&quot;&gt;History&lt;/button&gt;&lt;button class=&quot;vh-mode&quot; type=&quot;button&quot; aria-pressed=&quot;false&quot;&gt;Activity&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;vh-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;vh-saved&quot;&gt;&lt;i data-lucide=&quot;cloud-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;All changes saved&lt;/div&gt;
+      &lt;button class=&quot;vh-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;bookmark-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Name version&lt;/button&gt;
+      &lt;button class=&quot;vh-primary&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;pen-line&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Open editor&lt;/span&gt;&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;vh-main&quot;&gt;
+      &lt;aside class=&quot;vh-timeline&quot; aria-label=&quot;Version timeline&quot;&gt;
+        &lt;div class=&quot;vh-timeline-head&quot;&gt;&lt;div class=&quot;vh-timeline-title&quot;&gt;&lt;span&gt;Complete history&lt;/span&gt;&lt;span&gt;12 versions&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;vh-timeline-copy&quot;&gt;Autosaves, named milestones, source updates, variants and exports.&lt;/div&gt;&lt;select class=&quot;vh-filter&quot; aria-label=&quot;Filter history&quot;&gt;&lt;option&gt;All history&lt;/option&gt;&lt;option&gt;Document versions&lt;/option&gt;&lt;option&gt;Source versions&lt;/option&gt;&lt;option&gt;Variants&lt;/option&gt;&lt;option&gt;Exports&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-events&quot;&gt;
+          &lt;div class=&quot;vh-group-label&quot;&gt;Today&lt;/div&gt;
+          &lt;button class=&quot;vh-event&quot; type=&quot;button&quot; data-event=&quot;v12&quot; aria-pressed=&quot;true&quot;&gt;&lt;span class=&quot;vh-event-icon&quot;&gt;&lt;i data-lucide=&quot;bookmark-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;vh-event-title&quot;&gt;v12 · Print review&lt;/span&gt;&lt;span class=&quot;vh-event-meta&quot;&gt;Named version · Vijay · Just now&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;vh-event&quot; type=&quot;button&quot; data-event=&quot;v11&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;vh-event-icon&quot;&gt;&lt;i data-lucide=&quot;save&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;vh-event-title&quot;&gt;v11 · Automatic&lt;/span&gt;&lt;span class=&quot;vh-event-meta&quot;&gt;3 safe adjustments · 22 min ago&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;vh-event&quot; type=&quot;button&quot; data-event=&quot;export&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;vh-event-icon&quot;&gt;&lt;i data-lucide=&quot;package-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;vh-event-title&quot;&gt;Production export&lt;/span&gt;&lt;span class=&quot;vh-event-meta&quot;&gt;3 derivatives · Checks passed&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;div class=&quot;vh-group-label&quot;&gt;Yesterday&lt;/div&gt;
+          &lt;button class=&quot;vh-event&quot; type=&quot;button&quot; data-event=&quot;variant&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;vh-event-icon&quot;&gt;&lt;i data-lucide=&quot;git-branch&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;vh-event-title&quot;&gt;Strong color variant&lt;/span&gt;&lt;span class=&quot;vh-event-meta&quot;&gt;Alternative direction · Kept separately&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;vh-event&quot; type=&quot;button&quot; data-event=&quot;source&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;vh-event-icon&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;vh-event-title&quot;&gt;Source version 4&lt;/span&gt;&lt;span class=&quot;vh-event-meta&quot;&gt;Accepted from Google Drive · Original kept&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;vh-event&quot; type=&quot;button&quot; data-event=&quot;original&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;vh-event-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;vh-event-title&quot;&gt;Original source&lt;/span&gt;&lt;span class=&quot;vh-event-meta&quot;&gt;First imported · Never modified&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;vh-canvas&quot;&gt;
+        &lt;div class=&quot;vh-canvas-head&quot;&gt;&lt;div&gt;&lt;div class=&quot;vh-selected-label&quot; id=&quot;vh-selected-label&quot;&gt;v12 · Print review&lt;/div&gt;&lt;div class=&quot;vh-selected-meta&quot; id=&quot;vh-selected-meta&quot;&gt;Compared with v10 · Two visual changes&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;vh-compare-switch&quot; aria-label=&quot;Comparison view&quot;&gt;&lt;button class=&quot;vh-compare-button&quot; type=&quot;button&quot; data-compare=&quot;single&quot; aria-pressed=&quot;false&quot;&gt;Selected&lt;/button&gt;&lt;button class=&quot;vh-compare-button&quot; type=&quot;button&quot; data-compare=&quot;side&quot; aria-pressed=&quot;true&quot;&gt;Side by side&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-preview-area&quot; id=&quot;vh-preview-area&quot;&gt;
+          &lt;div class=&quot;vh-preview-column&quot; id=&quot;vh-before-column&quot;&gt;&lt;div class=&quot;vh-preview-head&quot;&gt;&lt;strong&gt;v10&lt;/strong&gt;&lt;span&gt;Before&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;vh-artboard previous&quot;&gt;&lt;div class=&quot;vh-art&quot; aria-hidden=&quot;true&quot;&gt;🦔&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;vh-preview-column&quot;&gt;&lt;div class=&quot;vh-preview-head&quot;&gt;&lt;strong id=&quot;vh-current-version&quot;&gt;v12&lt;/strong&gt;&lt;span&gt;Selected&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;vh-artboard&quot;&gt;&lt;div class=&quot;vh-art&quot; aria-hidden=&quot;true&quot;&gt;🦔&lt;/div&gt;&lt;span class=&quot;vh-change-pin&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;vh-change-list&quot;&gt;
+          &lt;div class=&quot;vh-change-row&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;div class=&quot;vh-change-title&quot; id=&quot;vh-change-one&quot;&gt;Fine outlines protected&lt;/div&gt;&lt;div class=&quot;vh-change-detail&quot; id=&quot;vh-change-one-detail&quot;&gt;Non-destructive mask retained; no reconstructed region.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;vh-change-origin&quot;&gt;Adjustment&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;vh-change-row&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;div class=&quot;vh-change-title&quot; id=&quot;vh-change-two&quot;&gt;Light botanical tones balanced&lt;/div&gt;&lt;div class=&quot;vh-change-detail&quot; id=&quot;vh-change-two-detail&quot;&gt;Workspace production profile applied to preview only.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;vh-change-origin&quot;&gt;Profile&lt;/span&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;vh-canvas-status&quot;&gt;&lt;span class=&quot;vh-status-dot&quot;&gt;&lt;/span&gt;&lt;span id=&quot;vh-canvas-status&quot;&gt;Viewing history · Current work remains untouched&lt;/span&gt;&lt;/div&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;vh-inspector&quot; aria-label=&quot;Selected version details&quot;&gt;
+        &lt;h3 id=&quot;vh-detail-title&quot;&gt;Print review&lt;/h3&gt;&lt;div class=&quot;vh-help&quot; id=&quot;vh-detail-help&quot;&gt;A durable named document version created by Vijay.&lt;/div&gt;
+        &lt;div class=&quot;vh-type-badge&quot; id=&quot;vh-type-badge&quot;&gt;&lt;i data-lucide=&quot;bookmark-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Document version&lt;/div&gt;
+        &lt;div class=&quot;vh-detail-row&quot;&gt;&lt;span&gt;Version&lt;/span&gt;&lt;strong id=&quot;vh-version-value&quot;&gt;12&lt;/strong&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-detail-row&quot;&gt;&lt;span&gt;Source basis&lt;/span&gt;&lt;strong id=&quot;vh-source-value&quot;&gt;Source v4&lt;/strong&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-detail-row&quot;&gt;&lt;span&gt;Created&lt;/span&gt;&lt;strong id=&quot;vh-created-value&quot;&gt;Just now&lt;/strong&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-detail-row&quot;&gt;&lt;span&gt;Comments&lt;/span&gt;&lt;strong&gt;2 linked&lt;/strong&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-section&quot;&gt;&lt;div class=&quot;vh-section-title&quot;&gt;Protection&lt;/div&gt;&lt;div class=&quot;vh-protection&quot; id=&quot;vh-protection&quot;&gt;&lt;strong&gt;Nothing will be overwritten.&lt;/strong&gt;&lt;br&gt;Restoring this version creates a new current version and keeps every later version available.&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-section&quot;&gt;&lt;div class=&quot;vh-section-title&quot;&gt;Actions&lt;/div&gt;&lt;div class=&quot;vh-action-list&quot;&gt;&lt;button class=&quot;vh-button&quot; id=&quot;vh-restore-open&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;history&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Restore as new current&lt;/button&gt;&lt;button class=&quot;vh-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;git-branch&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Create variant from here&lt;/button&gt;&lt;button class=&quot;vh-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;copy-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Save as separate file&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;vh-section&quot;&gt;&lt;div class=&quot;vh-section-title&quot;&gt;Related results&lt;/div&gt;&lt;div class=&quot;vh-link-row&quot;&gt;&lt;i data-lucide=&quot;image&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Textile master PNG&lt;/span&gt;&lt;strong&gt;Export&lt;/strong&gt;&lt;/div&gt;&lt;div class=&quot;vh-link-row&quot;&gt;&lt;i data-lucide=&quot;file-type-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Production proof PDF&lt;/span&gt;&lt;strong&gt;Export&lt;/strong&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;section class=&quot;vh-restore-dialog&quot; id=&quot;vh-restore-dialog&quot; aria-label=&quot;Restore selected version&quot; hidden&gt;
+      &lt;div class=&quot;vh-dialog-title&quot;&gt;Restore v12 as the current version?&lt;/div&gt;
+      &lt;div class=&quot;vh-dialog-copy&quot;&gt;Your current work will be preserved. The restored state becomes a new version at the top of the history.&lt;/div&gt;
+      &lt;div class=&quot;vh-dialog-note&quot;&gt;&lt;strong&gt;Safe restoration&lt;/strong&gt;&lt;br&gt;No original, source version, document version, comment, variant or export is deleted.&lt;/div&gt;
+      &lt;div class=&quot;vh-dialog-actions&quot;&gt;&lt;button class=&quot;vh-button&quot; id=&quot;vh-restore-cancel&quot; type=&quot;button&quot;&gt;Cancel&lt;/button&gt;&lt;button class=&quot;vh-primary&quot; id=&quot;vh-restore-confirm&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;history&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Create restored version&lt;/button&gt;&lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;footer class=&quot;vh-bottom&quot;&gt;&lt;span&gt;Original source immutable&lt;/span&gt;&lt;span&gt;Continuous autosave&lt;/span&gt;&lt;span&gt;Persistent undo and redo&lt;/span&gt;&lt;span class=&quot;vh-bottom-right&quot;&gt;&lt;span&gt;Named versions durable&lt;/span&gt;&lt;span&gt;Exports independently traceable&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;file-version-history&#x27;);
+      const events = [...root.querySelectorAll(&#x27;.vh-event&#x27;)];
+      const selectedLabel = root.querySelector(&#x27;#vh-selected-label&#x27;);
+      const selectedMeta = root.querySelector(&#x27;#vh-selected-meta&#x27;);
+      const currentVersion = root.querySelector(&#x27;#vh-current-version&#x27;);
+      const detailTitle = root.querySelector(&#x27;#vh-detail-title&#x27;);
+      const detailHelp = root.querySelector(&#x27;#vh-detail-help&#x27;);
+      const typeBadge = root.querySelector(&#x27;#vh-type-badge&#x27;);
+      const versionValue = root.querySelector(&#x27;#vh-version-value&#x27;);
+      const sourceValue = root.querySelector(&#x27;#vh-source-value&#x27;);
+      const createdValue = root.querySelector(&#x27;#vh-created-value&#x27;);
+      const changeOne = root.querySelector(&#x27;#vh-change-one&#x27;);
+      const changeOneDetail = root.querySelector(&#x27;#vh-change-one-detail&#x27;);
+      const changeTwo = root.querySelector(&#x27;#vh-change-two&#x27;);
+      const changeTwoDetail = root.querySelector(&#x27;#vh-change-two-detail&#x27;);
+      const protection = root.querySelector(&#x27;#vh-protection&#x27;);
+      const eventData = {
+        v12: [&#x27;v12 · Print review&#x27;, &#x27;Compared with v10 · Two visual changes&#x27;, &#x27;v12&#x27;, &#x27;Print review&#x27;, &#x27;A durable named document version created by Vijay.&#x27;, &#x27;bookmark-check&#x27;, &#x27;Document version&#x27;, &#x27;12&#x27;, &#x27;Source v4&#x27;, &#x27;Just now&#x27;, &#x27;Fine outlines protected&#x27;, &#x27;Non-destructive mask retained; no reconstructed region.&#x27;, &#x27;Light botanical tones balanced&#x27;, &#x27;Workspace production profile applied to preview only.&#x27;],
+        v11: [&#x27;v11 · Automatic&#x27;, &#x27;Autosaved after three safe adjustments&#x27;, &#x27;v11&#x27;, &#x27;Automatic save&#x27;, &#x27;A durable automatic document version.&#x27;, &#x27;save&#x27;, &#x27;Document version&#x27;, &#x27;11&#x27;, &#x27;Source v4&#x27;, &#x27;22 min ago&#x27;, &#x27;Sharpen mask changed&#x27;, &#x27;Editable adjustment retained.&#x27;, &#x27;White balance refined&#x27;, &#x27;Preview recalculated without touching source pixels.&#x27;],
+        export: [&#x27;Production export&#x27;, &#x27;Three immutable derivatives from document v12&#x27;, &#x27;Export&#x27;, &#x27;Production export&#x27;, &#x27;A completed output job linked to its exact source and document versions.&#x27;, &#x27;package-check&#x27;, &#x27;Export result&#x27;, &#x27;Job 184&#x27;, &#x27;Document v12&#x27;, &#x27;Today&#x27;, &#x27;Textile master created&#x27;, &#x27;PNG output passed production checks.&#x27;, &#x27;Proof PDF created&#x27;, &#x27;PDF/X output includes the approved production profile.&#x27;],
+        variant: [&#x27;Strong color variant&#x27;, &#x27;Alternative direction branched from v10&#x27;, &#x27;Variant&#x27;, &#x27;Strong color variant&#x27;, &#x27;An alternative editing direction that does not replace the main document.&#x27;, &#x27;git-branch&#x27;, &#x27;Named variant&#x27;, &#x27;Variant 2&#x27;, &#x27;Document v10&#x27;, &#x27;Yesterday&#x27;, &#x27;Color strength increased&#x27;, &#x27;Alternative choice remains isolated from the main direction.&#x27;, &#x27;Previous result retained&#x27;, &#x27;Switch or compare without overwriting either direction.&#x27;],
+        source: [&#x27;Source version 4&#x27;, &#x27;Accepted external update from Google Drive&#x27;, &#x27;Source v4&#x27;, &#x27;Google Drive source update&#x27;, &#x27;A new immutable source version accepted after comparison.&#x27;, &#x27;refresh-cw&#x27;, &#x27;Source version&#x27;, &#x27;4&#x27;, &#x27;Original source&#x27;, &#x27;Yesterday&#x27;, &#x27;External pixels changed&#x27;, &#x27;Accepted only after customer confirmation.&#x27;, &#x27;Existing document preserved&#x27;, &#x27;No document or variant was silently replaced.&#x27;],
+        original: [&#x27;Original source&#x27;, &#x27;First imported file · never modified&#x27;, &#x27;Original&#x27;, &#x27;Original source&#x27;, &#x27;The immutable first file imported into the workspace.&#x27;, &#x27;shield-check&#x27;, &#x27;Original asset&#x27;, &#x27;1&#x27;, &#x27;None&#x27;, &#x27;First import&#x27;, &#x27;Original bytes preserved&#x27;, &#x27;Integrity hash remains unchanged.&#x27;, &#x27;All work is derivative&#x27;, &#x27;Edits, variants and exports reference this source without overwriting it.&#x27;]
+      };
+      events.forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        events.forEach((item) =&gt; item.setAttribute(&#x27;aria-pressed&#x27;, String(item === button)));
+        const d = eventData[button.dataset.event];
+        selectedLabel.textContent = d[0]; selectedMeta.textContent = d[1]; currentVersion.textContent = d[2];
+        detailTitle.textContent = d[3]; detailHelp.textContent = d[4];
+        typeBadge.innerHTML = &#x27;&lt;i data-lucide=&quot;&#x27; + d[5] + &#x27;&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27; + d[6];
+        versionValue.textContent = d[7]; sourceValue.textContent = d[8]; createdValue.textContent = d[9];
+        changeOne.textContent = d[10]; changeOneDetail.textContent = d[11]; changeTwo.textContent = d[12]; changeTwoDetail.textContent = d[13];
+        protection.innerHTML = button.dataset.event === &#x27;original&#x27; ? &#x27;&lt;strong&gt;Permanent protection.&lt;/strong&gt;&lt;br&gt;The original file can be downloaded or referenced, but never modified in place.&#x27; : &#x27;&lt;strong&gt;Nothing will be overwritten.&lt;/strong&gt;&lt;br&gt;Restoring creates a new current version and keeps every later version available.&#x27;;
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+
+      const compareButtons = [...root.querySelectorAll(&#x27;.vh-compare-button&#x27;)];
+      const beforeColumn = root.querySelector(&#x27;#vh-before-column&#x27;);
+      const previewArea = root.querySelector(&#x27;#vh-preview-area&#x27;);
+      compareButtons.forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        compareButtons.forEach((item) =&gt; item.setAttribute(&#x27;aria-pressed&#x27;, String(item === button)));
+        const single = button.dataset.compare === &#x27;single&#x27;;
+        beforeColumn.hidden = single;
+        previewArea.style.gridTemplateColumns = single ? &#x27;1fr&#x27; : &#x27;1fr 1fr&#x27;;
+      }));
+
+      const dialog = root.querySelector(&#x27;#vh-restore-dialog&#x27;);
+      root.querySelector(&#x27;#vh-restore-open&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = false; });
+      root.querySelector(&#x27;#vh-restore-cancel&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; });
+      root.querySelector(&#x27;#vh-restore-confirm&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        dialog.hidden = true;
+        root.querySelector(&#x27;#vh-canvas-status&#x27;).textContent = &#x27;Restored safely as version 13 · Previous history preserved&#x27;;
+      });
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

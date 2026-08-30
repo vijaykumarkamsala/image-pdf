@@ -1,0 +1,284 @@
+<section id="collaboration-locks-comments" aria-label="Collaboration document locks comments and approvals experience">
+  <style>
+    #collaboration-locks-comments {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff);
+      background: light-dark(#e9edf4, #111722);
+    }
+    #collaboration-locks-comments * { box-sizing: border-box; }
+    #collaboration-locks-comments button,
+    #collaboration-locks-comments input { font: inherit; color: inherit; }
+    #collaboration-locks-comments button { cursor: pointer; }
+    #collaboration-locks-comments .cl-shell { min-height: 760px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #collaboration-locks-comments .cl-header {
+      min-height: 61px; padding: 9px 14px; display: flex; align-items: center; gap: 10px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #collaboration-locks-comments .cl-button,
+    #collaboration-locks-comments .cl-primary,
+    #collaboration-locks-comments .cl-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #collaboration-locks-comments .cl-icon-button { width: 37px; padding: 7px; }
+    #collaboration-locks-comments .cl-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #collaboration-locks-comments .cl-button svg,
+    #collaboration-locks-comments .cl-primary svg,
+    #collaboration-locks-comments .cl-icon-button svg { width: 16px; height: 16px; }
+    #collaboration-locks-comments .cl-title-block { min-width: 240px; }
+    #collaboration-locks-comments .cl-title { font-weight: 500; }
+    #collaboration-locks-comments .cl-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 330px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #collaboration-locks-comments .cl-spacer { flex: 1; }
+    #collaboration-locks-comments .cl-presence { display: flex; align-items: center; }
+    #collaboration-locks-comments .cl-avatar {
+      width: 31px; height: 31px; margin-left: -6px; border-radius: 50%; display: grid; place-items: center;
+      border: 2px solid light-dark(#ffffff, #1c2333); background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500;
+    }
+    #collaboration-locks-comments .cl-avatar:first-child { margin-left: 0; }
+    #collaboration-locks-comments .cl-lock-state {
+      min-height: 35px; display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 8px;
+      background: light-dark(#edf8f3, #203a33); color: light-dark(#176749, #b9eedb); white-space: nowrap;
+    }
+    #collaboration-locks-comments .cl-lock-state svg { width: 15px; height: 15px; }
+    #collaboration-locks-comments .cl-main { display: grid; grid-template-columns: 220px minmax(0, 1fr) 310px; min-height: 663px; }
+    #collaboration-locks-comments .cl-files,
+    #collaboration-locks-comments .cl-panel { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #collaboration-locks-comments .cl-files { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #collaboration-locks-comments .cl-panel { border-left: 1px solid light-dark(#dce2eb, #30394b); }
+    #collaboration-locks-comments .cl-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 5px 10px; font-weight: 500; }
+    #collaboration-locks-comments .cl-project-file {
+      width: 100%; min-height: 70px; border: 1px solid transparent; border-radius: 9px; background: transparent;
+      display: grid; grid-template-columns: 45px 1fr; gap: 9px; align-items: center; text-align: left; padding: 8px;
+    }
+    #collaboration-locks-comments .cl-project-file[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); border-color: light-dark(#9fb6f8, #657fca); }
+    #collaboration-locks-comments .cl-file-preview { width: 45px; aspect-ratio: 1; border-radius: 7px; display: grid; place-items: center; background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; font-size: 23px; }
+    #collaboration-locks-comments .cl-file-preview.pdf { background: light-dark(#eceff4, #2b3342); color: light-dark(#59647a, #bdc6d7); font-size: inherit; }
+    #collaboration-locks-comments .cl-file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #collaboration-locks-comments .cl-file-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.35; }
+    #collaboration-locks-comments .cl-file-lock { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; color: light-dark(#536b83, #adbbcf); }
+    #collaboration-locks-comments .cl-file-lock svg { width: 13px; height: 13px; }
+    #collaboration-locks-comments .cl-project-rule { margin: 13px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #collaboration-locks-comments .cl-canvas {
+      min-width: 0; padding: 20px 18px 48px; position: relative;
+      background-color: light-dark(#e9edf4, #121824);
+      background-image: radial-gradient(light-dark(#ced6e2, #2e3647) .7px, transparent .7px); background-size: 18px 18px;
+    }
+    #collaboration-locks-comments .cl-canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 14px; }
+    #collaboration-locks-comments .cl-view-label { font-weight: 500; }
+    #collaboration-locks-comments .cl-view-meta { color: light-dark(#647087, #adb8ca); margin-top: 2px; }
+    #collaboration-locks-comments .cl-comment-mode { display: flex; gap: 3px; padding: 3px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558); background: light-dark(#ffffff, #222a3a); }
+    #collaboration-locks-comments .cl-comment-mode button { min-height: 30px; border: 0; border-radius: 6px; padding: 5px 8px; background: transparent; color: light-dark(#5f6a80, #b1bbce); }
+    #collaboration-locks-comments .cl-comment-mode button[aria-pressed="true"] { background: light-dark(#eaf0ff, #35415a); color: light-dark(#204fc6, #d0daff); }
+    #collaboration-locks-comments .cl-artboard {
+      width: min(500px, 94%); aspect-ratio: 1; margin: 0 auto; position: relative; display: grid; place-items: center; overflow: hidden;
+      background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; box-shadow: 0 10px 28px light-dark(#b8c0ce, #080b12);
+    }
+    #collaboration-locks-comments .cl-artboard::before { content: ""; position: absolute; inset: 8%; border-radius: 48%; border: 1px solid #c4b69f; background: radial-gradient(circle at 25% 25%, #75805d 0 3%, transparent 3.5%), radial-gradient(circle at 76% 27%, #a57a54 0 3%, transparent 3.5%), radial-gradient(circle at 24% 74%, #687a59 0 4%, transparent 4.5%), radial-gradient(circle at 76% 75%, #956049 0 4%, transparent 4.5%), radial-gradient(circle at center, #f4ede1 0 29%, transparent 30%); }
+    #collaboration-locks-comments .cl-art { position: relative; z-index: 2; font-size: 112px; filter: saturate(.75); }
+    #collaboration-locks-comments .cl-pin {
+      position: absolute; z-index: 4; width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ffffff;
+      display: grid; place-items: center; background: #315dcc; color: #ffffff; font-weight: 500; box-shadow: 0 3px 8px rgba(29,38,58,.28);
+    }
+    #collaboration-locks-comments .cl-pin.one { top: 24%; left: 27%; }
+    #collaboration-locks-comments .cl-pin.two { bottom: 27%; right: 24%; background: #8b5fbd; }
+    #collaboration-locks-comments .cl-region { position: absolute; z-index: 3; inset: 18% 17% 17% 16%; border: 1px dashed #315dcc; border-radius: 46%; }
+    #collaboration-locks-comments .cl-readonly-banner {
+      display: none; width: min(500px, 94%); margin: 0 auto 10px; padding: 9px 10px; border-radius: 8px;
+      background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.4;
+    }
+    #collaboration-locks-comments .cl-canvas.is-readonly .cl-readonly-banner { display: flex; align-items: center; gap: 8px; }
+    #collaboration-locks-comments .cl-canvas.is-readonly .cl-region { border-color: #8a754d; }
+    #collaboration-locks-comments .cl-canvas-status { position: absolute; left: 15px; bottom: 10px; padding: 6px 9px; border-radius: 8px; border: 1px solid light-dark(#d6dde8, #3a4558); background: light-dark(#ffffff, #222a3a); color: light-dark(#5f6a80, #b1bbce); display: flex; align-items: center; gap: 7px; }
+    #collaboration-locks-comments .cl-status-dot { width: 7px; height: 7px; border-radius: 50%; background: light-dark(#278563, #55d3a5); }
+    #collaboration-locks-comments .cl-panel-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #collaboration-locks-comments .cl-panel-tab { border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 12px 4px 9px; color: light-dark(#667187, #adb7ca); }
+    #collaboration-locks-comments .cl-panel-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #collaboration-locks-comments .cl-panel-content { padding: 14px; }
+    #collaboration-locks-comments .cl-panel-content h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #collaboration-locks-comments .cl-help { color: light-dark(#6b758a, #aab4c7); margin-bottom: 12px; line-height: 1.45; }
+    #collaboration-locks-comments .cl-comment-filter { display: flex; gap: 5px; margin-bottom: 9px; }
+    #collaboration-locks-comments .cl-filter { min-height: 32px; border: 1px solid light-dark(#d2dae6, #3a4558); border-radius: 7px; background: light-dark(#ffffff, #232b3b); padding: 5px 8px; }
+    #collaboration-locks-comments .cl-comment {
+      padding: 10px 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b);
+    }
+    #collaboration-locks-comments .cl-comment-head { display: flex; align-items: center; gap: 7px; }
+    #collaboration-locks-comments .cl-mini-avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500; flex: 0 0 auto; }
+    #collaboration-locks-comments .cl-comment-author { font-weight: 500; flex: 1; }
+    #collaboration-locks-comments .cl-comment-state { color: light-dark(#7a5e20, #e4c07a); }
+    #collaboration-locks-comments .cl-comment-copy { margin: 7px 0; line-height: 1.43; }
+    #collaboration-locks-comments .cl-comment-anchor { display: flex; align-items: center; gap: 5px; color: light-dark(#69758a, #a8b4c7); }
+    #collaboration-locks-comments .cl-comment-anchor svg { width: 14px; height: 14px; }
+    #collaboration-locks-comments .cl-comment-actions { display: flex; gap: 6px; margin-top: 8px; }
+    #collaboration-locks-comments .cl-comment-actions button { border: 0; background: transparent; padding: 3px; color: light-dark(#2050c7, #bfccff); }
+    #collaboration-locks-comments .cl-compose { margin-top: 11px; }
+    #collaboration-locks-comments .cl-input { width: 100%; min-height: 39px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 8px 9px; }
+    #collaboration-locks-comments .cl-compose-actions { display: flex; justify-content: flex-end; margin-top: 7px; }
+    #collaboration-locks-comments .cl-lock-card { padding: 10px; border-radius: 9px; margin-bottom: 10px; background: light-dark(#edf8f3, #203a33); color: light-dark(#176749, #b9eedb); line-height: 1.45; }
+    #collaboration-locks-comments .cl-lock-card.is-other { background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); }
+    #collaboration-locks-comments .cl-member { display: grid; grid-template-columns: 29px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #collaboration-locks-comments .cl-member-name { font-weight: 500; }
+    #collaboration-locks-comments .cl-member-state { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #collaboration-locks-comments .cl-member-file { color: light-dark(#637087, #adb8ca); text-align: right; }
+    #collaboration-locks-comments .cl-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #collaboration-locks-comments .cl-section-title { font-weight: 500; margin-bottom: 8px; }
+    #collaboration-locks-comments .cl-policy-note { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #collaboration-locks-comments .cl-approval-state { padding: 10px; border-radius: 9px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.45; margin-bottom: 10px; }
+    #collaboration-locks-comments .cl-approval-person { display: grid; grid-template-columns: 29px 1fr auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #collaboration-locks-comments .cl-approval-action { color: light-dark(#687388, #aeb8ca); }
+    #collaboration-locks-comments .cl-takeover-dialog {
+      position: absolute; z-index: 7; width: min(400px, calc(100% - 32px)); left: 50%; top: 50%; transform: translate(-50%, -50%);
+      padding: 15px; border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #collaboration-locks-comments .cl-takeover-dialog[hidden] { display: none; }
+    #collaboration-locks-comments .cl-dialog-title { font-weight: 500; margin-bottom: 5px; }
+    #collaboration-locks-comments .cl-dialog-copy { color: light-dark(#687388, #aeb8ca); line-height: 1.45; margin-bottom: 12px; }
+    #collaboration-locks-comments .cl-dialog-warning { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; margin-bottom: 12px; }
+    #collaboration-locks-comments .cl-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; }
+    #collaboration-locks-comments .cl-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #collaboration-locks-comments .cl-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #collaboration-locks-comments .cl-main { grid-template-columns: 190px minmax(0, 1fr); }
+      #collaboration-locks-comments .cl-panel { display: none; }
+      #collaboration-locks-comments .cl-saved { display: none; }
+    }
+    @media (max-width: 650px) {
+      #collaboration-locks-comments .cl-header { flex-wrap: wrap; }
+      #collaboration-locks-comments .cl-title-block { min-width: 0; flex: 1; }
+      #collaboration-locks-comments .cl-presence { display: none; }
+      #collaboration-locks-comments .cl-lock-state { order: 3; width: 100%; }
+      #collaboration-locks-comments .cl-primary span { display: none; }
+      #collaboration-locks-comments .cl-main { display: block; }
+      #collaboration-locks-comments .cl-files { display: none; }
+      #collaboration-locks-comments .cl-canvas { padding: 13px 9px 47px; }
+      #collaboration-locks-comments .cl-art { font-size: 75px; }
+      #collaboration-locks-comments .cl-bottom { display: none; }
+    }
+  </style>
+
+  <div class="cl-shell">
+    <header class="cl-header">
+      <button class="cl-icon-button" type="button" aria-label="Back to project"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="cl-title-block"><div class="cl-title">Hedgehog textile design</div><div class="cl-subtitle">Woodland collection · Artboard 2 · Version 12</div></div>
+      <div class="cl-spacer"></div>
+      <div class="cl-presence" aria-label="Three people present"><span class="cl-avatar">VK</span><span class="cl-avatar">AS</span><span class="cl-avatar">RK</span></div>
+      <div class="cl-lock-state" id="cl-header-lock"><i data-lucide="pen-line" aria-hidden="true"></i><span>You hold the editing lock</span></div>
+      <button class="cl-button" type="button"><i data-lucide="user-plus" aria-hidden="true"></i>Share</button>
+      <button class="cl-primary" type="button"><i data-lucide="package-check" aria-hidden="true"></i><span>Export</span></button>
+    </header>
+
+    <div class="cl-main">
+      <aside class="cl-files" aria-label="Files in project">
+        <div class="cl-pane-head"><span>Project files</span><span>3 active</span></div>
+        <button class="cl-project-file" type="button" data-file-state="mine" aria-pressed="true"><span class="cl-file-preview">🦔</span><span><span class="cl-file-name">Hedgehog design</span><span class="cl-file-meta">Graphic · v12</span><span class="cl-file-lock"><i data-lucide="pen-line" aria-hidden="true"></i>You editing</span></span></button>
+        <button class="cl-project-file" type="button" data-file-state="other" aria-pressed="false"><span class="cl-file-preview pdf">PDF</span><span><span class="cl-file-name">Production brief</span><span class="cl-file-meta">PDF · v5</span><span class="cl-file-lock"><i data-lucide="eye" aria-hidden="true"></i>Asha editing</span></span></button>
+        <button class="cl-project-file" type="button" data-file-state="free" aria-pressed="false"><span class="cl-file-preview">🦊</span><span><span class="cl-file-name">Fox variation</span><span class="cl-file-meta">Graphic · v8</span><span class="cl-file-lock"><i data-lucide="circle" aria-hidden="true"></i>Available to edit</span></span></button>
+        <button class="cl-project-file" type="button" data-file-state="free" aria-pressed="false"><span class="cl-file-preview pdf">PDF</span><span><span class="cl-file-name">Material specs</span><span class="cl-file-meta">PDF · v3</span><span class="cl-file-lock"><i data-lucide="circle" aria-hidden="true"></i>Available to edit</span></span></button>
+        <div class="cl-project-rule"><strong>File-level editing locks</strong><br>Only the file being edited becomes view-only. Everyone may continue editing other project files.</div>
+      </aside>
+
+      <main class="cl-canvas" id="cl-canvas">
+        <div class="cl-canvas-head"><div><div class="cl-view-label" id="cl-view-label">Editing with comments visible</div><div class="cl-view-meta" id="cl-view-meta">Asha and Ravi are viewing this version</div></div><div class="cl-comment-mode"><button type="button" aria-pressed="true">Comments</button><button type="button" aria-pressed="false">Clean view</button></div></div>
+        <div class="cl-readonly-banner" id="cl-readonly-banner"><i data-lucide="eye" aria-hidden="true"></i><span><strong>View-only while Asha edits.</strong> You can comment, inspect history, request takeover or edit another project file.</span></div>
+        <div class="cl-artboard"><div class="cl-art" aria-hidden="true">🦔</div><div class="cl-region" aria-hidden="true"></div><button class="cl-pin one" type="button" aria-label="Comment 1">1</button><button class="cl-pin two" type="button" aria-label="Comment 2">2</button></div>
+        <div class="cl-canvas-status"><span class="cl-status-dot"></span><span id="cl-canvas-status">Autosaved · Lock renewed · v12</span></div>
+      </main>
+
+      <aside class="cl-panel" aria-label="Collaboration panel">
+        <div class="cl-panel-tabs" role="tablist" aria-label="Collaboration sections"><button class="cl-panel-tab" type="button" data-panel="comments" aria-selected="true">Comments</button><button class="cl-panel-tab" type="button" data-panel="presence" aria-selected="false">People</button><button class="cl-panel-tab" type="button" data-panel="approval" aria-selected="false">Approval</button></div>
+        <div class="cl-panel-content">
+          <section data-content="comments">
+            <h3>Comments</h3><div class="cl-help">Anchored to the exact version and region; unresolved threads remain traceable when carried forward.</div>
+            <div class="cl-comment-filter"><select class="cl-filter" aria-label="Comment status"><option>Open comments</option><option>All comments</option><option>Resolved</option></select><select class="cl-filter" aria-label="Comment version"><option>Version 12</option><option>All versions</option></select></div>
+            <article class="cl-comment" data-comment="1"><div class="cl-comment-head"><span class="cl-mini-avatar">AS</span><span class="cl-comment-author">Asha</span><span class="cl-comment-state">Open</span></div><div class="cl-comment-copy">Please protect the lighter flower detail before the textile export.</div><div class="cl-comment-anchor"><i data-lucide="map-pin" aria-hidden="true"></i>Artboard 2 · Region 1 · v12</div><div class="cl-comment-actions"><button type="button">Reply</button><button class="cl-resolve" type="button">Resolve</button></div></article>
+            <article class="cl-comment" data-comment="2"><div class="cl-comment-head"><span class="cl-mini-avatar">RK</span><span class="cl-comment-author">Ravi</span><span class="cl-comment-state">Carried forward</span></div><div class="cl-comment-copy">Factory confirmed the 60 cm width for this layout.</div><div class="cl-comment-anchor"><i data-lucide="git-commit-horizontal" aria-hidden="true"></i>Originally v10 · Linked to v12</div><div class="cl-comment-actions"><button type="button">Reply</button><button class="cl-resolve" type="button">Resolve</button></div></article>
+            <div class="cl-compose"><input class="cl-input" placeholder="Add a comment or @mention" aria-label="Add a comment"><div class="cl-compose-actions"><button class="cl-primary" type="button"><i data-lucide="send" aria-hidden="true"></i>Comment</button></div></div>
+          </section>
+          <section data-content="presence" hidden>
+            <h3>People in this project</h3><div class="cl-help">One editing lease per file; presence never blocks unrelated files.</div>
+            <div class="cl-lock-card" id="cl-current-lock"><strong>You are editing this file.</strong><br>Changes autosave continuously and the short lease renews while you remain active.</div>
+            <div class="cl-member"><span class="cl-mini-avatar">VK</span><span><span class="cl-member-name">Vijay</span><br><span class="cl-member-state">Editing</span></span><span class="cl-member-file">This file</span></div>
+            <div class="cl-member"><span class="cl-mini-avatar">AS</span><span><span class="cl-member-name">Asha</span><br><span class="cl-member-state">Editing</span></span><span class="cl-member-file">Production brief</span></div>
+            <div class="cl-member"><span class="cl-mini-avatar">RK</span><span><span class="cl-member-name">Ravi</span><br><span class="cl-member-state">Viewing</span></span><span class="cl-member-file">This file</span></div>
+            <div class="cl-section"><div class="cl-section-title">Disconnect protection</div><div class="cl-policy-note">If an editor disconnects, their work is autosaved and the lock keeps a short renewable grace period. Owners may request or force takeover with warning and audit.</div></div>
+            <button class="cl-button" id="cl-takeover-open" type="button" style="margin-top:10px"><i data-lucide="key-round" aria-hidden="true"></i>Preview takeover flow</button>
+          </section>
+          <section data-content="approval" hidden>
+            <h3>Optional approval</h3><div class="cl-help">Configured per project or workspace; ordinary editing does not require approval.</div>
+            <div class="cl-approval-state"><strong>Approval required for production export</strong><br>Working previews and internal exports remain available.</div>
+            <div class="cl-approval-person"><span class="cl-mini-avatar">AS</span><span><strong>Asha</strong><br><span class="cl-member-state">Design reviewer</span></span><span class="cl-approval-action">Approved</span></div>
+            <div class="cl-approval-person"><span class="cl-mini-avatar">RK</span><span><strong>Ravi</strong><br><span class="cl-member-state">Production reviewer</span></span><span class="cl-approval-action">Pending</span></div>
+            <div class="cl-section"><div class="cl-section-title">Approval scope</div><div class="cl-policy-note">Approval is attached to document v12 and the selected production profile. A material later change clearly invalidates it and requests review again.</div></div>
+            <button class="cl-primary" type="button" style="margin-top:10px"><i data-lucide="send" aria-hidden="true"></i>Remind reviewer</button>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <section class="cl-takeover-dialog" id="cl-takeover-dialog" aria-label="Editing lock takeover" hidden>
+      <div class="cl-dialog-title">Request the editing lock?</div>
+      <div class="cl-dialog-copy">Asha is currently editing this document. Ask her to release it first; an owner may force takeover only when necessary.</div>
+      <div class="cl-dialog-warning"><strong>Force takeover protection</strong><br>Asha’s latest work is autosaved before release. The action, reason and participants are added to the audit history.</div>
+      <div class="cl-dialog-actions"><button class="cl-button" id="cl-takeover-cancel" type="button">Cancel</button><button class="cl-button" type="button">Ask Asha</button><button class="cl-primary" id="cl-takeover-confirm" type="button">Force takeover</button></div>
+    </section>
+
+    <footer class="cl-bottom"><span>File-level locks</span><span>Autosave before release</span><span>Comments anchored to versions</span><span class="cl-bottom-right"><span>Approval optional</span><span>Every takeover audited</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('collaboration-locks-comments');
+      const tabs = [...root.querySelectorAll('.cl-panel-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      tabs.forEach((tab) => tab.addEventListener('click', () => {
+        tabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== tab.dataset.panel; });
+      }));
+
+      const fileButtons = [...root.querySelectorAll('.cl-project-file')];
+      const canvas = root.querySelector('#cl-canvas');
+      const headerLock = root.querySelector('#cl-header-lock');
+      const viewLabel = root.querySelector('#cl-view-label');
+      const viewMeta = root.querySelector('#cl-view-meta');
+      const canvasStatus = root.querySelector('#cl-canvas-status');
+      fileButtons.forEach((button) => button.addEventListener('click', () => {
+        fileButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const state = button.dataset.fileState;
+        canvas.classList.toggle('is-readonly', state === 'other');
+        if (state === 'mine') {
+          headerLock.innerHTML = '<i data-lucide="pen-line" aria-hidden="true"></i><span>You hold the editing lock</span>';
+          viewLabel.textContent = 'Editing with comments visible'; viewMeta.textContent = 'Asha and Ravi are viewing this version'; canvasStatus.textContent = 'Autosaved · Lock renewed · v12';
+        } else if (state === 'other') {
+          headerLock.innerHTML = '<i data-lucide="eye" aria-hidden="true"></i><span>View-only · Asha editing</span>';
+          viewLabel.textContent = 'Viewing with comments visible'; viewMeta.textContent = 'Asha holds the editing lock'; canvasStatus.textContent = 'View-only · Comments and history available';
+        } else {
+          headerLock.innerHTML = '<i data-lucide="circle" aria-hidden="true"></i><span>Available to edit</span>';
+          viewLabel.textContent = 'File available'; viewMeta.textContent = 'Open it to acquire a short editing lease'; canvasStatus.textContent = 'No editor · Safe to open';
+        }
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+
+      root.querySelectorAll('.cl-resolve').forEach((button) => button.addEventListener('click', () => {
+        const comment = button.closest('.cl-comment');
+        comment.querySelector('.cl-comment-state').textContent = 'Resolved';
+        button.textContent = 'Reopen';
+      }));
+
+      const modeButtons = [...root.querySelectorAll('.cl-comment-mode button')];
+      modeButtons.forEach((button) => button.addEventListener('click', () => {
+        modeButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const clean = button.textContent.includes('Clean');
+        root.querySelectorAll('.cl-pin, .cl-region').forEach((item) => { item.style.display = clean ? 'none' : ''; });
+      }));
+
+      const dialog = root.querySelector('#cl-takeover-dialog');
+      root.querySelector('#cl-takeover-open').addEventListener('click', () => { dialog.hidden = false; });
+      root.querySelector('#cl-takeover-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      root.querySelector('#cl-takeover-confirm').addEventListener('click', () => {
+        dialog.hidden = true;
+        root.querySelector('#cl-current-lock').classList.remove('is-other');
+        root.querySelector('#cl-current-lock').innerHTML = '<strong>Takeover completed safely.</strong><br>Asha’s work was autosaved; you now hold the editing lock and the event was audited.';
+      });
+    })();
+  </script>
+</section>

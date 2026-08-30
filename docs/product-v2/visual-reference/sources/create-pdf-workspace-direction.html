@@ -1,0 +1,173 @@
+<style>
+  #create-pdf-v2 {
+    --cp-page: light-dark(#f3f6fa, #10141c);
+    --cp-surface: light-dark(#ffffff, #181e28);
+    --cp-raised: light-dark(#f8fafc, #202733);
+    --cp-canvas: light-dark(#dce3eb, #0d1219);
+    --cp-text: light-dark(#162033, #edf3fb);
+    --cp-muted: light-dark(#647188, #aab5c6);
+    --cp-line: light-dark(#dce4ed, #344052);
+    --cp-blue: light-dark(#3559e0, #88a1ff);
+    --cp-blue-ink: light-dark(#2946bd, #b7c5ff);
+    --cp-blue-soft: light-dark(#edf1ff, #222c50);
+    --cp-green: light-dark(#177a59, #72d9b2);
+    --cp-orange: light-dark(#a9600f, #ffc078);
+    width: 100%;
+    color: var(--cp-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  #create-pdf-v2 * { box-sizing: border-box; }
+  #create-pdf-v2 button, #create-pdf-v2 select, #create-pdf-v2 input { font: inherit; }
+  #create-pdf-v2 .cp-window { min-height: 770px; overflow: hidden; border: 1px solid var(--cp-line); border-radius: 14px; background: var(--cp-page); box-shadow: 0 18px 48px light-dark(rgba(40,55,82,.12),rgba(0,0,0,.28)); }
+  #create-pdf-v2 .cp-topbar { height:58px; padding:0 12px; display:flex; align-items:center; gap:8px; background:var(--cp-surface); border-bottom:1px solid var(--cp-line); }
+  #create-pdf-v2 .cp-button { appearance:none; border:1px solid var(--cp-line); background:var(--cp-surface); color:var(--cp-text); border-radius:8px; padding:8px 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; }
+  #create-pdf-v2 .cp-button-primary { background:var(--cp-blue); border-color:var(--cp-blue); color:light-dark(#ffffff,#0d1428); }
+  #create-pdf-v2 .cp-icon-button { width:36px; height:36px; padding:0; }
+  #create-pdf-v2 .cp-doc { min-width:210px; }
+  #create-pdf-v2 .cp-doc strong { display:block; font-weight:500; }
+  #create-pdf-v2 .cp-small { color:var(--cp-muted); font-size:12px; }
+  #create-pdf-v2 .cp-grow { flex:1; }
+  #create-pdf-v2 .cp-view-mode { display:flex; border:1px solid var(--cp-line); padding:3px; border-radius:8px; background:var(--cp-raised); }
+  #create-pdf-v2 .cp-view-mode button { appearance:none; border:0; background:transparent; color:var(--cp-muted); padding:6px 9px; border-radius:5px; cursor:pointer; }
+  #create-pdf-v2 .cp-view-mode button[aria-pressed="true"] { background:var(--cp-surface); color:var(--cp-blue-ink); }
+
+  #create-pdf-v2 .cp-layout { display:grid; grid-template-columns:172px minmax(0,1fr) 302px; min-height:654px; }
+  #create-pdf-v2 .cp-pages { background:var(--cp-raised); border-right:1px solid var(--cp-line); padding:11px; position:relative; }
+  #create-pdf-v2 .cp-pages-head { display:flex; align-items:center; margin-bottom:10px; }
+  #create-pdf-v2 .cp-pages-head strong { font-weight:500; }
+  #create-pdf-v2 .cp-page-thumb { display:grid; grid-template-columns:18px minmax(0,1fr); gap:6px; align-items:start; margin-bottom:9px; color:var(--cp-muted); font-size:11px; }
+  #create-pdf-v2 .cp-thumb-sheet { height:116px; background:var(--cp-surface); border:1px solid var(--cp-line); border-radius:6px; padding:9px; position:relative; box-shadow:0 3px 8px light-dark(rgba(34,47,72,.07),rgba(0,0,0,.18)); }
+  #create-pdf-v2 .cp-page-thumb.is-active .cp-thumb-sheet { border:2px solid var(--cp-blue); }
+  #create-pdf-v2 .cp-thumb-line { height:4px; border-radius:2px; background:var(--cp-line); margin-bottom:5px; }
+  #create-pdf-v2 .cp-thumb-image { height:47px; background:linear-gradient(135deg,var(--cp-blue-soft),var(--cp-raised)); margin:7px 0; }
+  #create-pdf-v2 .cp-add-page { width:100%; border:1px dashed var(--cp-line); background:transparent; color:var(--cp-text); border-radius:7px; padding:10px; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; }
+  #create-pdf-v2 .cp-add-menu { display:none; position:absolute; left:12px; right:-178px; bottom:55px; z-index:6; width:330px; padding:8px; border:1px solid var(--cp-line); border-radius:10px; background:var(--cp-surface); box-shadow:0 16px 36px light-dark(rgba(32,47,77,.18),rgba(0,0,0,.38)); }
+  #create-pdf-v2 .cp-add-menu.is-open { display:block; }
+  #create-pdf-v2 .cp-add-menu-title { padding:7px 8px; font-weight:500; }
+  #create-pdf-v2 .cp-add-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+  #create-pdf-v2 .cp-add-option { appearance:none; border:0; background:transparent; color:var(--cp-text); border-radius:7px; padding:9px; display:flex; align-items:center; gap:8px; text-align:left; cursor:pointer; }
+  #create-pdf-v2 .cp-add-option:hover { background:var(--cp-blue-soft); }
+
+  #create-pdf-v2 .cp-center { min-width:0; display:grid; grid-template-rows:43px minmax(0,1fr); background:var(--cp-canvas); }
+  #create-pdf-v2 .cp-contextbar { background:var(--cp-surface); border-bottom:1px solid var(--cp-line); display:flex; align-items:center; gap:7px; padding:0 10px; }
+  #create-pdf-v2 .cp-contextbar span { color:var(--cp-muted); font-size:12px; }
+  #create-pdf-v2 .cp-stage { position:relative; display:grid; place-items:center; padding:26px 28px 70px; }
+  #create-pdf-v2 .cp-sheet { width:min(455px,78%); aspect-ratio:210/297; background:var(--cp-surface); box-shadow:0 16px 42px rgba(0,0,0,.24); padding:10% 9%; position:relative; overflow:hidden; }
+  #create-pdf-v2 .cp-sheet::before { content:"SUMMER COLLECTION"; display:block; font-size:clamp(16px,2.3vw,28px); font-weight:500; letter-spacing:.06em; margin-bottom:6%; color:var(--cp-text); }
+  #create-pdf-v2 .cp-sheet::after { content:"Prepared for textile production\A August 2026"; white-space:pre; position:absolute; left:9%; bottom:7%; color:var(--cp-muted); font-size:11px; line-height:1.5; }
+  #create-pdf-v2 .cp-page-art { height:52%; background:linear-gradient(140deg,light-dark(#efe4d0,#4f453d),light-dark(#dce5ca,#374737)); position:relative; overflow:hidden; }
+  #create-pdf-v2 .cp-page-art::before { content:""; position:absolute; width:44%; aspect-ratio:1; left:28%; top:21%; border-radius:54% 46% 42% 58%; background:radial-gradient(circle at 65% 39%,light-dark(#231c16,#18120e) 0 3%,transparent 4%),radial-gradient(ellipse at 59% 58%,light-dark(#f1e4d5,#b09177) 0 31%,transparent 32%),repeating-radial-gradient(ellipse at 34% 55%,light-dark(#67452c,#2d1b11) 0 4px,light-dark(#c4a07a,#725139) 5px 9px); }
+  #create-pdf-v2 .cp-selected-object { position:absolute; left:8%; right:8%; top:19%; height:52%; border:1px solid var(--cp-blue); pointer-events:none; }
+  #create-pdf-v2 .cp-master-label { position:absolute; right:9%; top:5%; color:var(--cp-blue-ink); font-size:10px; }
+  #create-pdf-v2 .cp-page-info { position:absolute; left:15px; bottom:16px; border:1px solid var(--cp-line); background:var(--cp-surface); color:var(--cp-muted); border-radius:8px; padding:8px 10px; font-size:12px; }
+  #create-pdf-v2 .cp-zoom { position:absolute; right:15px; bottom:14px; display:flex; gap:5px; }
+
+  #create-pdf-v2 .cp-inspector { background:var(--cp-surface); border-left:1px solid var(--cp-line); }
+  #create-pdf-v2 .cp-tabs { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--cp-line); }
+  #create-pdf-v2 .cp-tab { appearance:none; border:0; background:transparent; color:var(--cp-muted); padding:12px 3px; font-size:11px; cursor:pointer; }
+  #create-pdf-v2 .cp-tab[aria-selected="true"] { color:var(--cp-blue-ink); box-shadow:inset 0 -2px var(--cp-blue); }
+  #create-pdf-v2 .cp-panel { display:none; padding:14px; }
+  #create-pdf-v2 .cp-panel.is-active { display:block; }
+  #create-pdf-v2 .cp-panel-head { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  #create-pdf-v2 .cp-panel-head h2 { margin:0; font-size:18px; font-weight:500; }
+  #create-pdf-v2 .cp-section { padding:11px 0; border-bottom:1px solid var(--cp-line); }
+  #create-pdf-v2 .cp-section:last-child { border-bottom:0; }
+  #create-pdf-v2 .cp-label { display:block; font-weight:500; margin-bottom:7px; }
+  #create-pdf-v2 .cp-field { width:100%; padding:8px; border:1px solid var(--cp-line); border-radius:7px; background:var(--cp-surface); color:var(--cp-text); }
+  #create-pdf-v2 .cp-two-fields { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  #create-pdf-v2 .cp-toggle { display:flex; align-items:center; gap:8px; padding:7px 0; }
+  #create-pdf-v2 .cp-notice { margin-top:9px; padding:9px; background:var(--cp-blue-soft); color:var(--cp-blue-ink); border-radius:8px; font-size:12px; line-height:1.45; }
+  #create-pdf-v2 .cp-layer { display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:8px; align-items:center; padding:8px; border-radius:7px; margin-bottom:4px; }
+  #create-pdf-v2 .cp-layer.is-active { background:var(--cp-blue-soft); }
+  #create-pdf-v2 .cp-layer-icon { width:27px; height:27px; display:grid; place-items:center; border-radius:5px; background:var(--cp-raised); color:var(--cp-blue-ink); }
+  #create-pdf-v2 .cp-check { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:8px; align-items:start; padding:9px 0; border-bottom:1px solid var(--cp-line); }
+  #create-pdf-v2 .cp-check strong { display:block; font-weight:500; margin-bottom:2px; }
+  #create-pdf-v2 .cp-good { color:var(--cp-green); }
+  #create-pdf-v2 .cp-warn { color:var(--cp-orange); }
+  #create-pdf-v2 .cp-chat-note { padding:10px; border-radius:8px; background:var(--cp-blue-soft); color:var(--cp-blue-ink); font-size:12px; margin-bottom:10px; }
+  #create-pdf-v2 .cp-chat-input { width:100%; min-height:80px; border:1px solid var(--cp-line); border-radius:8px; background:var(--cp-surface); color:var(--cp-text); padding:9px; resize:none; }
+
+  #create-pdf-v2 .cp-statusbar { height:58px; padding:0 12px; display:flex; align-items:center; gap:8px; background:var(--cp-surface); border-top:1px solid var(--cp-line); color:var(--cp-muted); font-size:12px; }
+  #create-pdf-v2 .cp-version { padding:5px 7px; border-radius:5px; background:var(--cp-raised); color:var(--cp-text); }
+
+  @media (max-width:920px) {
+    #create-pdf-v2 .cp-view-mode, #create-pdf-v2 .cp-topbar .cp-button:not(.cp-button-primary):not(.cp-icon-button) { display:none; }
+    #create-pdf-v2 .cp-layout { grid-template-columns:145px minmax(0,1fr); }
+    #create-pdf-v2 .cp-inspector { grid-column:1/-1; border-left:0; border-top:1px solid var(--cp-line); }
+  }
+  @media (max-width:620px) {
+    #create-pdf-v2 .cp-window { min-height:0; }
+    #create-pdf-v2 .cp-doc { min-width:0; flex:1; }
+    #create-pdf-v2 .cp-topbar .cp-icon-button:nth-of-type(n+2) { display:none; }
+    #create-pdf-v2 .cp-layout { grid-template-columns:78px minmax(0,1fr); }
+    #create-pdf-v2 .cp-pages { padding:8px 5px; }
+    #create-pdf-v2 .cp-pages-head strong, #create-pdf-v2 .cp-page-thumb > span { display:none; }
+    #create-pdf-v2 .cp-page-thumb { grid-template-columns:1fr; }
+    #create-pdf-v2 .cp-thumb-sheet { height:86px; }
+    #create-pdf-v2 .cp-add-page { font-size:0; min-height:44px; }
+    #create-pdf-v2 .cp-add-page i { font-size:initial; }
+    #create-pdf-v2 .cp-add-menu { left:6px; width:290px; right:auto; }
+    #create-pdf-v2 .cp-contextbar > :nth-child(n+5) { display:none; }
+    #create-pdf-v2 .cp-stage { min-height:470px; padding:20px 6px 70px; }
+    #create-pdf-v2 .cp-sheet { width:88%; }
+    #create-pdf-v2 .cp-statusbar .cp-version:nth-of-type(n+2) { display:none; }
+  }
+</style>
+
+<div id="create-pdf-v2">
+  <div class="cp-window">
+    <header class="cp-topbar">
+      <button class="cp-button cp-icon-button" type="button" aria-label="Back to project"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="cp-doc"><strong>Summer collection booklet</strong><span class="cp-small">Create PDF · Saved just now</span></div>
+      <button class="cp-button cp-icon-button" type="button" aria-label="Undo"><i data-lucide="undo-2" aria-hidden="true"></i></button><button class="cp-button cp-icon-button" type="button" aria-label="Redo"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+      <div class="cp-view-mode"><button type="button" aria-pressed="false">Manage pages</button><button type="button" aria-pressed="true">Edit page</button><button type="button" aria-pressed="false">Preview</button></div>
+      <div class="cp-grow"></div>
+      <button class="cp-button" type="button"><i data-lucide="message-square" aria-hidden="true"></i> Share</button><button class="cp-button cp-button-primary" type="button"><i data-lucide="package-check" aria-hidden="true"></i> Export</button>
+    </header>
+
+    <div class="cp-layout">
+      <aside class="cp-pages">
+        <div class="cp-pages-head"><strong>Pages</strong><div class="cp-grow"></div><span class="cp-small">3</span></div>
+        <div class="cp-page-thumb is-active"><span>1</span><div class="cp-thumb-sheet"><div class="cp-thumb-line" style="width:72%"></div><div class="cp-thumb-image"></div><div class="cp-thumb-line"></div><div class="cp-thumb-line" style="width:66%"></div></div></div>
+        <div class="cp-page-thumb"><span>2</span><div class="cp-thumb-sheet"><div class="cp-thumb-image" style="height:68px"></div><div class="cp-thumb-line" style="margin-top:8px"></div></div></div>
+        <div class="cp-page-thumb"><span>3</span><div class="cp-thumb-sheet"><div class="cp-thumb-line"></div><div class="cp-thumb-line" style="width:58%"></div><div class="cp-thumb-image" style="height:54px"></div></div></div>
+        <button class="cp-add-page" id="cp-add-trigger" type="button" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i> Add page</button>
+        <div class="cp-add-menu" id="cp-add-menu"><div class="cp-add-menu-title">Add a page</div><div class="cp-add-grid"><button class="cp-add-option" type="button"><i data-lucide="file-plus" aria-hidden="true"></i> Blank page</button><button class="cp-add-option" type="button"><i data-lucide="type" aria-hidden="true"></i> Cover or text</button><button class="cp-add-option" type="button"><i data-lucide="image-plus" aria-hidden="true"></i> Image or asset</button><button class="cp-add-option" type="button"><i data-lucide="files" aria-hidden="true"></i> Another PDF</button><button class="cp-add-option" type="button"><i data-lucide="layout-template" aria-hidden="true"></i> Template</button><button class="cp-add-option" type="button"><i data-lucide="copy" aria-hidden="true"></i> Duplicate page</button><button class="cp-add-option" type="button"><i data-lucide="camera" aria-hidden="true"></i> Camera or scan</button><button class="cp-add-option" type="button"><i data-lucide="cloud" aria-hidden="true"></i> Cloud import</button></div></div>
+      </aside>
+
+      <section class="cp-center">
+        <div class="cp-contextbar"><span>Selected image</span><button class="cp-button" type="button"><i data-lucide="crop" aria-hidden="true"></i> Crop</button><button class="cp-button" type="button"><i data-lucide="move" aria-hidden="true"></i> Position</button><button class="cp-button" type="button"><i data-lucide="align-center" aria-hidden="true"></i> Align</button><button class="cp-button" type="button"><i data-lucide="sparkles" aria-hidden="true"></i> Ask AI</button><div class="cp-grow"></div><button class="cp-button" type="button"><i data-lucide="more-horizontal" aria-hidden="true"></i></button></div>
+        <main class="cp-stage">
+          <div class="cp-sheet" role="img" aria-label="Editable PDF cover page"><span class="cp-master-label">Linked to Cover master</span><div class="cp-page-art"></div><div class="cp-selected-object"></div></div>
+          <div class="cp-page-info">A4 portrait · Page 1 of 3 · All objects remain editable</div>
+          <div class="cp-zoom"><button class="cp-button cp-icon-button" type="button" aria-label="Zoom out"><i data-lucide="minus" aria-hidden="true"></i></button><button class="cp-button" type="button">68%</button><button class="cp-button cp-icon-button" type="button" aria-label="Zoom in"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+        </main>
+      </section>
+
+      <aside class="cp-inspector">
+        <div class="cp-tabs" role="tablist" aria-label="PDF panels"><button class="cp-tab" role="tab" type="button" aria-selected="true" data-panel="page">Page</button><button class="cp-tab" role="tab" type="button" aria-selected="false" data-panel="layers">Layers</button><button class="cp-tab" role="tab" type="button" aria-selected="false" data-panel="access">Access</button><button class="cp-tab" role="tab" type="button" aria-selected="false" data-panel="ai">AI</button></div>
+        <div class="cp-panel is-active" data-panel-content="page"><div class="cp-panel-head"><h2>Page settings</h2><div class="cp-grow"></div><button class="cp-button cp-icon-button" type="button" aria-label="Detach panel"><i data-lucide="panel-right-open" aria-hidden="true"></i></button></div><div class="cp-section"><span class="cp-label">Page size</span><div class="cp-two-fields"><select class="cp-field"><option>A4</option><option>Letter</option><option>Custom</option></select><select class="cp-field"><option>Portrait</option><option>Landscape</option></select></div><div class="cp-notice">This document uses A4 by default. Individual pages may use another size, and Normalize Pages remains available.</div></div><div class="cp-section"><label class="cp-toggle"><input type="checkbox" checked> Show margins and safe area</label><label class="cp-toggle"><input type="checkbox" checked> Link to Cover master</label></div><div class="cp-section"><span class="cp-label">Background</span><select class="cp-field"><option>Paper white</option><option>Transparent</option><option>Colour</option></select></div></div>
+        <div class="cp-panel" data-panel-content="layers"><div class="cp-panel-head"><h2>Editable layers</h2><div class="cp-grow"></div><button class="cp-button cp-icon-button" type="button"><i data-lucide="plus" aria-hidden="true"></i></button></div><div class="cp-layer"><span class="cp-layer-icon"><i data-lucide="type" aria-hidden="true"></i></span><div><strong>Document title</strong><div class="cp-small">Text</div></div><i data-lucide="eye" aria-hidden="true"></i></div><div class="cp-layer is-active"><span class="cp-layer-icon"><i data-lucide="image" aria-hidden="true"></i></span><div><strong>Cover artwork</strong><div class="cp-small">Linked project asset</div></div><i data-lucide="eye" aria-hidden="true"></i></div><div class="cp-layer"><span class="cp-layer-icon"><i data-lucide="type" aria-hidden="true"></i></span><div><strong>Subtitle</strong><div class="cp-small">Text</div></div><i data-lucide="eye" aria-hidden="true"></i></div><div class="cp-layer"><span class="cp-layer-icon"><i data-lucide="layout-template" aria-hidden="true"></i></span><div><strong>Cover master</strong><div class="cp-small">Linked background</div></div><i data-lucide="link" aria-hidden="true"></i></div></div>
+        <div class="cp-panel" data-panel-content="access"><div class="cp-panel-head"><h2>Accessibility</h2></div><div class="cp-check"><i class="cp-good" data-lucide="circle-check" aria-hidden="true"></i><div><strong>Reading order</strong><span class="cp-small">Generated from document structure.</span></div><span class="cp-good">Ready</span></div><div class="cp-check"><i class="cp-warn" data-lucide="triangle-alert" aria-hidden="true"></i><div><strong>Artwork description</strong><span class="cp-small">Human meaning is still needed.</span></div><span class="cp-warn">Add</span></div><div class="cp-check"><i class="cp-good" data-lucide="circle-check" aria-hidden="true"></i><div><strong>Language and title</strong><span class="cp-small">English · title present.</span></div><span class="cp-good">Ready</span></div><button class="cp-button cp-button-primary" style="width:100%;margin-top:12px" type="button">Run full preflight</button></div>
+        <div class="cp-panel" data-panel-content="ai"><div class="cp-panel-head"><h2>AI assistant</h2></div><div class="cp-chat-note"><i data-lucide="crosshair" aria-hidden="true"></i> Context: selected cover image on Page 1</div><p class="cp-small">Ask for layout, wording or image adjustments. Proposed changes remain previews until approved.</p><textarea class="cp-chat-input" aria-label="Message AI assistant" placeholder="Describe what you want to improve…"></textarea><button class="cp-button cp-button-primary" style="width:100%;margin-top:8px" type="button">Send</button></div>
+      </aside>
+    </div>
+
+    <footer class="cp-statusbar"><span>History</span><span class="cp-version">Created from 3 assets</span><i data-lucide="chevron-right" aria-hidden="true"></i><span class="cp-version">Cover layout</span><i data-lucide="chevron-right" aria-hidden="true"></i><span class="cp-version">Current</span><div class="cp-grow"></div><span>Accessible structure: 1 item needs meaning</span><span>Autosaved</span></footer>
+  </div>
+</div>
+
+<script>
+  (()=>{
+    const root=document.getElementById("create-pdf-v2");
+    if(!root)return;
+    const trigger=root.querySelector("#cp-add-trigger");
+    const menu=root.querySelector("#cp-add-menu");
+    if(trigger&&menu)trigger.addEventListener("click",()=>{const open=!menu.classList.contains("is-open");menu.classList.toggle("is-open",open);trigger.setAttribute("aria-expanded",open?"true":"false");});
+    const tabs=[...root.querySelectorAll(".cp-tab")];
+    const panels=[...root.querySelectorAll("[data-panel-content]")];
+    tabs.forEach(tab=>tab.addEventListener("click",()=>{const name=tab.getAttribute("data-panel");tabs.forEach(item=>item.setAttribute("aria-selected",item===tab?"true":"false"));panels.forEach(panel=>panel.classList.toggle("is-active",panel.getAttribute("data-panel-content")===name));}));
+    const modes=[...root.querySelectorAll(".cp-view-mode button")];
+    modes.forEach(button=>button.addEventListener("click",()=>modes.forEach(item=>item.setAttribute("aria-pressed",item===button?"true":"false"))));
+  })();
+</script>

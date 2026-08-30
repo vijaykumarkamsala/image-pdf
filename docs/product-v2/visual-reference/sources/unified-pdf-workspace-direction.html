@@ -1,0 +1,634 @@
+<section id="unified-pdf-workspace" aria-label="Unified PDF workspace concept">
+  <style>
+    #unified-pdf-workspace {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #edf2ff);
+      background: light-dark(#e9edf4, #111622);
+      width: 100%;
+      min-width: 0;
+    }
+    #unified-pdf-workspace * { box-sizing: border-box; }
+    #unified-pdf-workspace button,
+    #unified-pdf-workspace input,
+    #unified-pdf-workspace select { font: inherit; color: inherit; }
+    #unified-pdf-workspace button { cursor: pointer; }
+    #unified-pdf-workspace .pdf-shell {
+      min-height: 760px;
+      background: light-dark(#f5f7fb, #141a27);
+      overflow: hidden;
+    }
+    #unified-pdf-workspace .pdf-topbar {
+      min-height: 58px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: light-dark(#ffffff, #1b2232);
+      border-bottom: 1px solid light-dark(#dce2ec, #30394b);
+    }
+    #unified-pdf-workspace .pdf-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 188px;
+    }
+    #unified-pdf-workspace .pdf-mark {
+      width: 31px;
+      height: 31px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#2356d8, #7294ff);
+      color: light-dark(#ffffff, #101725);
+    }
+    #unified-pdf-workspace .pdf-mark svg { width: 17px; height: 17px; }
+    #unified-pdf-workspace .pdf-brand-copy { min-width: 0; }
+    #unified-pdf-workspace .pdf-product { font-weight: 500; }
+    #unified-pdf-workspace .pdf-docname {
+      color: light-dark(#687288, #aeb8cc);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 230px;
+    }
+    #unified-pdf-workspace .pdf-divider {
+      width: 1px;
+      align-self: stretch;
+      background: light-dark(#e4e8ef, #313a4a);
+    }
+    #unified-pdf-workspace .pdf-mode-switch {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 9px;
+      background: light-dark(#edf1f7, #242c3c);
+    }
+    #unified-pdf-workspace .pdf-mode {
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      padding: 7px 10px;
+      color: light-dark(#566176, #b9c3d6);
+    }
+    #unified-pdf-workspace .pdf-mode[aria-pressed="true"] {
+      background: light-dark(#ffffff, #38445b);
+      color: light-dark(#19233a, #ffffff);
+      box-shadow: 0 1px 3px light-dark(#cdd4e0, #0d111b);
+    }
+    #unified-pdf-workspace .pdf-top-spacer { flex: 1; }
+    #unified-pdf-workspace .pdf-icon-action,
+    #unified-pdf-workspace .pdf-text-action,
+    #unified-pdf-workspace .pdf-primary-action {
+      min-height: 36px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid light-dark(#d5dce8, #3b4558);
+      background: light-dark(#ffffff, #222a3a);
+    }
+    #unified-pdf-workspace .pdf-icon-action { width: 36px; padding: 7px; }
+    #unified-pdf-workspace .pdf-icon-action svg,
+    #unified-pdf-workspace .pdf-text-action svg,
+    #unified-pdf-workspace .pdf-primary-action svg { width: 16px; height: 16px; }
+    #unified-pdf-workspace .pdf-primary-action {
+      color: light-dark(#ffffff, #0f1828);
+      background: light-dark(#2356d8, #8ca7ff);
+      border-color: transparent;
+      padding-inline: 15px;
+      font-weight: 500;
+    }
+    #unified-pdf-workspace .pdf-workbar {
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: light-dark(#ffffff, #1b2232);
+      border-bottom: 1px solid light-dark(#dce2ec, #30394b);
+      overflow-x: auto;
+    }
+    #unified-pdf-workspace .pdf-workspace-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: light-dark(#5d687d, #aeb8cb);
+      white-space: nowrap;
+      margin-right: 4px;
+    }
+    #unified-pdf-workspace .pdf-workspace-label svg { width: 15px; height: 15px; }
+    #unified-pdf-workspace .pdf-tool {
+      min-height: 34px;
+      border: 0;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      background: transparent;
+      color: light-dark(#39445a, #d2daea);
+    }
+    #unified-pdf-workspace .pdf-tool svg { width: 16px; height: 16px; }
+    #unified-pdf-workspace .pdf-tool[aria-pressed="true"],
+    #unified-pdf-workspace .pdf-tool:hover {
+      background: light-dark(#edf2ff, #2d3850);
+      color: light-dark(#204fc7, #b8c8ff);
+    }
+    #unified-pdf-workspace .pdf-tool-more { margin-left: auto; }
+    #unified-pdf-workspace .pdf-main {
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr) 286px;
+      min-height: 616px;
+    }
+    #unified-pdf-workspace .pdf-pages {
+      background: light-dark(#f7f8fb, #181f2d);
+      border-right: 1px solid light-dark(#dce2ec, #30394b);
+      padding: 11px;
+    }
+    #unified-pdf-workspace .pdf-pane-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+    #unified-pdf-workspace .pdf-page-count {
+      color: light-dark(#7a8498, #9ea9bd);
+      font-weight: 400;
+    }
+    #unified-pdf-workspace .pdf-thumb-list { display: grid; gap: 10px; }
+    #unified-pdf-workspace .pdf-thumb {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 7px;
+      align-items: start;
+      padding: 6px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      text-align: left;
+    }
+    #unified-pdf-workspace .pdf-thumb[aria-pressed="true"] {
+      background: light-dark(#e9efff, #27334a);
+      border-color: light-dark(#9eb6ff, #627ecf);
+    }
+    #unified-pdf-workspace .pdf-thumb-number {
+      text-align: center;
+      padding-top: 22px;
+      color: light-dark(#667187, #a9b4c8);
+    }
+    #unified-pdf-workspace .pdf-thumb-paper {
+      aspect-ratio: 0.74;
+      border-radius: 3px;
+      background: light-dark(#ffffff, #f8f9fd);
+      border: 1px solid light-dark(#cbd3df, #596275);
+      box-shadow: 0 2px 5px light-dark(#d9dee7, #101522);
+      padding: 7px;
+      color: #313848;
+    }
+    #unified-pdf-workspace .pdf-mini-head { width: 70%; height: 5px; background: #244b9f; margin-bottom: 5px; }
+    #unified-pdf-workspace .pdf-mini-line { height: 3px; background: #c7cfda; margin-bottom: 4px; }
+    #unified-pdf-workspace .pdf-mini-line.short { width: 62%; }
+    #unified-pdf-workspace .pdf-mini-form {
+      margin-top: 7px;
+      border: 1px solid #9aacd2;
+      height: 12px;
+      border-radius: 2px;
+      background: #f1f5ff;
+    }
+    #unified-pdf-workspace .pdf-add-page {
+      width: 100%;
+      margin-top: 11px;
+      min-height: 38px;
+      border-radius: 8px;
+      border: 1px dashed light-dark(#9ca8bc, #536078);
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    #unified-pdf-workspace .pdf-add-page svg { width: 16px; height: 16px; }
+    #unified-pdf-workspace .pdf-canvas-area {
+      position: relative;
+      padding: 30px 24px 44px;
+      display: grid;
+      place-items: center;
+      background-color: light-dark(#e9edf4, #121824);
+      background-image: radial-gradient(light-dark(#cfd6e1, #2d3545) 0.7px, transparent 0.7px);
+      background-size: 18px 18px;
+      min-width: 0;
+    }
+    #unified-pdf-workspace .pdf-paper-wrap { width: min(470px, 92%); position: relative; }
+    #unified-pdf-workspace .pdf-paper {
+      aspect-ratio: 0.707;
+      background: #ffffff;
+      color: #182136;
+      box-shadow: 0 10px 28px light-dark(#b8c0ce, #080b12);
+      padding: 45px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    #unified-pdf-workspace .pdf-paper-kicker { color: #3158b8; text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+    #unified-pdf-workspace .pdf-paper h2 { margin: 14px 0 8px; font-size: 28px; line-height: 1.15; font-weight: 500; }
+    #unified-pdf-workspace .pdf-paper p { margin: 0 0 12px; line-height: 1.55; }
+    #unified-pdf-workspace .pdf-contract-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 22px 0;
+    }
+    #unified-pdf-workspace .pdf-meta-block { border-top: 1px solid #d5dbe6; padding-top: 7px; }
+    #unified-pdf-workspace .pdf-meta-label { color: #6d7789; margin-bottom: 3px; }
+    #unified-pdf-workspace .pdf-table-preview {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0 22px;
+    }
+    #unified-pdf-workspace .pdf-table-preview th,
+    #unified-pdf-workspace .pdf-table-preview td { padding: 8px; border-bottom: 1px solid #dce1e9; text-align: left; }
+    #unified-pdf-workspace .pdf-table-preview th { background: #eef2f8; font-weight: 500; }
+    #unified-pdf-workspace .pdf-recipient-fields {
+      border: 1px solid #6f8fe7;
+      background: #f3f6ff;
+      padding: 13px;
+      border-radius: 5px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      position: relative;
+    }
+    #unified-pdf-workspace .pdf-selection-label {
+      position: absolute;
+      top: -24px;
+      left: -1px;
+      background: #365fc5;
+      color: #ffffff;
+      padding: 4px 7px;
+      border-radius: 5px 5px 0 0;
+    }
+    #unified-pdf-workspace .pdf-field {
+      min-height: 38px;
+      padding: 8px 9px;
+      border: 1px dashed #7793d7;
+      background: #ffffff;
+      border-radius: 4px;
+      color: #6c7587;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    #unified-pdf-workspace .pdf-field svg { width: 15px; height: 15px; }
+    #unified-pdf-workspace .pdf-page-footer {
+      position: absolute;
+      bottom: 18px;
+      left: 48px;
+      right: 48px;
+      display: flex;
+      justify-content: space-between;
+      color: #7b8494;
+    }
+    #unified-pdf-workspace .pdf-canvas-status {
+      position: absolute;
+      left: 16px;
+      bottom: 10px;
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      color: light-dark(#5c667a, #b2bccf);
+      background: light-dark(#ffffff, #222a3a);
+      border: 1px solid light-dark(#d8dee8, #394356);
+      border-radius: 8px;
+      padding: 6px 9px;
+    }
+    #unified-pdf-workspace .pdf-status-dot { width: 7px; height: 7px; border-radius: 50%; background: light-dark(#16855f, #54d6a6); }
+    #unified-pdf-workspace .pdf-zoom {
+      position: absolute;
+      right: 16px;
+      bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: light-dark(#ffffff, #222a3a);
+      border: 1px solid light-dark(#d8dee8, #394356);
+      border-radius: 8px;
+      padding: 4px;
+    }
+    #unified-pdf-workspace .pdf-zoom button { border: 0; background: transparent; min-width: 28px; min-height: 28px; }
+    #unified-pdf-workspace .pdf-inspector {
+      background: light-dark(#ffffff, #1b2232);
+      border-left: 1px solid light-dark(#dce2ec, #30394b);
+      min-width: 0;
+    }
+    #unified-pdf-workspace .pdf-inspector-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid light-dark(#dce2ec, #30394b);
+    }
+    #unified-pdf-workspace .pdf-inspector-tab {
+      border: 0;
+      background: transparent;
+      padding: 12px 5px 9px;
+      color: light-dark(#667187, #aeb8cb);
+      border-bottom: 2px solid transparent;
+    }
+    #unified-pdf-workspace .pdf-inspector-tab[aria-selected="true"] {
+      color: light-dark(#214fc4, #b8c8ff);
+      border-bottom-color: light-dark(#2757cf, #89a5ff);
+    }
+    #unified-pdf-workspace .pdf-inspector-content { padding: 14px; }
+    #unified-pdf-workspace .pdf-inspector-content h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #unified-pdf-workspace .pdf-help { margin: 0 0 14px; color: light-dark(#6b758a, #aab4c7); }
+    #unified-pdf-workspace .pdf-section { padding: 13px 0; border-top: 1px solid light-dark(#e3e7ee, #30394b); }
+    #unified-pdf-workspace .pdf-section:first-of-type { border-top: 0; }
+    #unified-pdf-workspace .pdf-section-title { font-weight: 500; margin-bottom: 9px; }
+    #unified-pdf-workspace .pdf-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #unified-pdf-workspace .pdf-label { display: block; color: light-dark(#647086, #adb7ca); margin-bottom: 4px; }
+    #unified-pdf-workspace .pdf-input,
+    #unified-pdf-workspace .pdf-select {
+      width: 100%;
+      min-height: 36px;
+      border-radius: 7px;
+      border: 1px solid light-dark(#cfd7e4, #414c60);
+      background: light-dark(#ffffff, #222a3a);
+      padding: 7px 9px;
+    }
+    #unified-pdf-workspace .pdf-toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+    }
+    #unified-pdf-workspace .pdf-toggle { width: 38px; height: 21px; accent-color: light-dark(#2757cf, #89a5ff); }
+    #unified-pdf-workspace .pdf-recipient {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      border-radius: 8px;
+      background: light-dark(#f1f4fa, #252e40);
+      margin-bottom: 7px;
+    }
+    #unified-pdf-workspace .pdf-avatar {
+      width: 27px;
+      height: 27px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: light-dark(#dce6ff, #3d4b6b);
+      color: light-dark(#214ebc, #d4deff);
+      font-weight: 500;
+    }
+    #unified-pdf-workspace .pdf-recipient-copy { min-width: 0; flex: 1; }
+    #unified-pdf-workspace .pdf-recipient-name { font-weight: 500; }
+    #unified-pdf-workspace .pdf-recipient-role { color: light-dark(#6f798d, #a9b3c6); }
+    #unified-pdf-workspace .pdf-note {
+      padding: 10px;
+      border-radius: 8px;
+      background: light-dark(#eef4ff, #26334d);
+      color: light-dark(#294a91, #cbd8ff);
+      line-height: 1.45;
+    }
+    #unified-pdf-workspace .pdf-layer-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 3px;
+      border-bottom: 1px solid light-dark(#e7eaf0, #2d3545);
+    }
+    #unified-pdf-workspace .pdf-layer-row svg { width: 15px; height: 15px; }
+    #unified-pdf-workspace .pdf-layer-row span { flex: 1; }
+    #unified-pdf-workspace .pdf-layer-row.is-selected { color: light-dark(#214fc4, #c1ceff); }
+    #unified-pdf-workspace .pdf-bottom-status {
+      min-height: 36px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 6px 12px;
+      background: light-dark(#ffffff, #1b2232);
+      border-top: 1px solid light-dark(#dce2ec, #30394b);
+      color: light-dark(#687388, #aeb8ca);
+    }
+    #unified-pdf-workspace .pdf-bottom-status .pdf-right { margin-left: auto; display: flex; gap: 12px; }
+    #unified-pdf-workspace .pdf-mobile-note { display: none; }
+    @media (max-width: 880px) {
+      #unified-pdf-workspace .pdf-main { grid-template-columns: 178px minmax(0, 1fr); }
+      #unified-pdf-workspace .pdf-inspector { display: none; }
+      #unified-pdf-workspace .pdf-docname,
+      #unified-pdf-workspace .pdf-divider { display: none; }
+      #unified-pdf-workspace .pdf-brand { min-width: auto; }
+      #unified-pdf-workspace .pdf-mode-switch { margin-left: auto; }
+      #unified-pdf-workspace .pdf-top-spacer { display: none; }
+    }
+    @media (max-width: 610px) {
+      #unified-pdf-workspace .pdf-shell { min-height: auto; }
+      #unified-pdf-workspace .pdf-topbar { flex-wrap: wrap; }
+      #unified-pdf-workspace .pdf-brand-copy { display: none; }
+      #unified-pdf-workspace .pdf-mode-switch { order: 3; width: 100%; }
+      #unified-pdf-workspace .pdf-mode { flex: 1; }
+      #unified-pdf-workspace .pdf-text-action span { display: none; }
+      #unified-pdf-workspace .pdf-main { display: block; }
+      #unified-pdf-workspace .pdf-pages { display: none; }
+      #unified-pdf-workspace .pdf-canvas-area { padding: 22px 10px 48px; }
+      #unified-pdf-workspace .pdf-paper { padding: 28px 25px; }
+      #unified-pdf-workspace .pdf-paper h2 { font-size: 23px; }
+      #unified-pdf-workspace .pdf-contract-meta,
+      #unified-pdf-workspace .pdf-recipient-fields { grid-template-columns: 1fr; }
+      #unified-pdf-workspace .pdf-page-footer { left: 25px; right: 25px; }
+      #unified-pdf-workspace .pdf-bottom-status { display: none; }
+      #unified-pdf-workspace .pdf-mobile-note {
+        display: block;
+        padding: 9px 12px;
+        background: light-dark(#edf2ff, #27334b);
+        color: light-dark(#294a91, #cbd8ff);
+      }
+    }
+  </style>
+
+  <div class="pdf-shell">
+    <header class="pdf-topbar">
+      <div class="pdf-brand">
+        <div class="pdf-mark"><i data-lucide="files" aria-hidden="true"></i></div>
+        <div class="pdf-brand-copy">
+          <div class="pdf-product">PDF Workspace</div>
+          <div class="pdf-docname">Supplier agreement · Version 7</div>
+        </div>
+      </div>
+      <div class="pdf-divider" aria-hidden="true"></div>
+      <button class="pdf-icon-action" type="button" aria-label="Undo"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+      <button class="pdf-icon-action" type="button" aria-label="Redo"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+      <div class="pdf-mode-switch" aria-label="Document mode">
+        <button class="pdf-mode" type="button" data-mode="author" aria-pressed="true">Author</button>
+        <button class="pdf-mode" type="button" data-mode="recipient" aria-pressed="false">Recipient preview</button>
+        <button class="pdf-mode" type="button" data-mode="completed" aria-pressed="false">Completed</button>
+      </div>
+      <div class="pdf-top-spacer"></div>
+      <button class="pdf-text-action" type="button"><i data-lucide="history" aria-hidden="true"></i><span>Versions</span></button>
+      <button class="pdf-text-action" type="button"><i data-lucide="users" aria-hidden="true"></i><span>Share</span></button>
+      <button class="pdf-primary-action" type="button"><i data-lucide="send" aria-hidden="true"></i><span id="pdf-primary-label">Export</span></button>
+    </header>
+
+    <nav class="pdf-workbar" aria-label="PDF tools">
+      <div class="pdf-workspace-label"><i data-lucide="layout-template" aria-hidden="true"></i>Contract workspace</div>
+      <button class="pdf-tool" type="button" aria-pressed="true"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i>Select</button>
+      <button class="pdf-tool" type="button"><i data-lucide="type" aria-hidden="true"></i>Text</button>
+      <button class="pdf-tool" type="button"><i data-lucide="image" aria-hidden="true"></i>Image</button>
+      <button class="pdf-tool" type="button"><i data-lucide="table-2" aria-hidden="true"></i>Table</button>
+      <button class="pdf-tool" type="button"><i data-lucide="layout-panel-top" aria-hidden="true"></i>Section</button>
+      <button class="pdf-tool" type="button"><i data-lucide="shapes" aria-hidden="true"></i>Shape</button>
+      <button class="pdf-tool" type="button"><i data-lucide="text-cursor-input" aria-hidden="true"></i>Recipient field</button>
+      <button class="pdf-tool" type="button"><i data-lucide="signature" aria-hidden="true"></i>Signature</button>
+      <button class="pdf-tool pdf-tool-more" type="button"><i data-lucide="search" aria-hidden="true"></i>All tools</button>
+    </nav>
+
+    <div class="pdf-main">
+      <aside class="pdf-pages" aria-label="Document pages">
+        <div class="pdf-pane-heading"><span>Pages</span><span class="pdf-page-count">3 pages</span></div>
+        <div class="pdf-thumb-list">
+          <button class="pdf-thumb" type="button" aria-pressed="false">
+            <span class="pdf-thumb-number">1</span>
+            <span class="pdf-thumb-paper"><span class="pdf-mini-head"></span><span class="pdf-mini-line"></span><span class="pdf-mini-line short"></span><span class="pdf-mini-line"></span></span>
+          </button>
+          <button class="pdf-thumb" type="button" aria-pressed="true">
+            <span class="pdf-thumb-number">2</span>
+            <span class="pdf-thumb-paper"><span class="pdf-mini-head"></span><span class="pdf-mini-line"></span><span class="pdf-mini-line"></span><span class="pdf-mini-form"></span><span class="pdf-mini-form"></span></span>
+          </button>
+          <button class="pdf-thumb" type="button" aria-pressed="false">
+            <span class="pdf-thumb-number">3</span>
+            <span class="pdf-thumb-paper"><span class="pdf-mini-line"></span><span class="pdf-mini-line short"></span><span class="pdf-mini-line"></span><span class="pdf-mini-form"></span></span>
+          </button>
+        </div>
+        <button class="pdf-add-page" type="button"><i data-lucide="plus" aria-hidden="true"></i>Add page</button>
+      </aside>
+
+      <main class="pdf-canvas-area">
+        <div class="pdf-paper-wrap">
+          <article class="pdf-paper" aria-label="Editable agreement page">
+            <div class="pdf-paper-kicker">Service agreement</div>
+            <h2>Scope and acceptance</h2>
+            <p>The supplier will provide the services listed below under the agreed delivery schedule and quality requirements.</p>
+            <div class="pdf-contract-meta">
+              <div class="pdf-meta-block"><div class="pdf-meta-label">Client</div><strong>Northstar Textiles</strong></div>
+              <div class="pdf-meta-block"><div class="pdf-meta-label">Effective date</div><strong>30 August 2026</strong></div>
+            </div>
+            <table class="pdf-table-preview" aria-label="Deliverables">
+              <thead><tr><th>Deliverable</th><th>Review</th></tr></thead>
+              <tbody><tr><td>Production artwork</td><td>Before release</td></tr><tr><td>Print-ready package</td><td>Final approval</td></tr></tbody>
+            </table>
+            <p>By completing the fields below, the authorised recipient confirms review and acceptance of this agreement.</p>
+            <div class="pdf-recipient-fields" id="pdf-selected-fields">
+              <span class="pdf-selection-label">Recipient 1 · Acceptance fields</span>
+              <div class="pdf-field"><i data-lucide="user" aria-hidden="true"></i>Full name · Required</div>
+              <div class="pdf-field"><i data-lucide="calendar" aria-hidden="true"></i>Date · Auto-filled</div>
+              <div class="pdf-field"><i data-lucide="signature" aria-hidden="true"></i>Signature · Required</div>
+              <div class="pdf-field"><i data-lucide="check-square" aria-hidden="true"></i>I accept the terms</div>
+            </div>
+            <div class="pdf-page-footer"><span>Supplier agreement</span><span>2 / 3</span></div>
+          </article>
+        </div>
+        <div class="pdf-canvas-status"><span class="pdf-status-dot"></span><span id="pdf-canvas-status-text">All changes saved · Author mode</span></div>
+        <div class="pdf-zoom"><button type="button" aria-label="Zoom out">−</button><span>78%</span><button type="button" aria-label="Zoom in">+</button></div>
+      </main>
+
+      <aside class="pdf-inspector" aria-label="Document inspector">
+        <div class="pdf-inspector-tabs" role="tablist" aria-label="Inspector sections">
+          <button class="pdf-inspector-tab" type="button" role="tab" data-panel="properties" aria-selected="true">Field</button>
+          <button class="pdf-inspector-tab" type="button" role="tab" data-panel="layers" aria-selected="false">Layers</button>
+          <button class="pdf-inspector-tab" type="button" role="tab" data-panel="preflight" aria-selected="false">Check</button>
+          <button class="pdf-inspector-tab" type="button" role="tab" data-panel="assistant" aria-selected="false">AI</button>
+        </div>
+        <div class="pdf-inspector-content">
+          <section data-content="properties">
+            <h3>Acceptance fields</h3>
+            <p class="pdf-help">Four fields assigned to the same recipient.</p>
+            <div class="pdf-section">
+              <div class="pdf-section-title">Recipient</div>
+              <div class="pdf-recipient"><span class="pdf-avatar">VK</span><span class="pdf-recipient-copy"><span class="pdf-recipient-name">Vijay Kumar</span><br><span class="pdf-recipient-role">Signer · Recipient 1</span></span></div>
+              <button class="pdf-text-action" type="button"><i data-lucide="user-plus" aria-hidden="true"></i>Add recipient</button>
+            </div>
+            <div class="pdf-section">
+              <div class="pdf-section-title">Field behaviour</div>
+              <div class="pdf-field-row">
+                <label><span class="pdf-label">Type</span><select class="pdf-select"><option>Signature group</option><option>Text input</option><option>Approval</option></select></label>
+                <label><span class="pdf-label">Role</span><select class="pdf-select"><option>Signer</option><option>Approver</option><option>Witness</option></select></label>
+              </div>
+              <label class="pdf-toggle-row"><span>Required before submit</span><input class="pdf-toggle" type="checkbox" checked></label>
+              <label class="pdf-toggle-row"><span>Lock after completion</span><input class="pdf-toggle" type="checkbox" checked></label>
+            </div>
+            <div class="pdf-note">Recipient links may be reopened until submission or expiry. After completion, this document becomes read-only.</div>
+          </section>
+          <section data-content="layers" hidden>
+            <h3>Page 2 layers</h3>
+            <p class="pdf-help">Every object remains independently editable.</p>
+            <div class="pdf-layer-row"><i data-lucide="layers" aria-hidden="true"></i><span>Agreement master</span><i data-lucide="lock" aria-hidden="true"></i></div>
+            <div class="pdf-layer-row"><i data-lucide="heading-2" aria-hidden="true"></i><span>Scope heading</span><i data-lucide="eye" aria-hidden="true"></i></div>
+            <div class="pdf-layer-row"><i data-lucide="text" aria-hidden="true"></i><span>Agreement copy</span><i data-lucide="eye" aria-hidden="true"></i></div>
+            <div class="pdf-layer-row"><i data-lucide="table-2" aria-hidden="true"></i><span>Deliverables table</span><i data-lucide="eye" aria-hidden="true"></i></div>
+            <div class="pdf-layer-row is-selected"><i data-lucide="text-cursor-input" aria-hidden="true"></i><span>Acceptance fields</span><i data-lucide="eye" aria-hidden="true"></i></div>
+          </section>
+          <section data-content="preflight" hidden>
+            <h3>Document checks</h3>
+            <p class="pdf-help">Continuous checks before export or sending.</p>
+            <div class="pdf-section"><div class="pdf-section-title">Content</div><div class="pdf-note">All fonts embedded · Table fits page · No clipped objects</div></div>
+            <div class="pdf-section"><div class="pdf-section-title">Accessibility</div><div class="pdf-note">Reading order ready · 1 image needs alt text</div></div>
+            <div class="pdf-section"><div class="pdf-section-title">Recipient flow</div><div class="pdf-note">4 required fields assigned · Routing valid · Completion lock enabled</div></div>
+          </section>
+          <section data-content="assistant" hidden>
+            <h3>Document assistant</h3>
+            <p class="pdf-help">Ask about the selected section or entire document.</p>
+            <div class="pdf-note">Selected: Acceptance fields<br><br>“Add a witness field after the signer and keep the date automatic.”</div>
+            <div class="pdf-section"><label><span class="pdf-label">Ask or request a change</span><input class="pdf-input" value="" placeholder="Describe the change…"></label></div>
+            <button class="pdf-primary-action" type="button"><i data-lucide="sparkles" aria-hidden="true"></i>Prepare suggestion</button>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <div class="pdf-mobile-note">Mobile focuses on review, comments, recipient completion and simple page actions. Full document authoring remains available on larger screens.</div>
+    <footer class="pdf-bottom-status">
+      <span>Native editable document</span><span>Autosave on</span><span>Version 7</span>
+      <span class="pdf-right"><span>Editing lock: You</span><span>1 viewer</span></span>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('unified-pdf-workspace');
+      const modes = [...root.querySelectorAll('.pdf-mode')];
+      const status = root.querySelector('#pdf-canvas-status-text');
+      const primaryLabel = root.querySelector('#pdf-primary-label');
+      const selectedFields = root.querySelector('#pdf-selected-fields');
+      const modeState = {
+        author: ['All changes saved · Author mode', 'Export'],
+        recipient: ['Previewing Recipient 1 experience', 'Send for completion'],
+        completed: ['Completed copy · Read-only', 'Download evidence']
+      };
+      modes.forEach((button) => button.addEventListener('click', () => {
+        modes.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const state = modeState[button.dataset.mode];
+        status.textContent = state[0];
+        primaryLabel.textContent = state[1];
+        selectedFields.style.opacity = button.dataset.mode === 'completed' ? '0.78' : '1';
+      }));
+
+      const tabs = [...root.querySelectorAll('.pdf-inspector-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      tabs.forEach((tab) => tab.addEventListener('click', () => {
+        tabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== tab.dataset.panel; });
+      }));
+
+      const thumbs = [...root.querySelectorAll('.pdf-thumb')];
+      thumbs.forEach((thumb) => thumb.addEventListener('click', () => {
+        thumbs.forEach((item) => item.setAttribute('aria-pressed', String(item === thumb)));
+      }));
+    })();
+  </script>
+</section>

@@ -1,0 +1,344 @@
+<section id="release-command-center" aria-label="Release Command Center interface concept">
+  <style>
+    #release-command-center {
+      color-scheme: light dark;
+      --rc-bg: light-dark(#f4f6fa, #111622);
+      --rc-shell: light-dark(#ffffff, #171d2a);
+      --rc-panel: light-dark(#ffffff, #1b2231);
+      --rc-panel-2: light-dark(#f7f8fb, #202838);
+      --rc-text: light-dark(#172033, #edf1f8);
+      --rc-muted: light-dark(#677289, #a9b4c7);
+      --rc-border: light-dark(#dce2eb, #303a4d);
+      --rc-primary: light-dark(#2956cf, #90a9ff);
+      --rc-primary-soft: light-dark(#edf2ff, #243257);
+      --rc-primary-ink: light-dark(#244db6, #c9d4ff);
+      --rc-green: light-dark(#1b7756, #83dab7);
+      --rc-green-soft: light-dark(#eaf7f2, #20382f);
+      --rc-amber: light-dark(#a45f0e, #f3c271);
+      --rc-amber-soft: light-dark(#fff5df, #3f321e);
+      --rc-red: light-dark(#b6434f, #ff9da8);
+      --rc-red-soft: light-dark(#fff0f1, #43272d);
+      --rc-purple: light-dark(#7452c8, #c4afff);
+      --rc-purple-soft: light-dark(#f3efff, #312747);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--rc-text);
+      width: 100%;
+      background: transparent;
+    }
+    #release-command-center * { box-sizing: border-box; }
+    #release-command-center button, #release-command-center input, #release-command-center select { font: inherit; color: inherit; }
+    #release-command-center .rc-shell { position: relative; width: 100%; overflow: hidden; background: var(--rc-shell); border: 1px solid var(--rc-border); border-radius: 14px; box-shadow: 0 14px 36px light-dark(rgba(35,48,72,.12), rgba(0,0,0,.34)); }
+    #release-command-center .rc-header { min-height: 60px; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid var(--rc-border); background: var(--rc-panel); }
+    #release-command-center .rc-brand { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 9px; display: grid; place-items: center; color: light-dark(#ffffff, #101522); background: var(--rc-primary); }
+    #release-command-center .rc-brand svg { width: 18px; height: 18px; }
+    #release-command-center .rc-title-wrap { min-width: 0; }
+    #release-command-center .rc-title { font-weight: 500; letter-spacing: -.01em; }
+    #release-command-center .rc-subtitle { margin-top: 2px; color: var(--rc-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #release-command-center .rc-spacer { flex: 1; }
+    #release-command-center .rc-environment { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 8px; background: var(--rc-green-soft); color: var(--rc-green); font-size: 12px; }
+    #release-command-center .rc-environment svg { width: 14px; height: 14px; }
+    #release-command-center .rc-button, #release-command-center .rc-primary, #release-command-center .rc-icon-button { min-height: 36px; border: 1px solid var(--rc-border); border-radius: 8px; background: var(--rc-panel); display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 7px 10px; cursor: pointer; }
+    #release-command-center .rc-button svg, #release-command-center .rc-primary svg, #release-command-center .rc-icon-button svg { width: 16px; height: 16px; }
+    #release-command-center .rc-primary { border-color: var(--rc-primary); background: var(--rc-primary); color: light-dark(#ffffff, #101522); }
+    #release-command-center .rc-icon-button { width: 36px; padding: 0; }
+    #release-command-center .rc-main { display: grid; grid-template-columns: 205px minmax(0, 1fr) 250px; min-height: 730px; }
+    #release-command-center .rc-nav { padding: 13px 10px; border-right: 1px solid var(--rc-border); background: var(--rc-panel-2); }
+    #release-command-center .rc-nav-label { padding: 6px 8px 8px; color: var(--rc-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    #release-command-center .rc-nav-button { width: 100%; min-height: 40px; border: 0; border-radius: 8px; background: transparent; padding: 8px 9px; display: flex; align-items: center; gap: 9px; color: var(--rc-muted); text-align: left; cursor: pointer; }
+    #release-command-center .rc-nav-button svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    #release-command-center .rc-nav-button[aria-pressed="true"] { background: var(--rc-primary-soft); color: var(--rc-primary-ink); }
+    #release-command-center .rc-nav-count { margin-left: auto; min-width: 22px; text-align: center; padding: 2px 5px; border-radius: 999px; background: light-dark(#e4e9f2, #2b3446); color: var(--rc-muted); font-size: 11px; }
+    #release-command-center .rc-nav-divider { height: 1px; background: var(--rc-border); margin: 12px 8px; }
+    #release-command-center .rc-policy-note { margin-top: 16px; padding: 10px; border-radius: 9px; background: var(--rc-panel); color: var(--rc-muted); font-size: 12px; line-height: 1.45; }
+    #release-command-center .rc-policy-note strong { color: var(--rc-text); font-weight: 500; }
+    #release-command-center .rc-content { min-width: 0; padding: 17px 18px 25px; background: var(--rc-bg); }
+    #release-command-center .rc-heading-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    #release-command-center .rc-heading-row h2 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+    #release-command-center .rc-heading-copy { color: var(--rc-muted); margin-top: 4px; line-height: 1.4; }
+    #release-command-center .rc-heading-actions { margin-left: auto; display: flex; gap: 7px; }
+    #release-command-center .rc-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 13px; }
+    #release-command-center .rc-metric { padding: 11px 12px; border-radius: 10px; border: 1px solid var(--rc-border); background: var(--rc-panel); }
+    #release-command-center .rc-metric-label { display: flex; align-items: center; gap: 7px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-metric-label svg { width: 15px; height: 15px; }
+    #release-command-center .rc-metric-value { margin-top: 6px; font-size: 18px; font-weight: 500; }
+    #release-command-center .rc-metric-detail { color: var(--rc-muted); margin-top: 3px; font-size: 12px; }
+    #release-command-center .rc-release { border: 1px solid var(--rc-border); border-radius: 11px; background: var(--rc-panel); overflow: hidden; }
+    #release-command-center .rc-release-head { display: flex; align-items: center; gap: 10px; padding: 12px 13px; border-bottom: 1px solid var(--rc-border); }
+    #release-command-center .rc-release-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--rc-primary-soft); color: var(--rc-primary-ink); }
+    #release-command-center .rc-release-icon svg { width: 18px; height: 18px; }
+    #release-command-center .rc-release-name { font-weight: 500; }
+    #release-command-center .rc-release-meta { margin-top: 2px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-release-state { margin-left: auto; padding: 5px 8px; border-radius: 999px; background: var(--rc-amber-soft); color: var(--rc-amber); font-size: 12px; white-space: nowrap; }
+    #release-command-center .rc-gates { padding: 5px 13px 9px; }
+    #release-command-center .rc-gate { width: 100%; border: 0; border-bottom: 1px solid var(--rc-border); background: transparent; display: grid; grid-template-columns: 30px minmax(0, 1fr) 118px 90px; gap: 9px; align-items: center; padding: 11px 2px; text-align: left; cursor: pointer; }
+    #release-command-center .rc-gate:last-child { border-bottom: 0; }
+    #release-command-center .rc-gate[aria-pressed="true"] { background: var(--rc-primary-soft); margin-inline: -6px; width: calc(100% + 12px); padding-inline: 8px; border-radius: 8px; border-bottom-color: transparent; }
+    #release-command-center .rc-gate-icon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--rc-panel-2); color: var(--rc-muted); }
+    #release-command-center .rc-gate-icon svg { width: 15px; height: 15px; }
+    #release-command-center .rc-gate-title { display: block; font-weight: 500; }
+    #release-command-center .rc-gate-sub { display: block; color: var(--rc-muted); font-size: 12px; margin-top: 2px; line-height: 1.35; }
+    #release-command-center .rc-owner { color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-status { justify-self: end; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+    #release-command-center .rc-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    #release-command-center .rc-status.pass { color: var(--rc-green); }
+    #release-command-center .rc-status.review { color: var(--rc-amber); }
+    #release-command-center .rc-status.block { color: var(--rc-red); }
+    #release-command-center .rc-quality-list, #release-command-center .rc-model-list, #release-command-center .rc-cohort-list, #release-command-center .rc-incident-list { border: 1px solid var(--rc-border); border-radius: 11px; background: var(--rc-panel); overflow: hidden; }
+    #release-command-center .rc-list-head { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(120px, .8fr) 110px 100px; gap: 8px; padding: 9px 12px; background: var(--rc-panel-2); color: var(--rc-muted); font-size: 12px; border-bottom: 1px solid var(--rc-border); }
+    #release-command-center .rc-list-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(120px, .8fr) 110px 100px; gap: 8px; align-items: center; padding: 11px 12px; border-bottom: 1px solid var(--rc-border); }
+    #release-command-center .rc-list-row:last-child { border-bottom: 0; }
+    #release-command-center .rc-item-main { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    #release-command-center .rc-item-icon { width: 31px; height: 31px; border-radius: 8px; background: var(--rc-panel-2); display: grid; place-items: center; color: var(--rc-muted); flex: 0 0 auto; }
+    #release-command-center .rc-item-icon svg { width: 16px; height: 16px; }
+    #release-command-center .rc-item-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #release-command-center .rc-item-sub { margin-top: 2px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-cell-muted { color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-chip { width: max-content; padding: 4px 7px; border-radius: 999px; font-size: 12px; }
+    #release-command-center .rc-chip.green { color: var(--rc-green); background: var(--rc-green-soft); }
+    #release-command-center .rc-chip.amber { color: var(--rc-amber); background: var(--rc-amber-soft); }
+    #release-command-center .rc-chip.red { color: var(--rc-red); background: var(--rc-red-soft); }
+    #release-command-center .rc-chip.purple { color: var(--rc-purple); background: var(--rc-purple-soft); }
+    #release-command-center .rc-panel-banner { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 12px; padding: 10px 11px; border-radius: 9px; background: var(--rc-primary-soft); color: var(--rc-primary-ink); line-height: 1.42; }
+    #release-command-center .rc-panel-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #release-command-center [data-panel][hidden] { display: none; }
+    #release-command-center .rc-inspector { padding: 15px 13px; border-left: 1px solid var(--rc-border); background: var(--rc-panel); }
+    #release-command-center .rc-inspector h3 { margin: 0; font-size: inherit; font-weight: 500; }
+    #release-command-center .rc-inspector-intro { color: var(--rc-muted); font-size: 12px; line-height: 1.45; margin-top: 4px; }
+    #release-command-center .rc-selected { margin-top: 12px; padding: 10px; border-radius: 9px; background: var(--rc-panel-2); }
+    #release-command-center .rc-selected-title { font-weight: 500; }
+    #release-command-center .rc-selected-copy { margin-top: 4px; color: var(--rc-muted); font-size: 12px; line-height: 1.4; }
+    #release-command-center .rc-inspector-section { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--rc-border); }
+    #release-command-center .rc-inspector-label { font-weight: 500; margin-bottom: 8px; }
+    #release-command-center .rc-checkline { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; }
+    #release-command-center .rc-checkline svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; color: var(--rc-green); }
+    #release-command-center .rc-checkline.warning svg { color: var(--rc-amber); }
+    #release-command-center .rc-checkline.blocked svg { color: var(--rc-red); }
+    #release-command-center .rc-checkline strong { display: block; font-weight: 500; }
+    #release-command-center .rc-checkline small { display: block; color: var(--rc-muted); margin-top: 2px; line-height: 1.35; }
+    #release-command-center .rc-decision { margin-top: 12px; padding: 10px; border-radius: 9px; background: var(--rc-red-soft); color: var(--rc-red); font-size: 12px; line-height: 1.45; }
+    #release-command-center .rc-bottom { min-height: 38px; padding: 7px 12px; border-top: 1px solid var(--rc-border); background: var(--rc-panel); display: flex; align-items: center; gap: 14px; color: var(--rc-muted); font-size: 12px; }
+    #release-command-center .rc-bottom-item { display: flex; align-items: center; gap: 6px; }
+    #release-command-center .rc-bottom-item svg { width: 14px; height: 14px; }
+    #release-command-center .rc-bottom-right { margin-left: auto; display: flex; gap: 14px; }
+    #release-command-center .rc-dialog { position: absolute; z-index: 15; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(470px, calc(100% - 28px)); padding: 15px; border-radius: 11px; border: 1px solid var(--rc-border); background: var(--rc-panel); box-shadow: 0 20px 55px light-dark(rgba(35,47,70,.32), rgba(0,0,0,.62)); }
+    #release-command-center .rc-dialog[hidden], #release-command-center .rc-toast[hidden] { display: none; }
+    #release-command-center .rc-dialog h3 { margin: 0 0 5px; font-size: 18px; font-weight: 500; }
+    #release-command-center .rc-dialog p { margin: 0 0 11px; color: var(--rc-muted); line-height: 1.45; }
+    #release-command-center .rc-dialog-callout { padding: 10px; border-radius: 8px; background: var(--rc-amber-soft); color: var(--rc-amber); line-height: 1.42; }
+    #release-command-center .rc-field { display: block; margin-top: 10px; }
+    #release-command-center .rc-field span { display: block; color: var(--rc-muted); font-size: 12px; margin-bottom: 4px; }
+    #release-command-center .rc-select { width: 100%; min-height: 39px; border-radius: 8px; border: 1px solid var(--rc-border); background: var(--rc-panel-2); padding: 7px 9px; }
+    #release-command-center .rc-dialog-actions { margin-top: 13px; display: flex; justify-content: flex-end; gap: 7px; }
+    #release-command-center .rc-toast { position: absolute; z-index: 20; left: 50%; bottom: 48px; transform: translateX(-50%); max-width: calc(100% - 30px); padding: 9px 12px; border-radius: 9px; background: light-dark(#1e2839, #edf2ff); color: light-dark(#ffffff, #121827); box-shadow: 0 10px 30px light-dark(rgba(35,47,70,.25), rgba(0,0,0,.5)); }
+    @media (max-width: 930px) {
+      #release-command-center .rc-main { grid-template-columns: 190px minmax(0, 1fr); }
+      #release-command-center .rc-inspector { display: none; }
+      #release-command-center .rc-environment { display: none; }
+    }
+    @media (max-width: 680px) {
+      #release-command-center .rc-shell { border-radius: 10px; }
+      #release-command-center .rc-header { flex-wrap: wrap; }
+      #release-command-center .rc-subtitle { max-width: 190px; }
+      #release-command-center .rc-main { display: block; min-height: 0; }
+      #release-command-center .rc-nav { display: none; }
+      #release-command-center .rc-content { padding: 14px 10px 20px; }
+      #release-command-center .rc-heading-row { flex-wrap: wrap; }
+      #release-command-center .rc-heading-actions { width: 100%; margin-left: 0; }
+      #release-command-center .rc-heading-actions .rc-button, #release-command-center .rc-heading-actions .rc-primary { flex: 1; }
+      #release-command-center .rc-metrics { grid-template-columns: 1fr; }
+      #release-command-center .rc-gate { grid-template-columns: 30px minmax(0, 1fr) 80px; }
+      #release-command-center .rc-owner { display: none; }
+      #release-command-center .rc-list-head { display: none; }
+      #release-command-center .rc-list-row { grid-template-columns: minmax(0, 1fr) auto; }
+      #release-command-center .rc-list-row > :nth-child(2) { grid-column: 1; padding-left: 40px; }
+      #release-command-center .rc-list-row > :nth-child(3) { grid-column: 1; padding-left: 40px; }
+      #release-command-center .rc-list-row > :nth-child(4) { grid-column: 2; grid-row: 1; }
+      #release-command-center .rc-bottom { display: none; }
+    }
+    @media (max-width: 400px) {
+      #release-command-center .rc-header .rc-button { display: none; }
+      #release-command-center .rc-primary { padding-inline: 9px; }
+      #release-command-center .rc-gate { grid-template-columns: 28px minmax(0, 1fr); }
+      #release-command-center .rc-status { grid-column: 2; justify-self: start; }
+    }
+  </style>
+
+  <div class="rc-shell">
+    <header class="rc-header">
+      <div class="rc-brand"><i data-lucide="shield-check" aria-hidden="true"></i></div>
+      <div class="rc-title-wrap"><div class="rc-title">Release Command Center</div><div class="rc-subtitle">Northstar Studio · Controlled quality and production readiness</div></div>
+      <div class="rc-spacer"></div>
+      <div class="rc-environment"><i data-lucide="circle-check" aria-hidden="true"></i>Production healthy</div>
+      <button class="rc-button" type="button"><i data-lucide="book-open-check" aria-hidden="true"></i>Release policy</button>
+      <button class="rc-primary" id="rc-review-release" type="button"><i data-lucide="clipboard-check" aria-hidden="true"></i>Review release</button>
+    </header>
+
+    <div class="rc-main">
+      <aside class="rc-nav" aria-label="Release operations navigation">
+        <div class="rc-nav-label">Release safety</div>
+        <button class="rc-nav-button" type="button" data-target="overview" aria-pressed="true"><i data-lucide="layout-dashboard" aria-hidden="true"></i>Release gates<span class="rc-nav-count">1</span></button>
+        <button class="rc-nav-button" type="button" data-target="quality" aria-pressed="false"><i data-lucide="badge-check" aria-hidden="true"></i>Quality evidence</button>
+        <button class="rc-nav-button" type="button" data-target="models" aria-pressed="false"><i data-lucide="brain-circuit" aria-hidden="true"></i>Models & licences<span class="rc-nav-count">2</span></button>
+        <button class="rc-nav-button" type="button" data-target="cohorts" aria-pressed="false"><i data-lucide="users-round" aria-hidden="true"></i>Tester cohorts</button>
+        <button class="rc-nav-button" type="button" data-target="incidents" aria-pressed="false"><i data-lucide="siren" aria-hidden="true"></i>Incidents<span class="rc-nav-count">1</span></button>
+        <div class="rc-nav-divider"></div>
+        <div class="rc-nav-label">Controls</div>
+        <button class="rc-nav-button" type="button"><i data-lucide="toggle-right" aria-hidden="true"></i>Feature flags</button>
+        <button class="rc-nav-button" type="button"><i data-lucide="rotate-ccw" aria-hidden="true"></i>Rollback history</button>
+        <button class="rc-nav-button" type="button"><i data-lucide="scroll-text" aria-hidden="true"></i>Audit log</button>
+        <div class="rc-policy-note"><strong>Release cannot be approved by confidence alone.</strong><br>Every production capability needs evidence, ownership, licence clearance, monitored rollout and a tested rollback path.</div>
+      </aside>
+
+      <main class="rc-content">
+        <div class="rc-heading-row">
+          <div><h2 id="rc-page-title">Release readiness</h2><div class="rc-heading-copy" id="rc-page-copy">One decision surface for engineering, product, quality, security and operations.</div></div>
+          <div class="rc-heading-actions"><button class="rc-button" type="button"><i data-lucide="git-compare-arrows" aria-hidden="true"></i>Compare build</button><button class="rc-primary" id="rc-start-review" type="button"><i data-lucide="play" aria-hidden="true"></i>Start review</button></div>
+        </div>
+
+        <section data-panel="overview">
+          <div class="rc-metrics">
+            <div class="rc-metric"><div class="rc-metric-label"><i data-lucide="shield-check" aria-hidden="true"></i>Required gates</div><div class="rc-metric-value">7 of 8 passed</div><div class="rc-metric-detail">One commercial licence blocker</div></div>
+            <div class="rc-metric"><div class="rc-metric-label"><i data-lucide="bug" aria-hidden="true"></i>Known defects</div><div class="rc-metric-value">0 Critical · 0 High</div><div class="rc-metric-detail">2 Medium with owner and workaround</div></div>
+            <div class="rc-metric"><div class="rc-metric-label"><i data-lucide="users-round" aria-hidden="true"></i>Current rollout</div><div class="rc-metric-value">Trusted users · 18</div><div class="rc-metric-detail">Feature-flagged with instant rollback</div></div>
+          </div>
+
+          <div class="rc-release">
+            <div class="rc-release-head"><span class="rc-release-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span><span class="rc-release-name">Candidate 2026.08.30-rc.4</span><span class="rc-release-meta">Image Studio · PDF Workspace · Production Export · Projects · E-sign</span></span><span class="rc-release-state">Blocked from promotion</span></div>
+            <div class="rc-gates">
+              <button class="rc-gate" type="button" aria-pressed="true" data-gate="journeys"><span class="rc-gate-icon"><i data-lucide="route" aria-hidden="true"></i></span><span><span class="rc-gate-title">Approved customer journeys</span><span class="rc-gate-sub">No blocker across image, PDF, project, export, cloud and signing flows</span></span><span class="rc-owner">Quality · Meera</span><span class="rc-status pass">Passed</span></button>
+              <button class="rc-gate" type="button" aria-pressed="false" data-gate="defects"><span class="rc-gate-icon"><i data-lucide="bug" aria-hidden="true"></i></span><span><span class="rc-gate-title">Defect threshold</span><span class="rc-gate-sub">No Critical or High; accepted Medium requires owner and workaround</span></span><span class="rc-owner">Engineering · Arun</span><span class="rc-status pass">Passed</span></button>
+              <button class="rc-gate" type="button" aria-pressed="false" data-gate="licence"><span class="rc-gate-icon"><i data-lucide="scale" aria-hidden="true"></i></span><span><span class="rc-gate-title">Model and dependency licences</span><span class="rc-gate-sub">One AI weight lacks verified commercial-use permission</span></span><span class="rc-owner">Legal · Unassigned</span><span class="rc-status block">Blocked</span></button>
+              <button class="rc-gate" type="button" aria-pressed="false" data-gate="quality"><span class="rc-gate-icon"><i data-lucide="scan-eye" aria-hidden="true"></i></span><span><span class="rc-gate-title">Visual and production quality</span><span class="rc-gate-sub">Golden corpus, print profiles and human review evidence attached</span></span><span class="rc-owner">Production · Neha</span><span class="rc-status pass">Passed</span></button>
+              <button class="rc-gate" type="button" aria-pressed="false" data-gate="security"><span class="rc-gate-icon"><i data-lucide="shield" aria-hidden="true"></i></span><span><span class="rc-gate-title">Security and privacy</span><span class="rc-gate-sub">Threat checks, regional boundaries, safe logging and consent verified</span></span><span class="rc-owner">Security · Daniel</span><span class="rc-status pass">Passed</span></button>
+              <button class="rc-gate" type="button" aria-pressed="false" data-gate="rollback"><span class="rc-gate-icon"><i data-lucide="rotate-ccw" aria-hidden="true"></i></span><span><span class="rc-gate-title">Feature flags and rollback</span><span class="rc-gate-sub">Cohort targeting, kill switches and rollback rehearsal completed</span></span><span class="rc-owner">Operations · Jia</span><span class="rc-status pass">Passed</span></button>
+            </div>
+          </div>
+        </section>
+
+        <section data-panel="quality" hidden>
+          <div class="rc-panel-banner"><i data-lucide="badge-check" aria-hidden="true"></i><span>Quality evidence is versioned with the exact code, processor, model, profile and corpus. A newer build cannot inherit an older approval silently.</span></div>
+          <div class="rc-quality-list">
+            <div class="rc-list-head"><span>Evidence set</span><span>Scope</span><span>Reviewed</span><span>Result</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="images" aria-hidden="true"></i></span><span><span class="rc-item-name">Image preservation corpus</span><span class="rc-item-sub">Text, faces, logos, gradients, patterns</span></span></span><span class="rc-cell-muted">428 source/output pairs</span><span class="rc-cell-muted">30 Aug · 2 reviewers</span><span class="rc-chip green">Approved</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="printer" aria-hidden="true"></i></span><span><span class="rc-item-name">Production profile checks</span><span class="rc-item-sub">Textile, paper, signage and digital</span></span></span><span class="rc-cell-muted">16 profiles · 6 devices</span><span class="rc-cell-muted">29 Aug · 3 reviewers</span><span class="rc-chip green">Approved</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="file-check-2" aria-hidden="true"></i></span><span><span class="rc-item-name">PDF compatibility corpus</span><span class="rc-item-sub">Forms, layers, fonts, signatures, tags</span></span></span><span class="rc-cell-muted">312 documents · 5 viewers</span><span class="rc-cell-muted">29 Aug · 2 reviewers</span><span class="rc-chip amber">Exceptions</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="accessibility" aria-hidden="true"></i></span><span><span class="rc-item-name">Accessibility journeys</span><span class="rc-item-sub">Keyboard, screen reader and PDF tags</span></span></span><span class="rc-cell-muted">All approved journeys</span><span class="rc-cell-muted">28 Aug · 2 reviewers</span><span class="rc-chip green">Approved</span></div>
+          </div>
+        </section>
+
+        <section data-panel="models" hidden>
+          <div class="rc-panel-banner"><i data-lucide="scale" aria-hidden="true"></i><span>Technical availability never equals production approval. Each model, weight, dataset, dependency and hosted provider needs separate licence, quality, security and cost clearance.</span></div>
+          <div class="rc-model-list">
+            <div class="rc-list-head"><span>Processor</span><span>Approved use</span><span>Version</span><span>Release</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="wand-sparkles" aria-hidden="true"></i></span><span><span class="rc-item-name">Preserve upscale</span><span class="rc-item-sub">Deterministic standard processor</span></span></span><span class="rc-cell-muted">All workspaces · production</span><span class="rc-cell-muted">3.2.1 · pinned</span><span class="rc-chip green">Approved</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="brain-circuit" aria-hidden="true"></i></span><span><span class="rc-item-name">Restore detail</span><span class="rc-item-sub">AI-assisted restoration · regions disclosed</span></span></span><span class="rc-cell-muted">Internal corpus only</span><span class="rc-cell-muted">weight 9c74…</span><span class="rc-chip amber">Review</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span><span class="rc-item-name">Recreate texture</span><span class="rc-item-sub">Generative candidate · explicit consent</span></span></span><span class="rc-cell-muted">No customer access</span><span class="rc-cell-muted">weight b214…</span><span class="rc-chip red">Blocked</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="scan-face" aria-hidden="true"></i></span><span><span class="rc-item-name">Face restoration</span><span class="rc-item-sub">Identity-preservation benchmark pending</span></span></span><span class="rc-cell-muted">Staff-only flag</span><span class="rc-cell-muted">adapter 0.8</span><span class="rc-chip purple">Quarantined</span></div>
+          </div>
+        </section>
+
+        <section data-panel="cohorts" hidden>
+          <div class="rc-panel-banner"><i data-lucide="users-round" aria-hidden="true"></i><span>Rollout expands only after monitored evidence: internal quality team → trusted friends and domain users → closed customer cohort. Every step keeps feature flags and rollback.</span></div>
+          <div class="rc-cohort-list">
+            <div class="rc-list-head"><span>Cohort</span><span>Access</span><span>Monitoring</span><span>State</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><span><span class="rc-item-name">Internal quality team</span><span class="rc-item-sub">Engineering, QA, security and production</span></span></span><span class="rc-cell-muted">All approved features</span><span class="rc-cell-muted">Full traces · consented files</span><span class="rc-chip green">Active</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="users" aria-hidden="true"></i></span><span><span class="rc-item-name">Trusted domain users</span><span class="rc-item-sub">18 invited users · textile and print focus</span></span></span><span class="rc-cell-muted">Stable paths · flagged AI</span><span class="rc-cell-muted">Journey and quality telemetry</span><span class="rc-chip green">Active</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span><span class="rc-item-name">Closed customer cohort</span><span class="rc-item-sub">Workspace policies and support readiness</span></span></span><span class="rc-cell-muted">After release gate approval</span><span class="rc-cell-muted">Cohort dashboards · alerts</span><span class="rc-chip amber">Waiting</span></div>
+          </div>
+        </section>
+
+        <section data-panel="incidents" hidden>
+          <div class="rc-panel-banner"><i data-lucide="siren" aria-hidden="true"></i><span>Operational failures are connected to trace IDs, affected processors, feature flags, customer-safe status and a tested recovery action. Customer content is never copied into incident records by default.</span></div>
+          <div class="rc-incident-list">
+            <div class="rc-list-head"><span>Incident</span><span>Impact</span><span>Control</span><span>State</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="clock-alert" aria-hidden="true"></i></span><span><span class="rc-item-name">AI restore queue latency</span><span class="rc-item-sub">INC-1842 · detected automatically</span></span></span><span class="rc-cell-muted">7 waiting jobs · no data loss</span><span class="rc-cell-muted">New jobs routed to safe processor</span><span class="rc-chip amber">Monitoring</span></div>
+            <div class="rc-list-row"><span class="rc-item-main"><span class="rc-item-icon"><i data-lucide="cloud-off" aria-hidden="true"></i></span><span><span class="rc-item-name">Dropbox save-back timeout</span><span class="rc-item-sub">INC-1839 · provider recovered</span></span></span><span class="rc-cell-muted">3 retries · outputs preserved</span><span class="rc-cell-muted">Checkpoint resume completed</span><span class="rc-chip green">Resolved</span></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="rc-inspector" aria-label="Selected release gate details">
+        <h3>Gate evidence</h3><div class="rc-inspector-intro">The selected gate explains exactly what was checked, who owns it and why promotion is allowed or blocked.</div>
+        <div class="rc-selected"><div class="rc-selected-title" id="rc-selected-title">Approved customer journeys</div><div class="rc-selected-copy" id="rc-selected-copy">All approved journeys completed on this exact candidate without a blocking defect.</div></div>
+        <div class="rc-inspector-section"><div class="rc-inspector-label">Evidence attached</div>
+          <div class="rc-checkline"><i data-lucide="circle-check" aria-hidden="true"></i><span><strong id="rc-evidence-one">38 end-to-end journeys</strong><small>Desktop, tablet and phone boundaries</small></span></div>
+          <div class="rc-checkline"><i data-lucide="circle-check" aria-hidden="true"></i><span><strong id="rc-evidence-two">Cross-role collaboration</strong><small>Owner, editor, viewer, approver and signer</small></span></div>
+          <div class="rc-checkline warning"><i data-lucide="triangle-alert" aria-hidden="true"></i><span><strong id="rc-evidence-three">Two accepted Medium defects</strong><small>Documented workaround, owner and target fix</small></span></div>
+        </div>
+        <div class="rc-inspector-section"><div class="rc-inspector-label">Promotion rule</div><div class="rc-checkline"><i data-lucide="user-round-check" aria-hidden="true"></i><span><strong>Independent approval</strong><small>Product owner cannot override security, legal or Critical/High defect gates alone.</small></span></div><div class="rc-checkline"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span><strong>Rollback is part of release</strong><small>Flags, prior build, migrations and customer communication are rehearsed.</small></span></div></div>
+        <div class="rc-decision" id="rc-decision">This gate is approved. The overall release remains blocked until every mandatory gate passes.</div>
+      </aside>
+    </div>
+
+    <footer class="rc-bottom"><span class="rc-bottom-item"><i data-lucide="shield-check" aria-hidden="true"></i>No Critical or High defects</span><span class="rc-bottom-item"><i data-lucide="scale" aria-hidden="true"></i>Commercial clearance required</span><span class="rc-bottom-right"><span class="rc-bottom-item"><i data-lucide="toggle-right" aria-hidden="true"></i>Flag every risky capability</span><span class="rc-bottom-item"><i data-lucide="rotate-ccw" aria-hidden="true"></i>Rollback at every cohort</span></span></footer>
+
+    <div class="rc-dialog" id="rc-dialog" role="dialog" aria-modal="true" aria-labelledby="rc-dialog-title" hidden>
+      <h3 id="rc-dialog-title">Start release review</h3><p>This creates an immutable review record for the selected candidate and assigns every mandatory gate.</p>
+      <div class="rc-dialog-callout">Candidate rc.4 currently has one blocking commercial-licence gate. Review may start, but promotion cannot complete until it is cleared or the capability is removed from this release.</div>
+      <label class="rc-field"><span>Rollout target</span><select class="rc-select"><option>Trusted domain users</option><option>Closed customer cohort</option><option>Production</option></select></label>
+      <label class="rc-field"><span>Required approval policy</span><select class="rc-select"><option>Product + Quality + Security + Legal</option><option>Product + Quality + Security</option></select></label>
+      <div class="rc-dialog-actions"><button class="rc-button" id="rc-cancel-review" type="button">Cancel</button><button class="rc-primary" id="rc-confirm-review" type="button">Create review</button></div>
+    </div>
+    <div class="rc-toast" id="rc-toast" role="status" aria-live="polite" hidden></div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('release-command-center');
+      const panels = [...root.querySelectorAll('[data-panel]')];
+      const navButtons = [...root.querySelectorAll('.rc-nav-button[data-target]')];
+      const headings = {
+        overview: ['Release readiness', 'One decision surface for engineering, product, quality, security and operations.'],
+        quality: ['Quality evidence', 'Versioned evidence for visual fidelity, production output, PDF compatibility and accessibility.'],
+        models: ['Models and licence registry', 'Only commercially cleared, quality-approved and operationally safe processors can reach customers.'],
+        cohorts: ['Controlled tester rollout', 'Expand access gradually with feature flags, monitored evidence and rollback at every stage.'],
+        incidents: ['Operational incidents', 'Customer-safe diagnosis, checkpoint recovery and controlled containment without exposing content.']
+      };
+      function showPanel(name) {
+        panels.forEach(panel => { panel.hidden = panel.dataset.panel !== name; });
+        navButtons.forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.target === name)); });
+        root.querySelector('#rc-page-title').textContent = headings[name][0];
+        root.querySelector('#rc-page-copy').textContent = headings[name][1];
+      }
+      navButtons.forEach(button => button.addEventListener('click', () => showPanel(button.dataset.target)));
+
+      const gateDetails = {
+        journeys: ['Approved customer journeys', 'All approved journeys completed on this exact candidate without a blocking defect.', '38 end-to-end journeys', 'Cross-role collaboration', 'Two accepted Medium defects', 'This gate is approved. The overall release remains blocked until every mandatory gate passes.', 'approved'],
+        defects: ['Defect threshold', 'Known defects are classified consistently and linked to owner, workaround and resolution target.', '0 Critical · 0 High', '2 Medium with workarounds', 'Regression watch active', 'This gate is approved under the agreed release threshold.', 'approved'],
+        licence: ['Model and dependency licences', 'Every model, weight, dependency, dataset and provider must have verified commercial-use permission.', 'Model code reviewed', 'Dependency path documented', 'One weight lacks clearance', 'Blocked: remove this capability from the release or obtain verified commercial permission. No product-owner override.', 'blocked'],
+        quality: ['Visual and production quality', 'The exact processors and profiles passed objective checks and blind human review.', '428-image golden corpus', '16 production profiles', 'PDF exceptions documented', 'This gate is approved for the listed profiles and processor versions only.', 'approved'],
+        security: ['Security and privacy', 'Threat controls, content isolation, consent, data regions and safe diagnostics were verified.', 'Threat model completed', 'Safe logging verified', 'Provider exceptions disclosed', 'This gate is approved. Any material provider or data-flow change requires a new review.', 'approved'],
+        rollback: ['Feature flags and rollback', 'Every risky feature can be disabled independently without losing saved customer work.', 'Kill switches rehearsed', 'Prior build available', 'Customer communication ready', 'This gate is approved for the current cohort and deployment topology.', 'approved']
+      };
+      root.querySelectorAll('.rc-gate').forEach(button => button.addEventListener('click', () => {
+        root.querySelectorAll('.rc-gate').forEach(item => item.setAttribute('aria-pressed', 'false'));
+        button.setAttribute('aria-pressed', 'true');
+        const data = gateDetails[button.dataset.gate];
+        root.querySelector('#rc-selected-title').textContent = data[0];
+        root.querySelector('#rc-selected-copy').textContent = data[1];
+        root.querySelector('#rc-evidence-one').textContent = data[2];
+        root.querySelector('#rc-evidence-two').textContent = data[3];
+        root.querySelector('#rc-evidence-three').textContent = data[4];
+        const decision = root.querySelector('#rc-decision');
+        decision.textContent = data[5];
+        decision.style.background = data[6] === 'blocked' ? 'var(--rc-red-soft)' : 'var(--rc-green-soft)';
+        decision.style.color = data[6] === 'blocked' ? 'var(--rc-red)' : 'var(--rc-green)';
+      }));
+
+      const dialog = root.querySelector('#rc-dialog');
+      const openDialog = () => { dialog.hidden = false; };
+      root.querySelector('#rc-review-release').addEventListener('click', openDialog);
+      root.querySelector('#rc-start-review').addEventListener('click', openDialog);
+      root.querySelector('#rc-cancel-review').addEventListener('click', () => { dialog.hidden = true; });
+      const toast = root.querySelector('#rc-toast');
+      let toastTimer;
+      root.querySelector('#rc-confirm-review').addEventListener('click', () => {
+        dialog.hidden = true;
+        clearTimeout(toastTimer);
+        toast.textContent = 'Release review created. Mandatory owners have been assigned; promotion remains blocked by licence clearance.';
+        toast.hidden = false;
+        toastTimer = setTimeout(() => { toast.hidden = true; }, 3200);
+      });
+    })();
+  </script>
+</section>

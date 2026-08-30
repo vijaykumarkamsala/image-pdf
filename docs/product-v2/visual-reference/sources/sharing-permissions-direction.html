@@ -1,0 +1,281 @@
+<section id="sharing-permissions-center" aria-label="Sharing links invitations and permission inheritance experience">
+  <style>
+    #sharing-permissions-center {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #sharing-permissions-center * { box-sizing: border-box; }
+    #sharing-permissions-center button,
+    #sharing-permissions-center input,
+    #sharing-permissions-center select { font: inherit; color: inherit; }
+    #sharing-permissions-center button { cursor: pointer; }
+    #sharing-permissions-center .sp-shell { min-height: 752px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #sharing-permissions-center .sp-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #sharing-permissions-center .sp-button,
+    #sharing-permissions-center .sp-primary,
+    #sharing-permissions-center .sp-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #sharing-permissions-center .sp-icon-button { width: 37px; padding: 7px; }
+    #sharing-permissions-center .sp-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #sharing-permissions-center .sp-button svg,
+    #sharing-permissions-center .sp-primary svg,
+    #sharing-permissions-center .sp-icon-button svg { width: 16px; height: 16px; }
+    #sharing-permissions-center .sp-title-block { min-width: 255px; }
+    #sharing-permissions-center .sp-title { font-weight: 500; }
+    #sharing-permissions-center .sp-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #sharing-permissions-center .sp-spacer { flex: 1; }
+    #sharing-permissions-center .sp-security { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #sharing-permissions-center .sp-security svg { width: 15px; height: 15px; }
+    #sharing-permissions-center .sp-main { display: grid; grid-template-columns: 226px minmax(0, 1fr) 290px; min-height: 655px; }
+    #sharing-permissions-center .sp-scope,
+    #sharing-permissions-center .sp-inspector { background: light-dark(#ffffff, #1b2232); min-width: 0; }
+    #sharing-permissions-center .sp-scope { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #sharing-permissions-center .sp-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #sharing-permissions-center .sp-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #sharing-permissions-center .sp-tree { display: grid; gap: 3px; }
+    #sharing-permissions-center .sp-tree-button {
+      width: 100%; min-height: 38px; border: 0; border-radius: 8px; background: transparent; padding: 7px 8px;
+      display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #sharing-permissions-center .sp-tree-button svg { width: 16px; height: 16px; flex: 0 0 auto; }
+    #sharing-permissions-center .sp-tree-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #sharing-permissions-center .sp-tree-child { margin-left: 18px; position: relative; }
+    #sharing-permissions-center .sp-tree-child::before { content: ""; position: absolute; left: -8px; top: 0; bottom: 6px; width: 1px; background: light-dark(#d8dee8, #394356); }
+    #sharing-permissions-center .sp-tree-child .sp-tree-button { min-height: 35px; }
+    #sharing-permissions-center .sp-scope-note { margin: 14px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #sharing-permissions-center .sp-content { min-width: 0; padding: 18px 20px 26px; }
+    #sharing-permissions-center .sp-content-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 13px; }
+    #sharing-permissions-center .sp-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #sharing-permissions-center .sp-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #sharing-permissions-center .sp-effective {
+      display: flex; align-items: flex-start; gap: 8px; padding: 10px 11px; margin-bottom: 13px; border-radius: 9px;
+      background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42;
+    }
+    #sharing-permissions-center .sp-effective svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #sharing-permissions-center .sp-tabs { display: flex; gap: 4px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #sharing-permissions-center .sp-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 11px; color: light-dark(#667187, #adb7ca); }
+    #sharing-permissions-center .sp-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #sharing-permissions-center .sp-invite-row { display: grid; grid-template-columns: minmax(0, 1fr) 145px auto; gap: 8px; margin-bottom: 14px; }
+    #sharing-permissions-center .sp-input,
+    #sharing-permissions-center .sp-select { min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #sharing-permissions-center .sp-person-list { display: grid; }
+    #sharing-permissions-center .sp-person {
+      display: grid; grid-template-columns: 34px minmax(0, 1fr) 130px 30px; gap: 9px; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b);
+    }
+    #sharing-permissions-center .sp-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500; }
+    #sharing-permissions-center .sp-person-name { font-weight: 500; }
+    #sharing-permissions-center .sp-person-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #sharing-permissions-center .sp-role-select { min-height: 34px; border-radius: 7px; border: 1px solid light-dark(#d0d8e4, #404b5e); background: light-dark(#ffffff, #232b3b); padding: 5px 7px; width: 100%; }
+    #sharing-permissions-center .sp-more { width: 30px; min-height: 30px; border: 0; background: transparent; display: grid; place-items: center; }
+    #sharing-permissions-center .sp-more svg { width: 16px; height: 16px; }
+    #sharing-permissions-center .sp-links-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+    #sharing-permissions-center .sp-section-title { font-weight: 500; }
+    #sharing-permissions-center .sp-help { color: light-dark(#6b758a, #aab4c7); line-height: 1.42; margin-top: 3px; }
+    #sharing-permissions-center .sp-link-item {
+      padding: 11px; border-radius: 10px; border: 1px solid light-dark(#d8dee8, #394356); background: light-dark(#ffffff, #1d2534); margin-bottom: 10px;
+    }
+    #sharing-permissions-center .sp-link-head { display: flex; align-items: center; gap: 8px; }
+    #sharing-permissions-center .sp-link-icon { width: 35px; height: 35px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #sharing-permissions-center .sp-link-icon svg { width: 17px; height: 17px; }
+    #sharing-permissions-center .sp-link-copy { flex: 1; min-width: 0; }
+    #sharing-permissions-center .sp-link-name { font-weight: 500; }
+    #sharing-permissions-center .sp-link-url { color: light-dark(#6a758a, #aab5c8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    #sharing-permissions-center .sp-link-state { color: light-dark(#1d7153, #8de0bf); }
+    #sharing-permissions-center .sp-link-details { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; padding-top: 9px; border-top: 1px solid light-dark(#e1e5ec, #30394b); color: light-dark(#627087, #adb8ca); }
+    #sharing-permissions-center .sp-link-detail { display: inline-flex; align-items: center; gap: 5px; }
+    #sharing-permissions-center .sp-link-detail svg { width: 14px; height: 14px; }
+    #sharing-permissions-center .sp-inherit-map { display: grid; gap: 0; }
+    #sharing-permissions-center .sp-inherit-node {
+      display: grid; grid-template-columns: 34px 1fr auto; gap: 9px; align-items: center; padding: 10px; position: relative;
+      border-bottom: 1px solid light-dark(#e1e5ec, #30394b);
+    }
+    #sharing-permissions-center .sp-inherit-node.child { margin-left: 28px; }
+    #sharing-permissions-center .sp-inherit-node.child::before { content: ""; position: absolute; left: -11px; top: -12px; width: 16px; height: 34px; border-left: 1px solid light-dark(#cbd3df, #465166); border-bottom: 1px solid light-dark(#cbd3df, #465166); }
+    #sharing-permissions-center .sp-node-icon { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #sharing-permissions-center .sp-node-icon svg { width: 16px; height: 16px; }
+    #sharing-permissions-center .sp-node-name { font-weight: 500; }
+    #sharing-permissions-center .sp-node-meta { color: light-dark(#6c778b, #a9b4c7); margin-top: 2px; }
+    #sharing-permissions-center .sp-origin-label { color: light-dark(#617087, #adb8ca); text-align: right; }
+    #sharing-permissions-center .sp-origin-label strong { display: block; color: light-dark(#25324a, #e0e6f2); }
+    #sharing-permissions-center .sp-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #sharing-permissions-center .sp-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #sharing-permissions-center .sp-scope-path { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); line-height: 1.55; color: light-dark(#536078, #bec8d9); }
+    #sharing-permissions-center .sp-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #sharing-permissions-center .sp-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #sharing-permissions-center .sp-effective-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid light-dark(#e2e6ed, #30394b); }
+    #sharing-permissions-center .sp-effective-row svg { width: 16px; height: 16px; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #sharing-permissions-center .sp-effective-row span { flex: 1; }
+    #sharing-permissions-center .sp-effective-row strong { display: block; font-weight: 500; }
+    #sharing-permissions-center .sp-effective-row small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; }
+    #sharing-permissions-center .sp-cloud-note { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #sharing-permissions-center .sp-link-dialog {
+      position: absolute; z-index: 7; width: min(430px, calc(100% - 32px)); left: 50%; top: 50%; transform: translate(-50%, -50%);
+      padding: 15px; border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #sharing-permissions-center .sp-link-dialog[hidden] { display: none; }
+    #sharing-permissions-center .sp-dialog-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 11px; }
+    #sharing-permissions-center .sp-dialog-title { font-weight: 500; }
+    #sharing-permissions-center .sp-dialog-close { border: 0; background: transparent; padding: 5px; display: grid; place-items: center; }
+    #sharing-permissions-center .sp-dialog-close svg { width: 16px; height: 16px; }
+    #sharing-permissions-center .sp-field-label { display: block; margin-bottom: 4px; color: light-dark(#637086, #adb7ca); }
+    #sharing-permissions-center .sp-dialog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #sharing-permissions-center .sp-check { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; }
+    #sharing-permissions-center .sp-check input { width: 18px; height: 18px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #sharing-permissions-center .sp-check span { line-height: 1.4; }
+    #sharing-permissions-center .sp-dialog-note { color: light-dark(#6c778b, #a9b4c7); line-height: 1.42; margin: 8px 0 12px; }
+    #sharing-permissions-center .sp-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; }
+    #sharing-permissions-center .sp-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #sharing-permissions-center .sp-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #sharing-permissions-center .sp-main { grid-template-columns: 204px minmax(0, 1fr); }
+      #sharing-permissions-center .sp-inspector { display: none; }
+      #sharing-permissions-center .sp-security { display: none; }
+    }
+    @media (max-width: 650px) {
+      #sharing-permissions-center .sp-header { flex-wrap: wrap; }
+      #sharing-permissions-center .sp-title-block { min-width: 0; flex: 1; }
+      #sharing-permissions-center .sp-primary span { display: none; }
+      #sharing-permissions-center .sp-main { display: block; }
+      #sharing-permissions-center .sp-scope { display: none; }
+      #sharing-permissions-center .sp-content { padding: 14px 11px 21px; }
+      #sharing-permissions-center .sp-content-head h2 { font-size: 18px; }
+      #sharing-permissions-center .sp-invite-row { grid-template-columns: 1fr; }
+      #sharing-permissions-center .sp-person { grid-template-columns: 32px 1fr 30px; }
+      #sharing-permissions-center .sp-role-select { grid-column: 2; }
+      #sharing-permissions-center .sp-more { grid-column: 3; grid-row: 1; }
+      #sharing-permissions-center .sp-tab { flex: 1; padding-inline: 5px; }
+      #sharing-permissions-center .sp-dialog-grid { grid-template-columns: 1fr; }
+      #sharing-permissions-center .sp-bottom { display: none; }
+    }
+  </style>
+
+  <div class="sp-shell">
+    <header class="sp-header">
+      <button class="sp-icon-button" type="button" aria-label="Back to project"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="sp-title-block"><div class="sp-title">Share &amp; access</div><div class="sp-subtitle">Kidswear 2027 / Woodland collection</div></div>
+      <div class="sp-spacer"></div>
+      <div class="sp-security"><i data-lucide="shield-check" aria-hidden="true"></i>Access changes are audited</div>
+      <button class="sp-button" type="button"><i data-lucide="history" aria-hidden="true"></i>Access history</button>
+      <button class="sp-primary" id="sp-invite-focus" type="button"><i data-lucide="user-plus" aria-hidden="true"></i><span>Invite people</span></button>
+    </header>
+
+    <div class="sp-main">
+      <aside class="sp-scope" aria-label="Sharing scope">
+        <div class="sp-pane-head"><span>Choose scope</span><i data-lucide="folder-tree" aria-hidden="true"></i></div>
+        <div class="sp-tree">
+          <button class="sp-tree-button" type="button" data-scope="workspace" aria-pressed="false"><i data-lucide="building-2" aria-hidden="true"></i>Northstar Studio</button>
+          <button class="sp-tree-button" type="button" data-scope="project" aria-pressed="false"><i data-lucide="folder-kanban" aria-hidden="true"></i>Kidswear 2027<i data-lucide="chevron-down" aria-hidden="true" style="margin-left:auto"></i></button>
+          <div class="sp-tree-child">
+            <button class="sp-tree-button" type="button" data-scope="woodland" aria-pressed="true"><i data-lucide="palette" aria-hidden="true"></i>Woodland collection</button>
+            <button class="sp-tree-button" type="button" data-scope="approvals" aria-pressed="false"><i data-lucide="folder" aria-hidden="true"></i>Print approvals</button>
+            <button class="sp-tree-button" type="button" data-scope="delivery" aria-pressed="false"><i data-lucide="folder" aria-hidden="true"></i>Final delivery</button>
+          </div>
+          <button class="sp-tree-button" type="button" data-scope="file" aria-pressed="false"><i data-lucide="file-image" aria-hidden="true"></i>Hedgehog design</button>
+        </div>
+        <div class="sp-scope-note"><strong>Share precisely.</strong><br>Invite people to a workspace, parent project, subproject or selected file. Child access inherits unless explicitly overridden.</div>
+      </aside>
+
+      <main class="sp-content">
+        <div class="sp-content-head"><div><h2 id="sp-heading">Woodland collection</h2><div class="sp-content-subtitle" id="sp-subtitle">Subproject · Access inherited from Kidswear 2027 with one explicit viewer override.</div></div></div>
+        <div class="sp-effective" id="sp-effective"><i data-lucide="corner-down-right" aria-hidden="true"></i><span><strong>Effective access is clear.</strong> Two members inherit from Kidswear 2027; one viewer is assigned directly to this subproject.</span></div>
+        <div class="sp-tabs" role="tablist" aria-label="Sharing configuration"><button class="sp-tab" type="button" data-panel="people" aria-selected="true">People</button><button class="sp-tab" type="button" data-panel="links" aria-selected="false">Secure links</button><button class="sp-tab" type="button" data-panel="inheritance" aria-selected="false">Inheritance</button></div>
+
+        <section data-content="people">
+          <div class="sp-invite-row"><input class="sp-input" id="sp-invite-input" placeholder="Email address or name" aria-label="Invite person"><select class="sp-select" aria-label="Invite access"><option>Can edit</option><option>Can comment</option><option>Can view & download</option><option>Can view</option><option>Can approve</option></select><button class="sp-primary" type="button"><i data-lucide="send" aria-hidden="true"></i>Invite</button></div>
+          <div class="sp-person-list">
+            <div class="sp-person"><span class="sp-avatar">VK</span><div><div class="sp-person-name">Vijay Kumar</div><div class="sp-person-meta">Workspace owner · Direct</div></div><select class="sp-role-select" aria-label="Vijay access"><option>Owner</option></select><button class="sp-more" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
+            <div class="sp-person"><span class="sp-avatar">AS</span><div><div class="sp-person-name">Asha Sharma</div><div class="sp-person-meta">Inherited from Kidswear 2027</div></div><select class="sp-role-select" aria-label="Asha access"><option>Can edit</option><option>Can view</option></select><button class="sp-more" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
+            <div class="sp-person"><span class="sp-avatar">RK</span><div><div class="sp-person-name">Ravi Kumar</div><div class="sp-person-meta">Inherited from Kidswear 2027</div></div><select class="sp-role-select" aria-label="Ravi access"><option>Can edit</option><option>Can view</option></select><button class="sp-more" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
+            <div class="sp-person"><span class="sp-avatar">MJ</span><div><div class="sp-person-name">Meera Jain</div><div class="sp-person-meta">Direct subproject override</div></div><select class="sp-role-select" aria-label="Meera access"><option>Can view & download</option><option>Can view</option><option>Can edit</option></select><button class="sp-more" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
+          </div>
+        </section>
+
+        <section data-content="links" hidden>
+          <div class="sp-links-head"><div><div class="sp-section-title">App-native secure links</div><div class="sp-help">Share without adding someone to the workspace. Editing and saving require an account.</div></div><button class="sp-primary" id="sp-create-link" type="button"><i data-lucide="link-2" aria-hidden="true"></i>Create link</button></div>
+          <article class="sp-link-item"><div class="sp-link-head"><span class="sp-link-icon"><i data-lucide="eye" aria-hidden="true"></i></span><div class="sp-link-copy"><div class="sp-link-name">Factory review link</div><div class="sp-link-url">workspace.app/s/woodland-factory-review</div></div><span class="sp-link-state">Active</span><button class="sp-more" type="button" aria-label="Link options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div><div class="sp-link-details"><span class="sp-link-detail"><i data-lucide="eye" aria-hidden="true"></i>View &amp; comment</span><span class="sp-link-detail"><i data-lucide="lock-keyhole" aria-hidden="true"></i>Password</span><span class="sp-link-detail"><i data-lucide="calendar-clock" aria-hidden="true"></i>Expires 15 Sep</span><span class="sp-link-detail"><i data-lucide="folder" aria-hidden="true"></i>This subproject</span></div></article>
+          <article class="sp-link-item"><div class="sp-link-head"><span class="sp-link-icon"><i data-lucide="download" aria-hidden="true"></i></span><div class="sp-link-copy"><div class="sp-link-name">Approved delivery</div><div class="sp-link-url">workspace.app/s/woodland-approved</div></div><span class="sp-link-state">Active</span><button class="sp-more" type="button" aria-label="Link options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div><div class="sp-link-details"><span class="sp-link-detail"><i data-lucide="download" aria-hidden="true"></i>View &amp; download</span><span class="sp-link-detail"><i data-lucide="shield" aria-hidden="true"></i>Sign-in required</span><span class="sp-link-detail"><i data-lucide="infinity" aria-hidden="true"></i>No expiry</span><span class="sp-link-detail"><i data-lucide="file-check-2" aria-hidden="true"></i>Approved files only</span></div></article>
+        </section>
+
+        <section data-content="inheritance" hidden>
+          <div class="sp-links-head"><div><div class="sp-section-title">Where access comes from</div><div class="sp-help">Every effective permission shows its origin. Child overrides are explicit and reversible.</div></div><button class="sp-button" type="button"><i data-lucide="settings-2" aria-hidden="true"></i>Change inheritance</button></div>
+          <div class="sp-inherit-map">
+            <div class="sp-inherit-node"><span class="sp-node-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><div><div class="sp-node-name">Northstar Studio</div><div class="sp-node-meta">Workspace owners and retention policy</div></div><div class="sp-origin-label"><strong>Base</strong>Workspace</div></div>
+            <div class="sp-inherit-node child"><span class="sp-node-icon"><i data-lucide="folder-kanban" aria-hidden="true"></i></span><div><div class="sp-node-name">Kidswear 2027</div><div class="sp-node-meta">Asha and Ravi added as editors</div></div><div class="sp-origin-label"><strong>Inherited</strong>From workspace</div></div>
+            <div class="sp-inherit-node child"><span class="sp-node-icon"><i data-lucide="palette" aria-hidden="true"></i></span><div><div class="sp-node-name">Woodland collection</div><div class="sp-node-meta">Meera added directly as viewer with download</div></div><div class="sp-origin-label"><strong>1 override</strong>This subproject</div></div>
+            <div class="sp-inherit-node child"><span class="sp-node-icon"><i data-lucide="file-image" aria-hidden="true"></i></span><div><div class="sp-node-name">Hedgehog design</div><div class="sp-node-meta">No file-specific override</div></div><div class="sp-origin-label"><strong>Inherited</strong>From subproject</div></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="sp-inspector" aria-label="Effective access summary">
+        <h3>Effective access</h3><div class="sp-inspector-copy">What a person can actually do after inheritance, overrides and link policy are combined.</div>
+        <div class="sp-scope-path">Northstar Studio<br>↳ Kidswear 2027<br><strong>↳ Woodland collection</strong></div>
+        <div class="sp-inspector-section"><div class="sp-inspector-title">People</div><div class="sp-effective-row"><i data-lucide="pen-line" aria-hidden="true"></i><span><strong>3 editors</strong><small>Owner plus two inherited editors</small></span></div><div class="sp-effective-row"><i data-lucide="download" aria-hidden="true"></i><span><strong>1 viewer with download</strong><small>Direct override on this subproject</small></span></div></div>
+        <div class="sp-inspector-section"><div class="sp-inspector-title">Secure links</div><div class="sp-effective-row"><i data-lucide="link-2" aria-hidden="true"></i><span><strong>2 active links</strong><small>Both revocable; one expires automatically</small></span></div></div>
+        <div class="sp-inspector-section"><div class="sp-inspector-title">Connected cloud folders</div><div class="sp-cloud-note"><strong>Separate provider access</strong><br>Sharing this project does not change Google Drive, SharePoint or Dropbox permissions—and provider sharing does not silently grant application access.</div></div></div>
+      </aside>
+    </div>
+
+    <section class="sp-link-dialog" id="sp-link-dialog" aria-label="Create secure link" hidden>
+      <div class="sp-dialog-head"><div class="sp-dialog-title">Create secure link</div><button class="sp-dialog-close" id="sp-link-close" type="button" aria-label="Close"><i data-lucide="x" aria-hidden="true"></i></button></div>
+      <div class="sp-dialog-grid"><label><span class="sp-field-label">Access</span><select class="sp-select"><option>View &amp; comment</option><option>View &amp; download</option><option>View only</option><option>Edit after sign-in</option></select></label><label><span class="sp-field-label">Scope</span><select class="sp-select"><option>This subproject</option><option>Selected files</option><option>Approved files only</option></select></label></div>
+      <label class="sp-check"><input type="checkbox" checked><span>Require password</span></label>
+      <label class="sp-check"><input type="checkbox"><span>Require sign-in<br><small>Always required for editing and saving.</small></span></label>
+      <label><span class="sp-field-label">Expiry</span><select class="sp-select" style="width:100%"><option>15 September 2026</option><option>7 days</option><option>30 days</option><option>No expiry</option></select></label>
+      <div class="sp-dialog-note">Link access is independent from workspace membership, fully revocable and included in the access audit trail.</div>
+      <div class="sp-dialog-actions"><button class="sp-button" id="sp-link-cancel" type="button">Cancel</button><button class="sp-primary" id="sp-link-confirm" type="button"><i data-lucide="link-2" aria-hidden="true"></i>Create link</button></div>
+    </section>
+
+    <footer class="sp-bottom"><span>Least privilege by default</span><span>Origins always visible</span><span>Child overrides explicit</span><span class="sp-bottom-right"><span>Links revocable</span><span>Cloud-provider access separate</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('sharing-permissions-center');
+      const tabs = [...root.querySelectorAll('.sp-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      tabs.forEach((tab) => tab.addEventListener('click', () => {
+        tabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== tab.dataset.panel; });
+      }));
+
+      const heading = root.querySelector('#sp-heading');
+      const subtitle = root.querySelector('#sp-subtitle');
+      const effective = root.querySelector('#sp-effective');
+      const scopeButtons = [...root.querySelectorAll('[data-scope]')];
+      const scopeData = {
+        workspace: ['Northstar Studio', 'Workspace · Base membership, default policies and managed connections.', 'Workspace access becomes the source inherited by projects unless overridden.'],
+        project: ['Kidswear 2027', 'Parent project · Three child projects · Shared editing team.', 'This project provides inherited editor access to its child projects.'],
+        woodland: ['Woodland collection', 'Subproject · Access inherited from Kidswear 2027 with one explicit viewer override.', 'Two members inherit from Kidswear 2027; one viewer is assigned directly to this subproject.'],
+        approvals: ['Print approvals', 'Subproject · Strict approval policy · Inherited project team.', 'Access inherits from Kidswear 2027; production approvers are added directly here.'],
+        delivery: ['Final delivery', 'Subproject · Approved files and delivery links.', 'Editors inherit from the parent; external recipients use revocable delivery links.'],
+        file: ['Hedgehog design', 'Selected file · No direct access override.', 'This file inherits all access from Woodland collection.']
+      };
+      scopeButtons.forEach((button) => button.addEventListener('click', () => {
+        scopeButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const data = scopeData[button.dataset.scope];
+        heading.textContent = data[0]; subtitle.textContent = data[1];
+        effective.innerHTML = '<i data-lucide="corner-down-right" aria-hidden="true"></i><span><strong>Effective access is clear.</strong> ' + data[2] + '</span>';
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+
+      root.querySelector('#sp-invite-focus').addEventListener('click', () => {
+        tabs[0].click();
+        root.querySelector('#sp-invite-input').focus();
+      });
+
+      const dialog = root.querySelector('#sp-link-dialog');
+      root.querySelector('#sp-create-link').addEventListener('click', () => { dialog.hidden = false; });
+      root.querySelector('#sp-link-close').addEventListener('click', () => { dialog.hidden = true; });
+      root.querySelector('#sp-link-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      root.querySelector('#sp-link-confirm').addEventListener('click', () => { dialog.hidden = true; });
+    })();
+  </script>
+</section>

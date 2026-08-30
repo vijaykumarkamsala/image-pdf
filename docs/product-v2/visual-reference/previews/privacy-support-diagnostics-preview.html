@@ -1,0 +1,1687 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Privacy Support Diagnostics Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Privacy Support Diagnostics Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Privacy Support Diagnostics Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;privacy-support-diagnostics&quot; aria-label=&quot;Privacy consent support access and diagnostic tracing experience&quot;&gt;
+  &lt;style&gt;
+    #privacy-support-diagnostics {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #privacy-support-diagnostics * { box-sizing: border-box; }
+    #privacy-support-diagnostics button,
+    #privacy-support-diagnostics input,
+    #privacy-support-diagnostics select,
+    #privacy-support-diagnostics textarea { font: inherit; color: inherit; }
+    #privacy-support-diagnostics button { cursor: pointer; }
+    #privacy-support-diagnostics .pd-shell { min-height: 770px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #privacy-support-diagnostics .pd-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #privacy-support-diagnostics .pd-button,
+    #privacy-support-diagnostics .pd-primary,
+    #privacy-support-diagnostics .pd-danger,
+    #privacy-support-diagnostics .pd-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #privacy-support-diagnostics .pd-icon-button { width: 37px; padding: 7px; }
+    #privacy-support-diagnostics .pd-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #privacy-support-diagnostics .pd-danger { border-color: light-dark(#d9a6a6, #7a5055); color: light-dark(#9a3131, #ffb4b4); background: light-dark(#fffafa, #302327); }
+    #privacy-support-diagnostics .pd-button svg,
+    #privacy-support-diagnostics .pd-primary svg,
+    #privacy-support-diagnostics .pd-danger svg,
+    #privacy-support-diagnostics .pd-icon-button svg { width: 16px; height: 16px; }
+    #privacy-support-diagnostics .pd-title-block { min-width: 255px; }
+    #privacy-support-diagnostics .pd-title { font-weight: 500; }
+    #privacy-support-diagnostics .pd-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 390px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #privacy-support-diagnostics .pd-spacer { flex: 1; }
+    #privacy-support-diagnostics .pd-region { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #privacy-support-diagnostics .pd-region svg { width: 15px; height: 15px; }
+    #privacy-support-diagnostics .pd-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 286px; min-height: 673px; }
+    #privacy-support-diagnostics .pd-nav,
+    #privacy-support-diagnostics .pd-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #privacy-support-diagnostics .pd-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #privacy-support-diagnostics .pd-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #privacy-support-diagnostics .pd-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #privacy-support-diagnostics .pd-nav-list { display: grid; gap: 3px; }
+    #privacy-support-diagnostics .pd-nav-button {
+      width: 100%; min-height: 41px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #privacy-support-diagnostics .pd-nav-button svg { width: 17px; height: 17px; }
+    #privacy-support-diagnostics .pd-nav-button[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #privacy-support-diagnostics .pd-nav-dot { width: 8px; height: 8px; border-radius: 50%; background: light-dark(#d08b35, #e6b368); }
+    #privacy-support-diagnostics .pd-policy-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-content { min-width: 0; padding: 18px 20px 25px; }
+    #privacy-support-diagnostics .pd-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+    #privacy-support-diagnostics .pd-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #privacy-support-diagnostics .pd-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #privacy-support-diagnostics .pd-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #privacy-support-diagnostics .pd-tab[aria-selected=&quot;true&quot;] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #privacy-support-diagnostics .pd-request-banner { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 12px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-request-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #privacy-support-diagnostics .pd-request-card { border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; background: light-dark(#ffffff, #1d2534); overflow: hidden; }
+    #privacy-support-diagnostics .pd-request-head { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #privacy-support-diagnostics .pd-request-icon { width: 41px; height: 41px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #privacy-support-diagnostics .pd-request-icon svg { width: 18px; height: 18px; }
+    #privacy-support-diagnostics .pd-request-title { font-weight: 500; }
+    #privacy-support-diagnostics .pd-request-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #privacy-support-diagnostics .pd-request-status { color: light-dark(#7a5422, #eec884); }
+    #privacy-support-diagnostics .pd-request-body { padding: 11px; }
+    #privacy-support-diagnostics .pd-purpose { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.45; }
+    #privacy-support-diagnostics .pd-scope-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+    #privacy-support-diagnostics .pd-scope { padding: 9px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 8px; }
+    #privacy-support-diagnostics .pd-scope-label { color: light-dark(#6b768a, #a8b3c5); }
+    #privacy-support-diagnostics .pd-scope-value { font-weight: 500; margin-top: 3px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-access-list { display: grid; gap: 6px; margin-top: 10px; }
+    #privacy-support-diagnostics .pd-access-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; }
+    #privacy-support-diagnostics .pd-access-row svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+    #privacy-support-diagnostics .pd-access-row.allowed svg { color: light-dark(#267357, #8fdbbf); }
+    #privacy-support-diagnostics .pd-access-row.blocked svg { color: light-dark(#9a4141, #efaaaa); }
+    #privacy-support-diagnostics .pd-access-row strong { display: block; font-weight: 500; }
+    #privacy-support-diagnostics .pd-access-row small { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 11px; }
+    #privacy-support-diagnostics .pd-data-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #privacy-support-diagnostics .pd-data-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #privacy-support-diagnostics .pd-data-icon svg { width: 18px; height: 18px; }
+    #privacy-support-diagnostics .pd-data-name { font-weight: 500; }
+    #privacy-support-diagnostics .pd-data-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-state { display: inline-flex; align-items: center; gap: 5px; color: light-dark(#1d7153, #8de0bf); }
+    #privacy-support-diagnostics .pd-state svg { width: 15px; height: 15px; }
+    #privacy-support-diagnostics .pd-trace-summary { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; margin-bottom: 12px; }
+    #privacy-support-diagnostics .pd-trace-summary svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #privacy-support-diagnostics .pd-trace-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    #privacy-support-diagnostics .pd-trace-ref { padding: 6px 8px; border-radius: 7px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); }
+    #privacy-support-diagnostics .pd-trace { display: grid; }
+    #privacy-support-diagnostics .pd-trace-step { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; gap: 9px; padding: 8px 0; position: relative; }
+    #privacy-support-diagnostics .pd-trace-step:not(:last-child)::after { content: &quot;&quot;; position: absolute; left: 15px; top: 37px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #privacy-support-diagnostics .pd-trace-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #privacy-support-diagnostics .pd-trace-icon svg { width: 14px; height: 14px; }
+    #privacy-support-diagnostics .pd-trace-icon.warning { background: light-dark(#fff0d9, #46351f); color: light-dark(#a45e14, #f3c078); }
+    #privacy-support-diagnostics .pd-trace-title { font-weight: 500; }
+    #privacy-support-diagnostics .pd-trace-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-trace-time { color: light-dark(#6b768a, #a8b3c5); white-space: nowrap; }
+    #privacy-support-diagnostics .pd-checkpoint { margin-top: 10px; padding: 10px; border-radius: 8px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #privacy-support-diagnostics .pd-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #privacy-support-diagnostics .pd-input,
+    #privacy-support-diagnostics .pd-select,
+    #privacy-support-diagnostics .pd-textarea { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #privacy-support-diagnostics .pd-textarea { min-height: 82px; resize: vertical; }
+    #privacy-support-diagnostics .pd-evidence { margin-top: 10px; }
+    #privacy-support-diagnostics .pd-check { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-check input { width: 18px; height: 18px; margin-top: 1px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #privacy-support-diagnostics .pd-check small { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #privacy-support-diagnostics .pd-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #privacy-support-diagnostics .pd-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #privacy-support-diagnostics .pd-inspector-box { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #privacy-support-diagnostics .pd-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #privacy-support-diagnostics .pd-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #privacy-support-diagnostics .pd-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #privacy-support-diagnostics .pd-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #privacy-support-diagnostics .pd-fact strong { display: block; font-weight: 500; }
+    #privacy-support-diagnostics .pd-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-breakglass { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-dialog { position: absolute; z-index: 10; width: min(440px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px; border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6)); }
+    #privacy-support-diagnostics .pd-dialog[hidden] { display: none; }
+    #privacy-support-diagnostics .pd-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #privacy-support-diagnostics .pd-dialog p { margin: 0 0 10px; color: light-dark(#637087, #afb9ca); line-height: 1.45; }
+    #privacy-support-diagnostics .pd-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
+    #privacy-support-diagnostics .pd-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #privacy-support-diagnostics .pd-toast[hidden] { display: none; }
+    #privacy-support-diagnostics .pd-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #privacy-support-diagnostics .pd-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #privacy-support-diagnostics .pd-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #privacy-support-diagnostics .pd-inspector { display: none; }
+      #privacy-support-diagnostics .pd-region { display: none; }
+    }
+    @media (max-width: 650px) {
+      #privacy-support-diagnostics .pd-header { flex-wrap: wrap; }
+      #privacy-support-diagnostics .pd-title-block { min-width: 0; flex: 1; }
+      #privacy-support-diagnostics .pd-main { display: block; }
+      #privacy-support-diagnostics .pd-nav { display: none; }
+      #privacy-support-diagnostics .pd-content { padding: 14px 11px 22px; }
+      #privacy-support-diagnostics .pd-content-head h2 { font-size: 18px; }
+      #privacy-support-diagnostics .pd-tabs { overflow-x: auto; }
+      #privacy-support-diagnostics .pd-tab { flex: 0 0 auto; }
+      #privacy-support-diagnostics .pd-scope-grid { grid-template-columns: 1fr; }
+      #privacy-support-diagnostics .pd-request-head { grid-template-columns: 40px minmax(0, 1fr); }
+      #privacy-support-diagnostics .pd-request-status { grid-column: 2; }
+      #privacy-support-diagnostics .pd-form-grid { grid-template-columns: 1fr; }
+      #privacy-support-diagnostics .pd-trace-step { grid-template-columns: 31px minmax(0, 1fr); }
+      #privacy-support-diagnostics .pd-trace-time { grid-column: 2; }
+      #privacy-support-diagnostics .pd-bottom { display: none; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;pd-shell&quot;&gt;
+    &lt;header class=&quot;pd-header&quot;&gt;
+      &lt;button class=&quot;pd-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Back to workspace settings&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;pd-title-block&quot;&gt;&lt;div class=&quot;pd-title&quot;&gt;Privacy &amp;amp; support control&lt;/div&gt;&lt;div class=&quot;pd-subtitle&quot;&gt;Northstar Studio · Customer-controlled access&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;pd-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;pd-region&quot;&gt;&lt;i data-lucide=&quot;map-pin&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Home region: India&lt;/div&gt;
+      &lt;button class=&quot;pd-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;scroll-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Audit history&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;pd-main&quot;&gt;
+      &lt;aside class=&quot;pd-nav&quot; aria-label=&quot;Privacy and diagnostics navigation&quot;&gt;
+        &lt;div class=&quot;pd-pane-head&quot;&gt;&lt;span&gt;Controls&lt;/span&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;pd-nav-list&quot;&gt;
+          &lt;button class=&quot;pd-nav-button&quot; type=&quot;button&quot; data-target=&quot;access&quot; aria-pressed=&quot;true&quot;&gt;&lt;i data-lucide=&quot;headset&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Support access&lt;/span&gt;&lt;span class=&quot;pd-nav-dot&quot; aria-label=&quot;One pending request&quot;&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;pd-nav-button&quot; type=&quot;button&quot; data-target=&quot;data&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;database-zap&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Data use &amp;amp; consent&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;pd-nav-button&quot; type=&quot;button&quot; data-target=&quot;trace&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;activity&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Diagnostic traces&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;pd-nav-button&quot; type=&quot;button&quot; data-target=&quot;report&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;bug&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Report a problem&lt;/span&gt;&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;pd-policy-note&quot;&gt;&lt;strong&gt;Customer content is private by default.&lt;/strong&gt;&lt;br&gt;Staff cannot browse files simply because they operate the service. Every ordinary access requires customer approval.&lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;pd-content&quot;&gt;
+        &lt;div class=&quot;pd-content-head&quot;&gt;&lt;div&gt;&lt;h2 id=&quot;pd-heading&quot;&gt;Support access request&lt;/h2&gt;&lt;div class=&quot;pd-content-subtitle&quot; id=&quot;pd-subtitle&quot;&gt;You decide exactly what support can inspect, why and for how long.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;pd-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Privacy support and diagnostics views&quot;&gt;
+          &lt;button class=&quot;pd-tab&quot; type=&quot;button&quot; data-panel=&quot;access&quot; aria-selected=&quot;true&quot;&gt;Support access&lt;/button&gt;
+          &lt;button class=&quot;pd-tab&quot; type=&quot;button&quot; data-panel=&quot;data&quot; aria-selected=&quot;false&quot;&gt;Data use&lt;/button&gt;
+          &lt;button class=&quot;pd-tab&quot; type=&quot;button&quot; data-panel=&quot;trace&quot; aria-selected=&quot;false&quot;&gt;Diagnostics&lt;/button&gt;
+          &lt;button class=&quot;pd-tab&quot; type=&quot;button&quot; data-panel=&quot;report&quot; aria-selected=&quot;false&quot;&gt;Bug report&lt;/button&gt;
+        &lt;/div&gt;
+
+        &lt;section data-content=&quot;access&quot;&gt;
+          &lt;div class=&quot;pd-request-banner&quot;&gt;&lt;i data-lucide=&quot;shield-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Approval required.&lt;/strong&gt; Support requested narrowly scoped access to investigate one failed export. No access begins until an authorised workspace member approves.&lt;/span&gt;&lt;/div&gt;
+          &lt;article class=&quot;pd-request-card&quot;&gt;&lt;div class=&quot;pd-request-head&quot;&gt;&lt;span class=&quot;pd-request-icon&quot;&gt;&lt;i data-lucide=&quot;headset&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-request-title&quot;&gt;Investigate failed textile export&lt;/span&gt;&lt;span class=&quot;pd-request-meta&quot;&gt;Requested by Priya S. · Product support · Ref SUP-2841&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-request-status&quot;&gt;Awaiting approval&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;pd-request-body&quot;&gt;
+            &lt;div class=&quot;pd-purpose&quot;&gt;&lt;strong&gt;Purpose&lt;/strong&gt;&lt;br&gt;Confirm why the production-profile render stopped after preflight and validate checkpoint recovery for job JOB-7F2A.&lt;/div&gt;
+            &lt;div class=&quot;pd-scope-grid&quot;&gt;&lt;div class=&quot;pd-scope&quot;&gt;&lt;div class=&quot;pd-scope-label&quot;&gt;Scope&lt;/div&gt;&lt;div class=&quot;pd-scope-value&quot;&gt;One processing job and its sanitised trace&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;pd-scope&quot;&gt;&lt;div class=&quot;pd-scope-label&quot;&gt;Access window&lt;/div&gt;&lt;div class=&quot;pd-scope-value&quot;&gt;2 hours after approval&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;pd-scope&quot;&gt;&lt;div class=&quot;pd-scope-label&quot;&gt;Content access&lt;/div&gt;&lt;div class=&quot;pd-scope-value&quot;&gt;Output preview only if separately approved&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;pd-scope&quot;&gt;&lt;div class=&quot;pd-scope-label&quot;&gt;Region&lt;/div&gt;&lt;div class=&quot;pd-scope-value&quot;&gt;India support boundary&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;pd-access-list&quot;&gt;&lt;div class=&quot;pd-access-row allowed&quot;&gt;&lt;i data-lucide=&quot;check-circle-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;May inspect sanitised job events&lt;/strong&gt;&lt;small&gt;Processor version, checkpoint, timings and safe error codes&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;pd-access-row allowed&quot;&gt;&lt;i data-lucide=&quot;check-circle-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;May view one failed output preview&lt;/strong&gt;&lt;small&gt;Only after you separately enable the preview permission below&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;pd-access-row blocked&quot;&gt;&lt;i data-lucide=&quot;x-circle&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Cannot browse the workspace&lt;/strong&gt;&lt;small&gt;Other files, projects, comments, connected storage and e-sign packages remain inaccessible&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;label class=&quot;pd-check&quot;&gt;&lt;input id=&quot;pd-preview-permission&quot; type=&quot;checkbox&quot;&gt;&lt;span&gt;Allow the failed output preview during this access window&lt;small&gt;Original source and unrelated document layers remain hidden.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;div class=&quot;pd-actions&quot;&gt;&lt;button class=&quot;pd-danger&quot; id=&quot;pd-deny&quot; type=&quot;button&quot;&gt;Deny&lt;/button&gt;&lt;button class=&quot;pd-primary&quot; id=&quot;pd-approve&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Approve scoped access&lt;/button&gt;&lt;/div&gt;
+          &lt;/div&gt;&lt;/article&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;data&quot; hidden&gt;
+          &lt;div class=&quot;pd-trace-summary&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Your files, prompts and corrections are never used to train product models by default.&lt;/strong&gt; Product operation, customer support and optional dataset contribution remain separate purposes.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-data-row&quot;&gt;&lt;span class=&quot;pd-data-icon&quot;&gt;&lt;i data-lucide=&quot;brain-circuit&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-data-name&quot;&gt;Product-model training&lt;/span&gt;&lt;span class=&quot;pd-data-meta&quot;&gt;Customer content, prompts, edits and accepted corrections&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-state&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Never by default&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-data-row&quot;&gt;&lt;span class=&quot;pd-data-icon&quot;&gt;&lt;i data-lucide=&quot;database&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-data-name&quot;&gt;Contribute a separate dataset copy&lt;/span&gt;&lt;span class=&quot;pd-data-meta&quot;&gt;Requires explicit rights confirmation, granular consent and an independently revocable contributed copy.&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;pd-button&quot; type=&quot;button&quot;&gt;Not enabled&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-data-row&quot;&gt;&lt;span class=&quot;pd-data-icon&quot;&gt;&lt;i data-lucide=&quot;map-pin&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-data-name&quot;&gt;Workspace home region&lt;/span&gt;&lt;span class=&quot;pd-data-meta&quot;&gt;Storage and processing remain in India when supported; exceptions require disclosure.&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;pd-button&quot; type=&quot;button&quot;&gt;Review region&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-data-row&quot;&gt;&lt;span class=&quot;pd-data-icon&quot;&gt;&lt;i data-lucide=&quot;scan-eye&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-data-name&quot;&gt;Sensitive export metadata&lt;/span&gt;&lt;span class=&quot;pd-data-meta&quot;&gt;GPS and private device metadata removed by default; preservation requires explicit export choice.&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-state&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Remove by default&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;trace&quot; hidden&gt;
+          &lt;div class=&quot;pd-trace-summary&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Your export stopped safely and recovered from the last checkpoint.&lt;/strong&gt; Seventeen completed batch items remain available; one failed item is isolated for review.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-trace-head&quot;&gt;&lt;span class=&quot;pd-request-title&quot;&gt;Textile batch export&lt;/span&gt;&lt;span class=&quot;pd-trace-ref&quot;&gt;Trace TR-9A7C2&lt;/span&gt;&lt;button class=&quot;pd-button&quot; type=&quot;button&quot; style=&quot;margin-left:auto&quot;&gt;&lt;i data-lucide=&quot;download&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Sanitised support package&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-trace&quot;&gt;
+            &lt;div class=&quot;pd-trace-step&quot;&gt;&lt;span class=&quot;pd-trace-icon&quot;&gt;&lt;i data-lucide=&quot;upload&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-trace-title&quot;&gt;Files accepted safely&lt;/span&gt;&lt;span class=&quot;pd-trace-meta&quot;&gt;24 files inspected; originals preserved and hashes recorded&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-trace-time&quot;&gt;09:42:05&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;pd-trace-step&quot;&gt;&lt;span class=&quot;pd-trace-icon&quot;&gt;&lt;i data-lucide=&quot;list-checks&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-trace-title&quot;&gt;Preflight completed&lt;/span&gt;&lt;span class=&quot;pd-trace-meta&quot;&gt;Files grouped into three compatible recipes; two risks required confirmation&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-trace-time&quot;&gt;09:42:18&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;pd-trace-step&quot;&gt;&lt;span class=&quot;pd-trace-icon&quot;&gt;&lt;i data-lucide=&quot;layers-3&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-trace-title&quot;&gt;17 outputs completed&lt;/span&gt;&lt;span class=&quot;pd-trace-meta&quot;&gt;Outputs committed independently before the remaining item failed&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-trace-time&quot;&gt;09:48:51&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;pd-trace-step&quot;&gt;&lt;span class=&quot;pd-trace-icon warning&quot;&gt;&lt;i data-lucide=&quot;triangle-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-trace-title&quot;&gt;One item exceeded safe memory policy&lt;/span&gt;&lt;span class=&quot;pd-trace-meta&quot;&gt;Processing stopped before corruption; source and prior checkpoint remain intact&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-trace-time&quot;&gt;09:49:03&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;pd-trace-step&quot;&gt;&lt;span class=&quot;pd-trace-icon&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;pd-trace-title&quot;&gt;Recovery route prepared&lt;/span&gt;&lt;span class=&quot;pd-trace-meta&quot;&gt;Retry will resume from preflight using a safer tiled processor&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;pd-trace-time&quot;&gt;Ready&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;pd-checkpoint&quot;&gt;&lt;strong&gt;No need to restart the batch.&lt;/strong&gt; Retry only the isolated item, reduce the requested output, or send the sanitised trace to support without attaching customer content.&lt;/div&gt;
+          &lt;div class=&quot;pd-actions&quot;&gt;&lt;button class=&quot;pd-button&quot; type=&quot;button&quot;&gt;Change output&lt;/button&gt;&lt;button class=&quot;pd-primary&quot; id=&quot;pd-retry&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Retry failed item&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;report&quot; hidden&gt;
+          &lt;div class=&quot;pd-trace-summary&quot;&gt;&lt;i data-lucide=&quot;bug&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Safe diagnostics and the trace reference are attached automatically. Screenshots and customer files are included only after your explicit review and consent.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-form-grid&quot;&gt;&lt;div class=&quot;pd-field&quot;&gt;&lt;label for=&quot;pd-area&quot;&gt;Where did it happen?&lt;/label&gt;&lt;select id=&quot;pd-area&quot; class=&quot;pd-select&quot;&gt;&lt;option&gt;Print &amp;amp; Production export&lt;/option&gt;&lt;option&gt;Image &amp;amp; Graphic Studio&lt;/option&gt;&lt;option&gt;Create PDF&lt;/option&gt;&lt;option&gt;Edit &amp;amp; Manage PDF&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class=&quot;pd-field&quot;&gt;&lt;label for=&quot;pd-severity&quot;&gt;Impact&lt;/label&gt;&lt;select id=&quot;pd-severity&quot; class=&quot;pd-select&quot;&gt;&lt;option&gt;Work blocked&lt;/option&gt;&lt;option&gt;Incorrect result&lt;/option&gt;&lt;option&gt;Slower than expected&lt;/option&gt;&lt;option&gt;Visual or usability problem&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-field&quot; style=&quot;margin-top:10px&quot;&gt;&lt;label for=&quot;pd-description&quot;&gt;What happened?&lt;/label&gt;&lt;textarea id=&quot;pd-description&quot; class=&quot;pd-textarea&quot;&gt;The final textile export stopped after 17 files, but the completed files remained available.&lt;/textarea&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-evidence&quot;&gt;&lt;label class=&quot;pd-check&quot;&gt;&lt;input type=&quot;checkbox&quot; checked disabled&gt;&lt;span&gt;Attach trace reference TR-9A7C2 and sanitised diagnostics&lt;small&gt;No customer file content, prompts or document text included.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;pd-check&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span&gt;Attach a screenshot after review&lt;small&gt;You will preview and redact it before submission.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;pd-check&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span&gt;Attach selected source or output files&lt;small&gt;Requires a separate confirmation for each selected file.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;&lt;/div&gt;
+          &lt;div class=&quot;pd-actions&quot;&gt;&lt;button class=&quot;pd-button&quot; type=&quot;button&quot;&gt;Save draft&lt;/button&gt;&lt;button class=&quot;pd-primary&quot; id=&quot;pd-submit-report&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;send&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Review &amp;amp; submit&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;pd-inspector&quot; aria-label=&quot;Access and audit safeguards&quot;&gt;
+        &lt;h3&gt;Access safeguards&lt;/h3&gt;&lt;div class=&quot;pd-inspector-copy&quot;&gt;Customer approval is one control in a larger system of scope, expiry, audit and least privilege.&lt;/div&gt;
+        &lt;div class=&quot;pd-inspector-box&quot;&gt;&lt;strong&gt;Pending request&lt;/strong&gt;&lt;br&gt;&lt;span style=&quot;color:light-dark(#6b758a,#aab4c7);line-height:1.45&quot;&gt;SUP-2841 · One job · Expires two hours after approval&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;pd-inspector-section&quot;&gt;&lt;div class=&quot;pd-inspector-title&quot;&gt;Always enforced&lt;/div&gt;&lt;div class=&quot;pd-fact&quot;&gt;&lt;i data-lucide=&quot;target&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Purpose-bound&lt;/strong&gt;&lt;small&gt;Only the approved investigation&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;pd-fact&quot;&gt;&lt;i data-lucide=&quot;timer&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Time-limited&lt;/strong&gt;&lt;small&gt;Automatic access expiry&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;pd-fact&quot;&gt;&lt;i data-lucide=&quot;scroll-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Fully audited&lt;/strong&gt;&lt;small&gt;Who viewed what, when and why&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;pd-fact&quot;&gt;&lt;i data-lucide=&quot;ban&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;No silent expansion&lt;/strong&gt;&lt;small&gt;New scope requires new approval&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;pd-inspector-section&quot;&gt;&lt;div class=&quot;pd-inspector-title&quot;&gt;Emergency access&lt;/div&gt;&lt;div class=&quot;pd-breakglass&quot;&gt;&lt;strong&gt;Break-glass is exceptional.&lt;/strong&gt;&lt;br&gt;Restricted to security emergencies, tightly controlled, automatically alerted and independently reviewed. It is not a normal support shortcut.&lt;/div&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;section class=&quot;pd-dialog&quot; id=&quot;pd-dialog&quot; aria-label=&quot;Confirm support access&quot; hidden&gt;
+      &lt;h3&gt;Approve scoped support access?&lt;/h3&gt;&lt;p&gt;Access begins now and expires automatically after two hours. You can revoke it earlier from this page.&lt;/p&gt;
+      &lt;label class=&quot;pd-check&quot;&gt;&lt;input id=&quot;pd-confirm-scope&quot; type=&quot;checkbox&quot;&gt;&lt;span&gt;I approve access only to job JOB-7F2A and its sanitised trace.&lt;/span&gt;&lt;/label&gt;
+      &lt;div class=&quot;pd-dialog-actions&quot;&gt;&lt;button class=&quot;pd-button&quot; id=&quot;pd-dialog-cancel&quot; type=&quot;button&quot;&gt;Cancel&lt;/button&gt;&lt;button class=&quot;pd-primary&quot; id=&quot;pd-dialog-confirm&quot; type=&quot;button&quot; disabled&gt;Approve access&lt;/button&gt;&lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;div class=&quot;pd-toast&quot; id=&quot;pd-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;/div&gt;
+    &lt;footer class=&quot;pd-bottom&quot;&gt;&lt;span&gt;Private by default&lt;/span&gt;&lt;span&gt;No model training by default&lt;/span&gt;&lt;span&gt;Scoped support access&lt;/span&gt;&lt;span class=&quot;pd-bottom-right&quot;&gt;&lt;span&gt;Sanitised diagnostics&lt;/span&gt;&lt;span&gt;Consent before content evidence&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;privacy-support-diagnostics&#x27;);
+      const tabs = [...root.querySelectorAll(&#x27;.pd-tab&#x27;)];
+      const panels = [...root.querySelectorAll(&#x27;[data-content]&#x27;)];
+      const navButtons = [...root.querySelectorAll(&#x27;.pd-nav-button&#x27;)];
+      const titles = {
+        access: [&#x27;Support access request&#x27;, &#x27;You decide exactly what support can inspect, why and for how long.&#x27;],
+        data: [&#x27;Data use &amp; consent&#x27;, &#x27;Product operation never becomes permission to train models or reuse customer content.&#x27;],
+        trace: [&#x27;Friendly recovery with advanced trace&#x27;, &#x27;Understand what happened first; inspect precise diagnostics only when useful.&#x27;],
+        report: [&#x27;Report a problem safely&#x27;, &#x27;Useful evidence without silently attaching screenshots, source files or customer content.&#x27;]
+      };
+      const showPanel = (name) =&gt; {
+        tabs.forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab.dataset.panel === name)));
+        panels.forEach((panel) =&gt; { panel.hidden = panel.dataset.content !== name; });
+        navButtons.forEach((button) =&gt; button.setAttribute(&#x27;aria-pressed&#x27;, String(button.dataset.target === name)));
+        root.querySelector(&#x27;#pd-heading&#x27;).textContent = titles[name][0];
+        root.querySelector(&#x27;#pd-subtitle&#x27;).textContent = titles[name][1];
+      };
+      tabs.forEach((tab) =&gt; tab.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(tab.dataset.panel)));
+      navButtons.forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(button.dataset.target)));
+
+      const toast = root.querySelector(&#x27;#pd-toast&#x27;);
+      let toastTimer;
+      const announce = (message) =&gt; { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 2600); };
+      const dialog = root.querySelector(&#x27;#pd-dialog&#x27;);
+      const confirmScope = root.querySelector(&#x27;#pd-confirm-scope&#x27;);
+      const confirmButton = root.querySelector(&#x27;#pd-dialog-confirm&#x27;);
+      root.querySelector(&#x27;#pd-approve&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = false; confirmScope.checked = false; confirmButton.disabled = true; });
+      root.querySelector(&#x27;#pd-dialog-cancel&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; });
+      confirmScope.addEventListener(&#x27;change&#x27;, () =&gt; { confirmButton.disabled = !confirmScope.checked; });
+      confirmButton.addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; announce(&#x27;Scoped support access approved for two hours and recorded in the audit trail.&#x27;); });
+      root.querySelector(&#x27;#pd-deny&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Support access denied. No customer content or trace access was granted.&#x27;));
+      root.querySelector(&#x27;#pd-retry&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;The failed item will resume from the last safe checkpoint using the safer route.&#x27;));
+      root.querySelector(&#x27;#pd-submit-report&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Evidence review opened before the report can be submitted.&#x27;));
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

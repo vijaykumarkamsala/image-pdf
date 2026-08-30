@@ -1,0 +1,353 @@
+<section id="project-structure-files" aria-label="Project structure and default files experience">
+  <style>
+    #project-structure-files {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff);
+      background: light-dark(#edf1f6, #111722);
+    }
+    #project-structure-files * { box-sizing: border-box; }
+    #project-structure-files button,
+    #project-structure-files input,
+    #project-structure-files select { font: inherit; color: inherit; }
+    #project-structure-files button { cursor: pointer; }
+    #project-structure-files .ps-shell { min-height: 750px; background: light-dark(#f7f8fb, #151b28); overflow: hidden; position: relative; }
+    #project-structure-files .ps-topbar {
+      min-height: 60px;
+      padding: 9px 15px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #project-structure-files .ps-brand { min-width: 190px; display: flex; align-items: center; gap: 9px; font-weight: 500; }
+    #project-structure-files .ps-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      color: light-dark(#ffffff, #101725);
+      background: light-dark(#2356d8, #88a5ff);
+    }
+    #project-structure-files .ps-mark svg { width: 17px; height: 17px; }
+    #project-structure-files .ps-search {
+      width: min(420px, 42%);
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 9px;
+      background: light-dark(#f1f4f8, #252d3d);
+      border: 1px solid light-dark(#e0e5ec, #323d50);
+      color: light-dark(#667187, #adb7ca);
+    }
+    #project-structure-files .ps-search svg { width: 16px; height: 16px; }
+    #project-structure-files .ps-search input { border: 0; outline: 0; background: transparent; width: 100%; min-width: 0; }
+    #project-structure-files .ps-spacer { flex: 1; }
+    #project-structure-files .ps-button,
+    #project-structure-files .ps-primary,
+    #project-structure-files .ps-icon-button {
+      min-height: 37px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    #project-structure-files .ps-icon-button { width: 37px; padding: 7px; }
+    #project-structure-files .ps-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #project-structure-files .ps-button svg,
+    #project-structure-files .ps-primary svg,
+    #project-structure-files .ps-icon-button svg { width: 16px; height: 16px; }
+    #project-structure-files .ps-avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500; }
+    #project-structure-files .ps-main { display: grid; grid-template-columns: 226px minmax(0, 1fr) 278px; min-height: 654px; }
+    #project-structure-files .ps-sidebar,
+    #project-structure-files .ps-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #project-structure-files .ps-sidebar { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #project-structure-files .ps-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #project-structure-files .ps-workspace-picker {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d3dbe7, #3b4659);
+      background: light-dark(#ffffff, #222a3a);
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 7px;
+      margin-bottom: 11px;
+    }
+    #project-structure-files .ps-nav { display: grid; gap: 3px; }
+    #project-structure-files .ps-nav-button,
+    #project-structure-files .ps-tree-button {
+      width: 100%;
+      min-height: 37px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      padding: 7px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      color: light-dark(#465167, #c4cede);
+    }
+    #project-structure-files .ps-nav-button svg,
+    #project-structure-files .ps-tree-button svg { width: 16px; height: 16px; flex: 0 0 auto; }
+    #project-structure-files .ps-nav-button[aria-pressed="true"],
+    #project-structure-files .ps-tree-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #project-structure-files .ps-count { margin-left: auto; color: light-dark(#7a8497, #9ea9bc); }
+    #project-structure-files .ps-sidebar-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid light-dark(#e2e6ed, #30394b); }
+    #project-structure-files .ps-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 7px 7px; color: light-dark(#6e798d, #a5b0c2); }
+    #project-structure-files .ps-sidebar-head button { border: 0; background: transparent; padding: 3px; color: inherit; display: grid; place-items: center; }
+    #project-structure-files .ps-sidebar-head svg { width: 15px; height: 15px; }
+    #project-structure-files .ps-tree-child { margin-left: 18px; position: relative; }
+    #project-structure-files .ps-tree-child::before { content: ""; position: absolute; left: -8px; top: 0; bottom: 6px; width: 1px; background: light-dark(#d8dee8, #394356); }
+    #project-structure-files .ps-tree-child .ps-tree-button { min-height: 34px; }
+    #project-structure-files .ps-content { min-width: 0; padding: 18px 20px 27px; }
+    #project-structure-files .ps-content-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 13px; }
+    #project-structure-files .ps-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #project-structure-files .ps-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.4; }
+    #project-structure-files .ps-head-actions { margin-left: auto; display: flex; gap: 7px; }
+    #project-structure-files .ps-system-note {
+      padding: 10px 11px;
+      border-radius: 9px;
+      background: light-dark(#edf2ff, #29354c);
+      color: light-dark(#294b93, #cedaff);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.42;
+      margin-bottom: 14px;
+    }
+    #project-structure-files .ps-system-note svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #project-structure-files .ps-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    #project-structure-files .ps-select { min-height: 35px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558); background: light-dark(#ffffff, #222a3a); padding: 6px 9px; }
+    #project-structure-files .ps-view-switch { margin-left: auto; display: flex; gap: 3px; padding: 3px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558); background: light-dark(#ffffff, #222a3a); }
+    #project-structure-files .ps-view { width: 30px; min-height: 29px; border: 0; border-radius: 6px; background: transparent; display: grid; place-items: center; }
+    #project-structure-files .ps-view svg { width: 15px; height: 15px; }
+    #project-structure-files .ps-view[aria-pressed="true"] { background: light-dark(#eaf0ff, #34415a); color: light-dark(#204fc6, #c3cfff); }
+    #project-structure-files .ps-files { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    #project-structure-files .ps-file {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid light-dark(#d8dee8, #394356);
+      background: light-dark(#ffffff, #1d2534);
+      text-align: left;
+    }
+    #project-structure-files .ps-file[aria-pressed="true"] { border-color: light-dark(#98b2fb, #647fcb); background: light-dark(#f6f8ff, #222d42); }
+    #project-structure-files .ps-preview { aspect-ratio: 1.4; border-radius: 7px; display: grid; place-items: center; margin-bottom: 8px; position: relative; overflow: hidden; background: light-dark(#edf1f5, #2a3242); }
+    #project-structure-files .ps-preview.art { background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; font-size: 48px; }
+    #project-structure-files .ps-preview.pdf::before { content: ""; width: 40%; height: 76%; background: light-dark(#ffffff, #f8f9fd); border: 1px solid light-dark(#c9d1dd, #697386); box-shadow: 0 3px 8px light-dark(#ced5df, #101522); }
+    #project-structure-files .ps-preview.scan { background: light-dark(#e6e7e5, #d7d8d6); }
+    #project-structure-files .ps-preview.scan::before { content: "Rx"; width: 48%; height: 76%; display: grid; place-items: center; background: #fbfaf5; color: #5f6265; border: 1px solid #babdbf; transform: rotate(-3deg); }
+    #project-structure-files .ps-file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #project-structure-files .ps-file-meta { margin-top: 3px; color: light-dark(#6d778b, #a8b3c5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #project-structure-files .ps-file-foot { display: flex; justify-content: space-between; align-items: center; gap: 7px; margin-top: 8px; color: light-dark(#68758a, #a7b3c6); }
+    #project-structure-files .ps-origin { display: inline-flex; align-items: center; gap: 5px; }
+    #project-structure-files .ps-origin svg { width: 14px; height: 14px; }
+    #project-structure-files .ps-list-mode { grid-template-columns: 1fr; }
+    #project-structure-files .ps-list-mode .ps-file { display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; }
+    #project-structure-files .ps-list-mode .ps-preview { margin: 0; }
+    #project-structure-files .ps-list-mode .ps-file-foot { margin: 0; gap: 12px; }
+    #project-structure-files .ps-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #project-structure-files .ps-help { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #project-structure-files .ps-detail-preview { aspect-ratio: 1.4; border-radius: 8px; display: grid; place-items: center; background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; font-size: 62px; margin-bottom: 12px; }
+    #project-structure-files .ps-detail-row { display: flex; justify-content: space-between; gap: 9px; padding: 6px 0; }
+    #project-structure-files .ps-detail-row span:first-child { color: light-dark(#707a8e, #a2adbf); }
+    #project-structure-files .ps-info-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #project-structure-files .ps-info-title { font-weight: 500; margin-bottom: 8px; }
+    #project-structure-files .ps-location-path { padding: 9px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); line-height: 1.45; color: light-dark(#4f5c72, #c5cede); }
+    #project-structure-files .ps-linked-project { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid light-dark(#e2e6ed, #30394b); }
+    #project-structure-files .ps-linked-project svg { width: 16px; height: 16px; color: light-dark(#2453c4, #bdcaff); }
+    #project-structure-files .ps-linked-project span { flex: 1; }
+    #project-structure-files .ps-new-menu {
+      position: absolute;
+      right: 16px;
+      top: 64px;
+      z-index: 7;
+      width: min(410px, calc(100% - 32px));
+      padding: 14px;
+      border-radius: 11px;
+      border: 1px solid light-dark(#d1d9e5, #3d485c);
+      background: light-dark(#ffffff, #1f2737);
+      box-shadow: 0 14px 34px light-dark(rgba(78,91,115,.25), rgba(4,7,12,.5));
+    }
+    #project-structure-files .ps-new-menu[hidden] { display: none; }
+    #project-structure-files .ps-new-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    #project-structure-files .ps-new-title { font-weight: 500; }
+    #project-structure-files .ps-new-close { border: 0; background: transparent; padding: 5px; display: grid; place-items: center; }
+    #project-structure-files .ps-new-close svg { width: 16px; height: 16px; }
+    #project-structure-files .ps-new-options { display: grid; gap: 8px; }
+    #project-structure-files .ps-new-option {
+      width: 100%;
+      min-height: 67px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 9px;
+      align-items: center;
+      padding: 9px;
+      text-align: left;
+      border-radius: 9px;
+      border: 1px solid light-dark(#d7dee8, #394356);
+      background: light-dark(#ffffff, #232b3b);
+    }
+    #project-structure-files .ps-new-icon { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #project-structure-files .ps-new-icon svg { width: 17px; height: 17px; }
+    #project-structure-files .ps-new-option strong { display: block; font-weight: 500; }
+    #project-structure-files .ps-new-option span:last-child { display: block; margin-top: 2px; color: light-dark(#6a758a, #aab5c8); line-height: 1.35; }
+    #project-structure-files .ps-bottom { min-height: 36px; padding: 6px 12px; display: flex; align-items: center; gap: 15px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #project-structure-files .ps-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 900px) {
+      #project-structure-files .ps-main { grid-template-columns: 196px minmax(0, 1fr); }
+      #project-structure-files .ps-inspector { display: none; }
+      #project-structure-files .ps-files { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #project-structure-files .ps-search { width: 34%; }
+    }
+    @media (max-width: 640px) {
+      #project-structure-files .ps-brand { min-width: auto; }
+      #project-structure-files .ps-brand span { display: none; }
+      #project-structure-files .ps-search { flex: 1; width: auto; }
+      #project-structure-files .ps-avatar { display: none; }
+      #project-structure-files .ps-main { display: block; }
+      #project-structure-files .ps-sidebar { display: none; }
+      #project-structure-files .ps-content { padding: 14px 11px 21px; }
+      #project-structure-files .ps-content-head h2 { font-size: 18px; }
+      #project-structure-files .ps-head-actions .ps-button { display: none; }
+      #project-structure-files .ps-files { grid-template-columns: 1fr 1fr; gap: 8px; }
+      #project-structure-files .ps-preview.art { font-size: 36px; }
+      #project-structure-files .ps-bottom { display: none; }
+    }
+  </style>
+
+  <div class="ps-shell">
+    <header class="ps-topbar">
+      <div class="ps-brand"><div class="ps-mark"><i data-lucide="layout-grid" aria-hidden="true"></i></div><span>Visual Workspace</span></div>
+      <label class="ps-search"><i data-lucide="search" aria-hidden="true"></i><input type="search" placeholder="Search files and projects" aria-label="Search files and projects"></label>
+      <div class="ps-spacer"></div>
+      <button class="ps-icon-button" type="button" aria-label="Notifications"><i data-lucide="bell" aria-hidden="true"></i></button>
+      <div class="ps-avatar">VK</div>
+    </header>
+
+    <div class="ps-main">
+      <aside class="ps-sidebar" aria-label="Project structure">
+        <button class="ps-workspace-picker" type="button"><span>Personal workspace</span><i data-lucide="chevrons-up-down" aria-hidden="true"></i></button>
+        <nav class="ps-nav">
+          <button class="ps-nav-button" type="button" aria-pressed="false"><i data-lucide="house" aria-hidden="true"></i>Home</button>
+          <button class="ps-nav-button" type="button" data-location="my-files" aria-pressed="true"><i data-lucide="files" aria-hidden="true"></i>My files<span class="ps-count">24</span></button>
+          <button class="ps-nav-button" type="button" aria-pressed="false"><i data-lucide="users" aria-hidden="true"></i>Shared with me<span class="ps-count">7</span></button>
+          <button class="ps-nav-button" type="button" aria-pressed="false"><i data-lucide="clock-3" aria-hidden="true"></i>Recent</button>
+        </nav>
+        <div class="ps-sidebar-section">
+          <div class="ps-sidebar-head"><span>Projects</span><button type="button" aria-label="Create project"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+          <button class="ps-tree-button" type="button" data-location="kidswear" aria-pressed="false"><i data-lucide="folder-kanban" aria-hidden="true"></i>Kidswear 2027<i data-lucide="chevron-down" aria-hidden="true" style="margin-left:auto"></i></button>
+          <div class="ps-tree-child">
+            <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="palette" aria-hidden="true"></i>Woodland collection</button>
+            <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="folder" aria-hidden="true"></i>Print approvals</button>
+            <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="folder" aria-hidden="true"></i>Final delivery</button>
+          </div>
+          <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="file-stack" aria-hidden="true"></i>Client brochures</button>
+          <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="image" aria-hidden="true"></i>Personal designs</button>
+        </div>
+        <div class="ps-sidebar-section">
+          <div class="ps-sidebar-head"><span>Collections</span><button type="button" aria-label="Create collection"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+          <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="library" aria-hidden="true"></i>2027 launches</button>
+          <button class="ps-tree-button" type="button" aria-pressed="false"><i data-lucide="library" aria-hidden="true"></i>Approved work</button>
+        </div>
+      </aside>
+
+      <main class="ps-content">
+        <div class="ps-content-head">
+          <div><h2 id="ps-heading">My files</h2><div class="ps-subtitle" id="ps-subtitle">Your automatic starting place for uploads, saved results and copies that are not assigned to another project.</div></div>
+          <div class="ps-head-actions"><button class="ps-button" type="button"><i data-lucide="upload" aria-hidden="true"></i>Upload</button><button class="ps-primary" id="ps-new-open" type="button"><i data-lucide="plus" aria-hidden="true"></i>New</button></div>
+        </div>
+        <div class="ps-system-note" id="ps-system-note"><i data-lucide="sparkles" aria-hidden="true"></i><span><strong>No setup required.</strong> Until you choose another project, every upload, saved export and cloned file arrives here automatically. Move it later without losing history or links.</span></div>
+        <div class="ps-controls">
+          <select class="ps-select" aria-label="File type"><option>All types</option><option>Graphics</option><option>PDFs</option><option>Images</option></select>
+          <select class="ps-select" aria-label="File status"><option>Any status</option><option>Needs attention</option><option>Approved</option><option>Shared</option></select>
+          <div class="ps-view-switch" aria-label="File view"><button class="ps-view" type="button" data-view="grid" aria-pressed="true" aria-label="Grid view"><i data-lucide="grid-2x2" aria-hidden="true"></i></button><button class="ps-view" type="button" data-view="list" aria-pressed="false" aria-label="List view"><i data-lucide="list" aria-hidden="true"></i></button></div>
+        </div>
+        <div class="ps-files" id="ps-files">
+          <button class="ps-file" type="button" aria-pressed="true"><div class="ps-preview art">🦔</div><div><div class="ps-file-name">Hedgehog source</div><div class="ps-file-meta">Original image · 899 × 1599 px</div></div><div class="ps-file-foot"><span class="ps-origin"><i data-lucide="hard-drive" aria-hidden="true"></i>Google Drive</span><span>v4</span></div></button>
+          <button class="ps-file" type="button" aria-pressed="false"><div class="ps-preview art">🦊</div><div><div class="ps-file-name">Fox inspiration</div><div class="ps-file-meta">Uploaded image · Original</div></div><div class="ps-file-foot"><span class="ps-origin"><i data-lucide="upload" aria-hidden="true"></i>Uploaded</span><span>v1</span></div></button>
+          <button class="ps-file" type="button" aria-pressed="false"><div class="ps-preview pdf"></div><div><div class="ps-file-name">Supplier agreement</div><div class="ps-file-meta">Native PDF project · 3 pages</div></div><div class="ps-file-foot"><span class="ps-origin"><i data-lucide="pen-line" aria-hidden="true"></i>Created here</span><span>v7</span></div></button>
+          <button class="ps-file" type="button" aria-pressed="false"><div class="ps-preview scan"></div><div><div class="ps-file-name">Prescription scan</div><div class="ps-file-meta">Camera image · Review pending</div></div><div class="ps-file-foot"><span class="ps-origin"><i data-lucide="camera" aria-hidden="true"></i>Mobile</span><span>v1</span></div></button>
+          <button class="ps-file" type="button" aria-pressed="false"><div class="ps-preview art">🌿</div><div><div class="ps-file-name">Leaf pattern variant</div><div class="ps-file-meta">Graphic document · 2 artboards</div></div><div class="ps-file-foot"><span class="ps-origin"><i data-lucide="copy" aria-hidden="true"></i>Cloned</span><span>v3</span></div></button>
+          <button class="ps-file" type="button" aria-pressed="false"><div class="ps-preview pdf"></div><div><div class="ps-file-name">Print notes</div><div class="ps-file-meta">PDF · 6 pages</div></div><div class="ps-file-foot"><span class="ps-origin"><i data-lucide="box" aria-hidden="true"></i>Dropbox</span><span>v2</span></div></button>
+        </div>
+      </main>
+
+      <aside class="ps-inspector" aria-label="Selected file details">
+        <h3>Hedgehog source</h3><div class="ps-help">Original source asset selected from My files.</div>
+        <div class="ps-detail-preview" aria-hidden="true">🦔</div>
+        <div class="ps-detail-row"><span>Original</span><strong>Untouched</strong></div>
+        <div class="ps-detail-row"><span>Source versions</span><strong>4</strong></div>
+        <div class="ps-detail-row"><span>Location</span><strong>My files</strong></div>
+        <div class="ps-detail-row"><span>Owner</span><strong>Vijay</strong></div>
+        <div class="ps-info-section"><div class="ps-info-title">Current location</div><div class="ps-location-path">Personal workspace<br><strong>My files</strong></div><button class="ps-button" type="button" style="margin-top:9px"><i data-lucide="folder-input" aria-hidden="true"></i>Move to project</button></div>
+        <div class="ps-info-section"><div class="ps-info-title">Used without duplication</div><div class="ps-linked-project"><i data-lucide="folder-kanban" aria-hidden="true"></i><span>Woodland collection</span><strong>Linked</strong></div><div class="ps-linked-project"><i data-lucide="file-check-2" aria-hidden="true"></i><span>Print approval proof</span><strong>Linked</strong></div></div>
+      </aside>
+    </div>
+
+    <section class="ps-new-menu" id="ps-new-menu" aria-label="Create new item" hidden>
+      <div class="ps-new-head"><div class="ps-new-title">Create new</div><button class="ps-new-close" id="ps-new-close" type="button" aria-label="Close"><i data-lucide="x" aria-hidden="true"></i></button></div>
+      <div class="ps-new-options">
+        <button class="ps-new-option" type="button"><span class="ps-new-icon"><i data-lucide="file-pen-line" aria-hidden="true"></i></span><span><strong>Single-document project</strong><span>One main graphic or PDF with its assets, artboards, versions and outputs.</span></span></button>
+        <button class="ps-new-option" type="button"><span class="ps-new-icon"><i data-lucide="folder-kanban" aria-hidden="true"></i></span><span><strong>Multi-file project</strong><span>Several related images, graphics, PDFs, briefs and production results.</span></span></button>
+        <button class="ps-new-option" type="button"><span class="ps-new-icon"><i data-lucide="folder-tree" aria-hidden="true"></i></span><span><strong>Subproject</strong><span>A focused child project that inherits access and policies from its parent.</span></span></button>
+        <button class="ps-new-option" type="button"><span class="ps-new-icon"><i data-lucide="library" aria-hidden="true"></i></span><span><strong>Collection</strong><span>Group related projects across clients, seasons or campaigns without moving their files.</span></span></button>
+      </div>
+    </section>
+
+    <footer class="ps-bottom"><span>My files is always available</span><span>Originals remain immutable</span><span>Moves preserve history and links</span><span class="ps-bottom-right"><span>Projects may be simple or multi-file</span><span>Collections do not duplicate content</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('project-structure-files');
+      const files = root.querySelector('#ps-files');
+      const views = [...root.querySelectorAll('.ps-view')];
+      views.forEach((button) => button.addEventListener('click', () => {
+        views.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        files.classList.toggle('ps-list-mode', button.dataset.view === 'list');
+      }));
+
+      const fileButtons = [...root.querySelectorAll('.ps-file')];
+      fileButtons.forEach((button) => button.addEventListener('click', () => {
+        fileButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      }));
+
+      const heading = root.querySelector('#ps-heading');
+      const subtitle = root.querySelector('#ps-subtitle');
+      const systemNote = root.querySelector('#ps-system-note');
+      const locationButtons = [...root.querySelectorAll('[data-location]')];
+      locationButtons.forEach((button) => button.addEventListener('click', () => {
+        locationButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        if (button.dataset.location === 'kidswear') {
+          heading.textContent = 'Kidswear 2027';
+          subtitle.textContent = 'Multi-file project · Three subprojects · Shared workspace access';
+          systemNote.innerHTML = '<i data-lucide="folder-tree" aria-hidden="true"></i><span><strong>Flexible project structure.</strong> Keep files together in this project or use child projects for Woodland, Print approvals and Final delivery.</span>';
+        } else {
+          heading.textContent = 'My files';
+          subtitle.textContent = 'Your automatic starting place for uploads, saved results and copies that are not assigned to another project.';
+          systemNote.innerHTML = '<i data-lucide="sparkles" aria-hidden="true"></i><span><strong>No setup required.</strong> Until you choose another project, every upload, saved export and cloned file arrives here automatically. Move it later without losing history or links.</span>';
+        }
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+
+      const menu = root.querySelector('#ps-new-menu');
+      root.querySelector('#ps-new-open').addEventListener('click', () => { menu.hidden = false; });
+      root.querySelector('#ps-new-close').addEventListener('click', () => { menu.hidden = true; });
+    })();
+  </script>
+</section>

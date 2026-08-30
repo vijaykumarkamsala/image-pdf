@@ -1,0 +1,353 @@
+<style>
+  #guest-home-v2 {
+    --gh-page: light-dark(#f5f7fb, #10141c);
+    --gh-surface: light-dark(#ffffff, #181e28);
+    --gh-raised: light-dark(#fbfcfe, #202733);
+    --gh-text: light-dark(#162033, #eef3fb);
+    --gh-muted: light-dark(#627087, #aab5c6);
+    --gh-line: light-dark(#dde4ed, #344052);
+    --gh-blue: light-dark(#3559e0, #88a1ff);
+    --gh-blue-ink: light-dark(#2946bd, #b7c5ff);
+    --gh-blue-soft: light-dark(#edf1ff, #222c50);
+    --gh-green: light-dark(#177a59, #72d9b2);
+    --gh-orange: light-dark(#a96110, #ffc078);
+    width: 100%;
+    color: var(--gh-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  #guest-home-v2 * { box-sizing: border-box; }
+  #guest-home-v2 button { font: inherit; }
+
+  #guest-home-v2 .gh-window {
+    min-height: 740px;
+    overflow: hidden;
+    border: 1px solid var(--gh-line);
+    border-radius: 14px;
+    background: var(--gh-page);
+    box-shadow: 0 18px 48px light-dark(rgba(40, 55, 82, .12), rgba(0, 0, 0, .28));
+  }
+
+  #guest-home-v2 .gh-header {
+    height: 64px;
+    padding: 0 22px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    background: var(--gh-surface);
+    border-bottom: 1px solid var(--gh-line);
+  }
+
+  #guest-home-v2 .gh-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  #guest-home-v2 .gh-logo {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: light-dark(#ffffff, #10162b);
+    background: var(--gh-blue);
+  }
+
+  #guest-home-v2 .gh-nav { display: flex; align-items: center; gap: 18px; }
+  #guest-home-v2 .gh-nav a { color: var(--gh-muted); text-decoration: none; }
+  #guest-home-v2 .gh-spacer { flex: 1; }
+  #guest-home-v2 .gh-testing { color: var(--gh-green); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+  #guest-home-v2 .gh-button {
+    appearance: none;
+    border: 1px solid var(--gh-line);
+    background: var(--gh-surface);
+    color: var(--gh-text);
+    border-radius: 9px;
+    padding: 9px 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+  }
+
+  #guest-home-v2 .gh-button-primary {
+    background: var(--gh-blue);
+    border-color: var(--gh-blue);
+    color: light-dark(#ffffff, #0c1328);
+  }
+
+  #guest-home-v2 .gh-main {
+    min-height: 676px;
+    padding: 40px clamp(18px, 5vw, 70px) 30px;
+    background:
+      radial-gradient(circle at 50% -15%, light-dark(rgba(68, 99, 225, .15), rgba(82, 108, 220, .14)), transparent 42%),
+      var(--gh-page);
+  }
+
+  #guest-home-v2 .gh-hero {
+    max-width: 820px;
+    margin: 0 auto 26px;
+    text-align: center;
+  }
+
+  #guest-home-v2 .gh-kicker { color: var(--gh-blue-ink); font-weight: 500; margin-bottom: 9px; }
+  #guest-home-v2 h1 { margin: 0 0 13px; font-size: clamp(31px, 5.2vw, 48px); line-height: 1.08; font-weight: 500; letter-spacing: -.025em; }
+  #guest-home-v2 h2 { margin: 0; font-size: 20px; font-weight: 500; }
+  #guest-home-v2 h3 { margin: 0 0 6px; font-size: 16px; font-weight: 500; }
+  #guest-home-v2 p { margin: 0; color: var(--gh-muted); line-height: 1.55; }
+
+  #guest-home-v2 .gh-intake {
+    max-width: 920px;
+    margin: 0 auto 28px;
+    padding: 10px;
+    background: var(--gh-surface);
+    border: 1px solid var(--gh-line);
+    border-radius: 15px;
+    box-shadow: 0 12px 34px light-dark(rgba(43, 60, 94, .09), rgba(0, 0, 0, .22));
+  }
+
+  #guest-home-v2 .gh-intake-main {
+    min-height: 128px;
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    padding: 18px;
+    border: 1px dashed var(--gh-blue);
+    border-radius: 11px;
+    background: var(--gh-raised);
+  }
+
+  #guest-home-v2 .gh-upload-symbol {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    background: var(--gh-blue-soft);
+    color: var(--gh-blue-ink);
+  }
+
+  #guest-home-v2 .gh-upload-title { font-weight: 500; margin-bottom: 4px; }
+  #guest-home-v2 .gh-upload-note { color: var(--gh-muted); font-size: 13px; }
+  #guest-home-v2 .gh-intake-actions { display: flex; flex-direction: column; gap: 7px; min-width: 150px; }
+
+  #guest-home-v2 .gh-intake-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px 0;
+    color: var(--gh-muted);
+    font-size: 12px;
+  }
+
+  #guest-home-v2 .gh-intake-footer span { display: inline-flex; align-items: center; gap: 5px; }
+
+  #guest-home-v2 .gh-section-head {
+    max-width: 1080px;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: end;
+    gap: 12px;
+  }
+
+  #guest-home-v2 .gh-section-head p { font-size: 13px; }
+  #guest-home-v2 .gh-outcomes {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #guest-home-v2 .gh-outcome {
+    appearance: none;
+    border: 1px solid var(--gh-line);
+    background: var(--gh-surface);
+    color: var(--gh-text);
+    border-radius: 12px;
+    min-height: 166px;
+    padding: 17px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  #guest-home-v2 .gh-outcome:hover,
+  #guest-home-v2 .gh-outcome[aria-pressed="true"] { border-color: var(--gh-blue); background: var(--gh-blue-soft); }
+  #guest-home-v2 .gh-outcome-icon { color: var(--gh-blue-ink); margin-bottom: 20px; }
+  #guest-home-v2 .gh-outcome p { font-size: 13px; margin-bottom: 12px; }
+  #guest-home-v2 .gh-open { color: var(--gh-blue-ink); display: flex; align-items: center; gap: 5px; font-size: 13px; }
+
+  #guest-home-v2 .gh-shortcuts {
+    max-width: 1080px;
+    margin: 20px auto 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--gh-line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  #guest-home-v2 .gh-shortcuts strong { font-weight: 500; }
+  #guest-home-v2 .gh-shortcut {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--gh-muted);
+    padding: 6px 7px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--gh-line);
+    text-underline-offset: 4px;
+  }
+
+  #guest-home-v2 .gh-trust {
+    max-width: 1080px;
+    margin: 20px auto 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #guest-home-v2 .gh-trust-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--gh-muted);
+    font-size: 12px;
+  }
+
+  #guest-home-v2 .gh-trust-item i { color: var(--gh-green); flex: 0 0 auto; }
+  #guest-home-v2 .gh-selection {
+    max-width: 1080px;
+    margin: 12px auto 0;
+    min-height: 22px;
+    color: var(--gh-blue-ink);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  @media (max-width: 850px) {
+    #guest-home-v2 .gh-nav, #guest-home-v2 .gh-testing { display: none; }
+    #guest-home-v2 .gh-outcomes, #guest-home-v2 .gh-trust { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 560px) {
+    #guest-home-v2 .gh-window { min-height: 0; }
+    #guest-home-v2 .gh-header { padding: 0 12px; gap: 8px; }
+    #guest-home-v2 .gh-brand span:last-child { display: none; }
+    #guest-home-v2 .gh-main { padding: 28px 14px 24px; }
+    #guest-home-v2 .gh-intake-main { grid-template-columns: 1fr; text-align: center; }
+    #guest-home-v2 .gh-upload-symbol { margin: 0 auto; }
+    #guest-home-v2 .gh-intake-actions { min-width: 0; }
+    #guest-home-v2 .gh-intake-footer { justify-content: center; flex-wrap: wrap; }
+    #guest-home-v2 .gh-outcomes, #guest-home-v2 .gh-trust { grid-template-columns: 1fr; }
+    #guest-home-v2 .gh-outcome { min-height: 0; }
+    #guest-home-v2 .gh-section-head { display: block; }
+    #guest-home-v2 .gh-shortcuts { align-items: flex-start; }
+  }
+</style>
+
+<div id="guest-home-v2">
+  <div class="gh-window">
+    <header class="gh-header">
+      <div class="gh-brand"><span class="gh-logo"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Visual Production</span></div>
+      <nav class="gh-nav" aria-label="Public navigation"><a href="#">Products</a><a href="#">For production</a><a href="#">Learn</a></nav>
+      <div class="gh-spacer"></div>
+      <span class="gh-testing"><i data-lucide="circle-check" aria-hidden="true"></i> Free during testing</span>
+      <button class="gh-button" type="button">Sign in</button>
+      <button class="gh-button gh-button-primary" type="button">Create free</button>
+    </header>
+
+    <main class="gh-main">
+      <section class="gh-hero">
+        <div class="gh-kicker">One workspace for visual and document production</div>
+        <h1>Make it clear. Make it editable. Make it ready.</h1>
+        <p>Start with any image, design or PDF. We’ll inspect the source, protect what matters and guide you toward a trustworthy digital or production-ready result.</p>
+      </section>
+
+      <section class="gh-intake" aria-label="Start with a file">
+        <div class="gh-intake-main">
+          <div class="gh-upload-symbol"><i data-lucide="upload-cloud" aria-hidden="true"></i></div>
+          <div>
+            <div class="gh-upload-title" id="gh-upload-title">Drop an image, PDF or design file</div>
+            <div class="gh-upload-note" id="gh-upload-note">Nothing changes until you approve it. Your original stays untouched.</div>
+          </div>
+          <div class="gh-intake-actions">
+            <button class="gh-button gh-button-primary" type="button">Choose files</button>
+            <button class="gh-button" type="button"><i data-lucide="cloud" aria-hidden="true"></i> Import from cloud</button>
+          </div>
+        </div>
+        <div class="gh-intake-footer">
+          <span><i data-lucide="file-image" aria-hidden="true"></i> Images and design files</span>
+          <span><i data-lucide="file-text" aria-hidden="true"></i> PDFs and documents</span>
+          <div class="gh-spacer"></div>
+          <button class="gh-button" type="button"><i data-lucide="plus" aria-hidden="true"></i> Start blank</button>
+        </div>
+      </section>
+
+      <div class="gh-section-head"><div><h2>What do you want to make?</h2><p>Choose now, or upload first and let us recommend the right workspace.</p></div><div class="gh-spacer"></div></div>
+
+      <section class="gh-outcomes" aria-label="Major product outcomes">
+        <button class="gh-outcome" type="button" aria-pressed="false" data-title="Upload an image or design" data-note="Enhance, restore or build a layered graphic while preserving the original.">
+          <i class="gh-outcome-icon" data-lucide="image" aria-hidden="true"></i><h3>Image &amp; Graphic Studio</h3><p>Enhance, restore, design and work with editable layers and artboards.</p><span class="gh-open">Choose workspace <i data-lucide="arrow-right" aria-hidden="true"></i></span>
+        </button>
+        <button class="gh-outcome" type="button" aria-pressed="false" data-title="Add files for a new PDF" data-note="Use images, documents, project assets or begin with a blank page.">
+          <i class="gh-outcome-icon" data-lucide="file-plus-2" aria-hidden="true"></i><h3>Create PDF</h3><p>Create polished, searchable and accessible documents in one editor.</p><span class="gh-open">Choose workspace <i data-lucide="arrow-right" aria-hidden="true"></i></span>
+        </button>
+        <button class="gh-outcome" type="button" aria-pressed="false" data-title="Upload a PDF to inspect safely" data-note="We’ll explain what can be edited before changing or flattening anything.">
+          <i class="gh-outcome-icon" data-lucide="files" aria-hidden="true"></i><h3>Edit &amp; Manage PDF</h3><p>Edit safely, organise pages, compress, convert, repair and redact.</p><span class="gh-open">Choose workspace <i data-lucide="arrow-right" aria-hidden="true"></i></span>
+        </button>
+        <button class="gh-outcome" type="button" aria-pressed="false" data-title="Upload artwork for production checks" data-note="Choose the machine, material and intended size after source inspection.">
+          <i class="gh-outcome-icon" data-lucide="printer" aria-hidden="true"></i><h3>Print &amp; Production</h3><p>Prepare files for paper, textile, signage, embroidery and cutting.</p><span class="gh-open">Choose workspace <i data-lucide="arrow-right" aria-hidden="true"></i></span>
+        </button>
+      </section>
+
+      <div class="gh-selection" id="gh-selection" aria-live="polite">No workspace selected—upload any supported file to receive a recommendation.</div>
+
+      <section class="gh-shortcuts" aria-label="Common starting points">
+        <strong>Common starts:</strong>
+        <button class="gh-shortcut" type="button">Improve a blurry image</button>
+        <button class="gh-shortcut" type="button">Make a scan searchable</button>
+        <button class="gh-shortcut" type="button">Images to PDF</button>
+        <button class="gh-shortcut" type="button">Remove a background</button>
+        <button class="gh-shortcut" type="button">Merge PDFs</button>
+        <button class="gh-shortcut" type="button">Browse all tools</button>
+      </section>
+
+      <section class="gh-trust" aria-label="Product safeguards">
+        <div class="gh-trust-item"><i data-lucide="shield-check" aria-hidden="true"></i><span>Your original is always preserved.</span></div>
+        <div class="gh-trust-item"><i data-lucide="scan-search" aria-hidden="true"></i><span>Recommendations explain what was detected.</span></div>
+        <div class="gh-trust-item"><i data-lucide="wand-sparkles" aria-hidden="true"></i><span>AI-created detail is clearly identified.</span></div>
+        <div class="gh-trust-item"><i data-lucide="lock-keyhole" aria-hidden="true"></i><span>Private by default; no training without consent.</span></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const root = document.getElementById("guest-home-v2");
+    if (!root) return;
+    const outcomes = [...root.querySelectorAll(".gh-outcome")];
+    const title = root.querySelector("#gh-upload-title");
+    const note = root.querySelector("#gh-upload-note");
+    const selection = root.querySelector("#gh-selection");
+    if (!title || !note || !selection) return;
+    outcomes.forEach((outcome) => {
+      outcome.addEventListener("click", () => {
+        outcomes.forEach((item) => item.setAttribute("aria-pressed", item === outcome ? "true" : "false"));
+        title.textContent = outcome.getAttribute("data-title") || "Choose a file";
+        note.textContent = outcome.getAttribute("data-note") || "Your original stays untouched.";
+        const heading = outcome.querySelector("h3");
+        selection.textContent = heading ? `${heading.textContent} selected—upload now or start blank where supported.` : "Workspace selected.";
+      });
+    });
+  })();
+</script>

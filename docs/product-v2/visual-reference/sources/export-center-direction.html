@@ -1,0 +1,465 @@
+<section id="export-center-workspace" aria-label="Unified export center concept">
+  <style>
+    #export-center-workspace {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff);
+      background: light-dark(#e9edf4, #111722);
+    }
+    #export-center-workspace * { box-sizing: border-box; }
+    #export-center-workspace button,
+    #export-center-workspace input,
+    #export-center-workspace select { font: inherit; color: inherit; }
+    #export-center-workspace button { cursor: pointer; }
+    #export-center-workspace .ec-shell {
+      min-height: 744px;
+      background: light-dark(#f7f8fb, #151b28);
+      overflow: hidden;
+    }
+    #export-center-workspace .ec-header {
+      min-height: 64px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #export-center-workspace .ec-close,
+    #export-center-workspace .ec-icon-button {
+      width: 37px;
+      min-height: 37px;
+      padding: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+    }
+    #export-center-workspace .ec-close svg,
+    #export-center-workspace .ec-icon-button svg { width: 16px; height: 16px; }
+    #export-center-workspace .ec-heading { min-width: 170px; }
+    #export-center-workspace .ec-title { font-weight: 500; }
+    #export-center-workspace .ec-subtitle { color: light-dark(#697388, #acb7c9); }
+    #export-center-workspace .ec-steps {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    #export-center-workspace .ec-step {
+      min-height: 34px;
+      border: 0;
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: transparent;
+      color: light-dark(#657086, #adb7ca);
+    }
+    #export-center-workspace .ec-step[aria-pressed="true"] {
+      background: light-dark(#eaf0ff, #2c3850);
+      color: light-dark(#204fc6, #c3cfff);
+    }
+    #export-center-workspace .ec-free {
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: light-dark(#edf8f3, #203a33);
+      color: light-dark(#176749, #b9eedb);
+      white-space: nowrap;
+    }
+    #export-center-workspace .ec-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      min-height: 630px;
+    }
+    #export-center-workspace .ec-content { padding: 20px 22px 28px; min-width: 0; }
+    #export-center-workspace .ec-summary {
+      padding: 17px;
+      background: light-dark(#ffffff, #1b2232);
+      border-left: 1px solid light-dark(#dce2eb, #30394b);
+      min-width: 0;
+    }
+    #export-center-workspace .ec-section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    #export-center-workspace .ec-section-title { font-weight: 500; font-size: 18px; }
+    #export-center-workspace .ec-section-copy { color: light-dark(#687388, #aeb8ca); margin-top: 4px; line-height: 1.45; }
+    #export-center-workspace .ec-button,
+    #export-center-workspace .ec-primary,
+    #export-center-workspace .ec-quiet-button {
+      min-height: 36px;
+      border-radius: 8px;
+      padding: 7px 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+    }
+    #export-center-workspace .ec-primary {
+      border-color: transparent;
+      color: light-dark(#ffffff, #101827);
+      background: light-dark(#2356d8, #8aa6ff);
+      font-weight: 500;
+      padding-inline: 15px;
+    }
+    #export-center-workspace .ec-quiet-button { border-color: transparent; background: transparent; color: light-dark(#2050c7, #bfccff); }
+    #export-center-workspace .ec-button svg,
+    #export-center-workspace .ec-primary svg,
+    #export-center-workspace .ec-quiet-button svg { width: 16px; height: 16px; }
+    #export-center-workspace .ec-output-list { display: grid; gap: 10px; }
+    #export-center-workspace .ec-output-row {
+      display: grid;
+      grid-template-columns: 26px 48px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px;
+      border-radius: 10px;
+      border: 1px solid light-dark(#d8dee8, #394356);
+      background: light-dark(#ffffff, #1d2534);
+    }
+    #export-center-workspace .ec-output-row.is-selected {
+      border-color: light-dark(#9fb6f8, #657fca);
+      background: light-dark(#f7f9ff, #222d42);
+    }
+    #export-center-workspace .ec-output-check { width: 19px; height: 19px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #export-center-workspace .ec-file-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#edf2ff, #2b3750);
+      color: light-dark(#2753bd, #c4d0ff);
+    }
+    #export-center-workspace .ec-file-icon svg { width: 20px; height: 20px; }
+    #export-center-workspace .ec-output-name { font-weight: 500; }
+    #export-center-workspace .ec-output-meta { color: light-dark(#6a758a, #aab5c8); margin-top: 3px; line-height: 1.35; }
+    #export-center-workspace .ec-output-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: light-dark(#1d7153, #8de0bf);
+      white-space: nowrap;
+    }
+    #export-center-workspace .ec-output-status svg { width: 16px; height: 16px; }
+    #export-center-workspace .ec-output-actions { grid-column: 3 / 5; display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+    #export-center-workspace .ec-inline-field {
+      min-height: 34px;
+      border-radius: 7px;
+      border: 1px solid light-dark(#ccd5e2, #414c60);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 6px 8px;
+    }
+    #export-center-workspace .ec-destination-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid light-dark(#dfe4ec, #30394b);
+    }
+    #export-center-workspace .ec-destination-title { font-weight: 500; margin-bottom: 10px; }
+    #export-center-workspace .ec-destinations { display: flex; flex-wrap: wrap; gap: 8px; }
+    #export-center-workspace .ec-destination {
+      min-height: 39px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    #export-center-workspace .ec-destination[aria-pressed="true"] {
+      background: light-dark(#eaf0ff, #2b3750);
+      border-color: light-dark(#9fb6f8, #657fca);
+      color: light-dark(#204fc6, #c3cfff);
+    }
+    #export-center-workspace .ec-destination svg { width: 17px; height: 17px; }
+    #export-center-workspace .ec-policy {
+      margin-top: 15px;
+      display: grid;
+      gap: 9px;
+    }
+    #export-center-workspace .ec-policy-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid light-dark(#e2e6ed, #30394b);
+    }
+    #export-center-workspace .ec-policy-detail { color: light-dark(#6c778b, #a9b4c7); margin-top: 2px; }
+    #export-center-workspace .ec-switch { width: 39px; height: 21px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #export-center-workspace .ec-summary h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #export-center-workspace .ec-summary-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 14px; }
+    #export-center-workspace .ec-preview {
+      aspect-ratio: 1;
+      width: 100%;
+      border-radius: 9px;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: light-dark(#e8dfcf, #d7cab7);
+      color: #49342c;
+    }
+    #export-center-workspace .ec-preview::before {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border-radius: 48%;
+      background: radial-gradient(circle at 25% 25%, #75805d 0 3%, transparent 3.5%), radial-gradient(circle at 76% 27%, #a57a54 0 3%, transparent 3.5%), radial-gradient(circle at 24% 74%, #687a59 0 4%, transparent 4.5%), radial-gradient(circle at 76% 75%, #956049 0 4%, transparent 4.5%), radial-gradient(circle at center, #f4ede1 0 29%, transparent 30%);
+      border: 1px solid #c4b69f;
+    }
+    #export-center-workspace .ec-preview-art { position: relative; z-index: 2; font-size: 86px; filter: saturate(.75); }
+    #export-center-workspace .ec-preview-label {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 3;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.88);
+      color: #4c4137;
+      text-align: center;
+    }
+    #export-center-workspace .ec-summary-section {
+      padding: 14px 0;
+      border-bottom: 1px solid light-dark(#e1e5ec, #30394b);
+    }
+    #export-center-workspace .ec-summary-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; }
+    #export-center-workspace .ec-summary-row span:first-child { color: light-dark(#707a8e, #a2adbf); }
+    #export-center-workspace .ec-ready {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 10px;
+      border-radius: 8px;
+      background: light-dark(#edf8f3, #203a33);
+      color: light-dark(#176749, #b9eedb);
+      line-height: 1.45;
+    }
+    #export-center-workspace .ec-ready svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+    #export-center-workspace .ec-warning {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 10px;
+      border-radius: 8px;
+      background: light-dark(#fff6e4, #3a3020);
+      color: light-dark(#76500f, #f0cf8b);
+      line-height: 1.45;
+      margin-top: 9px;
+    }
+    #export-center-workspace .ec-warning svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+    #export-center-workspace .ec-footer-action { margin-top: 14px; }
+    #export-center-workspace .ec-footer-action .ec-primary { width: 100%; }
+    #export-center-workspace .ec-review-list { display: grid; gap: 10px; }
+    #export-center-workspace .ec-review-row {
+      display: grid;
+      grid-template-columns: 20px 1fr auto;
+      gap: 9px;
+      align-items: start;
+      padding: 11px 0;
+      border-bottom: 1px solid light-dark(#e0e5ec, #30394b);
+    }
+    #export-center-workspace .ec-review-row svg { width: 18px; height: 18px; color: light-dark(#237859, #72d7b4); }
+    #export-center-workspace .ec-review-title { font-weight: 500; }
+    #export-center-workspace .ec-review-copy { color: light-dark(#6b758a, #aab4c7); margin-top: 3px; line-height: 1.4; }
+    #export-center-workspace .ec-completed-list { display: grid; gap: 11px; }
+    #export-center-workspace .ec-completed-row {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 10px;
+      background: light-dark(#ffffff, #1d2534);
+      border: 1px solid light-dark(#d7dee8, #394356);
+    }
+    #export-center-workspace .ec-completed-actions { display: flex; gap: 7px; }
+    #export-center-workspace .ec-bottom {
+      min-height: 37px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 6px 13px;
+      color: light-dark(#687388, #aeb8ca);
+      background: light-dark(#ffffff, #1c2333);
+      border-top: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #export-center-workspace .ec-bottom-right { margin-left: auto; }
+    @media (max-width: 850px) {
+      #export-center-workspace .ec-main { grid-template-columns: minmax(0, 1fr) 250px; }
+      #export-center-workspace .ec-free { display: none; }
+      #export-center-workspace .ec-heading { min-width: auto; }
+    }
+    @media (max-width: 640px) {
+      #export-center-workspace .ec-header { flex-wrap: wrap; }
+      #export-center-workspace .ec-heading { flex: 1; }
+      #export-center-workspace .ec-steps { order: 3; width: 100%; }
+      #export-center-workspace .ec-step { flex: 1; }
+      #export-center-workspace .ec-main { display: block; }
+      #export-center-workspace .ec-content { padding: 15px 12px 22px; }
+      #export-center-workspace .ec-summary { border-left: 0; border-top: 1px solid light-dark(#dce2eb, #30394b); }
+      #export-center-workspace .ec-output-row { grid-template-columns: 24px 42px 1fr; }
+      #export-center-workspace .ec-output-status { grid-column: 2 / 4; }
+      #export-center-workspace .ec-output-actions { grid-column: 2 / 4; }
+      #export-center-workspace .ec-section-head { display: block; }
+      #export-center-workspace .ec-section-head .ec-button { margin-top: 10px; }
+      #export-center-workspace .ec-completed-row { grid-template-columns: 42px 1fr; }
+      #export-center-workspace .ec-completed-actions { grid-column: 2; flex-wrap: wrap; }
+      #export-center-workspace .ec-bottom { display: none; }
+    }
+  </style>
+
+  <div class="ec-shell">
+    <header class="ec-header">
+      <button class="ec-close" type="button" aria-label="Close Export Center"><i data-lucide="x" aria-hidden="true"></i></button>
+      <div class="ec-heading"><div class="ec-title">Export Center</div><div class="ec-subtitle">Botanical hedgehog · Version 3</div></div>
+      <div class="ec-steps" aria-label="Export steps">
+        <button class="ec-step" type="button" data-stage="configure" aria-pressed="true">1 · Configure</button>
+        <button class="ec-step" type="button" data-stage="review" aria-pressed="false">2 · Review</button>
+        <button class="ec-step" type="button" data-stage="ready" aria-pressed="false">3 · Ready</button>
+      </div>
+      <span class="ec-free">Free during testing</span>
+    </header>
+
+    <div class="ec-main">
+      <main class="ec-content">
+        <section data-stage-content="configure">
+          <div class="ec-section-head">
+            <div><div class="ec-section-title">Choose every output you need</div><div class="ec-section-copy">Each result is rendered and checked independently from the same approved source.</div></div>
+            <button class="ec-button" type="button"><i data-lucide="plus" aria-hidden="true"></i>Add output</button>
+          </div>
+
+          <div class="ec-output-list">
+            <article class="ec-output-row is-selected">
+              <input class="ec-output-check" type="checkbox" checked aria-label="Include textile production PNG">
+              <div class="ec-file-icon"><i data-lucide="image" aria-hidden="true"></i></div>
+              <div><div class="ec-output-name">Textile production master</div><div class="ec-output-meta">PNG · Transparent · 8192 × 8192 px · Production profile embedded separately</div></div>
+              <div class="ec-output-status"><i data-lucide="circle-check" aria-hidden="true"></i>Ready</div>
+              <div class="ec-output-actions"><select class="ec-inline-field" aria-label="Textile output size"><option>Original · 8192 × 8192</option><option>60 × 60 cm</option><option>Custom size</option></select><button class="ec-quiet-button" type="button"><i data-lucide="settings-2" aria-hidden="true"></i>Settings</button></div>
+            </article>
+            <article class="ec-output-row is-selected">
+              <input class="ec-output-check" type="checkbox" checked aria-label="Include print proof PDF">
+              <div class="ec-file-icon"><i data-lucide="file-type-2" aria-hidden="true"></i></div>
+              <div><div class="ec-output-name">Print approval proof</div><div class="ec-output-meta">PDF/X · A3 · Profile-managed CMYK · Includes production notes</div></div>
+              <div class="ec-output-status"><i data-lucide="circle-check" aria-hidden="true"></i>Ready</div>
+              <div class="ec-output-actions"><select class="ec-inline-field" aria-label="Print proof profile"><option>Factory profile A · v4.2</option><option>Workspace print profile</option></select><button class="ec-quiet-button" type="button"><i data-lucide="settings-2" aria-hidden="true"></i>Settings</button></div>
+            </article>
+            <article class="ec-output-row is-selected">
+              <input class="ec-output-check" type="checkbox" checked aria-label="Include web preview">
+              <div class="ec-file-icon"><i data-lucide="monitor-smartphone" aria-hidden="true"></i></div>
+              <div><div class="ec-output-name">Customer web preview</div><div class="ec-output-meta">WebP · 2400 × 2400 px · sRGB · Optimized for sharing</div></div>
+              <div class="ec-output-status"><i data-lucide="circle-check" aria-hidden="true"></i>Ready</div>
+              <div class="ec-output-actions"><select class="ec-inline-field" aria-label="Web output quality"><option>High quality · Estimated 1.8 MB</option><option>Balanced · Estimated 940 KB</option></select><button class="ec-quiet-button" type="button"><i data-lucide="settings-2" aria-hidden="true"></i>Settings</button></div>
+            </article>
+          </div>
+
+          <div class="ec-destination-section">
+            <div class="ec-destination-title">Send completed results to</div>
+            <div class="ec-destinations">
+              <button class="ec-destination" type="button" aria-pressed="true"><i data-lucide="download" aria-hidden="true"></i>Download</button>
+              <button class="ec-destination" type="button" aria-pressed="true"><i data-lucide="folder-kanban" aria-hidden="true"></i>Save to project</button>
+              <button class="ec-destination" type="button" aria-pressed="false"><i data-lucide="cloud" aria-hidden="true"></i>Connected storage</button>
+              <button class="ec-destination" type="button" aria-pressed="false"><i data-lucide="link-2" aria-hidden="true"></i>Create share link</button>
+            </div>
+            <div class="ec-policy">
+              <div class="ec-policy-row"><div><strong>Remove private metadata</strong><div class="ec-policy-detail">GPS, device identifiers and hidden personal metadata are removed.</div></div><input class="ec-switch" type="checkbox" checked aria-label="Remove private metadata"></div>
+              <div class="ec-policy-row"><div><strong>Package multiple files as ZIP</strong><div class="ec-policy-detail">Individual downloads remain available after completion.</div></div><input class="ec-switch" type="checkbox" checked aria-label="Package multiple files as ZIP"></div>
+            </div>
+          </div>
+        </section>
+
+        <section data-stage-content="review" hidden>
+          <div class="ec-section-head"><div><div class="ec-section-title">Review before processing</div><div class="ec-section-copy">Only decisions that materially affect quality, privacy or production are shown.</div></div></div>
+          <div class="ec-review-list">
+            <div class="ec-review-row"><i data-lucide="circle-check" aria-hidden="true"></i><div><div class="ec-review-title">Three outputs are within their trustworthy size</div><div class="ec-review-copy">No output requires AI Recreate or reconstructed detail.</div></div><button class="ec-quiet-button" type="button">Inspect</button></div>
+            <div class="ec-review-row"><i data-lucide="circle-check" aria-hidden="true"></i><div><div class="ec-review-title">Production preflight passed</div><div class="ec-review-copy">Factory profile A v4.2 was used for the textile master and PDF proof.</div></div><button class="ec-quiet-button" type="button">View report</button></div>
+            <div class="ec-review-row"><i data-lucide="circle-check" aria-hidden="true"></i><div><div class="ec-review-title">Original remains untouched</div><div class="ec-review-copy">Each result becomes a derivative linked to source version 3.</div></div><button class="ec-quiet-button" type="button">Provenance</button></div>
+            <div class="ec-review-row"><i data-lucide="shield-check" aria-hidden="true"></i><div><div class="ec-review-title">Private metadata will be removed</div><div class="ec-review-copy">Production profile metadata and provenance records are preserved separately.</div></div><button class="ec-quiet-button" type="button">Change</button></div>
+          </div>
+        </section>
+
+        <section data-stage-content="ready" hidden>
+          <div class="ec-section-head"><div><div class="ec-section-title">Your outputs are ready</div><div class="ec-section-copy">Download individually, save externally or share without rerunning the job.</div></div><button class="ec-button" type="button"><i data-lucide="rotate-cw" aria-hidden="true"></i>Quick re-export</button></div>
+          <div class="ec-completed-list">
+            <article class="ec-completed-row"><div class="ec-file-icon"><i data-lucide="image" aria-hidden="true"></i></div><div><div class="ec-output-name">hedgehog-textile-master.png</div><div class="ec-output-meta">8192 × 8192 px · 31.4 MB · Checks passed</div></div><div class="ec-completed-actions"><button class="ec-button" type="button"><i data-lucide="download" aria-hidden="true"></i>Download</button><button class="ec-icon-button" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div></article>
+            <article class="ec-completed-row"><div class="ec-file-icon"><i data-lucide="file-type-2" aria-hidden="true"></i></div><div><div class="ec-output-name">hedgehog-production-proof.pdf</div><div class="ec-output-meta">PDF/X · A3 · 14.8 MB · Checks passed</div></div><div class="ec-completed-actions"><button class="ec-button" type="button"><i data-lucide="download" aria-hidden="true"></i>Download</button><button class="ec-icon-button" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div></article>
+            <article class="ec-completed-row"><div class="ec-file-icon"><i data-lucide="monitor-smartphone" aria-hidden="true"></i></div><div><div class="ec-output-name">hedgehog-web-preview.webp</div><div class="ec-output-meta">2400 × 2400 px · 1.8 MB · Checks passed</div></div><div class="ec-completed-actions"><button class="ec-button" type="button"><i data-lucide="download" aria-hidden="true"></i>Download</button><button class="ec-icon-button" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div></article>
+          </div>
+          <div class="ec-destination-section">
+            <div class="ec-destinations"><button class="ec-primary" type="button"><i data-lucide="archive" aria-hidden="true"></i>Download all as ZIP</button><button class="ec-button" type="button"><i data-lucide="cloud-upload" aria-hidden="true"></i>Save to cloud</button><button class="ec-button" type="button"><i data-lucide="share-2" aria-hidden="true"></i>Share results</button></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="ec-summary" aria-label="Export summary">
+        <h3 id="ec-summary-heading">Export summary</h3>
+        <div class="ec-summary-copy" id="ec-summary-copy">One job will produce three independently checked files.</div>
+        <div class="ec-preview"><div class="ec-preview-art" aria-hidden="true">🦔</div><div class="ec-preview-label">Approved source · Version 3</div></div>
+        <div class="ec-summary-section">
+          <div class="ec-summary-row"><span>Outputs</span><strong id="ec-output-count">3 selected</strong></div>
+          <div class="ec-summary-row"><span>Estimated total</span><strong>48–52 MB</strong></div>
+          <div class="ec-summary-row"><span>Processing</span><strong>Background job</strong></div>
+          <div class="ec-summary-row"><span>Cost</span><strong>Free during testing</strong></div>
+        </div>
+        <div class="ec-summary-section">
+          <div class="ec-ready"><i data-lucide="circle-check" aria-hidden="true"></i><span><strong>Ready to process</strong><br>No blocking quality or policy issues.</span></div>
+          <div class="ec-warning"><i data-lucide="info" aria-hidden="true"></i><span>You may close the application after starting. Completed files and failures are preserved independently.</span></div>
+        </div>
+        <div class="ec-footer-action"><button class="ec-primary" id="ec-main-action" type="button"><i data-lucide="play" aria-hidden="true"></i>Review outputs</button></div>
+      </aside>
+    </div>
+
+    <footer class="ec-bottom"><span>Source immutable</span><span>Metadata policy active</span><span>Preset: Textile delivery package</span><span class="ec-bottom-right">Last exported 2 days ago</span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('export-center-workspace');
+      const steps = [...root.querySelectorAll('.ec-step')];
+      const contents = [...root.querySelectorAll('[data-stage-content]')];
+      const mainAction = root.querySelector('#ec-main-action');
+      const summaryHeading = root.querySelector('#ec-summary-heading');
+      const summaryCopy = root.querySelector('#ec-summary-copy');
+      const stageText = {
+        configure: ['Export summary', 'One job will produce three independently checked files.', 'Review outputs'],
+        review: ['Final review', 'Confirm the meaningful quality and privacy decisions before processing.', 'Create 3 outputs'],
+        ready: ['Job completed', 'All three outputs completed and remain available independently.', 'Download all as ZIP']
+      };
+      const setStage = (stage) => {
+        steps.forEach((step) => step.setAttribute('aria-pressed', String(step.dataset.stage === stage)));
+        contents.forEach((content) => { content.hidden = content.dataset.stageContent !== stage; });
+        summaryHeading.textContent = stageText[stage][0];
+        summaryCopy.textContent = stageText[stage][1];
+        mainAction.lastChild.textContent = stageText[stage][2];
+      };
+      steps.forEach((step) => step.addEventListener('click', () => setStage(step.dataset.stage)));
+      mainAction.addEventListener('click', () => {
+        const current = steps.find((step) => step.getAttribute('aria-pressed') === 'true').dataset.stage;
+        setStage(current === 'configure' ? 'review' : current === 'review' ? 'ready' : 'ready');
+      });
+
+      const checks = [...root.querySelectorAll('.ec-output-check')];
+      const count = root.querySelector('#ec-output-count');
+      checks.forEach((check) => check.addEventListener('change', () => {
+        check.closest('.ec-output-row').classList.toggle('is-selected', check.checked);
+        count.textContent = checks.filter((item) => item.checked).length + ' selected';
+      }));
+
+      root.querySelectorAll('.ec-destination').forEach((button) => button.addEventListener('click', () => {
+        button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
+      }));
+    })();
+  </script>
+</section>

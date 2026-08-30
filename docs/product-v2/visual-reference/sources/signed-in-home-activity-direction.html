@@ -1,0 +1,262 @@
+<section id="signed-in-home-activity" aria-label="Signed-in home recent work reviews processing jobs and notifications experience">
+  <style>
+    #signed-in-home-activity {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #signed-in-home-activity * { box-sizing: border-box; }
+    #signed-in-home-activity button,
+    #signed-in-home-activity input { font: inherit; color: inherit; }
+    #signed-in-home-activity button { cursor: pointer; }
+    #signed-in-home-activity .sh-shell { min-height: 780px; position: relative; overflow: hidden; background: light-dark(#f7f8fb, #151b28); }
+    #signed-in-home-activity .sh-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #signed-in-home-activity .sh-brand { display: flex; align-items: center; gap: 9px; min-width: 205px; }
+    #signed-in-home-activity .sh-brand-mark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); }
+    #signed-in-home-activity .sh-brand-mark svg { width: 17px; height: 17px; }
+    #signed-in-home-activity .sh-brand-name { font-weight: 500; }
+    #signed-in-home-activity .sh-search { flex: 0 1 410px; min-width: 170px; position: relative; }
+    #signed-in-home-activity .sh-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: light-dark(#748096, #9eabbf); }
+    #signed-in-home-activity .sh-search input { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#d1d9e5, #3d485b); background: light-dark(#f7f8fb, #222a3a); padding: 7px 38px 7px 34px; }
+    #signed-in-home-activity .sh-shortcut { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: light-dark(#7a8598, #9eabbf); }
+    #signed-in-home-activity .sh-spacer { flex: 1; }
+    #signed-in-home-activity .sh-button,
+    #signed-in-home-activity .sh-primary,
+    #signed-in-home-activity .sh-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #signed-in-home-activity .sh-icon-button { width: 37px; padding: 7px; position: relative; }
+    #signed-in-home-activity .sh-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #signed-in-home-activity .sh-button svg,
+    #signed-in-home-activity .sh-primary svg,
+    #signed-in-home-activity .sh-icon-button svg { width: 16px; height: 16px; }
+    #signed-in-home-activity .sh-unread-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; top: 6px; right: 6px; background: light-dark(#d14d4d, #ff9292); }
+    #signed-in-home-activity .sh-avatar { width: 34px; height: 34px; border: 0; border-radius: 50%; display: grid; place-items: center; background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500; }
+    #signed-in-home-activity .sh-main { display: grid; grid-template-columns: 212px minmax(0, 1fr); min-height: 683px; }
+    #signed-in-home-activity .sh-nav { min-width: 0; background: light-dark(#ffffff, #1b2232); border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 12px 10px; }
+    #signed-in-home-activity .sh-switcher {
+      width: 100%; min-height: 47px; border: 1px solid light-dark(#d5dce7, #3b4659); border-radius: 9px; background: light-dark(#ffffff, #232b3b);
+      display: grid; grid-template-columns: 31px minmax(0, 1fr) 16px; gap: 8px; align-items: center; padding: 7px; text-align: left;
+    }
+    #signed-in-home-activity .sh-switcher-icon { width: 31px; height: 31px; border-radius: 7px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #signed-in-home-activity .sh-switcher-icon svg,
+    #signed-in-home-activity .sh-switcher > svg { width: 15px; height: 15px; }
+    #signed-in-home-activity .sh-switcher-name { display: block; font-weight: 500; }
+    #signed-in-home-activity .sh-switcher-meta { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 1px; }
+    #signed-in-home-activity .sh-nav-list { display: grid; gap: 3px; margin-top: 12px; }
+    #signed-in-home-activity .sh-nav-heading { margin: 16px 8px 6px; color: light-dark(#707b8e, #a8b3c5); }
+    #signed-in-home-activity .sh-nav-button {
+      width: 100%; min-height: 39px; border: 0; border-radius: 8px; background: transparent; padding: 8px; display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #signed-in-home-activity .sh-nav-button svg { width: 17px; height: 17px; }
+    #signed-in-home-activity .sh-nav-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #signed-in-home-activity .sh-nav-count { margin-left: auto; min-width: 22px; text-align: center; border-radius: 10px; padding: 2px 6px; background: light-dark(#edf1f6, #2a3344); color: light-dark(#647087, #b4bfd0); }
+    #signed-in-home-activity .sh-content { min-width: 0; padding: 19px 22px 27px; }
+    #signed-in-home-activity .sh-welcome { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    #signed-in-home-activity .sh-welcome h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #signed-in-home-activity .sh-welcome-copy { color: light-dark(#687388, #aeb8ca); }
+    #signed-in-home-activity .sh-create-actions { display: flex; gap: 8px; }
+    #signed-in-home-activity .sh-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 8px; }
+    #signed-in-home-activity .sh-section-title { font-weight: 500; }
+    #signed-in-home-activity .sh-section-link { border: 0; background: transparent; color: light-dark(#2855bf, #b8c7ff); padding: 4px; }
+    #signed-in-home-activity .sh-outcomes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    #signed-in-home-activity .sh-outcome {
+      min-height: 112px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; background: light-dark(#ffffff, #1d2534); padding: 11px; text-align: left; display: grid; align-content: start; gap: 7px;
+    }
+    #signed-in-home-activity .sh-outcome-icon { width: 35px; height: 35px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #signed-in-home-activity .sh-outcome:hover .sh-outcome-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #signed-in-home-activity .sh-outcome-icon svg { width: 17px; height: 17px; }
+    #signed-in-home-activity .sh-outcome-name { font-weight: 500; }
+    #signed-in-home-activity .sh-outcome-meta { color: light-dark(#687388, #aeb8ca); line-height: 1.35; }
+    #signed-in-home-activity .sh-work-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(250px, .85fr); gap: 16px; }
+    #signed-in-home-activity .sh-recent-tabs { display: flex; align-items: center; gap: 3px; }
+    #signed-in-home-activity .sh-recent-tab { min-height: 31px; border: 0; border-radius: 7px; background: transparent; padding: 5px 8px; color: light-dark(#667187, #adb7ca); }
+    #signed-in-home-activity .sh-recent-tab[aria-selected="true"] { background: light-dark(#edf2ff, #29354c); color: light-dark(#204fc6, #c3cfff); }
+    #signed-in-home-activity .sh-recent-list { display: grid; gap: 8px; }
+    #signed-in-home-activity .sh-file {
+      width: 100%; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; background: light-dark(#ffffff, #1d2534); padding: 9px;
+      display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left;
+    }
+    #signed-in-home-activity .sh-file-preview { width: 64px; height: 54px; border-radius: 7px; display: grid; place-items: center; background: light-dark(#ece3d5, #3a342c); color: light-dark(#76563d, #d6b99e); }
+    #signed-in-home-activity .sh-file-preview.pdf { background: light-dark(#f4e6e6, #3a292d); color: light-dark(#9a4141, #f0aaaa); }
+    #signed-in-home-activity .sh-file-preview.production { background: light-dark(#e5efe9, #263a31); color: light-dark(#2e7154, #9cd6bd); }
+    #signed-in-home-activity .sh-file-preview svg { width: 23px; height: 23px; }
+    #signed-in-home-activity .sh-file-name { font-weight: 500; }
+    #signed-in-home-activity .sh-file-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 3px; line-height: 1.35; }
+    #signed-in-home-activity .sh-file-state { color: light-dark(#526078, #b8c2d3); text-align: right; }
+    #signed-in-home-activity .sh-file-state strong { display: block; font-weight: 500; color: light-dark(#26334a, #e2e7f1); }
+    #signed-in-home-activity .sh-attention { display: grid; gap: 8px; }
+    #signed-in-home-activity .sh-task { border-left: 3px solid light-dark(#d29a3e, #d7ac63); padding: 9px 10px; background: light-dark(#fffaf0, #302b22); border-radius: 0 9px 9px 0; }
+    #signed-in-home-activity .sh-task-title { font-weight: 500; }
+    #signed-in-home-activity .sh-task-meta { color: light-dark(#765f37, #dbc797); margin-top: 3px; line-height: 1.4; }
+    #signed-in-home-activity .sh-task-actions { display: flex; gap: 7px; margin-top: 8px; }
+    #signed-in-home-activity .sh-job-list { display: grid; }
+    #signed-in-home-activity .sh-job { padding: 9px 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #signed-in-home-activity .sh-job-head { display: flex; align-items: flex-start; gap: 8px; }
+    #signed-in-home-activity .sh-job-icon { width: 31px; height: 31px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); flex: 0 0 auto; }
+    #signed-in-home-activity .sh-job-icon svg { width: 15px; height: 15px; }
+    #signed-in-home-activity .sh-job-copy { flex: 1; min-width: 0; }
+    #signed-in-home-activity .sh-job-title { font-weight: 500; }
+    #signed-in-home-activity .sh-job-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #signed-in-home-activity .sh-job-state { color: light-dark(#1d7153, #8de0bf); }
+    #signed-in-home-activity .sh-progress { height: 5px; border-radius: 5px; overflow: hidden; background: light-dark(#e1e6ee, #333d50); margin: 8px 0 0 39px; }
+    #signed-in-home-activity .sh-progress span { display: block; height: 100%; background: light-dark(#2757cf, #8aa6ff); }
+    #signed-in-home-activity .sh-activity-popover {
+      position: absolute; z-index: 10; top: 54px; right: 54px; width: min(360px, calc(100% - 24px)); padding: 13px; border-radius: 11px;
+      border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 16px 42px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #signed-in-home-activity .sh-activity-popover[hidden] { display: none; }
+    #signed-in-home-activity .sh-popover-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    #signed-in-home-activity .sh-popover-title { font-weight: 500; }
+    #signed-in-home-activity .sh-popover-item { display: grid; grid-template-columns: 31px minmax(0, 1fr); gap: 8px; padding: 9px 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #signed-in-home-activity .sh-popover-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #signed-in-home-activity .sh-popover-icon svg { width: 15px; height: 15px; }
+    #signed-in-home-activity .sh-popover-message { line-height: 1.4; }
+    #signed-in-home-activity .sh-popover-time { color: light-dark(#6b768a, #a8b3c5); margin-top: 3px; }
+    #signed-in-home-activity .sh-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #signed-in-home-activity .sh-toast[hidden] { display: none; }
+    #signed-in-home-activity .sh-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #signed-in-home-activity .sh-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 900px) {
+      #signed-in-home-activity .sh-outcomes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #signed-in-home-activity .sh-work-layout { grid-template-columns: 1fr; }
+      #signed-in-home-activity .sh-free { display: none; }
+    }
+    @media (max-width: 650px) {
+      #signed-in-home-activity .sh-header { flex-wrap: wrap; }
+      #signed-in-home-activity .sh-brand { min-width: 0; flex: 1; }
+      #signed-in-home-activity .sh-search { order: 2; flex-basis: 100%; }
+      #signed-in-home-activity .sh-primary span { display: none; }
+      #signed-in-home-activity .sh-main { display: block; }
+      #signed-in-home-activity .sh-nav { display: none; }
+      #signed-in-home-activity .sh-content { padding: 14px 11px 22px; }
+      #signed-in-home-activity .sh-welcome { align-items: center; }
+      #signed-in-home-activity .sh-welcome h2 { font-size: 18px; }
+      #signed-in-home-activity .sh-create-actions .sh-button { display: none; }
+      #signed-in-home-activity .sh-outcomes { grid-template-columns: 1fr 1fr; }
+      #signed-in-home-activity .sh-outcome { min-height: 105px; }
+      #signed-in-home-activity .sh-file { grid-template-columns: 54px minmax(0, 1fr); }
+      #signed-in-home-activity .sh-file-preview { width: 54px; }
+      #signed-in-home-activity .sh-file-state { grid-column: 2; text-align: left; }
+      #signed-in-home-activity .sh-activity-popover { right: 12px; top: 100px; }
+      #signed-in-home-activity .sh-bottom { display: none; }
+    }
+    @media (max-width: 390px) {
+      #signed-in-home-activity .sh-outcomes { grid-template-columns: 1fr; }
+    }
+  </style>
+
+  <div class="sh-shell">
+    <header class="sh-header">
+      <div class="sh-brand"><span class="sh-brand-mark"><i data-lucide="layers-3" aria-hidden="true"></i></span><span class="sh-brand-name">Visual Workspace</span></div>
+      <div class="sh-search"><i data-lucide="search" aria-hidden="true"></i><input aria-label="Search projects files tools and actions" placeholder="Search files, projects, tools or actions"><span class="sh-shortcut">Ctrl K</span></div>
+      <div class="sh-spacer"></div>
+      <button class="sh-icon-button" id="sh-activity-button" type="button" aria-label="Open notifications" aria-expanded="false"><i data-lucide="bell" aria-hidden="true"></i><span class="sh-unread-dot" aria-hidden="true"></span></button>
+      <button class="sh-primary" type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Create or import</span></button>
+      <button class="sh-avatar" type="button" aria-label="Open Vijay Kumar account menu">VK</button>
+    </header>
+
+    <div class="sh-main">
+      <aside class="sh-nav" aria-label="Primary navigation">
+        <button class="sh-switcher" type="button"><span class="sh-switcher-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span><span class="sh-switcher-name">Northstar Studio</span><span class="sh-switcher-meta">Your workspace</span></span><i data-lucide="chevrons-up-down" aria-hidden="true"></i></button>
+        <nav class="sh-nav-list">
+          <button class="sh-nav-button" type="button" aria-pressed="true"><i data-lucide="house" aria-hidden="true"></i>Home</button>
+          <button class="sh-nav-button" type="button"><i data-lucide="folder-kanban" aria-hidden="true"></i>Projects</button>
+          <button class="sh-nav-button" type="button"><i data-lucide="files" aria-hidden="true"></i>Default files</button>
+          <button class="sh-nav-button" type="button"><i data-lucide="users" aria-hidden="true"></i>Shared with me</button>
+          <button class="sh-nav-button" type="button"><i data-lucide="cloud" aria-hidden="true"></i>Connected storage</button>
+        </nav>
+        <div class="sh-nav-heading">Work</div>
+        <nav class="sh-nav-list" style="margin-top:0">
+          <button class="sh-nav-button" type="button"><i data-lucide="list-checks" aria-hidden="true"></i>Reviews &amp; approvals<span class="sh-nav-count">2</span></button>
+          <button class="sh-nav-button" type="button"><i data-lucide="activity" aria-hidden="true"></i>Processing jobs<span class="sh-nav-count">2</span></button>
+          <button class="sh-nav-button" type="button"><i data-lucide="archive-restore" aria-hidden="true"></i>Trash</button>
+        </nav>
+      </aside>
+
+      <main class="sh-content">
+        <div class="sh-welcome"><div><h2>Good evening, Vijay</h2><div class="sh-welcome-copy">Continue your work or begin with any outcome—nothing important is hidden behind a tool category.</div></div><div class="sh-create-actions"><button class="sh-button" type="button"><i data-lucide="upload" aria-hidden="true"></i>Import</button><button class="sh-primary" type="button"><i data-lucide="plus" aria-hidden="true"></i>New</button></div></div>
+
+        <div class="sh-section-head"><span class="sh-section-title">What would you like to do?</span></div>
+        <div class="sh-outcomes">
+          <button class="sh-outcome" type="button" data-outcome="Image & Graphic Studio"><span class="sh-outcome-icon"><i data-lucide="palette" aria-hidden="true"></i></span><span class="sh-outcome-name">Image &amp; Graphic Studio</span><span class="sh-outcome-meta">Enhance, design and prepare artwork.</span></button>
+          <button class="sh-outcome" type="button" data-outcome="Create PDF"><span class="sh-outcome-icon"><i data-lucide="file-plus-2" aria-hidden="true"></i></span><span class="sh-outcome-name">Create PDF</span><span class="sh-outcome-meta">Build rich, editable documents.</span></button>
+          <button class="sh-outcome" type="button" data-outcome="Edit & Manage PDF"><span class="sh-outcome-icon"><i data-lucide="file-pen-line" aria-hidden="true"></i></span><span class="sh-outcome-name">Edit &amp; Manage PDF</span><span class="sh-outcome-meta">Edit, organise, convert and sign.</span></button>
+          <button class="sh-outcome" type="button" data-outcome="Print & Production"><span class="sh-outcome-icon"><i data-lucide="printer" aria-hidden="true"></i></span><span class="sh-outcome-name">Print &amp; Production</span><span class="sh-outcome-meta">Preflight and export with confidence.</span></button>
+        </div>
+
+        <div class="sh-work-layout">
+          <section>
+            <div class="sh-section-head"><span class="sh-section-title">Continue working</span><div class="sh-recent-tabs" role="tablist" aria-label="Recent work filter"><button class="sh-recent-tab" type="button" data-filter="recent" aria-selected="true">Recent</button><button class="sh-recent-tab" type="button" data-filter="shared" aria-selected="false">Shared</button><button class="sh-recent-tab" type="button" data-filter="favorites" aria-selected="false">Favorites</button></div></div>
+            <div class="sh-recent-list" id="sh-recent-list">
+              <button class="sh-file" type="button" data-kind="recent shared favorite"><span class="sh-file-preview"><i data-lucide="image" aria-hidden="true"></i></span><span><span class="sh-file-name">Hedgehog textile master</span><span class="sh-file-meta">Kidswear 2027 / Woodland · Image &amp; Graphic Studio</span></span><span class="sh-file-state"><strong>Autosaved</strong>8 minutes ago</span></button>
+              <button class="sh-file" type="button" data-kind="recent shared"><span class="sh-file-preview pdf"><i data-lucide="file-text" aria-hidden="true"></i></span><span><span class="sh-file-name">Vendor manufacturing agreement</span><span class="sh-file-meta">Contracts / Suppliers · Edit &amp; Manage PDF</span></span><span class="sh-file-state"><strong>2 signers left</strong>Today</span></button>
+              <button class="sh-file" type="button" data-kind="recent favorite"><span class="sh-file-preview production"><i data-lucide="printer-check" aria-hidden="true"></i></span><span><span class="sh-file-name">Woodland production release</span><span class="sh-file-meta">Kidswear 2027 / Print approvals · Production profile</span></span><span class="sh-file-state"><strong>Approved</strong>Yesterday</span></button>
+            </div>
+          </section>
+
+          <aside>
+            <div class="sh-section-head"><span class="sh-section-title">Needs your attention</span><button class="sh-section-link" type="button">View all</button></div>
+            <div class="sh-attention">
+              <article class="sh-task"><div class="sh-task-title">Factory proof B needs approval</div><div class="sh-task-meta">Meera submitted a new production proof with one preflight warning.</div><div class="sh-task-actions"><button class="sh-button" type="button">Review</button><button class="sh-button" type="button">Later</button></div></article>
+              <article class="sh-task"><div class="sh-task-title">External source v5 detected</div><div class="sh-task-meta">Google Drive changed the hedgehog artwork. Current work remains on v4.</div><div class="sh-task-actions"><button class="sh-button" type="button">Compare</button><button class="sh-button" type="button">Keep v4</button></div></article>
+            </div>
+
+            <div class="sh-section-head"><span class="sh-section-title">Background processing</span><button class="sh-section-link" type="button">All jobs</button></div>
+            <div class="sh-job-list">
+              <article class="sh-job"><div class="sh-job-head"><span class="sh-job-icon"><i data-lucide="images" aria-hidden="true"></i></span><span class="sh-job-copy"><span class="sh-job-title">Textile batch enhancement</span><span class="sh-job-meta">17 of 24 completed · Safe corrections</span></span><span class="sh-job-state">Running</span></div><div class="sh-progress" aria-label="Textile batch enhancement 71 percent"><span style="width:71%"></span></div></article>
+              <article class="sh-job"><div class="sh-job-head"><span class="sh-job-icon"><i data-lucide="file-check-2" aria-hidden="true"></i></span><span class="sh-job-copy"><span class="sh-job-title">Accessible PDF export</span><span class="sh-job-meta">Screen, print and accessible profiles</span></span><span class="sh-job-state">Ready</span></div></article>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <section class="sh-activity-popover" id="sh-activity-popover" aria-label="Notifications and activity" hidden>
+      <div class="sh-popover-head"><span class="sh-popover-title">Activity</span><button class="sh-section-link" id="sh-mark-read" type="button">Mark all read</button></div>
+      <div class="sh-popover-item"><span class="sh-popover-icon"><i data-lucide="message-square" aria-hidden="true"></i></span><span><span class="sh-popover-message"><strong>Meera</strong> mentioned you on Factory proof B.</span><span class="sh-popover-time">6 minutes ago · Comment</span></span></div>
+      <div class="sh-popover-item"><span class="sh-popover-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span><span class="sh-popover-message">Accessible PDF export completed successfully.</span><span class="sh-popover-time">18 minutes ago · Processing</span></span></div>
+      <div class="sh-popover-item"><span class="sh-popover-icon"><i data-lucide="cloud" aria-hidden="true"></i></span><span><span class="sh-popover-message">A connected Google Drive source has a new version.</span><span class="sh-popover-time">31 minutes ago · Connected storage</span></span></div>
+      <div class="sh-popover-item"><span class="sh-popover-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span><span class="sh-popover-message">Ravi signed the vendor manufacturing agreement.</span><span class="sh-popover-time">Today · E-sign</span></span></div>
+    </section>
+
+    <div class="sh-toast" id="sh-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="sh-bottom"><span>Four equal starting outcomes</span><span>Resume before browse</span><span>Reviews stay actionable</span><span class="sh-bottom-right"><span>Jobs continue in background</span><span>Notifications grouped by meaning</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('signed-in-home-activity');
+      const toast = root.querySelector('#sh-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2400); };
+
+      root.querySelectorAll('[data-outcome]').forEach((button) => button.addEventListener('click', () => announce('Opening ' + button.dataset.outcome + '.')));
+      root.querySelectorAll('.sh-file').forEach((file) => file.addEventListener('click', () => announce('Opening ' + file.querySelector('.sh-file-name').textContent + '.')));
+
+      const filterButtons = [...root.querySelectorAll('.sh-recent-tab')];
+      const files = [...root.querySelectorAll('.sh-file')];
+      filterButtons.forEach((button) => button.addEventListener('click', () => {
+        filterButtons.forEach((candidate) => candidate.setAttribute('aria-selected', String(candidate === button)));
+        files.forEach((file) => { file.hidden = !file.dataset.kind.includes(button.dataset.filter); });
+      }));
+
+      const activityButton = root.querySelector('#sh-activity-button');
+      const activityPopover = root.querySelector('#sh-activity-popover');
+      activityButton.addEventListener('click', () => {
+        const willOpen = activityPopover.hidden;
+        activityPopover.hidden = !willOpen;
+        activityButton.setAttribute('aria-expanded', String(willOpen));
+      });
+      root.querySelector('#sh-mark-read').addEventListener('click', () => {
+        const dot = root.querySelector('.sh-unread-dot');
+        if (dot) dot.remove();
+        announce('All activity marked as read.');
+      });
+    })();
+  </script>
+</section>

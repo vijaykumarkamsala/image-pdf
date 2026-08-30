@@ -14,14 +14,15 @@ Earlier POC documents remain useful as historical benchmark evidence, but they n
 ## Document precedence
 
 1. Current explicit product-owner instruction
-2. `PRODUCT_CONSTITUTION.md`
-3. `FUNCTIONAL_REQUIREMENTS.md`
-4. `USER_FLOWS_AND_EDGE_CASES.md`
-5. `PRODUCT_DECISION_REGISTER.md`
-6. `RECOVERY_ARCHITECTURE_AND_DELIVERY_PLAN.md`
-7. `QUALITY_AND_RELEASE_PLAN.md`
-8. `RESEARCH_EVIDENCE.md`
-9. Earlier POC and discovery documents, only where they do not conflict with V2
+2. `PRODUCT_V2_CONSOLIDATED_IMPLEMENTATION_AUTHORITY.md`
+3. `PRODUCT_CONSTITUTION.md`
+4. `FUNCTIONAL_REQUIREMENTS.md`
+5. `USER_FLOWS_AND_EDGE_CASES.md`
+6. `PRODUCT_DECISION_REGISTER.md`
+7. `RECOVERY_ARCHITECTURE_AND_DELIVERY_PLAN.md`
+8. `QUALITY_AND_RELEASE_PLAN.md`
+9. `RESEARCH_EVIDENCE.md`
+10. Earlier POC and discovery documents, only where they do not conflict with V2
 
 `AGENTS_V2.md` is the approved replacement for the repository-root `AGENTS.md` when Recovery 0 is implemented.
 
@@ -49,3 +50,13 @@ Video editing and live customer charging are excluded. Product naming, final pri
 The existing verified processing and test assets are candidates for reuse. The legacy customer UI and prototype Python HTTP surface do not control the new product architecture.
 
 Do not begin implementation from these documents until the product owner approves the first recovery task plan.
+
+## Current implementation authority
+
+Recovery 2A is governed by `PRODUCT_V2_CONSOLIDATED_IMPLEMENTATION_AUTHORITY.md`
+section 21 and the explicit product-owner approval dated 30 August 2026. The
+pre-contract contradiction record is
+`RECOVERY_2A_CONTRACT_RECONCILIATION.md`.
+
+The files under `visual-reference/` are approved documentation and design
+evidence only. Production React code must not import or copy their HTML.

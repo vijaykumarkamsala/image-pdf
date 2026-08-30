@@ -1,0 +1,1725 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Cloud Storage Workflows Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Cloud Storage Workflows Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Cloud Storage Workflows Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;connected-storage-workflows&quot; aria-label=&quot;Connected cloud storage import save back and conflict handling experience&quot;&gt;
+  &lt;style&gt;
+    #connected-storage-workflows {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #connected-storage-workflows * { box-sizing: border-box; }
+    #connected-storage-workflows button,
+    #connected-storage-workflows input,
+    #connected-storage-workflows select { font: inherit; color: inherit; }
+    #connected-storage-workflows button { cursor: pointer; }
+    #connected-storage-workflows .cs-shell { min-height: 760px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #connected-storage-workflows .cs-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #connected-storage-workflows .cs-button,
+    #connected-storage-workflows .cs-primary,
+    #connected-storage-workflows .cs-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #connected-storage-workflows .cs-icon-button { width: 37px; padding: 7px; }
+    #connected-storage-workflows .cs-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #connected-storage-workflows .cs-button svg,
+    #connected-storage-workflows .cs-primary svg,
+    #connected-storage-workflows .cs-icon-button svg { width: 16px; height: 16px; }
+    #connected-storage-workflows .cs-title-block { min-width: 250px; }
+    #connected-storage-workflows .cs-title { font-weight: 500; }
+    #connected-storage-workflows .cs-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 390px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #connected-storage-workflows .cs-spacer { flex: 1; }
+    #connected-storage-workflows .cs-safe { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #connected-storage-workflows .cs-safe svg { width: 15px; height: 15px; }
+    #connected-storage-workflows .cs-main { display: grid; grid-template-columns: 222px minmax(0, 1fr) 286px; min-height: 663px; }
+    #connected-storage-workflows .cs-connections,
+    #connected-storage-workflows .cs-inspector { background: light-dark(#ffffff, #1b2232); min-width: 0; }
+    #connected-storage-workflows .cs-connections { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #connected-storage-workflows .cs-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #connected-storage-workflows .cs-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #connected-storage-workflows .cs-provider-list { display: grid; gap: 4px; }
+    #connected-storage-workflows .cs-provider {
+      width: 100%; min-height: 58px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left;
+    }
+    #connected-storage-workflows .cs-provider[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #2b3750); }
+    #connected-storage-workflows .cs-provider-icon { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#4d5b73, #c3cddd); }
+    #connected-storage-workflows .cs-provider[aria-pressed=&quot;true&quot;] .cs-provider-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #connected-storage-workflows .cs-provider-icon svg { width: 17px; height: 17px; }
+    #connected-storage-workflows .cs-provider-name { font-weight: 500; }
+    #connected-storage-workflows .cs-provider-meta { color: light-dark(#6d778b, #a9b4c6); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #connected-storage-workflows .cs-status-dot { width: 8px; height: 8px; border-radius: 50%; background: light-dark(#2a8b66, #78d7b4); }
+    #connected-storage-workflows .cs-add-connection { width: 100%; margin-top: 9px; }
+    #connected-storage-workflows .cs-scope-note { margin: 14px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #connected-storage-workflows .cs-content { min-width: 0; padding: 18px 20px 25px; }
+    #connected-storage-workflows .cs-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    #connected-storage-workflows .cs-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #connected-storage-workflows .cs-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #connected-storage-workflows .cs-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #connected-storage-workflows .cs-tab { min-height: 39px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #connected-storage-workflows .cs-tab[aria-selected=&quot;true&quot;] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #connected-storage-workflows .cs-update-banner {
+      display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 13px;
+      background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42;
+    }
+    #connected-storage-workflows .cs-update-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #connected-storage-workflows .cs-file-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+    #connected-storage-workflows .cs-file-icon { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #connected-storage-workflows .cs-file-icon svg { width: 18px; height: 18px; }
+    #connected-storage-workflows .cs-file-name { font-weight: 500; }
+    #connected-storage-workflows .cs-file-path { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #connected-storage-workflows .cs-compare { display: grid; grid-template-columns: 1fr 38px 1fr; gap: 10px; align-items: stretch; }
+    #connected-storage-workflows .cs-version {
+      border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; padding: 11px; background: light-dark(#ffffff, #1d2534); min-width: 0;
+    }
+    #connected-storage-workflows .cs-version.new { border-color: light-dark(#b8c8ed, #506897); background: light-dark(#f7f9ff, #202b3e); }
+    #connected-storage-workflows .cs-version-label { display: flex; align-items: center; justify-content: space-between; gap: 7px; color: light-dark(#667187, #adb7ca); margin-bottom: 8px; }
+    #connected-storage-workflows .cs-version-state { color: light-dark(#1d7153, #8de0bf); }
+    #connected-storage-workflows .cs-preview { height: 122px; border-radius: 7px; overflow: hidden; position: relative; background: light-dark(#ebe3d6, #3a352e); display: grid; place-items: center; }
+    #connected-storage-workflows .cs-preview::before { content: &quot;&quot;; position: absolute; width: 76px; height: 72px; border-radius: 50% 50% 45% 45%; background: light-dark(#f4efe7, #d9d1c6); bottom: 14px; left: calc(50% - 36px); }
+    #connected-storage-workflows .cs-preview::after { content: &quot;&quot;; position: absolute; width: 72px; height: 58px; border-radius: 58% 42% 45% 55%; background: repeating-linear-gradient(75deg, light-dark(#6e4e37, #8a674d) 0 5px, light-dark(#b38b68, #b79270) 5px 9px); bottom: 31px; left: calc(50% - 62px); transform: rotate(-11deg); }
+    #connected-storage-workflows .cs-preview-change { position: absolute; z-index: 2; width: 24px; height: 24px; border: 2px solid light-dark(#d37522, #f4b56d); border-radius: 50%; right: 24%; top: 27%; }
+    #connected-storage-workflows .cs-version-meta { display: grid; gap: 5px; margin-top: 9px; color: light-dark(#5f6d84, #b5c0d2); }
+    #connected-storage-workflows .cs-version-meta div { display: flex; justify-content: space-between; gap: 8px; }
+    #connected-storage-workflows .cs-version-meta strong { color: light-dark(#243149, #e2e7f1); font-weight: 500; text-align: right; }
+    #connected-storage-workflows .cs-arrow { display: grid; place-items: center; color: light-dark(#738096, #9ca9bd); }
+    #connected-storage-workflows .cs-arrow svg { width: 19px; height: 19px; }
+    #connected-storage-workflows .cs-choice-title { font-weight: 500; margin: 14px 0 7px; }
+    #connected-storage-workflows .cs-choice-list { display: grid; gap: 7px; }
+    #connected-storage-workflows .cs-choice {
+      display: grid; grid-template-columns: 19px minmax(0, 1fr); gap: 9px; align-items: flex-start; padding: 9px 10px; border-radius: 8px; border: 1px solid light-dark(#d8dee8, #394356); background: light-dark(#ffffff, #1d2534);
+    }
+    #connected-storage-workflows .cs-choice:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #connected-storage-workflows .cs-choice input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #connected-storage-workflows .cs-choice strong { display: block; font-weight: 500; }
+    #connected-storage-workflows .cs-choice small { display: block; color: light-dark(#667187, #adb7ca); margin-top: 2px; line-height: 1.4; }
+    #connected-storage-workflows .cs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    #connected-storage-workflows .cs-remember { display: inline-flex; gap: 7px; align-items: center; margin-right: auto; color: light-dark(#56637a, #b8c3d5); }
+    #connected-storage-workflows .cs-remember input { width: 17px; height: 17px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #connected-storage-workflows .cs-browser-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 11px; }
+    #connected-storage-workflows .cs-input,
+    #connected-storage-workflows .cs-select { min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #connected-storage-workflows .cs-folder-row { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 9px 4px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #connected-storage-workflows .cs-folder-row svg { width: 17px; height: 17px; color: light-dark(#5c6a81, #b4bfd0); }
+    #connected-storage-workflows .cs-folder-name { font-weight: 500; }
+    #connected-storage-workflows .cs-folder-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #connected-storage-workflows .cs-save-callout { padding: 11px; border-radius: 9px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; margin-bottom: 12px; }
+    #connected-storage-workflows .cs-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #connected-storage-workflows .cs-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #connected-storage-workflows .cs-field .cs-select,
+    #connected-storage-workflows .cs-field .cs-input { width: 100%; }
+    #connected-storage-workflows .cs-risk-note { margin-top: 10px; padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #connected-storage-workflows .cs-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #connected-storage-workflows .cs-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #connected-storage-workflows .cs-lineage { display: grid; gap: 0; }
+    #connected-storage-workflows .cs-lineage-item { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; padding: 8px 0; position: relative; }
+    #connected-storage-workflows .cs-lineage-item:not(:last-child)::after { content: &quot;&quot;; position: absolute; left: 14px; top: 35px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #connected-storage-workflows .cs-lineage-icon { width: 29px; height: 29px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #connected-storage-workflows .cs-lineage-icon svg { width: 14px; height: 14px; }
+    #connected-storage-workflows .cs-lineage-title { font-weight: 500; }
+    #connected-storage-workflows .cs-lineage-meta { color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #connected-storage-workflows .cs-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #connected-storage-workflows .cs-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #connected-storage-workflows .cs-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #connected-storage-workflows .cs-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #connected-storage-workflows .cs-fact strong { display: block; font-weight: 500; }
+    #connected-storage-workflows .cs-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; }
+    #connected-storage-workflows .cs-provider-rule { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #connected-storage-workflows .cs-toast { position: absolute; z-index: 8; left: 50%; bottom: 48px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #connected-storage-workflows .cs-toast[hidden] { display: none; }
+    #connected-storage-workflows .cs-dialog {
+      position: absolute; z-index: 10; width: min(440px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px;
+      border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6));
+    }
+    #connected-storage-workflows .cs-dialog[hidden] { display: none; }
+    #connected-storage-workflows .cs-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #connected-storage-workflows .cs-dialog p { color: light-dark(#637087, #afb9ca); line-height: 1.45; margin: 0 0 10px; }
+    #connected-storage-workflows .cs-dialog-summary { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); line-height: 1.5; }
+    #connected-storage-workflows .cs-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
+    #connected-storage-workflows .cs-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #connected-storage-workflows .cs-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #connected-storage-workflows .cs-main { grid-template-columns: 205px minmax(0, 1fr); }
+      #connected-storage-workflows .cs-inspector { display: none; }
+      #connected-storage-workflows .cs-safe { display: none; }
+    }
+    @media (max-width: 650px) {
+      #connected-storage-workflows .cs-header { flex-wrap: wrap; }
+      #connected-storage-workflows .cs-title-block { min-width: 0; flex: 1; }
+      #connected-storage-workflows .cs-primary span { display: none; }
+      #connected-storage-workflows .cs-main { display: block; }
+      #connected-storage-workflows .cs-connections { display: none; }
+      #connected-storage-workflows .cs-content { padding: 14px 11px 21px; }
+      #connected-storage-workflows .cs-content-head h2 { font-size: 18px; }
+      #connected-storage-workflows .cs-tabs { overflow-x: auto; }
+      #connected-storage-workflows .cs-tab { flex: 0 0 auto; }
+      #connected-storage-workflows .cs-compare { grid-template-columns: 1fr; }
+      #connected-storage-workflows .cs-arrow { min-height: 24px; transform: rotate(90deg); }
+      #connected-storage-workflows .cs-form-grid { grid-template-columns: 1fr; }
+      #connected-storage-workflows .cs-bottom { display: none; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;cs-shell&quot;&gt;
+    &lt;header class=&quot;cs-header&quot;&gt;
+      &lt;button class=&quot;cs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Back to project&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;cs-title-block&quot;&gt;&lt;div class=&quot;cs-title&quot;&gt;Connected storage&lt;/div&gt;&lt;div class=&quot;cs-subtitle&quot;&gt;Kidswear 2027 / Woodland collection&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;cs-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;cs-safe&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;External originals stay untouched&lt;/div&gt;
+      &lt;button class=&quot;cs-button&quot; id=&quot;cs-disconnect&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;unplug&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Disconnect&lt;/button&gt;
+      &lt;button class=&quot;cs-primary&quot; id=&quot;cs-save-header&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;cloud-upload&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Save to cloud&lt;/span&gt;&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;cs-main&quot;&gt;
+      &lt;aside class=&quot;cs-connections&quot; aria-label=&quot;Connected providers&quot;&gt;
+        &lt;div class=&quot;cs-pane-head&quot;&gt;&lt;span&gt;Connections&lt;/span&gt;&lt;i data-lucide=&quot;cloud&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;cs-provider-list&quot;&gt;
+          &lt;button class=&quot;cs-provider&quot; type=&quot;button&quot; data-provider=&quot;drive&quot; aria-pressed=&quot;true&quot;&gt;&lt;span class=&quot;cs-provider-icon&quot;&gt;&lt;i data-lucide=&quot;triangle&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-provider-name&quot;&gt;Google Drive&lt;/span&gt;&lt;span class=&quot;cs-provider-meta&quot;&gt;Personal · Design Sources&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;cs-status-dot&quot; aria-label=&quot;Connected&quot;&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;cs-provider&quot; type=&quot;button&quot; data-provider=&quot;sharepoint&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;cs-provider-icon&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-provider-name&quot;&gt;SharePoint&lt;/span&gt;&lt;span class=&quot;cs-provider-meta&quot;&gt;Workspace · Production&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;cs-status-dot&quot; aria-label=&quot;Connected&quot;&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;cs-provider&quot; type=&quot;button&quot; data-provider=&quot;dropbox&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;cs-provider-icon&quot;&gt;&lt;i data-lucide=&quot;box&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-provider-name&quot;&gt;Dropbox&lt;/span&gt;&lt;span class=&quot;cs-provider-meta&quot;&gt;Personal · Client files&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;cs-status-dot&quot; aria-label=&quot;Connected&quot;&gt;&lt;/span&gt;&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;button class=&quot;cs-button cs-add-connection&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Add connection&lt;/button&gt;
+        &lt;div class=&quot;cs-scope-note&quot;&gt;&lt;strong&gt;Least-privilege access&lt;/strong&gt;&lt;br&gt;Each connection sees only the folders the owner or workspace administrator explicitly permits.&lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;cs-content&quot;&gt;
+        &lt;div class=&quot;cs-content-head&quot;&gt;&lt;div&gt;&lt;h2 id=&quot;cs-provider-heading&quot;&gt;Google Drive&lt;/h2&gt;&lt;div class=&quot;cs-content-subtitle&quot; id=&quot;cs-provider-subtitle&quot;&gt;Personal connection · Access limited to Design Sources&lt;/div&gt;&lt;/div&gt;&lt;button class=&quot;cs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Check updates&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;cs-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Connected storage tasks&quot;&gt;
+          &lt;button class=&quot;cs-tab&quot; type=&quot;button&quot; data-panel=&quot;browse&quot; aria-selected=&quot;false&quot;&gt;Browse &amp;amp; import&lt;/button&gt;
+          &lt;button class=&quot;cs-tab&quot; type=&quot;button&quot; data-panel=&quot;save&quot; aria-selected=&quot;false&quot;&gt;Save back&lt;/button&gt;
+          &lt;button class=&quot;cs-tab&quot; type=&quot;button&quot; data-panel=&quot;updates&quot; aria-selected=&quot;true&quot;&gt;Updates &amp;amp; conflicts &lt;span aria-label=&quot;One update&quot;&gt;1&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;cs-tab&quot; type=&quot;button&quot; data-panel=&quot;connections&quot; aria-selected=&quot;false&quot;&gt;Connection details&lt;/button&gt;
+        &lt;/div&gt;
+
+        &lt;section data-content=&quot;updates&quot;&gt;
+          &lt;div class=&quot;cs-update-banner&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;The source changed in Google Drive.&lt;/strong&gt; We created a safe source-version proposal. Your current design has not changed.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-file-head&quot;&gt;&lt;span class=&quot;cs-file-icon&quot;&gt;&lt;i data-lucide=&quot;file-image&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;cs-file-name&quot;&gt;hedgehog-watercolour.png&lt;/div&gt;&lt;div class=&quot;cs-file-path&quot;&gt;Design Sources / Kidswear / Woodland&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-compare&quot;&gt;
+            &lt;article class=&quot;cs-version&quot;&gt;&lt;div class=&quot;cs-version-label&quot;&gt;&lt;span&gt;Current project source&lt;/span&gt;&lt;span&gt;v4&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;cs-preview&quot; aria-label=&quot;Current hedgehog artwork preview&quot;&gt;&lt;/div&gt;&lt;div class=&quot;cs-version-meta&quot;&gt;&lt;div&gt;&lt;span&gt;Linked&lt;/span&gt;&lt;strong&gt;28 Aug, 14:42&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Size&lt;/span&gt;&lt;strong&gt;4,096 × 4,096&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Used by&lt;/span&gt;&lt;strong&gt;3 artboards&lt;/strong&gt;&lt;/div&gt;&lt;/div&gt;&lt;/article&gt;
+            &lt;div class=&quot;cs-arrow&quot;&gt;&lt;i data-lucide=&quot;arrow-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+            &lt;article class=&quot;cs-version new&quot;&gt;&lt;div class=&quot;cs-version-label&quot;&gt;&lt;span&gt;External source update&lt;/span&gt;&lt;span class=&quot;cs-version-state&quot;&gt;New v5&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;cs-preview&quot; aria-label=&quot;Updated hedgehog artwork preview&quot;&gt;&lt;span class=&quot;cs-preview-change&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;cs-version-meta&quot;&gt;&lt;div&gt;&lt;span&gt;Changed&lt;/span&gt;&lt;strong&gt;Today, 09:18&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Size&lt;/span&gt;&lt;strong&gt;4,096 × 4,096&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;Difference&lt;/span&gt;&lt;strong&gt;Colour + detail&lt;/strong&gt;&lt;/div&gt;&lt;/div&gt;&lt;/article&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;cs-choice-title&quot;&gt;What should happen?&lt;/div&gt;
+          &lt;div class=&quot;cs-choice-list&quot;&gt;
+            &lt;label class=&quot;cs-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;update-action&quot; value=&quot;review&quot; checked&gt;&lt;span&gt;&lt;strong&gt;Add as source version v5 and review&lt;/strong&gt;&lt;small&gt;Safest: preserve v4, create a reversible version and let me choose which artboards update.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;label class=&quot;cs-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;update-action&quot; value=&quot;keep&quot;&gt;&lt;span&gt;&lt;strong&gt;Keep using v4&lt;/strong&gt;&lt;small&gt;Dismiss this update for now. The external file remains available later.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;label class=&quot;cs-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;update-action&quot; value=&quot;fork&quot;&gt;&lt;span&gt;&lt;strong&gt;Create an independent copy&lt;/strong&gt;&lt;small&gt;Stop following external changes for this asset while preserving its source history.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;cs-actions&quot;&gt;&lt;label class=&quot;cs-remember&quot;&gt;&lt;input type=&quot;checkbox&quot; id=&quot;cs-remember-rule&quot;&gt;Remember for this source&lt;/label&gt;&lt;button class=&quot;cs-button&quot; id=&quot;cs-compare-action&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;columns-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Compare detail&lt;/button&gt;&lt;button class=&quot;cs-primary&quot; id=&quot;cs-update-action&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;git-branch&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Continue safely&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;browse&quot; hidden&gt;
+          &lt;div class=&quot;cs-save-callout&quot;&gt;&lt;strong&gt;Import without surrendering control.&lt;/strong&gt; The application records the provider source, preserves its external original and creates a protected project source version for editing.&lt;/div&gt;
+          &lt;div class=&quot;cs-browser-toolbar&quot;&gt;&lt;input class=&quot;cs-input&quot; aria-label=&quot;Search connected folder&quot; placeholder=&quot;Search Design Sources&quot;&gt;&lt;button class=&quot;cs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;upload&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Import selected&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-folder-row&quot;&gt;&lt;i data-lucide=&quot;folder&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;div class=&quot;cs-folder-name&quot;&gt;Kidswear&lt;/div&gt;&lt;div class=&quot;cs-folder-meta&quot;&gt;18 files · Updated today&lt;/div&gt;&lt;/div&gt;&lt;button class=&quot;cs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Open Kidswear&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-folder-row&quot;&gt;&lt;i data-lucide=&quot;folder&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;div class=&quot;cs-folder-name&quot;&gt;Brand assets&lt;/div&gt;&lt;div class=&quot;cs-folder-meta&quot;&gt;12 files · Workspace-approved&lt;/div&gt;&lt;/div&gt;&lt;button class=&quot;cs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Open Brand assets&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-folder-row&quot;&gt;&lt;i data-lucide=&quot;file-image&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;div class=&quot;cs-folder-name&quot;&gt;hedgehog-watercolour.png&lt;/div&gt;&lt;div class=&quot;cs-folder-meta&quot;&gt;4,096 × 4,096 · External source&lt;/div&gt;&lt;/div&gt;&lt;label&gt;&lt;span class=&quot;sr-only&quot;&gt;Select hedgehog watercolour&lt;/span&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;/label&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-folder-row&quot;&gt;&lt;i data-lucide=&quot;file-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;div class=&quot;cs-folder-name&quot;&gt;factory-colour-notes.pdf&lt;/div&gt;&lt;div class=&quot;cs-folder-meta&quot;&gt;6 pages · External source&lt;/div&gt;&lt;/div&gt;&lt;label&gt;&lt;span class=&quot;sr-only&quot;&gt;Select factory colour notes&lt;/span&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;/label&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;save&quot; hidden&gt;
+          &lt;div class=&quot;cs-save-callout&quot;&gt;&lt;strong&gt;Explicit save-back only.&lt;/strong&gt; Exporting inside the application never silently replaces a connected cloud file.&lt;/div&gt;
+          &lt;div class=&quot;cs-choice-list&quot;&gt;
+            &lt;label class=&quot;cs-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;save-mode&quot; value=&quot;new&quot; checked&gt;&lt;span&gt;&lt;strong&gt;Create a new cloud file&lt;/strong&gt;&lt;small&gt;Recommended default. Keeps the provider original and app project version separate.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;label class=&quot;cs-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;save-mode&quot; value=&quot;provider-version&quot;&gt;&lt;span&gt;&lt;strong&gt;Add a new provider version&lt;/strong&gt;&lt;small&gt;Available only where provider permissions and versioning support it.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;label class=&quot;cs-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;save-mode&quot; value=&quot;replace&quot;&gt;&lt;span&gt;&lt;strong&gt;Replace the current cloud file&lt;/strong&gt;&lt;small&gt;Requires replace permission, a fresh conflict check and final confirmation.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;cs-form-grid&quot; style=&quot;margin-top:12px&quot;&gt;&lt;div class=&quot;cs-field&quot;&gt;&lt;label for=&quot;cs-destination&quot;&gt;Destination&lt;/label&gt;&lt;select id=&quot;cs-destination&quot; class=&quot;cs-select&quot;&gt;&lt;option&gt;Design Sources / Approved Exports&lt;/option&gt;&lt;option&gt;Design Sources / Kidswear / Woodland&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class=&quot;cs-field&quot;&gt;&lt;label for=&quot;cs-filename&quot;&gt;File name&lt;/label&gt;&lt;input id=&quot;cs-filename&quot; class=&quot;cs-input&quot; value=&quot;hedgehog-print-approved-v7.png&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-risk-note&quot; id=&quot;cs-save-warning&quot;&gt;&lt;strong&gt;No overwrite risk.&lt;/strong&gt; A new file will be created and linked to this export result.&lt;/div&gt;
+          &lt;div class=&quot;cs-actions&quot; style=&quot;justify-content:flex-end&quot;&gt;&lt;button class=&quot;cs-button&quot; type=&quot;button&quot;&gt;Review export&lt;/button&gt;&lt;button class=&quot;cs-primary&quot; id=&quot;cs-save-action&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;cloud-upload&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Save new file&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;connections&quot; hidden&gt;
+          &lt;div class=&quot;cs-form-grid&quot;&gt;&lt;div class=&quot;cs-field&quot;&gt;&lt;label&gt;Connection owner&lt;/label&gt;&lt;select class=&quot;cs-select&quot;&gt;&lt;option&gt;Vijay Kumar · Personal&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;div class=&quot;cs-field&quot;&gt;&lt;label&gt;Allowed scope&lt;/label&gt;&lt;select class=&quot;cs-select&quot;&gt;&lt;option&gt;Design Sources only&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-file-head&quot; style=&quot;margin-top:18px&quot;&gt;&lt;span class=&quot;cs-file-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;cs-file-name&quot;&gt;Least-privilege connection&lt;/div&gt;&lt;div class=&quot;cs-file-path&quot;&gt;Read selected source folders · Write Approved Exports only&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-choice-list&quot;&gt;
+            &lt;div class=&quot;cs-choice&quot;&gt;&lt;i data-lucide=&quot;user&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Personal connections&lt;/strong&gt;&lt;small&gt;Owned by one customer and available only where that customer has project access.&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;cs-choice&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Workspace connections&lt;/strong&gt;&lt;small&gt;Managed by authorised administrators with explicit folders and audit history.&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;cs-choice&quot;&gt;&lt;i data-lucide=&quot;unlink&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Safe disconnection&lt;/strong&gt;&lt;small&gt;Disconnecting never removes external files. App copies follow project retention policy.&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/section&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;cs-inspector&quot; aria-label=&quot;Source relationship details&quot;&gt;
+        &lt;h3&gt;Source relationship&lt;/h3&gt;&lt;div class=&quot;cs-inspector-copy&quot;&gt;The provider file and application versions remain traceable without becoming the same mutable object.&lt;/div&gt;
+        &lt;div class=&quot;cs-lineage&quot;&gt;
+          &lt;div class=&quot;cs-lineage-item&quot;&gt;&lt;span class=&quot;cs-lineage-icon&quot;&gt;&lt;i data-lucide=&quot;cloud&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-lineage-title&quot;&gt;Google Drive source&lt;/span&gt;&lt;span class=&quot;cs-lineage-meta&quot;&gt;External original · Provider permissions&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-lineage-item&quot;&gt;&lt;span class=&quot;cs-lineage-icon&quot;&gt;&lt;i data-lucide=&quot;git-branch&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-lineage-title&quot;&gt;Source versions&lt;/span&gt;&lt;span class=&quot;cs-lineage-meta&quot;&gt;v1–v4 retained · v5 awaiting review&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-lineage-item&quot;&gt;&lt;span class=&quot;cs-lineage-icon&quot;&gt;&lt;i data-lucide=&quot;layers-3&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-lineage-title&quot;&gt;Editable asset&lt;/span&gt;&lt;span class=&quot;cs-lineage-meta&quot;&gt;Used by three linked artboards&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;cs-lineage-item&quot;&gt;&lt;span class=&quot;cs-lineage-icon&quot;&gt;&lt;i data-lucide=&quot;package-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;cs-lineage-title&quot;&gt;Export results&lt;/span&gt;&lt;span class=&quot;cs-lineage-meta&quot;&gt;Saved back only when explicitly requested&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;cs-inspector-section&quot;&gt;&lt;div class=&quot;cs-inspector-title&quot;&gt;Safe defaults&lt;/div&gt;&lt;div class=&quot;cs-fact&quot;&gt;&lt;i data-lucide=&quot;file-plus-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Import as new source version&lt;/strong&gt;&lt;small&gt;Never replace active work automatically&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;cs-fact&quot;&gt;&lt;i data-lucide=&quot;scan-search&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Conflict check before write&lt;/strong&gt;&lt;small&gt;External changes block silent overwrite&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;cs-fact&quot;&gt;&lt;i data-lucide=&quot;history&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Complete provenance&lt;/strong&gt;&lt;small&gt;Provider, version, user and time recorded&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;cs-inspector-section&quot;&gt;&lt;div class=&quot;cs-inspector-title&quot;&gt;Sharing boundary&lt;/div&gt;&lt;div class=&quot;cs-provider-rule&quot;&gt;&lt;strong&gt;Provider access stays separate.&lt;/strong&gt;&lt;br&gt;Google Drive, SharePoint and Dropbox sharing never silently changes application project access—and application invites never alter provider permissions.&lt;/div&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;cs-toast&quot; id=&quot;cs-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;/div&gt;
+    &lt;section class=&quot;cs-dialog&quot; id=&quot;cs-dialog&quot; aria-label=&quot;Disconnect Google Drive&quot; hidden&gt;
+      &lt;h3&gt;Disconnect Google Drive?&lt;/h3&gt;
+      &lt;p&gt;The connection will stop syncing. Nothing in Google Drive will be deleted.&lt;/p&gt;
+      &lt;div class=&quot;cs-dialog-summary&quot;&gt;&lt;strong&gt;After disconnection&lt;/strong&gt;&lt;br&gt;• Existing app copies remain available under project retention.&lt;br&gt;• External source links become unavailable until reconnected.&lt;br&gt;• Future updates and save-back stop.&lt;/div&gt;
+      &lt;div class=&quot;cs-dialog-actions&quot;&gt;&lt;button class=&quot;cs-button&quot; id=&quot;cs-dialog-cancel&quot; type=&quot;button&quot;&gt;Keep connected&lt;/button&gt;&lt;button class=&quot;cs-primary&quot; id=&quot;cs-dialog-confirm&quot; type=&quot;button&quot;&gt;Disconnect safely&lt;/button&gt;&lt;/div&gt;
+    &lt;/section&gt;
+    &lt;footer class=&quot;cs-bottom&quot;&gt;&lt;span&gt;External originals protected&lt;/span&gt;&lt;span&gt;Least privilege&lt;/span&gt;&lt;span&gt;Version-aware import&lt;/span&gt;&lt;span class=&quot;cs-bottom-right&quot;&gt;&lt;span&gt;Conflict-safe writes&lt;/span&gt;&lt;span&gt;Separate sharing boundaries&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;connected-storage-workflows&#x27;);
+      const tabs = [...root.querySelectorAll(&#x27;.cs-tab&#x27;)];
+      const panels = [...root.querySelectorAll(&#x27;[data-content]&#x27;)];
+      const showPanel = (name) =&gt; {
+        tabs.forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab.dataset.panel === name)));
+        panels.forEach((panel) =&gt; { panel.hidden = panel.dataset.content !== name; });
+      };
+      tabs.forEach((tab) =&gt; tab.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(tab.dataset.panel)));
+      root.querySelector(&#x27;#cs-save-header&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; showPanel(&#x27;save&#x27;));
+
+      const providerData = {
+        drive: [&#x27;Google Drive&#x27;, &#x27;Personal connection · Access limited to Design Sources&#x27;],
+        sharepoint: [&#x27;SharePoint&#x27;, &#x27;Workspace connection · Access limited to Production Library&#x27;],
+        dropbox: [&#x27;Dropbox&#x27;, &#x27;Personal connection · Access limited to Client files&#x27;]
+      };
+      const providers = [...root.querySelectorAll(&#x27;.cs-provider&#x27;)];
+      providers.forEach((provider) =&gt; provider.addEventListener(&#x27;click&#x27;, () =&gt; {
+        providers.forEach((item) =&gt; item.setAttribute(&#x27;aria-pressed&#x27;, String(item === provider)));
+        const [heading, subtitle] = providerData[provider.dataset.provider];
+        root.querySelector(&#x27;#cs-provider-heading&#x27;).textContent = heading;
+        root.querySelector(&#x27;#cs-provider-subtitle&#x27;).textContent = subtitle;
+      }));
+
+      const toast = root.querySelector(&#x27;#cs-toast&#x27;);
+      let toastTimer;
+      const announce = (message) =&gt; {
+        clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false;
+        toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 2600);
+      };
+      root.querySelector(&#x27;#cs-compare-action&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Detail comparison opened: changed regions are highlighted.&#x27;));
+      root.querySelector(&#x27;#cs-update-action&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        const selected = root.querySelector(&#x27;input[name=&quot;update-action&quot;]:checked&#x27;).value;
+        const remembered = root.querySelector(&#x27;#cs-remember-rule&#x27;).checked ? &#x27; Rule saved for this source.&#x27; : &#x27;&#x27;;
+        const messages = { review: &#x27;Source version v5 created. Current artboards remain on v4.&#x27;, keep: &#x27;Update dismissed. Current source remains v4.&#x27;, fork: &#x27;Independent source copy created. External following stopped.&#x27; };
+        announce(messages[selected] + remembered);
+      });
+
+      const saveWarning = root.querySelector(&#x27;#cs-save-warning&#x27;);
+      const saveAction = root.querySelector(&#x27;#cs-save-action&#x27;);
+      root.querySelectorAll(&#x27;input[name=&quot;save-mode&quot;]&#x27;).forEach((radio) =&gt; radio.addEventListener(&#x27;change&#x27;, () =&gt; {
+        const mode = root.querySelector(&#x27;input[name=&quot;save-mode&quot;]:checked&#x27;).value;
+        if (mode === &#x27;new&#x27;) { saveWarning.innerHTML = &#x27;&lt;strong&gt;No overwrite risk.&lt;/strong&gt; A new file will be created and linked to this export result.&#x27;; saveAction.innerHTML = &#x27;&lt;i data-lucide=&quot;cloud-upload&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Save new file&#x27;; }
+        if (mode === &#x27;provider-version&#x27;) { saveWarning.innerHTML = &#x27;&lt;strong&gt;Provider version check required.&lt;/strong&gt; The app will verify provider versioning and permissions before writing.&#x27;; saveAction.innerHTML = &#x27;&lt;i data-lucide=&quot;history&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Add provider version&#x27;; }
+        if (mode === &#x27;replace&#x27;) { saveWarning.innerHTML = &#x27;&lt;strong&gt;Protected action.&lt;/strong&gt; A fresh conflict check and explicit replacement confirmation are required.&#x27;; saveAction.innerHTML = &#x27;&lt;i data-lucide=&quot;shield-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Review replacement&#x27;; }
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+      saveAction.addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Save-back preflight complete. No external change detected.&#x27;));
+
+      const dialog = root.querySelector(&#x27;#cs-dialog&#x27;);
+      root.querySelector(&#x27;#cs-disconnect&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = false; });
+      root.querySelector(&#x27;#cs-dialog-cancel&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; });
+      root.querySelector(&#x27;#cs-dialog-confirm&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; { dialog.hidden = true; announce(&#x27;Connection safely disconnected. External files were not changed.&#x27;); });
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

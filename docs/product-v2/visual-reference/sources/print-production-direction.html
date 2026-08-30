@@ -1,0 +1,649 @@
+<section id="print-production-workspace" aria-label="Print and production workspace concept">
+  <style>
+    #print-production-workspace {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#182135, #edf2ff);
+      background: light-dark(#e8edf4, #111722);
+    }
+    #print-production-workspace * { box-sizing: border-box; }
+    #print-production-workspace button,
+    #print-production-workspace input,
+    #print-production-workspace select { font: inherit; color: inherit; }
+    #print-production-workspace button { cursor: pointer; }
+    #print-production-workspace .pp-shell {
+      min-height: 760px;
+      background: light-dark(#f5f7fb, #151b28);
+      overflow: hidden;
+    }
+    #print-production-workspace .pp-topbar {
+      min-height: 59px;
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #print-production-workspace .pp-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 220px;
+    }
+    #print-production-workspace .pp-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      color: light-dark(#ffffff, #101725);
+      background: light-dark(#2356d8, #88a5ff);
+    }
+    #print-production-workspace .pp-mark svg { width: 17px; height: 17px; }
+    #print-production-workspace .pp-title { font-weight: 500; }
+    #print-production-workspace .pp-subtitle {
+      color: light-dark(#697388, #aeb8cb);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 260px;
+    }
+    #print-production-workspace .pp-spacer { flex: 1; }
+    #print-production-workspace .pp-saved {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: light-dark(#667187, #abb6c9);
+      white-space: nowrap;
+    }
+    #print-production-workspace .pp-saved svg { width: 15px; height: 15px; }
+    #print-production-workspace .pp-button,
+    #print-production-workspace .pp-primary,
+    #print-production-workspace .pp-icon-button {
+      min-height: 36px;
+      border-radius: 8px;
+      padding: 7px 11px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    #print-production-workspace .pp-primary {
+      border-color: transparent;
+      color: light-dark(#ffffff, #101827);
+      background: light-dark(#2356d8, #8aa6ff);
+      padding-inline: 15px;
+      font-weight: 500;
+    }
+    #print-production-workspace .pp-icon-button { width: 36px; padding: 7px; }
+    #print-production-workspace .pp-button svg,
+    #print-production-workspace .pp-primary svg,
+    #print-production-workspace .pp-icon-button svg { width: 16px; height: 16px; }
+    #print-production-workspace .pp-purposebar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 13px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+      overflow-x: auto;
+    }
+    #print-production-workspace .pp-purpose-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 7px;
+      color: light-dark(#667187, #adb7ca);
+      white-space: nowrap;
+    }
+    #print-production-workspace .pp-purpose-label svg { width: 15px; height: 15px; }
+    #print-production-workspace .pp-purpose {
+      border: 0;
+      border-radius: 8px;
+      min-height: 34px;
+      padding: 6px 11px;
+      background: transparent;
+      color: light-dark(#465167, #c5cede);
+      white-space: nowrap;
+    }
+    #print-production-workspace .pp-purpose[aria-pressed="true"] {
+      color: light-dark(#204fc6, #c1ceff);
+      background: light-dark(#eaf0ff, #2b3750);
+    }
+    #print-production-workspace .pp-main {
+      display: grid;
+      grid-template-columns: 232px minmax(0, 1fr) 300px;
+      min-height: 634px;
+    }
+    #print-production-workspace .pp-source-pane,
+    #print-production-workspace .pp-settings-pane {
+      background: light-dark(#ffffff, #1b2232);
+      min-width: 0;
+    }
+    #print-production-workspace .pp-source-pane {
+      border-right: 1px solid light-dark(#dce2eb, #30394b);
+      padding: 14px;
+    }
+    #print-production-workspace .pp-settings-pane {
+      border-left: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #print-production-workspace .pp-heading-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 11px;
+      font-weight: 500;
+    }
+    #print-production-workspace .pp-count { color: light-dark(#798398, #9faabd); font-weight: 400; }
+    #print-production-workspace .pp-asset {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      width: 100%;
+      padding: 8px;
+      text-align: left;
+      border-radius: 9px;
+      border: 1px solid light-dark(#9db5fa, #627dc7);
+      background: light-dark(#edf2ff, #29354c);
+    }
+    #print-production-workspace .pp-asset-preview {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#e8dfd0, #d9ccb9);
+      color: #4e352d;
+      font-size: 28px;
+    }
+    #print-production-workspace .pp-asset-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #print-production-workspace .pp-asset-meta { color: light-dark(#697489, #acb6c9); margin-top: 3px; }
+    #print-production-workspace .pp-section {
+      padding: 14px 0;
+      border-top: 1px solid light-dark(#e2e6ed, #30394b);
+      margin-top: 14px;
+    }
+    #print-production-workspace .pp-section-title { font-weight: 500; margin-bottom: 9px; }
+    #print-production-workspace .pp-label { display: block; margin-bottom: 4px; color: light-dark(#626d82, #adb7ca); }
+    #print-production-workspace .pp-select,
+    #print-production-workspace .pp-input {
+      width: 100%;
+      min-height: 37px;
+      border-radius: 7px;
+      border: 1px solid light-dark(#ccd5e2, #414c60);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 9px;
+      margin-bottom: 10px;
+    }
+    #print-production-workspace .pp-profile-summary {
+      padding: 10px;
+      border-radius: 8px;
+      background: light-dark(#f1f4f9, #242d3e);
+      color: light-dark(#48546b, #cad3e3);
+      line-height: 1.5;
+    }
+    #print-production-workspace .pp-profile-row { display: flex; justify-content: space-between; gap: 9px; padding: 3px 0; }
+    #print-production-workspace .pp-profile-row span:first-child { color: light-dark(#717b90, #9faabd); }
+    #print-production-workspace .pp-link-button {
+      border: 0;
+      background: transparent;
+      padding: 7px 0;
+      color: light-dark(#1f51c8, #b8c8ff);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #print-production-workspace .pp-link-button svg { width: 15px; height: 15px; }
+    #print-production-workspace .pp-preview-pane {
+      position: relative;
+      padding: 20px 18px 50px;
+      background-color: light-dark(#e9edf4, #121824);
+      background-image: radial-gradient(light-dark(#ced6e2, #2e3647) 0.7px, transparent 0.7px);
+      background-size: 18px 18px;
+      min-width: 0;
+    }
+    #print-production-workspace .pp-preview-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 15px;
+    }
+    #print-production-workspace .pp-view-switch,
+    #print-production-workspace .pp-zoom-switch {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2d9e4, #3b4558);
+      background: light-dark(#ffffff, #222a3a);
+    }
+    #print-production-workspace .pp-view,
+    #print-production-workspace .pp-zoom {
+      min-height: 30px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      padding: 5px 8px;
+      color: light-dark(#5e697e, #afb9cc);
+    }
+    #print-production-workspace .pp-view[aria-pressed="true"],
+    #print-production-workspace .pp-zoom[aria-pressed="true"] {
+      background: light-dark(#e9efff, #35415a);
+      color: light-dark(#204fc6, #d0daff);
+    }
+    #print-production-workspace .pp-artboard {
+      width: min(510px, 95%);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      background: #efe7d8;
+      box-shadow: 0 11px 30px light-dark(#b7c0ce, #080b12);
+      color: #442f28;
+    }
+    #print-production-workspace .pp-fabric-grain {
+      position: absolute;
+      inset: 0;
+      opacity: .25;
+      background-image: repeating-linear-gradient(0deg, transparent 0, transparent 3px, #b7a995 4px), repeating-linear-gradient(90deg, transparent 0, transparent 4px, #c1b5a3 5px);
+    }
+    #print-production-workspace .pp-botanical {
+      position: absolute;
+      inset: 8% 9%;
+      display: grid;
+      place-items: center;
+      border: 1px solid #c5b79e;
+      border-radius: 48% 52% 45% 55%;
+      background: radial-gradient(circle at 50% 54%, #f7f1e5 0 27%, transparent 28%), radial-gradient(ellipse at 50% 48%, #6d4a35 0 34%, transparent 35%), radial-gradient(circle at 28% 23%, #78805d 0 3%, transparent 3.5%), radial-gradient(circle at 72% 28%, #9b7651 0 3%, transparent 3.5%), radial-gradient(circle at 22% 70%, #657657 0 3.5%, transparent 4%), radial-gradient(circle at 77% 72%, #8c5b41 0 3.5%, transparent 4%);
+    }
+    #print-production-workspace .pp-hedgehog {
+      position: relative;
+      z-index: 2;
+      font-size: 116px;
+      filter: saturate(.72) sepia(.15);
+      transform: translateY(4px);
+    }
+    #print-production-workspace .pp-art-label {
+      position: absolute;
+      left: 18px;
+      bottom: 15px;
+      z-index: 3;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.88);
+      color: #4e4236;
+    }
+    #print-production-workspace .pp-detail-loupe {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 118px;
+      height: 118px;
+      z-index: 4;
+      border-radius: 50%;
+      border: 3px solid #ffffff;
+      box-shadow: 0 5px 14px rgba(26,31,42,.24);
+      display: grid;
+      place-items: center;
+      background: repeating-linear-gradient(42deg, #72513c 0 3px, #efe4d2 3px 7px, #99735a 7px 9px);
+      color: #ffffff;
+      text-shadow: 0 1px 2px #392b22;
+      transition: transform .2s ease;
+    }
+    #print-production-workspace .pp-detail-loupe strong { background: rgba(45,37,32,.72); padding: 4px 7px; border-radius: 5px; font-weight: 500; }
+    #print-production-workspace .pp-loupe-line {
+      position: absolute;
+      top: 124px;
+      right: 123px;
+      width: 74px;
+      height: 1px;
+      background: #ffffff;
+      transform: rotate(-27deg);
+      transform-origin: right;
+    }
+    #print-production-workspace .pp-artboard[data-zoom="800"] .pp-detail-loupe { transform: scale(1.13); }
+    #print-production-workspace .pp-artboard[data-view="original"] { filter: blur(.35px) saturate(.88); }
+    #print-production-workspace .pp-artboard[data-view="simulation"] { filter: contrast(.94) saturate(.8); }
+    #print-production-workspace .pp-trust-bar {
+      width: min(510px, 95%);
+      margin: 12px auto 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: light-dark(#5d687d, #b0bacd);
+    }
+    #print-production-workspace .pp-trust-track {
+      height: 6px;
+      border-radius: 999px;
+      flex: 1;
+      overflow: hidden;
+      background: light-dark(#cfd6e1, #323b4c);
+    }
+    #print-production-workspace .pp-trust-fill { width: 72%; height: 100%; background: light-dark(#278563, #54d1a3); }
+    #print-production-workspace .pp-preview-status {
+      position: absolute;
+      left: 15px;
+      bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      background: light-dark(#ffffff, #222a3a);
+      border: 1px solid light-dark(#d6dde8, #3a4558);
+      color: light-dark(#5f6a80, #b1bbce);
+    }
+    #print-production-workspace .pp-status-dot { width: 7px; height: 7px; border-radius: 50%; background: light-dark(#278563, #55d3a5); }
+    #print-production-workspace .pp-settings-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #print-production-workspace .pp-settings-tab {
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      padding: 12px 4px 9px;
+      color: light-dark(#657086, #adb7ca);
+    }
+    #print-production-workspace .pp-settings-tab[aria-selected="true"] {
+      color: light-dark(#204fc6, #c1ceff);
+      border-bottom-color: light-dark(#2757cf, #8aa6ff);
+    }
+    #print-production-workspace .pp-settings-content { padding: 14px; }
+    #print-production-workspace .pp-settings-content h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #print-production-workspace .pp-help { color: light-dark(#6d778b, #a9b3c6); margin: 0 0 13px; line-height: 1.45; }
+    #print-production-workspace .pp-ready {
+      padding: 11px;
+      border-radius: 8px;
+      background: light-dark(#edf8f3, #203a33);
+      color: light-dark(#176648, #b8edda);
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      line-height: 1.45;
+    }
+    #print-production-workspace .pp-ready svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+    #print-production-workspace .pp-check-row {
+      display: grid;
+      grid-template-columns: 19px 1fr auto;
+      gap: 7px;
+      align-items: start;
+      padding: 9px 0;
+      border-bottom: 1px solid light-dark(#e3e7ee, #30394b);
+    }
+    #print-production-workspace .pp-check-row svg { width: 17px; height: 17px; color: light-dark(#247b5d, #73d8b5); }
+    #print-production-workspace .pp-check-row.is-warning svg { color: light-dark(#9a6714, #f0c36f); }
+    #print-production-workspace .pp-check-title { font-weight: 500; }
+    #print-production-workspace .pp-check-detail { color: light-dark(#6d778c, #a7b2c5); margin-top: 2px; line-height: 1.35; }
+    #print-production-workspace .pp-check-action { border: 0; background: transparent; padding: 2px; color: light-dark(#2050c6, #bdcaff); }
+    #print-production-workspace .pp-size-result {
+      margin-top: 11px;
+      padding: 10px;
+      border-radius: 8px;
+      background: light-dark(#f1f4f9, #242d3e);
+    }
+    #print-production-workspace .pp-size-value { font-size: 18px; font-weight: 500; margin: 3px 0; }
+    #print-production-workspace .pp-size-note { color: light-dark(#697489, #aab5c8); line-height: 1.4; }
+    #print-production-workspace .pp-color-list { display: grid; gap: 8px; }
+    #print-production-workspace .pp-color-row { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; }
+    #print-production-workspace .pp-swatch { width: 23px; height: 23px; border-radius: 6px; border: 1px solid light-dark(#bec7d5, #556176); }
+    #print-production-workspace .pp-swatch.one { background: light-dark(#6f4a36, #9b7158); }
+    #print-production-workspace .pp-swatch.two { background: light-dark(#6d7654, #98a279); }
+    #print-production-workspace .pp-swatch.three { background: light-dark(#e7decf, #d7cdbd); }
+    #print-production-workspace .pp-output-choice {
+      width: 100%;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 0;
+      border: 0;
+      border-bottom: 1px solid light-dark(#e3e7ee, #30394b);
+      background: transparent;
+    }
+    #print-production-workspace .pp-output-choice svg { width: 17px; height: 17px; }
+    #print-production-workspace .pp-output-choice span { flex: 1; }
+    #print-production-workspace .pp-bottom {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 6px 12px;
+      background: light-dark(#ffffff, #1c2333);
+      border-top: 1px solid light-dark(#dce2eb, #30394b);
+      color: light-dark(#687388, #aeb8ca);
+    }
+    #print-production-workspace .pp-bottom-right { margin-left: auto; display: flex; gap: 14px; }
+    #print-production-workspace .pp-mobile-note { display: none; }
+    @media (max-width: 900px) {
+      #print-production-workspace .pp-main { grid-template-columns: 210px minmax(0, 1fr); }
+      #print-production-workspace .pp-settings-pane { display: none; }
+      #print-production-workspace .pp-saved { display: none; }
+    }
+    @media (max-width: 630px) {
+      #print-production-workspace .pp-topbar { flex-wrap: wrap; }
+      #print-production-workspace .pp-brand { min-width: 0; flex: 1; }
+      #print-production-workspace .pp-subtitle { max-width: 150px; }
+      #print-production-workspace .pp-button span { display: none; }
+      #print-production-workspace .pp-main { display: block; }
+      #print-production-workspace .pp-source-pane { display: none; }
+      #print-production-workspace .pp-preview-pane { padding: 14px 8px 49px; }
+      #print-production-workspace .pp-preview-toolbar { flex-wrap: wrap; }
+      #print-production-workspace .pp-artboard { padding: 15px; }
+      #print-production-workspace .pp-hedgehog { font-size: 76px; }
+      #print-production-workspace .pp-detail-loupe { width: 82px; height: 82px; }
+      #print-production-workspace .pp-loupe-line { display: none; }
+      #print-production-workspace .pp-trust-bar { align-items: flex-start; }
+      #print-production-workspace .pp-bottom { display: none; }
+      #print-production-workspace .pp-mobile-note {
+        display: block;
+        padding: 9px 12px;
+        background: light-dark(#edf2ff, #29354c);
+        color: light-dark(#294b93, #cedaff);
+      }
+    }
+  </style>
+
+  <div class="pp-shell">
+    <header class="pp-topbar">
+      <div class="pp-brand">
+        <div class="pp-mark"><i data-lucide="badge-check" aria-hidden="true"></i></div>
+        <div><div class="pp-title">Print &amp; Production</div><div class="pp-subtitle">Botanical hedgehog · Production version 3</div></div>
+      </div>
+      <div class="pp-spacer"></div>
+      <div class="pp-saved"><i data-lucide="cloud-check" aria-hidden="true"></i>All checks saved</div>
+      <button class="pp-button" type="button"><i data-lucide="messages-square" aria-hidden="true"></i><span>Request approval</span></button>
+      <button class="pp-primary" type="button"><i data-lucide="package-check" aria-hidden="true"></i>Create outputs</button>
+    </header>
+
+    <nav class="pp-purposebar" aria-label="Production purpose">
+      <span class="pp-purpose-label"><i data-lucide="target" aria-hidden="true"></i>Intended use</span>
+      <button class="pp-purpose" type="button" data-purpose="digital" aria-pressed="false">Digital</button>
+      <button class="pp-purpose" type="button" data-purpose="paper" aria-pressed="false">Paper print</button>
+      <button class="pp-purpose" type="button" data-purpose="textile" aria-pressed="true">Textile</button>
+      <button class="pp-purpose" type="button" data-purpose="signage" aria-pressed="false">Large format</button>
+      <button class="pp-purpose" type="button" data-purpose="packaging" aria-pressed="false">Packaging</button>
+      <button class="pp-purpose" type="button" data-purpose="custom" aria-pressed="false">Custom profile</button>
+    </nav>
+
+    <div class="pp-main">
+      <aside class="pp-source-pane" aria-label="Source and production profile">
+        <div class="pp-heading-row"><span>Source</span><span class="pp-count">1 asset</span></div>
+        <button class="pp-asset" type="button">
+          <span class="pp-asset-preview" aria-hidden="true">🦔</span>
+          <span><span class="pp-asset-name">hedgehog-final-v3</span><span class="pp-asset-meta">8192 × 8192 px · RGB</span></span>
+        </button>
+
+        <div class="pp-section">
+          <div class="pp-section-title">Production profile</div>
+          <label><span class="pp-label">Factory profile</span><select class="pp-select" id="pp-profile"><option>Textile · Cotton · Pigment print</option><option>Textile · Polyester · Sublimation</option><option>Paper · Coated · CMYK</option><option>Digital · High resolution</option></select></label>
+          <div class="pp-profile-summary">
+            <div class="pp-profile-row"><span>Material</span><strong id="pp-material">Cotton knit</strong></div>
+            <div class="pp-profile-row"><span>Process</span><strong id="pp-process">Pigment print</strong></div>
+            <div class="pp-profile-row"><span>Machine</span><strong id="pp-machine">Factory profile A</strong></div>
+            <div class="pp-profile-row"><span>Color</span><strong id="pp-colorspace">Profile-managed</strong></div>
+          </div>
+          <button class="pp-link-button" type="button"><i data-lucide="settings-2" aria-hidden="true"></i>Edit profile details</button>
+        </div>
+
+        <div class="pp-section">
+          <div class="pp-section-title">Physical proof</div>
+          <div class="pp-profile-summary">Optional for this project. Record a sample or swatch result when the factory process needs physical confirmation.</div>
+          <button class="pp-link-button" type="button"><i data-lucide="clipboard-check" aria-hidden="true"></i>Add proof result</button>
+        </div>
+      </aside>
+
+      <main class="pp-preview-pane">
+        <div class="pp-preview-toolbar">
+          <div class="pp-view-switch" aria-label="Preview type">
+            <button class="pp-view" type="button" data-view="original" aria-pressed="false">Original</button>
+            <button class="pp-view" type="button" data-view="prepared" aria-pressed="true">Prepared</button>
+            <button class="pp-view" type="button" data-view="simulation" aria-pressed="false">Production simulation</button>
+          </div>
+          <div class="pp-zoom-switch" aria-label="Inspection zoom">
+            <button class="pp-zoom" type="button" data-zoom="100" aria-pressed="false">100%</button>
+            <button class="pp-zoom" type="button" data-zoom="400" aria-pressed="true">400%</button>
+            <button class="pp-zoom" type="button" data-zoom="800" aria-pressed="false">800%</button>
+          </div>
+        </div>
+
+        <div class="pp-artboard" id="pp-artboard" data-view="prepared" data-zoom="400" aria-label="Artwork with magnified detail inspection">
+          <div class="pp-fabric-grain" aria-hidden="true"></div>
+          <div class="pp-botanical" aria-hidden="true"><div class="pp-hedgehog">🦔</div></div>
+          <div class="pp-loupe-line" aria-hidden="true"></div>
+          <div class="pp-detail-loupe"><strong id="pp-loupe-label">400% detail</strong></div>
+          <div class="pp-art-label" id="pp-view-label">Prepared artwork · protected fine detail</div>
+        </div>
+
+        <div class="pp-trust-bar">
+          <strong>Trustworthy size</strong>
+          <div class="pp-trust-track" aria-label="Requested size within trustworthy range"><div class="pp-trust-fill"></div></div>
+          <span id="pp-size-short">Up to 68 cm</span>
+        </div>
+        <div class="pp-preview-status" aria-live="polite"><span class="pp-status-dot"></span><span id="pp-preview-status">Profile applied · preview current</span></div>
+      </main>
+
+      <aside class="pp-settings-pane" aria-label="Production settings and preflight">
+        <div class="pp-settings-tabs" role="tablist" aria-label="Production panels">
+          <button class="pp-settings-tab" type="button" role="tab" data-panel="check" aria-selected="true">Check</button>
+          <button class="pp-settings-tab" type="button" role="tab" data-panel="size" aria-selected="false">Size</button>
+          <button class="pp-settings-tab" type="button" role="tab" data-panel="color" aria-selected="false">Color</button>
+          <button class="pp-settings-tab" type="button" role="tab" data-panel="output" aria-selected="false">Output</button>
+        </div>
+        <div class="pp-settings-content">
+          <section data-content="check">
+            <h3>Production preflight</h3>
+            <p class="pp-help">Checks reflect the selected material, process and machine profile.</p>
+            <div class="pp-ready"><i data-lucide="circle-check" aria-hidden="true"></i><span><strong>Production-ready</strong><br>One recommendation remains; it does not block output.</span></div>
+            <div class="pp-check-row"><i data-lucide="check" aria-hidden="true"></i><div><div class="pp-check-title">Fine detail</div><div class="pp-check-detail">Outlines remain distinct at target size.</div></div><button class="pp-check-action" type="button">View</button></div>
+            <div class="pp-check-row"><i data-lucide="check" aria-hidden="true"></i><div><div class="pp-check-title">Resolution</div><div class="pp-check-detail">Meets this profile’s effective detail requirement.</div></div><button class="pp-check-action" type="button">View</button></div>
+            <div class="pp-check-row"><i data-lucide="check" aria-hidden="true"></i><div><div class="pp-check-title">Transparency</div><div class="pp-check-detail">Edges checked against light and dark material.</div></div><button class="pp-check-action" type="button">View</button></div>
+            <div class="pp-check-row is-warning"><i data-lucide="triangle-alert" aria-hidden="true"></i><div><div class="pp-check-title">Very light tones</div><div class="pp-check-detail">May blend into natural cotton. Review the simulation or request a swatch.</div></div><button class="pp-check-action" type="button">Fix</button></div>
+          </section>
+          <section data-content="size" hidden>
+            <h3>Output dimensions</h3>
+            <p class="pp-help">We separate reliable output from AI-created enlargement.</p>
+            <label><span class="pp-label">Requested width</span><input class="pp-input" value="60 cm"></label>
+            <label><span class="pp-label">Requested height</span><input class="pp-input" value="60 cm"></label>
+            <div class="pp-size-result"><div>Largest trustworthy size</div><div class="pp-size-value">68 × 68 cm</div><div class="pp-size-note">Your requested size is supported without reconstructed detail.</div></div>
+            <button class="pp-link-button" type="button"><i data-lucide="sparkles" aria-hidden="true"></i>Explore a larger Recreate version</button>
+          </section>
+          <section data-content="color" hidden>
+            <h3>Color preparation</h3>
+            <p class="pp-help">Previewed through the selected production profile.</p>
+            <div class="pp-color-list">
+              <div class="pp-color-row"><span class="pp-swatch one"></span><span>Deep brown detail</span><strong>Protected</strong></div>
+              <div class="pp-color-row"><span class="pp-swatch two"></span><span>Botanical green</span><strong>Adjusted</strong></div>
+              <div class="pp-color-row"><span class="pp-swatch three"></span><span>Fabric highlights</span><strong>Review</strong></div>
+            </div>
+            <div class="pp-section"><div class="pp-section-title">Advanced</div><button class="pp-link-button" type="button"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Ink limits, separations and spot colors</button></div>
+          </section>
+          <section data-content="output" hidden>
+            <h3>Production outputs</h3>
+            <p class="pp-help">Create one or several independently checked results.</p>
+            <button class="pp-output-choice" type="button"><i data-lucide="image" aria-hidden="true"></i><span>Production PNG · Transparent</span><i data-lucide="check" aria-hidden="true"></i></button>
+            <button class="pp-output-choice" type="button"><i data-lucide="file-image" aria-hidden="true"></i><span>TIFF · Profile embedded</span><i data-lucide="check" aria-hidden="true"></i></button>
+            <button class="pp-output-choice" type="button"><i data-lucide="file-type-2" aria-hidden="true"></i><span>PDF/X production proof</span><i data-lucide="check" aria-hidden="true"></i></button>
+            <div class="pp-section"><button class="pp-primary" type="button"><i data-lucide="package-check" aria-hidden="true"></i>Create 3 outputs</button></div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <div class="pp-mobile-note">Mobile supports review, approvals, issue confirmation and job monitoring. Detailed production profiling is optimized for larger screens.</div>
+    <footer class="pp-bottom">
+      <span>Original preserved</span><span>Profile v4.2</span><span>No Recreate regions</span>
+      <span class="pp-bottom-right"><span>Approval optional</span><span>Trace ready</span></span>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('print-production-workspace');
+      const purposes = [...root.querySelectorAll('.pp-purpose')];
+      const material = root.querySelector('#pp-material');
+      const process = root.querySelector('#pp-process');
+      const machine = root.querySelector('#pp-machine');
+      const colorSpace = root.querySelector('#pp-colorspace');
+      const sizeShort = root.querySelector('#pp-size-short');
+      const purposeData = {
+        digital: ['Digital canvas', 'Platform export', 'Built-in preset', 'sRGB / Display P3', 'Platform limit'],
+        paper: ['Coated paper', 'Offset / digital', 'Press profile', 'CMYK managed', 'Up to A1'],
+        textile: ['Cotton knit', 'Pigment print', 'Factory profile A', 'Profile-managed', 'Up to 68 cm'],
+        signage: ['Vinyl / board', 'Large-format inkjet', 'Wide-format profile', 'CMYK managed', 'Up to 2.4 m'],
+        packaging: ['Coated board', 'Packaging press', 'Packaging profile', 'CMYK + spot', 'Up to 82 cm'],
+        custom: ['Choose material', 'Choose process', 'Workspace profile', 'Configure color', 'Calculated']
+      };
+      purposes.forEach((button) => button.addEventListener('click', () => {
+        purposes.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        const data = purposeData[button.dataset.purpose];
+        material.textContent = data[0];
+        process.textContent = data[1];
+        machine.textContent = data[2];
+        colorSpace.textContent = data[3];
+        sizeShort.textContent = data[4];
+      }));
+
+      const artboard = root.querySelector('#pp-artboard');
+      const viewLabel = root.querySelector('#pp-view-label');
+      const status = root.querySelector('#pp-preview-status');
+      const views = [...root.querySelectorAll('.pp-view')];
+      const viewNames = {
+        original: 'Original source · unchanged',
+        prepared: 'Prepared artwork · protected fine detail',
+        simulation: 'Estimated production appearance'
+      };
+      views.forEach((button) => button.addEventListener('click', () => {
+        views.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        artboard.dataset.view = button.dataset.view;
+        viewLabel.textContent = viewNames[button.dataset.view];
+        status.textContent = button.dataset.view === 'simulation' ? 'Profile simulation active · physical result may vary' : 'Profile applied · preview current';
+      }));
+
+      const zooms = [...root.querySelectorAll('.pp-zoom')];
+      const loupeLabel = root.querySelector('#pp-loupe-label');
+      zooms.forEach((button) => button.addEventListener('click', () => {
+        zooms.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        artboard.dataset.zoom = button.dataset.zoom;
+        loupeLabel.textContent = button.dataset.zoom + '% detail';
+      }));
+
+      const tabs = [...root.querySelectorAll('.pp-settings-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      tabs.forEach((tab) => tab.addEventListener('click', () => {
+        tabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== tab.dataset.panel; });
+      }));
+    })();
+  </script>
+</section>

@@ -1,0 +1,285 @@
+<section id="privacy-support-diagnostics" aria-label="Privacy consent support access and diagnostic tracing experience">
+  <style>
+    #privacy-support-diagnostics {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #privacy-support-diagnostics * { box-sizing: border-box; }
+    #privacy-support-diagnostics button,
+    #privacy-support-diagnostics input,
+    #privacy-support-diagnostics select,
+    #privacy-support-diagnostics textarea { font: inherit; color: inherit; }
+    #privacy-support-diagnostics button { cursor: pointer; }
+    #privacy-support-diagnostics .pd-shell { min-height: 770px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #privacy-support-diagnostics .pd-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #privacy-support-diagnostics .pd-button,
+    #privacy-support-diagnostics .pd-primary,
+    #privacy-support-diagnostics .pd-danger,
+    #privacy-support-diagnostics .pd-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #privacy-support-diagnostics .pd-icon-button { width: 37px; padding: 7px; }
+    #privacy-support-diagnostics .pd-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #privacy-support-diagnostics .pd-danger { border-color: light-dark(#d9a6a6, #7a5055); color: light-dark(#9a3131, #ffb4b4); background: light-dark(#fffafa, #302327); }
+    #privacy-support-diagnostics .pd-button svg,
+    #privacy-support-diagnostics .pd-primary svg,
+    #privacy-support-diagnostics .pd-danger svg,
+    #privacy-support-diagnostics .pd-icon-button svg { width: 16px; height: 16px; }
+    #privacy-support-diagnostics .pd-title-block { min-width: 255px; }
+    #privacy-support-diagnostics .pd-title { font-weight: 500; }
+    #privacy-support-diagnostics .pd-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 390px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #privacy-support-diagnostics .pd-spacer { flex: 1; }
+    #privacy-support-diagnostics .pd-region { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #privacy-support-diagnostics .pd-region svg { width: 15px; height: 15px; }
+    #privacy-support-diagnostics .pd-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 286px; min-height: 673px; }
+    #privacy-support-diagnostics .pd-nav,
+    #privacy-support-diagnostics .pd-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #privacy-support-diagnostics .pd-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #privacy-support-diagnostics .pd-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #privacy-support-diagnostics .pd-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #privacy-support-diagnostics .pd-nav-list { display: grid; gap: 3px; }
+    #privacy-support-diagnostics .pd-nav-button {
+      width: 100%; min-height: 41px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #privacy-support-diagnostics .pd-nav-button svg { width: 17px; height: 17px; }
+    #privacy-support-diagnostics .pd-nav-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #privacy-support-diagnostics .pd-nav-dot { width: 8px; height: 8px; border-radius: 50%; background: light-dark(#d08b35, #e6b368); }
+    #privacy-support-diagnostics .pd-policy-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-content { min-width: 0; padding: 18px 20px 25px; }
+    #privacy-support-diagnostics .pd-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+    #privacy-support-diagnostics .pd-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #privacy-support-diagnostics .pd-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #privacy-support-diagnostics .pd-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #privacy-support-diagnostics .pd-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #privacy-support-diagnostics .pd-request-banner { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 12px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-request-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #privacy-support-diagnostics .pd-request-card { border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; background: light-dark(#ffffff, #1d2534); overflow: hidden; }
+    #privacy-support-diagnostics .pd-request-head { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #privacy-support-diagnostics .pd-request-icon { width: 41px; height: 41px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #privacy-support-diagnostics .pd-request-icon svg { width: 18px; height: 18px; }
+    #privacy-support-diagnostics .pd-request-title { font-weight: 500; }
+    #privacy-support-diagnostics .pd-request-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #privacy-support-diagnostics .pd-request-status { color: light-dark(#7a5422, #eec884); }
+    #privacy-support-diagnostics .pd-request-body { padding: 11px; }
+    #privacy-support-diagnostics .pd-purpose { padding: 10px; border-radius: 8px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.45; }
+    #privacy-support-diagnostics .pd-scope-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+    #privacy-support-diagnostics .pd-scope { padding: 9px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 8px; }
+    #privacy-support-diagnostics .pd-scope-label { color: light-dark(#6b768a, #a8b3c5); }
+    #privacy-support-diagnostics .pd-scope-value { font-weight: 500; margin-top: 3px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-access-list { display: grid; gap: 6px; margin-top: 10px; }
+    #privacy-support-diagnostics .pd-access-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; }
+    #privacy-support-diagnostics .pd-access-row svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+    #privacy-support-diagnostics .pd-access-row.allowed svg { color: light-dark(#267357, #8fdbbf); }
+    #privacy-support-diagnostics .pd-access-row.blocked svg { color: light-dark(#9a4141, #efaaaa); }
+    #privacy-support-diagnostics .pd-access-row strong { display: block; font-weight: 500; }
+    #privacy-support-diagnostics .pd-access-row small { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 11px; }
+    #privacy-support-diagnostics .pd-data-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #privacy-support-diagnostics .pd-data-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #privacy-support-diagnostics .pd-data-icon svg { width: 18px; height: 18px; }
+    #privacy-support-diagnostics .pd-data-name { font-weight: 500; }
+    #privacy-support-diagnostics .pd-data-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-state { display: inline-flex; align-items: center; gap: 5px; color: light-dark(#1d7153, #8de0bf); }
+    #privacy-support-diagnostics .pd-state svg { width: 15px; height: 15px; }
+    #privacy-support-diagnostics .pd-trace-summary { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; margin-bottom: 12px; }
+    #privacy-support-diagnostics .pd-trace-summary svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #privacy-support-diagnostics .pd-trace-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    #privacy-support-diagnostics .pd-trace-ref { padding: 6px 8px; border-radius: 7px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); }
+    #privacy-support-diagnostics .pd-trace { display: grid; }
+    #privacy-support-diagnostics .pd-trace-step { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; gap: 9px; padding: 8px 0; position: relative; }
+    #privacy-support-diagnostics .pd-trace-step:not(:last-child)::after { content: ""; position: absolute; left: 15px; top: 37px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #privacy-support-diagnostics .pd-trace-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #privacy-support-diagnostics .pd-trace-icon svg { width: 14px; height: 14px; }
+    #privacy-support-diagnostics .pd-trace-icon.warning { background: light-dark(#fff0d9, #46351f); color: light-dark(#a45e14, #f3c078); }
+    #privacy-support-diagnostics .pd-trace-title { font-weight: 500; }
+    #privacy-support-diagnostics .pd-trace-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-trace-time { color: light-dark(#6b768a, #a8b3c5); white-space: nowrap; }
+    #privacy-support-diagnostics .pd-checkpoint { margin-top: 10px; padding: 10px; border-radius: 8px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #privacy-support-diagnostics .pd-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #privacy-support-diagnostics .pd-input,
+    #privacy-support-diagnostics .pd-select,
+    #privacy-support-diagnostics .pd-textarea { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #privacy-support-diagnostics .pd-textarea { min-height: 82px; resize: vertical; }
+    #privacy-support-diagnostics .pd-evidence { margin-top: 10px; }
+    #privacy-support-diagnostics .pd-check { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-check input { width: 18px; height: 18px; margin-top: 1px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #privacy-support-diagnostics .pd-check small { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #privacy-support-diagnostics .pd-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #privacy-support-diagnostics .pd-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #privacy-support-diagnostics .pd-inspector-box { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #privacy-support-diagnostics .pd-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #privacy-support-diagnostics .pd-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #privacy-support-diagnostics .pd-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #privacy-support-diagnostics .pd-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #privacy-support-diagnostics .pd-fact strong { display: block; font-weight: 500; }
+    #privacy-support-diagnostics .pd-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #privacy-support-diagnostics .pd-breakglass { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #privacy-support-diagnostics .pd-dialog { position: absolute; z-index: 10; width: min(440px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px; border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6)); }
+    #privacy-support-diagnostics .pd-dialog[hidden] { display: none; }
+    #privacy-support-diagnostics .pd-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #privacy-support-diagnostics .pd-dialog p { margin: 0 0 10px; color: light-dark(#637087, #afb9ca); line-height: 1.45; }
+    #privacy-support-diagnostics .pd-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
+    #privacy-support-diagnostics .pd-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #privacy-support-diagnostics .pd-toast[hidden] { display: none; }
+    #privacy-support-diagnostics .pd-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #privacy-support-diagnostics .pd-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #privacy-support-diagnostics .pd-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #privacy-support-diagnostics .pd-inspector { display: none; }
+      #privacy-support-diagnostics .pd-region { display: none; }
+    }
+    @media (max-width: 650px) {
+      #privacy-support-diagnostics .pd-header { flex-wrap: wrap; }
+      #privacy-support-diagnostics .pd-title-block { min-width: 0; flex: 1; }
+      #privacy-support-diagnostics .pd-main { display: block; }
+      #privacy-support-diagnostics .pd-nav { display: none; }
+      #privacy-support-diagnostics .pd-content { padding: 14px 11px 22px; }
+      #privacy-support-diagnostics .pd-content-head h2 { font-size: 18px; }
+      #privacy-support-diagnostics .pd-tabs { overflow-x: auto; }
+      #privacy-support-diagnostics .pd-tab { flex: 0 0 auto; }
+      #privacy-support-diagnostics .pd-scope-grid { grid-template-columns: 1fr; }
+      #privacy-support-diagnostics .pd-request-head { grid-template-columns: 40px minmax(0, 1fr); }
+      #privacy-support-diagnostics .pd-request-status { grid-column: 2; }
+      #privacy-support-diagnostics .pd-form-grid { grid-template-columns: 1fr; }
+      #privacy-support-diagnostics .pd-trace-step { grid-template-columns: 31px minmax(0, 1fr); }
+      #privacy-support-diagnostics .pd-trace-time { grid-column: 2; }
+      #privacy-support-diagnostics .pd-bottom { display: none; }
+    }
+  </style>
+
+  <div class="pd-shell">
+    <header class="pd-header">
+      <button class="pd-icon-button" type="button" aria-label="Back to workspace settings"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="pd-title-block"><div class="pd-title">Privacy &amp; support control</div><div class="pd-subtitle">Northstar Studio · Customer-controlled access</div></div>
+      <div class="pd-spacer"></div>
+      <div class="pd-region"><i data-lucide="map-pin" aria-hidden="true"></i>Home region: India</div>
+      <button class="pd-button" type="button"><i data-lucide="scroll-text" aria-hidden="true"></i>Audit history</button>
+    </header>
+
+    <div class="pd-main">
+      <aside class="pd-nav" aria-label="Privacy and diagnostics navigation">
+        <div class="pd-pane-head"><span>Controls</span><i data-lucide="shield-check" aria-hidden="true"></i></div>
+        <div class="pd-nav-list">
+          <button class="pd-nav-button" type="button" data-target="access" aria-pressed="true"><i data-lucide="headset" aria-hidden="true"></i><span>Support access</span><span class="pd-nav-dot" aria-label="One pending request"></span></button>
+          <button class="pd-nav-button" type="button" data-target="data" aria-pressed="false"><i data-lucide="database-zap" aria-hidden="true"></i><span>Data use &amp; consent</span></button>
+          <button class="pd-nav-button" type="button" data-target="trace" aria-pressed="false"><i data-lucide="activity" aria-hidden="true"></i><span>Diagnostic traces</span></button>
+          <button class="pd-nav-button" type="button" data-target="report" aria-pressed="false"><i data-lucide="bug" aria-hidden="true"></i><span>Report a problem</span></button>
+        </div>
+        <div class="pd-policy-note"><strong>Customer content is private by default.</strong><br>Staff cannot browse files simply because they operate the service. Every ordinary access requires customer approval.</div>
+      </aside>
+
+      <main class="pd-content">
+        <div class="pd-content-head"><div><h2 id="pd-heading">Support access request</h2><div class="pd-content-subtitle" id="pd-subtitle">You decide exactly what support can inspect, why and for how long.</div></div></div>
+        <div class="pd-tabs" role="tablist" aria-label="Privacy support and diagnostics views">
+          <button class="pd-tab" type="button" data-panel="access" aria-selected="true">Support access</button>
+          <button class="pd-tab" type="button" data-panel="data" aria-selected="false">Data use</button>
+          <button class="pd-tab" type="button" data-panel="trace" aria-selected="false">Diagnostics</button>
+          <button class="pd-tab" type="button" data-panel="report" aria-selected="false">Bug report</button>
+        </div>
+
+        <section data-content="access">
+          <div class="pd-request-banner"><i data-lucide="shield-alert" aria-hidden="true"></i><span><strong>Approval required.</strong> Support requested narrowly scoped access to investigate one failed export. No access begins until an authorised workspace member approves.</span></div>
+          <article class="pd-request-card"><div class="pd-request-head"><span class="pd-request-icon"><i data-lucide="headset" aria-hidden="true"></i></span><span><span class="pd-request-title">Investigate failed textile export</span><span class="pd-request-meta">Requested by Priya S. · Product support · Ref SUP-2841</span></span><span class="pd-request-status">Awaiting approval</span></div><div class="pd-request-body">
+            <div class="pd-purpose"><strong>Purpose</strong><br>Confirm why the production-profile render stopped after preflight and validate checkpoint recovery for job JOB-7F2A.</div>
+            <div class="pd-scope-grid"><div class="pd-scope"><div class="pd-scope-label">Scope</div><div class="pd-scope-value">One processing job and its sanitised trace</div></div><div class="pd-scope"><div class="pd-scope-label">Access window</div><div class="pd-scope-value">2 hours after approval</div></div><div class="pd-scope"><div class="pd-scope-label">Content access</div><div class="pd-scope-value">Output preview only if separately approved</div></div><div class="pd-scope"><div class="pd-scope-label">Region</div><div class="pd-scope-value">India support boundary</div></div></div>
+            <div class="pd-access-list"><div class="pd-access-row allowed"><i data-lucide="check-circle-2" aria-hidden="true"></i><span><strong>May inspect sanitised job events</strong><small>Processor version, checkpoint, timings and safe error codes</small></span></div><div class="pd-access-row allowed"><i data-lucide="check-circle-2" aria-hidden="true"></i><span><strong>May view one failed output preview</strong><small>Only after you separately enable the preview permission below</small></span></div><div class="pd-access-row blocked"><i data-lucide="x-circle" aria-hidden="true"></i><span><strong>Cannot browse the workspace</strong><small>Other files, projects, comments, connected storage and e-sign packages remain inaccessible</small></span></div></div>
+            <label class="pd-check"><input id="pd-preview-permission" type="checkbox"><span>Allow the failed output preview during this access window<small>Original source and unrelated document layers remain hidden.</small></span></label>
+            <div class="pd-actions"><button class="pd-danger" id="pd-deny" type="button">Deny</button><button class="pd-primary" id="pd-approve" type="button"><i data-lucide="shield-check" aria-hidden="true"></i>Approve scoped access</button></div>
+          </div></article>
+        </section>
+
+        <section data-content="data" hidden>
+          <div class="pd-trace-summary"><i data-lucide="shield-check" aria-hidden="true"></i><span><strong>Your files, prompts and corrections are never used to train product models by default.</strong> Product operation, customer support and optional dataset contribution remain separate purposes.</span></div>
+          <div class="pd-data-row"><span class="pd-data-icon"><i data-lucide="brain-circuit" aria-hidden="true"></i></span><span><span class="pd-data-name">Product-model training</span><span class="pd-data-meta">Customer content, prompts, edits and accepted corrections</span></span><span class="pd-state"><i data-lucide="shield-check" aria-hidden="true"></i>Never by default</span></div>
+          <div class="pd-data-row"><span class="pd-data-icon"><i data-lucide="database" aria-hidden="true"></i></span><span><span class="pd-data-name">Contribute a separate dataset copy</span><span class="pd-data-meta">Requires explicit rights confirmation, granular consent and an independently revocable contributed copy.</span></span><button class="pd-button" type="button">Not enabled</button></div>
+          <div class="pd-data-row"><span class="pd-data-icon"><i data-lucide="map-pin" aria-hidden="true"></i></span><span><span class="pd-data-name">Workspace home region</span><span class="pd-data-meta">Storage and processing remain in India when supported; exceptions require disclosure.</span></span><button class="pd-button" type="button">Review region</button></div>
+          <div class="pd-data-row"><span class="pd-data-icon"><i data-lucide="scan-eye" aria-hidden="true"></i></span><span><span class="pd-data-name">Sensitive export metadata</span><span class="pd-data-meta">GPS and private device metadata removed by default; preservation requires explicit export choice.</span></span><span class="pd-state"><i data-lucide="check" aria-hidden="true"></i>Remove by default</span></div>
+        </section>
+
+        <section data-content="trace" hidden>
+          <div class="pd-trace-summary"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span><strong>Your export stopped safely and recovered from the last checkpoint.</strong> Seventeen completed batch items remain available; one failed item is isolated for review.</span></div>
+          <div class="pd-trace-head"><span class="pd-request-title">Textile batch export</span><span class="pd-trace-ref">Trace TR-9A7C2</span><button class="pd-button" type="button" style="margin-left:auto"><i data-lucide="download" aria-hidden="true"></i>Sanitised support package</button></div>
+          <div class="pd-trace">
+            <div class="pd-trace-step"><span class="pd-trace-icon"><i data-lucide="upload" aria-hidden="true"></i></span><span><span class="pd-trace-title">Files accepted safely</span><span class="pd-trace-meta">24 files inspected; originals preserved and hashes recorded</span></span><span class="pd-trace-time">09:42:05</span></div>
+            <div class="pd-trace-step"><span class="pd-trace-icon"><i data-lucide="list-checks" aria-hidden="true"></i></span><span><span class="pd-trace-title">Preflight completed</span><span class="pd-trace-meta">Files grouped into three compatible recipes; two risks required confirmation</span></span><span class="pd-trace-time">09:42:18</span></div>
+            <div class="pd-trace-step"><span class="pd-trace-icon"><i data-lucide="layers-3" aria-hidden="true"></i></span><span><span class="pd-trace-title">17 outputs completed</span><span class="pd-trace-meta">Outputs committed independently before the remaining item failed</span></span><span class="pd-trace-time">09:48:51</span></div>
+            <div class="pd-trace-step"><span class="pd-trace-icon warning"><i data-lucide="triangle-alert" aria-hidden="true"></i></span><span><span class="pd-trace-title">One item exceeded safe memory policy</span><span class="pd-trace-meta">Processing stopped before corruption; source and prior checkpoint remain intact</span></span><span class="pd-trace-time">09:49:03</span></div>
+            <div class="pd-trace-step"><span class="pd-trace-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><span><span class="pd-trace-title">Recovery route prepared</span><span class="pd-trace-meta">Retry will resume from preflight using a safer tiled processor</span></span><span class="pd-trace-time">Ready</span></div>
+          </div>
+          <div class="pd-checkpoint"><strong>No need to restart the batch.</strong> Retry only the isolated item, reduce the requested output, or send the sanitised trace to support without attaching customer content.</div>
+          <div class="pd-actions"><button class="pd-button" type="button">Change output</button><button class="pd-primary" id="pd-retry" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Retry failed item</button></div>
+        </section>
+
+        <section data-content="report" hidden>
+          <div class="pd-trace-summary"><i data-lucide="bug" aria-hidden="true"></i><span>Safe diagnostics and the trace reference are attached automatically. Screenshots and customer files are included only after your explicit review and consent.</span></div>
+          <div class="pd-form-grid"><div class="pd-field"><label for="pd-area">Where did it happen?</label><select id="pd-area" class="pd-select"><option>Print &amp; Production export</option><option>Image &amp; Graphic Studio</option><option>Create PDF</option><option>Edit &amp; Manage PDF</option></select></div><div class="pd-field"><label for="pd-severity">Impact</label><select id="pd-severity" class="pd-select"><option>Work blocked</option><option>Incorrect result</option><option>Slower than expected</option><option>Visual or usability problem</option></select></div></div>
+          <div class="pd-field" style="margin-top:10px"><label for="pd-description">What happened?</label><textarea id="pd-description" class="pd-textarea">The final textile export stopped after 17 files, but the completed files remained available.</textarea></div>
+          <div class="pd-evidence"><label class="pd-check"><input type="checkbox" checked disabled><span>Attach trace reference TR-9A7C2 and sanitised diagnostics<small>No customer file content, prompts or document text included.</small></span></label><label class="pd-check"><input type="checkbox"><span>Attach a screenshot after review<small>You will preview and redact it before submission.</small></span></label><label class="pd-check"><input type="checkbox"><span>Attach selected source or output files<small>Requires a separate confirmation for each selected file.</small></span></label></div>
+          <div class="pd-actions"><button class="pd-button" type="button">Save draft</button><button class="pd-primary" id="pd-submit-report" type="button"><i data-lucide="send" aria-hidden="true"></i>Review &amp; submit</button></div>
+        </section>
+      </main>
+
+      <aside class="pd-inspector" aria-label="Access and audit safeguards">
+        <h3>Access safeguards</h3><div class="pd-inspector-copy">Customer approval is one control in a larger system of scope, expiry, audit and least privilege.</div>
+        <div class="pd-inspector-box"><strong>Pending request</strong><br><span style="color:light-dark(#6b758a,#aab4c7);line-height:1.45">SUP-2841 · One job · Expires two hours after approval</span></div>
+        <div class="pd-inspector-section"><div class="pd-inspector-title">Always enforced</div><div class="pd-fact"><i data-lucide="target" aria-hidden="true"></i><span><strong>Purpose-bound</strong><small>Only the approved investigation</small></span></div><div class="pd-fact"><i data-lucide="timer" aria-hidden="true"></i><span><strong>Time-limited</strong><small>Automatic access expiry</small></span></div><div class="pd-fact"><i data-lucide="scroll-text" aria-hidden="true"></i><span><strong>Fully audited</strong><small>Who viewed what, when and why</small></span></div><div class="pd-fact"><i data-lucide="ban" aria-hidden="true"></i><span><strong>No silent expansion</strong><small>New scope requires new approval</small></span></div></div>
+        <div class="pd-inspector-section"><div class="pd-inspector-title">Emergency access</div><div class="pd-breakglass"><strong>Break-glass is exceptional.</strong><br>Restricted to security emergencies, tightly controlled, automatically alerted and independently reviewed. It is not a normal support shortcut.</div></div>
+      </aside>
+    </div>
+
+    <section class="pd-dialog" id="pd-dialog" aria-label="Confirm support access" hidden>
+      <h3>Approve scoped support access?</h3><p>Access begins now and expires automatically after two hours. You can revoke it earlier from this page.</p>
+      <label class="pd-check"><input id="pd-confirm-scope" type="checkbox"><span>I approve access only to job JOB-7F2A and its sanitised trace.</span></label>
+      <div class="pd-dialog-actions"><button class="pd-button" id="pd-dialog-cancel" type="button">Cancel</button><button class="pd-primary" id="pd-dialog-confirm" type="button" disabled>Approve access</button></div>
+    </section>
+
+    <div class="pd-toast" id="pd-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="pd-bottom"><span>Private by default</span><span>No model training by default</span><span>Scoped support access</span><span class="pd-bottom-right"><span>Sanitised diagnostics</span><span>Consent before content evidence</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('privacy-support-diagnostics');
+      const tabs = [...root.querySelectorAll('.pd-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const navButtons = [...root.querySelectorAll('.pd-nav-button')];
+      const titles = {
+        access: ['Support access request', 'You decide exactly what support can inspect, why and for how long.'],
+        data: ['Data use & consent', 'Product operation never becomes permission to train models or reuse customer content.'],
+        trace: ['Friendly recovery with advanced trace', 'Understand what happened first; inspect precise diagnostics only when useful.'],
+        report: ['Report a problem safely', 'Useful evidence without silently attaching screenshots, source files or customer content.']
+      };
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+        navButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.target === name)));
+        root.querySelector('#pd-heading').textContent = titles[name][0];
+        root.querySelector('#pd-subtitle').textContent = titles[name][1];
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+      navButtons.forEach((button) => button.addEventListener('click', () => showPanel(button.dataset.target)));
+
+      const toast = root.querySelector('#pd-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2600); };
+      const dialog = root.querySelector('#pd-dialog');
+      const confirmScope = root.querySelector('#pd-confirm-scope');
+      const confirmButton = root.querySelector('#pd-dialog-confirm');
+      root.querySelector('#pd-approve').addEventListener('click', () => { dialog.hidden = false; confirmScope.checked = false; confirmButton.disabled = true; });
+      root.querySelector('#pd-dialog-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      confirmScope.addEventListener('change', () => { confirmButton.disabled = !confirmScope.checked; });
+      confirmButton.addEventListener('click', () => { dialog.hidden = true; announce('Scoped support access approved for two hours and recorded in the audit trail.'); });
+      root.querySelector('#pd-deny').addEventListener('click', () => announce('Support access denied. No customer content or trace access was granted.'));
+      root.querySelector('#pd-retry').addEventListener('click', () => announce('The failed item will resume from the last safe checkpoint using the safer route.'));
+      root.querySelector('#pd-submit-report').addEventListener('click', () => announce('Evidence review opened before the report can be submitted.'));
+    })();
+  </script>
+</section>

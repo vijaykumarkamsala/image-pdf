@@ -1,0 +1,637 @@
+<section id="projects-collaboration-workspace" aria-label="Projects collaboration and connected storage workspace concept">
+  <style>
+    #projects-collaboration-workspace {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff);
+      background: light-dark(#eef1f6, #111722);
+    }
+    #projects-collaboration-workspace * { box-sizing: border-box; }
+    #projects-collaboration-workspace button,
+    #projects-collaboration-workspace input,
+    #projects-collaboration-workspace select { font: inherit; color: inherit; }
+    #projects-collaboration-workspace button { cursor: pointer; }
+    #projects-collaboration-workspace .pc-shell {
+      min-height: 760px;
+      background: light-dark(#f7f8fb, #151b28);
+      overflow: hidden;
+    }
+    #projects-collaboration-workspace .pc-topbar {
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 9px 15px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #projects-collaboration-workspace .pc-brand {
+      min-width: 184px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 500;
+    }
+    #projects-collaboration-workspace .pc-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      color: light-dark(#ffffff, #101725);
+      background: light-dark(#2356d8, #88a5ff);
+    }
+    #projects-collaboration-workspace .pc-mark svg { width: 17px; height: 17px; }
+    #projects-collaboration-workspace .pc-search {
+      width: min(420px, 42%);
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 9px;
+      padding: 7px 10px;
+      background: light-dark(#f1f4f8, #252d3d);
+      border: 1px solid light-dark(#e0e5ec, #323d50);
+      color: light-dark(#667187, #adb7ca);
+    }
+    #projects-collaboration-workspace .pc-search svg { width: 16px; height: 16px; }
+    #projects-collaboration-workspace .pc-search input { width: 100%; border: 0; outline: 0; background: transparent; min-width: 0; }
+    #projects-collaboration-workspace .pc-spacer { flex: 1; }
+    #projects-collaboration-workspace .pc-icon-button,
+    #projects-collaboration-workspace .pc-button,
+    #projects-collaboration-workspace .pc-primary {
+      min-height: 37px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 7px 10px;
+      white-space: nowrap;
+    }
+    #projects-collaboration-workspace .pc-icon-button { width: 37px; padding: 7px; }
+    #projects-collaboration-workspace .pc-primary {
+      background: light-dark(#2356d8, #8aa6ff);
+      color: light-dark(#ffffff, #101827);
+      border-color: transparent;
+      padding-inline: 14px;
+      font-weight: 500;
+    }
+    #projects-collaboration-workspace .pc-icon-button svg,
+    #projects-collaboration-workspace .pc-button svg,
+    #projects-collaboration-workspace .pc-primary svg { width: 16px; height: 16px; }
+    #projects-collaboration-workspace .pc-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: light-dark(#dce6ff, #394864);
+      color: light-dark(#214db8, #d2dcff);
+      font-weight: 500;
+    }
+    #projects-collaboration-workspace .pc-main {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr) 290px;
+      min-height: 664px;
+    }
+    #projects-collaboration-workspace .pc-sidebar,
+    #projects-collaboration-workspace .pc-inspector {
+      background: light-dark(#ffffff, #1b2232);
+      min-width: 0;
+    }
+    #projects-collaboration-workspace .pc-sidebar {
+      border-right: 1px solid light-dark(#dce2eb, #30394b);
+      padding: 13px 10px;
+    }
+    #projects-collaboration-workspace .pc-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); }
+    #projects-collaboration-workspace .pc-workspace-picker {
+      width: 100%;
+      min-height: 41px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d4dbe6, #3b4659);
+      background: light-dark(#ffffff, #222a3a);
+      padding: 7px 9px;
+      margin-bottom: 12px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 7px;
+    }
+    #projects-collaboration-workspace .pc-nav { display: grid; gap: 3px; }
+    #projects-collaboration-workspace .pc-nav-button {
+      width: 100%;
+      min-height: 38px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-align: left;
+      color: light-dark(#465167, #c4cede);
+    }
+    #projects-collaboration-workspace .pc-nav-button svg { width: 17px; height: 17px; }
+    #projects-collaboration-workspace .pc-nav-button[aria-pressed="true"] {
+      background: light-dark(#eaf0ff, #2b3750);
+      color: light-dark(#204fc6, #c3cfff);
+    }
+    #projects-collaboration-workspace .pc-nav-count { margin-left: auto; color: light-dark(#7a8497, #9ea9bc); }
+    #projects-collaboration-workspace .pc-sidebar-section {
+      margin-top: 15px;
+      padding-top: 13px;
+      border-top: 1px solid light-dark(#e3e7ee, #30394b);
+    }
+    #projects-collaboration-workspace .pc-sidebar-label {
+      padding: 0 8px 7px;
+      color: light-dark(#737d91, #9faabd);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    #projects-collaboration-workspace .pc-connection {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 37px;
+      padding: 6px 8px;
+      color: light-dark(#4d586e, #c1cada);
+    }
+    #projects-collaboration-workspace .pc-connection svg { width: 16px; height: 16px; }
+    #projects-collaboration-workspace .pc-connection-state { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; background: light-dark(#23805f, #58d4a6); }
+    #projects-collaboration-workspace .pc-content {
+      min-width: 0;
+      padding: 18px 20px 28px;
+      background: light-dark(#f7f8fb, #151b28);
+    }
+    #projects-collaboration-workspace .pc-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: light-dark(#6a758a, #aab5c8);
+      margin-bottom: 10px;
+    }
+    #projects-collaboration-workspace .pc-breadcrumb button { border: 0; background: transparent; padding: 2px; color: inherit; }
+    #projects-collaboration-workspace .pc-project-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    #projects-collaboration-workspace .pc-project-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #projects-collaboration-workspace .pc-project-subtitle { color: light-dark(#687388, #aeb8ca); }
+    #projects-collaboration-workspace .pc-head-actions { margin-left: auto; display: flex; gap: 7px; }
+    #projects-collaboration-workspace .pc-collaborators { display: flex; align-items: center; margin-right: 3px; }
+    #projects-collaboration-workspace .pc-mini-avatar {
+      width: 29px;
+      height: 29px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin-left: -6px;
+      border: 2px solid light-dark(#f7f8fb, #151b28);
+      background: light-dark(#dce6ff, #394864);
+      color: light-dark(#214db8, #d2dcff);
+      font-weight: 500;
+    }
+    #projects-collaboration-workspace .pc-mini-avatar:first-child { margin-left: 0; }
+    #projects-collaboration-workspace .pc-source-update {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 11px;
+      margin-bottom: 14px;
+      border-radius: 9px;
+      background: light-dark(#fff6e4, #3a3020);
+      color: light-dark(#75500f, #f0cf8a);
+    }
+    #projects-collaboration-workspace .pc-source-update svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    #projects-collaboration-workspace .pc-source-update span { flex: 1; }
+    #projects-collaboration-workspace .pc-update-action { border: 0; background: transparent; color: inherit; font-weight: 500; white-space: nowrap; }
+    #projects-collaboration-workspace .pc-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 13px;
+    }
+    #projects-collaboration-workspace .pc-filter {
+      min-height: 35px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d3dae5, #3a4558);
+      background: light-dark(#ffffff, #222a3a);
+      padding: 6px 9px;
+    }
+    #projects-collaboration-workspace .pc-view-switch {
+      margin-left: auto;
+      display: flex;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d3dae5, #3a4558);
+      background: light-dark(#ffffff, #222a3a);
+    }
+    #projects-collaboration-workspace .pc-view {
+      width: 30px;
+      min-height: 29px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      display: grid;
+      place-items: center;
+    }
+    #projects-collaboration-workspace .pc-view svg { width: 15px; height: 15px; }
+    #projects-collaboration-workspace .pc-view[aria-pressed="true"] { background: light-dark(#eaf0ff, #34415a); color: light-dark(#204fc6, #c3cfff); }
+    #projects-collaboration-workspace .pc-files { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; }
+    #projects-collaboration-workspace .pc-file {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid light-dark(#d8dee8, #394356);
+      background: light-dark(#ffffff, #1d2534);
+      text-align: left;
+    }
+    #projects-collaboration-workspace .pc-file[aria-pressed="true"] {
+      border-color: light-dark(#98b2fb, #647fcb);
+      background: light-dark(#f6f8ff, #222d42);
+    }
+    #projects-collaboration-workspace .pc-file-preview {
+      aspect-ratio: 1.45;
+      border-radius: 7px;
+      margin-bottom: 8px;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: light-dark(#eef1f5, #2a3242);
+    }
+    #projects-collaboration-workspace .pc-file-preview.art { background: light-dark(#e8dfcf, #d7cab7); color: #4c362c; font-size: 48px; }
+    #projects-collaboration-workspace .pc-file-preview.pdf { background: light-dark(#eceff4, #2b3342); }
+    #projects-collaboration-workspace .pc-file-preview.pdf::before {
+      content: "";
+      width: 42%;
+      height: 76%;
+      background: light-dark(#ffffff, #f8f9fd);
+      border: 1px solid light-dark(#c9d1dd, #697386);
+      box-shadow: 0 3px 8px light-dark(#ced5df, #101522);
+    }
+    #projects-collaboration-workspace .pc-file-preview.folder { background: light-dark(#edf2ff, #2a3650); color: light-dark(#315bc1, #c3cfff); }
+    #projects-collaboration-workspace .pc-file-preview.folder svg { width: 48px; height: 48px; }
+    #projects-collaboration-workspace .pc-lock {
+      position: absolute;
+      right: 7px;
+      top: 7px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 7px;
+      padding: 4px 6px;
+      background: light-dark(rgba(255,255,255,.92), rgba(27,34,50,.92));
+      color: light-dark(#5b667b, #bbc5d7);
+    }
+    #projects-collaboration-workspace .pc-lock svg { width: 13px; height: 13px; }
+    #projects-collaboration-workspace .pc-file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #projects-collaboration-workspace .pc-file-meta { margin-top: 3px; color: light-dark(#6d778b, #a8b3c5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #projects-collaboration-workspace .pc-file-foot { display: flex; justify-content: space-between; gap: 7px; align-items: center; margin-top: 8px; }
+    #projects-collaboration-workspace .pc-origin {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: light-dark(#5f6a7f, #b0bacd);
+    }
+    #projects-collaboration-workspace .pc-origin svg { width: 14px; height: 14px; }
+    #projects-collaboration-workspace .pc-version { color: light-dark(#718097, #9eabc0); }
+    #projects-collaboration-workspace .pc-list-mode { grid-template-columns: 1fr; }
+    #projects-collaboration-workspace .pc-list-mode .pc-file { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; align-items: center; }
+    #projects-collaboration-workspace .pc-list-mode .pc-file-preview { margin: 0; aspect-ratio: 1.4; }
+    #projects-collaboration-workspace .pc-list-mode .pc-file-foot { margin: 0; gap: 12px; }
+    #projects-collaboration-workspace .pc-inspector-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #projects-collaboration-workspace .pc-inspector-tab {
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      padding: 12px 3px 9px;
+      color: light-dark(#667187, #adb7ca);
+    }
+    #projects-collaboration-workspace .pc-inspector-tab[aria-selected="true"] {
+      color: light-dark(#204fc6, #c3cfff);
+      border-bottom-color: light-dark(#2757cf, #8aa6ff);
+    }
+    #projects-collaboration-workspace .pc-inspector-content { padding: 14px; }
+    #projects-collaboration-workspace .pc-inspector-content h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #projects-collaboration-workspace .pc-help { color: light-dark(#6b758a, #aab4c7); margin: 0 0 13px; line-height: 1.45; }
+    #projects-collaboration-workspace .pc-detail-preview {
+      aspect-ratio: 1.45;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#e8dfcf, #d7cab7);
+      color: #4c362c;
+      font-size: 63px;
+      margin-bottom: 12px;
+    }
+    #projects-collaboration-workspace .pc-detail-row { display: flex; justify-content: space-between; gap: 9px; padding: 6px 0; }
+    #projects-collaboration-workspace .pc-detail-row span:first-child { color: light-dark(#707a8e, #a2adbf); }
+    #projects-collaboration-workspace .pc-info-section {
+      margin-top: 13px;
+      padding-top: 13px;
+      border-top: 1px solid light-dark(#e1e5ec, #30394b);
+    }
+    #projects-collaboration-workspace .pc-info-title { font-weight: 500; margin-bottom: 8px; }
+    #projects-collaboration-workspace .pc-source-state {
+      padding: 10px;
+      border-radius: 8px;
+      background: light-dark(#fff6e4, #3a3020);
+      color: light-dark(#75500f, #f0cf8a);
+      line-height: 1.4;
+    }
+    #projects-collaboration-workspace .pc-version-item,
+    #projects-collaboration-workspace .pc-comment-item,
+    #projects-collaboration-workspace .pc-access-item {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px solid light-dark(#e2e6ed, #30394b);
+    }
+    #projects-collaboration-workspace .pc-version-dot {
+      width: 27px;
+      height: 27px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: light-dark(#eaf0ff, #2b3750);
+      color: light-dark(#204fc6, #c3cfff);
+    }
+    #projects-collaboration-workspace .pc-version-dot svg { width: 14px; height: 14px; }
+    #projects-collaboration-workspace .pc-item-title { font-weight: 500; }
+    #projects-collaboration-workspace .pc-item-copy { color: light-dark(#6a758a, #aab5c8); margin-top: 2px; line-height: 1.4; }
+    #projects-collaboration-workspace .pc-inherited {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: light-dark(#627087, #adb8ca);
+      margin-top: 4px;
+    }
+    #projects-collaboration-workspace .pc-inherited svg { width: 13px; height: 13px; }
+    #projects-collaboration-workspace .pc-share-panel {
+      position: absolute;
+      right: 16px;
+      top: 64px;
+      z-index: 6;
+      width: min(350px, calc(100% - 32px));
+      padding: 14px;
+      border-radius: 11px;
+      border: 1px solid light-dark(#d1d9e5, #3d485c);
+      background: light-dark(#ffffff, #1f2737);
+      box-shadow: 0 14px 34px light-dark(rgba(78,91,115,.25), rgba(4,7,12,.5));
+    }
+    #projects-collaboration-workspace .pc-share-panel[hidden] { display: none; }
+    #projects-collaboration-workspace .pc-share-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 11px; }
+    #projects-collaboration-workspace .pc-share-title { font-weight: 500; }
+    #projects-collaboration-workspace .pc-share-close { border: 0; background: transparent; padding: 5px; display: grid; place-items: center; }
+    #projects-collaboration-workspace .pc-share-close svg { width: 16px; height: 16px; }
+    #projects-collaboration-workspace .pc-field-label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #projects-collaboration-workspace .pc-select,
+    #projects-collaboration-workspace .pc-input {
+      width: 100%;
+      min-height: 37px;
+      border-radius: 7px;
+      border: 1px solid light-dark(#ccd5e2, #414c60);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 9px;
+      margin-bottom: 10px;
+    }
+    #projects-collaboration-workspace .pc-share-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #projects-collaboration-workspace .pc-share-note { color: light-dark(#6c778b, #a9b4c7); line-height: 1.4; margin: 9px 0 12px; }
+    #projects-collaboration-workspace .pc-share-actions { display: flex; justify-content: flex-end; gap: 7px; }
+    #projects-collaboration-workspace .pc-bottom {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 6px 12px;
+      border-top: 1px solid light-dark(#dce2eb, #30394b);
+      background: light-dark(#ffffff, #1c2333);
+      color: light-dark(#687388, #aeb8ca);
+    }
+    #projects-collaboration-workspace .pc-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    #projects-collaboration-workspace .pc-mobile-note { display: none; }
+    @media (max-width: 900px) {
+      #projects-collaboration-workspace .pc-main { grid-template-columns: 170px minmax(0, 1fr); }
+      #projects-collaboration-workspace .pc-inspector { display: none; }
+      #projects-collaboration-workspace .pc-files { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #projects-collaboration-workspace .pc-search { width: 34%; }
+    }
+    @media (max-width: 640px) {
+      #projects-collaboration-workspace .pc-brand { min-width: auto; }
+      #projects-collaboration-workspace .pc-brand span { display: none; }
+      #projects-collaboration-workspace .pc-search { flex: 1; width: auto; }
+      #projects-collaboration-workspace .pc-primary span { display: none; }
+      #projects-collaboration-workspace .pc-avatar { display: none; }
+      #projects-collaboration-workspace .pc-main { display: block; }
+      #projects-collaboration-workspace .pc-sidebar { display: none; }
+      #projects-collaboration-workspace .pc-content { padding: 14px 11px 20px; }
+      #projects-collaboration-workspace .pc-head-actions .pc-collaborators,
+      #projects-collaboration-workspace .pc-head-actions .pc-button { display: none; }
+      #projects-collaboration-workspace .pc-project-head h2 { font-size: 18px; }
+      #projects-collaboration-workspace .pc-files { grid-template-columns: 1fr 1fr; gap: 8px; }
+      #projects-collaboration-workspace .pc-file-preview.art { font-size: 38px; }
+      #projects-collaboration-workspace .pc-source-update { align-items: flex-start; flex-wrap: wrap; }
+      #projects-collaboration-workspace .pc-update-action { width: 100%; text-align: left; padding-left: 25px; }
+      #projects-collaboration-workspace .pc-bottom { display: none; }
+      #projects-collaboration-workspace .pc-mobile-note {
+        display: block;
+        padding: 9px 12px;
+        background: light-dark(#edf2ff, #29354c);
+        color: light-dark(#294b93, #cedaff);
+      }
+    }
+  </style>
+
+  <div class="pc-shell">
+    <header class="pc-topbar">
+      <div class="pc-brand"><div class="pc-mark"><i data-lucide="layout-grid" aria-hidden="true"></i></div><span>Visual Workspace</span></div>
+      <label class="pc-search"><i data-lucide="search" aria-hidden="true"></i><input type="search" placeholder="Search projects, files and comments" aria-label="Search projects, files and comments"></label>
+      <div class="pc-spacer"></div>
+      <button class="pc-icon-button" type="button" aria-label="Background jobs"><i data-lucide="activity" aria-hidden="true"></i></button>
+      <button class="pc-icon-button" type="button" aria-label="Notifications"><i data-lucide="bell" aria-hidden="true"></i></button>
+      <div class="pc-avatar">VK</div>
+    </header>
+
+    <div class="pc-main">
+      <aside class="pc-sidebar" aria-label="Workspace navigation">
+        <button class="pc-workspace-picker" type="button"><span>Northstar Studio</span><i data-lucide="chevrons-up-down" aria-hidden="true"></i></button>
+        <nav class="pc-nav">
+          <button class="pc-nav-button" type="button" aria-pressed="false"><i data-lucide="house" aria-hidden="true"></i>Home</button>
+          <button class="pc-nav-button" type="button" aria-pressed="true"><i data-lucide="folder-kanban" aria-hidden="true"></i>Projects</button>
+          <button class="pc-nav-button" type="button" aria-pressed="false"><i data-lucide="files" aria-hidden="true"></i>My files<span class="pc-nav-count">24</span></button>
+          <button class="pc-nav-button" type="button" aria-pressed="false"><i data-lucide="users" aria-hidden="true"></i>Shared with me<span class="pc-nav-count">7</span></button>
+          <button class="pc-nav-button" type="button" aria-pressed="false"><i data-lucide="clock-3" aria-hidden="true"></i>Recent</button>
+          <button class="pc-nav-button" type="button" aria-pressed="false"><i data-lucide="trash-2" aria-hidden="true"></i>Trash</button>
+        </nav>
+        <div class="pc-sidebar-section">
+          <div class="pc-sidebar-label">Connected storage</div>
+          <div class="pc-connection"><i data-lucide="hard-drive" aria-hidden="true"></i>Google Drive<span class="pc-connection-state" aria-label="Connected"></span></div>
+          <div class="pc-connection"><i data-lucide="cloud" aria-hidden="true"></i>SharePoint<span class="pc-connection-state" aria-label="Connected"></span></div>
+          <div class="pc-connection"><i data-lucide="box" aria-hidden="true"></i>Dropbox<span class="pc-connection-state" aria-label="Connected"></span></div>
+        </div>
+      </aside>
+
+      <main class="pc-content">
+        <nav class="pc-breadcrumb" aria-label="Project breadcrumb"><button type="button">Projects</button><i data-lucide="chevron-right" aria-hidden="true"></i><button type="button">Kidswear 2027</button><i data-lucide="chevron-right" aria-hidden="true"></i><span>Woodland collection</span></nav>
+        <div class="pc-project-head">
+          <div><h2>Woodland collection</h2><div class="pc-project-subtitle">Mixed project · 6 files · Inherits access from Kidswear 2027</div></div>
+          <div class="pc-head-actions">
+            <div class="pc-collaborators" aria-label="Three collaborators"><span class="pc-mini-avatar">VK</span><span class="pc-mini-avatar">AS</span><span class="pc-mini-avatar">+1</span></div>
+            <button class="pc-button" id="pc-share-open" type="button"><i data-lucide="user-plus" aria-hidden="true"></i>Share</button>
+            <button class="pc-primary" type="button"><i data-lucide="plus" aria-hidden="true"></i><span>New</span></button>
+          </div>
+        </div>
+
+        <div class="pc-source-update" id="pc-source-update"><i data-lucide="refresh-cw" aria-hidden="true"></i><span><strong>A connected source changed.</strong> Google Drive has a newer version of “hedgehog-source”. Your current work remains unchanged.</span><button class="pc-update-action" id="pc-review-update" type="button">Review source update</button></div>
+
+        <div class="pc-controls">
+          <select class="pc-filter" aria-label="File type"><option>All files</option><option>Graphics</option><option>PDFs</option><option>Folders</option></select>
+          <select class="pc-filter" aria-label="File owner"><option>Everyone</option><option>Owned by me</option><option>Shared</option></select>
+          <div class="pc-view-switch" aria-label="File view">
+            <button class="pc-view" type="button" data-view="grid" aria-pressed="true" aria-label="Grid view"><i data-lucide="grid-2x2" aria-hidden="true"></i></button>
+            <button class="pc-view" type="button" data-view="list" aria-pressed="false" aria-label="List view"><i data-lucide="list" aria-hidden="true"></i></button>
+          </div>
+        </div>
+
+        <div class="pc-files" id="pc-files">
+          <button class="pc-file" type="button" aria-pressed="false">
+            <div class="pc-file-preview folder"><i data-lucide="folder" aria-hidden="true"></i></div>
+            <div><div class="pc-file-name">Print approvals</div><div class="pc-file-meta">Subproject · 2 items</div></div>
+            <div class="pc-file-foot"><span class="pc-origin"><i data-lucide="users" aria-hidden="true"></i>Inherited</span><span class="pc-version">Today</span></div>
+          </button>
+          <button class="pc-file" type="button" aria-pressed="true">
+            <div class="pc-file-preview art">🦔<span class="pc-lock"><i data-lucide="pen-line" aria-hidden="true"></i>You are editing</span></div>
+            <div><div class="pc-file-name">Hedgehog textile design</div><div class="pc-file-meta">Graphic document · 4 artboards</div></div>
+            <div class="pc-file-foot"><span class="pc-origin"><i data-lucide="hard-drive" aria-hidden="true"></i>Drive source</span><span class="pc-version">v12</span></div>
+          </button>
+          <button class="pc-file" type="button" aria-pressed="false">
+            <div class="pc-file-preview pdf"><span class="pc-lock"><i data-lucide="eye" aria-hidden="true"></i>Asha editing</span></div>
+            <div><div class="pc-file-name">Factory production brief</div><div class="pc-file-meta">PDF · 8 pages · View only now</div></div>
+            <div class="pc-file-foot"><span class="pc-origin"><i data-lucide="folder-kanban" aria-hidden="true"></i>Project</span><span class="pc-version">v5</span></div>
+          </button>
+          <button class="pc-file" type="button" aria-pressed="false">
+            <div class="pc-file-preview art">🦊</div>
+            <div><div class="pc-file-name">Fox print variation</div><div class="pc-file-meta">Graphic document · 3 artboards</div></div>
+            <div class="pc-file-foot"><span class="pc-origin"><i data-lucide="box" aria-hidden="true"></i>Dropbox</span><span class="pc-version">v8</span></div>
+          </button>
+          <button class="pc-file" type="button" aria-pressed="false">
+            <div class="pc-file-preview pdf"></div>
+            <div><div class="pc-file-name">Material specifications</div><div class="pc-file-meta">PDF · 14 pages</div></div>
+            <div class="pc-file-foot"><span class="pc-origin"><i data-lucide="cloud" aria-hidden="true"></i>SharePoint</span><span class="pc-version">v3</span></div>
+          </button>
+          <button class="pc-file" type="button" aria-pressed="false">
+            <div class="pc-file-preview folder"><i data-lucide="folder" aria-hidden="true"></i></div>
+            <div><div class="pc-file-name">Final delivery</div><div class="pc-file-meta">Subproject · 5 items</div></div>
+            <div class="pc-file-foot"><span class="pc-origin"><i data-lucide="shield-check" aria-hidden="true"></i>Approved</span><span class="pc-version">Yesterday</span></div>
+          </button>
+        </div>
+      </main>
+
+      <aside class="pc-inspector" aria-label="Selected file information">
+        <div class="pc-inspector-tabs" role="tablist" aria-label="File information">
+          <button class="pc-inspector-tab" type="button" data-panel="details" aria-selected="true">Details</button>
+          <button class="pc-inspector-tab" type="button" data-panel="versions" aria-selected="false">Versions</button>
+          <button class="pc-inspector-tab" type="button" data-panel="comments" aria-selected="false">Comments</button>
+          <button class="pc-inspector-tab" type="button" data-panel="access" aria-selected="false">Access</button>
+        </div>
+        <div class="pc-inspector-content">
+          <section data-content="details">
+            <h3>Hedgehog textile design</h3>
+            <p class="pc-help">Native graphic document with four independent artboards.</p>
+            <div class="pc-detail-preview" aria-hidden="true">🦔</div>
+            <div class="pc-detail-row"><span>Current version</span><strong>v12</strong></div>
+            <div class="pc-detail-row"><span>Editing</span><strong>You</strong></div>
+            <div class="pc-detail-row"><span>Original</span><strong>Untouched</strong></div>
+            <div class="pc-detail-row"><span>Last saved</span><strong>Just now</strong></div>
+            <div class="pc-info-section"><div class="pc-info-title">Connected source</div><div class="pc-source-state" id="pc-detail-source"><strong>New Drive version available</strong><br>Compare it before creating a new source version. Existing document work will not be replaced automatically.</div></div>
+          </section>
+          <section data-content="versions" hidden>
+            <h3>Version history</h3><p class="pc-help">Automatic and named versions remain durable.</p>
+            <div class="pc-version-item"><span class="pc-version-dot"><i data-lucide="bookmark-check" aria-hidden="true"></i></span><div><div class="pc-item-title">v12 · Print review</div><div class="pc-item-copy">Named by Vijay · Just now</div></div></div>
+            <div class="pc-version-item"><span class="pc-version-dot"><i data-lucide="save" aria-hidden="true"></i></span><div><div class="pc-item-title">v11 · Automatic</div><div class="pc-item-copy">Color preparation changed · 22 min ago</div></div></div>
+            <div class="pc-version-item"><span class="pc-version-dot"><i data-lucide="git-branch" aria-hidden="true"></i></span><div><div class="pc-item-title">v10 · Source update</div><div class="pc-item-copy">Created from Google Drive source v4</div></div></div>
+            <button class="pc-button" type="button"><i data-lucide="history" aria-hidden="true"></i>Compare versions</button>
+          </section>
+          <section data-content="comments" hidden>
+            <h3>Comments</h3><p class="pc-help">Threads remain anchored to their exact version and region.</p>
+            <div class="pc-comment-item"><span class="pc-mini-avatar">AS</span><div><div class="pc-item-title">Asha · Open</div><div class="pc-item-copy">“Please protect the lighter flower detail before the textile export.”</div><div class="pc-inherited"><i data-lucide="map-pin" aria-hidden="true"></i>Artboard 2 · v12</div></div></div>
+            <div class="pc-comment-item"><span class="pc-mini-avatar">RK</span><div><div class="pc-item-title">Ravi · Carried forward</div><div class="pc-item-copy">“Factory confirmed the 60 cm width.”</div><div class="pc-inherited"><i data-lucide="git-commit-horizontal" aria-hidden="true"></i>Originally on v10</div></div></div>
+            <button class="pc-button" type="button"><i data-lucide="message-square-plus" aria-hidden="true"></i>Add comment</button>
+          </section>
+          <section data-content="access" hidden>
+            <h3>Access</h3><p class="pc-help">Permissions inherit from the parent unless explicitly changed here.</p>
+            <div class="pc-access-item"><span class="pc-mini-avatar">VK</span><div><div class="pc-item-title">Vijay · Owner</div><div class="pc-item-copy">Full control</div></div></div>
+            <div class="pc-access-item"><span class="pc-mini-avatar">AS</span><div><div class="pc-item-title">Asha · Editor</div><div class="pc-inherited"><i data-lucide="corner-down-right" aria-hidden="true"></i>Inherited from Kidswear 2027</div></div></div>
+            <div class="pc-access-item"><span class="pc-mini-avatar">RK</span><div><div class="pc-item-title">Ravi · Viewer</div><div class="pc-inherited"><i data-lucide="corner-down-right" aria-hidden="true"></i>Project override</div></div></div>
+            <button class="pc-button" type="button"><i data-lucide="shield" aria-hidden="true"></i>Manage access</button>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <section class="pc-share-panel" id="pc-share-panel" aria-label="Share project" hidden>
+      <div class="pc-share-head"><div class="pc-share-title">Share Woodland collection</div><button class="pc-share-close" id="pc-share-close" type="button" aria-label="Close share panel"><i data-lucide="x" aria-hidden="true"></i></button></div>
+      <label><span class="pc-field-label">Invite people</span><input class="pc-input" placeholder="Email address or name"></label>
+      <div class="pc-share-options">
+        <label><span class="pc-field-label">Access</span><select class="pc-select"><option>Can edit</option><option>Can view and download</option><option>Can view</option></select></label>
+        <label><span class="pc-field-label">Scope</span><select class="pc-select"><option>This project</option><option>This subproject only</option><option>Selected files</option></select></label>
+      </div>
+      <div class="pc-share-note">Inherited child access is shown before sending. External cloud-folder sharing remains controlled by that provider.</div>
+      <div class="pc-share-actions"><button class="pc-button" type="button"><i data-lucide="link-2" aria-hidden="true"></i>Create secure link</button><button class="pc-primary" type="button"><i data-lucide="send" aria-hidden="true"></i>Invite</button></div>
+    </section>
+
+    <div class="pc-mobile-note">Mobile prioritizes browsing, uploads, review, comments, sharing, approvals and job status. Full professional editing opens in the focused editor.</div>
+    <footer class="pc-bottom"><span>Autosave active</span><span>Personal and workspace connections</span><span>Source files never overwritten</span><span class="pc-bottom-right"><span>Free during testing</span><span>Retention protected</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('projects-collaboration-workspace');
+      const tabs = [...root.querySelectorAll('.pc-inspector-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      tabs.forEach((tab) => tab.addEventListener('click', () => {
+        tabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== tab.dataset.panel; });
+      }));
+
+      const views = [...root.querySelectorAll('.pc-view')];
+      const files = root.querySelector('#pc-files');
+      views.forEach((button) => button.addEventListener('click', () => {
+        views.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        files.classList.toggle('pc-list-mode', button.dataset.view === 'list');
+      }));
+
+      const fileButtons = [...root.querySelectorAll('.pc-file')];
+      fileButtons.forEach((button) => button.addEventListener('click', () => {
+        fileButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      }));
+
+      const update = root.querySelector('#pc-source-update');
+      const updateButton = root.querySelector('#pc-review-update');
+      const sourceDetail = root.querySelector('#pc-detail-source');
+      updateButton.addEventListener('click', () => {
+        update.innerHTML = '<i data-lucide="git-compare" aria-hidden="true"></i><span><strong>Source comparison ready.</strong> Keep current work, create a new source version, or ignore this external update. No replacement happens without confirmation.</span><button class="pc-update-action" type="button">Choose action</button>';
+        sourceDetail.innerHTML = '<strong>Comparison ready</strong><br>External source v5 and current source v4 are available side by side.';
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }));
+
+      const sharePanel = root.querySelector('#pc-share-panel');
+      root.querySelector('#pc-share-open').addEventListener('click', () => { sharePanel.hidden = false; });
+      root.querySelector('#pc-share-close').addEventListener('click', () => { sharePanel.hidden = true; });
+    })();
+  </script>
+</section>

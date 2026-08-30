@@ -1,0 +1,434 @@
+<section id="mobile-experience-direction" aria-label="Mobile experience direction">
+  <style>
+    #mobile-experience-direction {
+      width: 100%;
+      min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff);
+    }
+    #mobile-experience-direction * { box-sizing: border-box; }
+    #mobile-experience-direction button,
+    #mobile-experience-direction input { font: inherit; color: inherit; }
+    #mobile-experience-direction button { cursor: pointer; }
+    #mobile-experience-direction .me-stage {
+      padding: 16px;
+      background: light-dark(#e9edf4, #111722);
+    }
+    #mobile-experience-direction .me-selector {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    #mobile-experience-direction .me-mode {
+      min-height: 36px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #222a3a);
+      padding: 7px 10px;
+      color: light-dark(#59657a, #b6c0d2);
+    }
+    #mobile-experience-direction .me-mode[aria-pressed="true"] {
+      border-color: light-dark(#9fb6f8, #657fca);
+      background: light-dark(#eaf0ff, #2b3750);
+      color: light-dark(#204fc6, #c3cfff);
+    }
+    #mobile-experience-direction .me-phone {
+      width: min(390px, 100%);
+      margin: 0 auto;
+      border-radius: 26px;
+      padding: 8px;
+      background: light-dark(#202736, #070a10);
+      box-shadow: 0 18px 45px light-dark(rgba(67,79,101,.28), rgba(0,0,0,.58));
+    }
+    #mobile-experience-direction .me-screen {
+      min-height: 680px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: light-dark(#f7f8fb, #151b28);
+      color: light-dark(#172033, #eef2ff);
+      position: relative;
+      padding-bottom: 65px;
+    }
+    #mobile-experience-direction .me-statusbar {
+      min-height: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 14px 0;
+      color: light-dark(#556176, #b9c3d5);
+    }
+    #mobile-experience-direction .me-status-icons { display: flex; gap: 5px; align-items: center; }
+    #mobile-experience-direction .me-status-icons svg { width: 13px; height: 13px; }
+    #mobile-experience-direction .me-appbar {
+      min-height: 51px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      background: light-dark(#ffffff, #1c2333);
+      border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #mobile-experience-direction .me-mark {
+      width: 31px;
+      height: 31px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#2356d8, #88a5ff);
+      color: light-dark(#ffffff, #101725);
+    }
+    #mobile-experience-direction .me-mark svg { width: 16px; height: 16px; }
+    #mobile-experience-direction .me-app-title { font-weight: 500; flex: 1; min-width: 0; }
+    #mobile-experience-direction .me-app-subtitle { color: light-dark(#6a758a, #aab5c8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #mobile-experience-direction .me-icon-button,
+    #mobile-experience-direction .me-button,
+    #mobile-experience-direction .me-primary {
+      min-height: 38px;
+      border-radius: 8px;
+      border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b);
+      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    #mobile-experience-direction .me-icon-button { width: 38px; padding: 7px; border-color: transparent; background: transparent; }
+    #mobile-experience-direction .me-primary {
+      border-color: transparent;
+      background: light-dark(#2356d8, #8aa6ff);
+      color: light-dark(#ffffff, #101827);
+      font-weight: 500;
+    }
+    #mobile-experience-direction .me-icon-button svg,
+    #mobile-experience-direction .me-button svg,
+    #mobile-experience-direction .me-primary svg { width: 16px; height: 16px; }
+    #mobile-experience-direction .me-content { padding: 14px 12px 20px; }
+    #mobile-experience-direction .me-greeting { margin-bottom: 13px; }
+    #mobile-experience-direction .me-greeting h2 { font-size: 20px; font-weight: 500; margin: 0 0 3px; }
+    #mobile-experience-direction .me-muted { color: light-dark(#687388, #aeb8ca); line-height: 1.4; }
+    #mobile-experience-direction .me-quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    #mobile-experience-direction .me-action {
+      min-height: 83px;
+      border-radius: 10px;
+      border: 1px solid light-dark(#d7dee8, #394356);
+      background: light-dark(#ffffff, #1d2534);
+      padding: 10px;
+      text-align: left;
+    }
+    #mobile-experience-direction .me-action svg { width: 20px; height: 20px; margin-bottom: 7px; color: light-dark(#2453c4, #bdcaff); }
+    #mobile-experience-direction .me-action strong { display: block; font-weight: 500; }
+    #mobile-experience-direction .me-action span { color: light-dark(#6b768a, #a8b3c5); display: block; margin-top: 2px; }
+    #mobile-experience-direction .me-section-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 0 8px; }
+    #mobile-experience-direction .me-section-title { font-weight: 500; }
+    #mobile-experience-direction .me-link { border: 0; background: transparent; padding: 4px; color: light-dark(#2050c7, #bfccff); }
+    #mobile-experience-direction .me-recent {
+      display: grid;
+      grid-template-columns: 58px 1fr auto;
+      gap: 9px;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid light-dark(#e0e5ec, #30394b);
+    }
+    #mobile-experience-direction .me-thumb {
+      width: 58px;
+      aspect-ratio: 1.2;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#e8dfcf, #d7cab7);
+      color: #4c362c;
+      font-size: 28px;
+    }
+    #mobile-experience-direction .me-item-name { font-weight: 500; }
+    #mobile-experience-direction .me-item-meta { color: light-dark(#6c778b, #a9b4c7); margin-top: 2px; }
+    #mobile-experience-direction .me-chevron svg { width: 16px; height: 16px; }
+    #mobile-experience-direction .me-job {
+      margin-top: 14px;
+      padding: 10px;
+      border-radius: 9px;
+      background: light-dark(#edf2ff, #29354c);
+      color: light-dark(#294b93, #cedaff);
+    }
+    #mobile-experience-direction .me-job-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+    #mobile-experience-direction .me-progress { height: 6px; border-radius: 999px; overflow: hidden; background: light-dark(#cbd6f2, #38496c); }
+    #mobile-experience-direction .me-progress-fill { height: 100%; width: 68%; background: light-dark(#2858cf, #98afff); }
+    #mobile-experience-direction .me-project-title { margin-bottom: 11px; }
+    #mobile-experience-direction .me-project-title h2 { margin: 0 0 3px; font-size: 19px; font-weight: 500; }
+    #mobile-experience-direction .me-source-update {
+      padding: 10px;
+      border-radius: 9px;
+      margin-bottom: 11px;
+      background: light-dark(#fff6e4, #3a3020);
+      color: light-dark(#75500f, #f0cf8a);
+      line-height: 1.4;
+    }
+    #mobile-experience-direction .me-source-update button { border: 0; background: transparent; padding: 8px 0 0; color: inherit; font-weight: 500; }
+    #mobile-experience-direction .me-project-file {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid light-dark(#d7dee8, #394356);
+      background: light-dark(#ffffff, #1d2534);
+      margin-bottom: 9px;
+    }
+    #mobile-experience-direction .me-project-preview {
+      width: 72px;
+      aspect-ratio: 1;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: light-dark(#e8dfcf, #d7cab7);
+      color: #4c362c;
+      font-size: 35px;
+    }
+    #mobile-experience-direction .me-file-state { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; color: light-dark(#597087, #aebcd0); }
+    #mobile-experience-direction .me-file-state svg { width: 14px; height: 14px; }
+    #mobile-experience-direction .me-comment {
+      display: grid;
+      grid-template-columns: 29px 1fr;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 1px solid light-dark(#e0e5ec, #30394b);
+    }
+    #mobile-experience-direction .me-mini-avatar {
+      width: 29px;
+      height: 29px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: light-dark(#dce6ff, #394864);
+      color: light-dark(#214db8, #d2dcff);
+      font-weight: 500;
+    }
+    #mobile-experience-direction .me-comment-copy { line-height: 1.4; }
+    #mobile-experience-direction .me-comment-meta { color: light-dark(#6c778b, #a9b4c7); margin-bottom: 3px; }
+    #mobile-experience-direction .me-edit-canvas {
+      aspect-ratio: 1;
+      width: 100%;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      background: light-dark(#e8dfcf, #d7cab7);
+      color: #4c362c;
+    }
+    #mobile-experience-direction .me-edit-art { font-size: 92px; filter: saturate(.75); }
+    #mobile-experience-direction .me-zoom-label {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      padding: 5px 7px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.88);
+      color: #4c4137;
+    }
+    #mobile-experience-direction .me-safe-note {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-top: 10px;
+      padding: 9px;
+      border-radius: 8px;
+      background: light-dark(#edf8f3, #203a33);
+      color: light-dark(#176749, #b9eedb);
+      line-height: 1.4;
+    }
+    #mobile-experience-direction .me-safe-note svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #mobile-experience-direction .me-tool-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 12px; }
+    #mobile-experience-direction .me-tool {
+      min-height: 56px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      color: light-dark(#4e5a70, #c1cada);
+    }
+    #mobile-experience-direction .me-tool svg { width: 18px; height: 18px; }
+    #mobile-experience-direction .me-tool[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #mobile-experience-direction .me-sign-progress { display: flex; gap: 5px; margin: 8px 0 13px; }
+    #mobile-experience-direction .me-sign-progress span { height: 5px; flex: 1; border-radius: 999px; background: light-dark(#d4dae4, #353e4f); }
+    #mobile-experience-direction .me-sign-progress span.is-complete { background: light-dark(#2858cf, #8fa9ff); }
+    #mobile-experience-direction .me-doc-page {
+      min-height: 390px;
+      padding: 24px 21px;
+      background: light-dark(#ffffff, #f8f9fd);
+      color: #182136;
+      box-shadow: 0 5px 17px light-dark(#ccd3de, #090d15);
+      position: relative;
+    }
+    #mobile-experience-direction .me-doc-kicker { color: #3158b8; text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+    #mobile-experience-direction .me-doc-page h3 { font-size: 18px; margin: 8px 0; font-weight: 500; }
+    #mobile-experience-direction .me-doc-page p { line-height: 1.5; margin: 0 0 13px; }
+    #mobile-experience-direction .me-recipient-field {
+      min-height: 43px;
+      padding: 9px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border: 1px solid #7190dc;
+      background: #f2f6ff;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #536486;
+    }
+    #mobile-experience-direction .me-recipient-field svg { width: 16px; height: 16px; }
+    #mobile-experience-direction .me-recipient-field.is-active { border-width: 2px; background: #e8efff; }
+    #mobile-experience-direction .me-security {
+      display: flex;
+      gap: 7px;
+      align-items: flex-start;
+      margin-top: 10px;
+      color: light-dark(#657086, #adb7ca);
+      line-height: 1.4;
+    }
+    #mobile-experience-direction .me-security svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+    #mobile-experience-direction .me-bottom-nav {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 6px 5px 8px;
+      background: light-dark(#ffffff, #1c2333);
+      border-top: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #mobile-experience-direction .me-nav-item {
+      border: 0;
+      background: transparent;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      color: light-dark(#6a758a, #aab5c8);
+    }
+    #mobile-experience-direction .me-nav-item svg { width: 18px; height: 18px; }
+    #mobile-experience-direction .me-nav-item.is-active { color: light-dark(#204fc6, #c3cfff); }
+    #mobile-experience-direction .me-submitbar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      min-height: 62px;
+      padding: 9px 12px;
+      background: light-dark(#ffffff, #1c2333);
+      border-top: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #mobile-experience-direction .me-submitbar .me-primary { width: 100%; }
+    @media (max-width: 390px) {
+      #mobile-experience-direction .me-stage { padding: 9px 0; }
+      #mobile-experience-direction .me-phone { border-radius: 0; padding: 0; background: transparent; box-shadow: none; }
+      #mobile-experience-direction .me-screen { border-radius: 0; }
+      #mobile-experience-direction .me-mode { flex: 1 1 42%; }
+      #mobile-experience-direction .me-selector { padding: 0 8px; }
+    }
+  </style>
+
+  <div class="me-stage">
+    <div class="me-selector" aria-label="Mobile journey">
+      <button class="me-mode" type="button" data-mode="home" aria-pressed="true">Quick work</button>
+      <button class="me-mode" type="button" data-mode="project" aria-pressed="false">Review &amp; collaborate</button>
+      <button class="me-mode" type="button" data-mode="edit" aria-pressed="false">Focused editing</button>
+      <button class="me-mode" type="button" data-mode="sign" aria-pressed="false">Recipient signing</button>
+    </div>
+
+    <div class="me-phone">
+      <div class="me-screen">
+        <div class="me-statusbar"><strong>9:41</strong><span class="me-status-icons"><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i><i data-lucide="battery-full" aria-hidden="true"></i></span></div>
+
+        <section data-mobile-content="home">
+          <header class="me-appbar"><div class="me-mark"><i data-lucide="layout-grid" aria-hidden="true"></i></div><div class="me-app-title">Visual Workspace</div><button class="me-icon-button" type="button" aria-label="Notifications"><i data-lucide="bell" aria-hidden="true"></i></button></header>
+          <main class="me-content">
+            <div class="me-greeting"><h2>Good morning, Vijay</h2><div class="me-muted">What would you like to finish?</div></div>
+            <div class="me-quick-actions">
+              <button class="me-action" type="button"><i data-lucide="upload" aria-hidden="true"></i><strong>Upload a file</strong><span>Analyse automatically</span></button>
+              <button class="me-action" type="button"><i data-lucide="camera" aria-hidden="true"></i><strong>Scan pages</strong><span>Camera correction preview</span></button>
+              <button class="me-action" type="button"><i data-lucide="folder-open" aria-hidden="true"></i><strong>Open project</strong><span>Continue existing work</span></button>
+              <button class="me-action" type="button"><i data-lucide="cloud" aria-hidden="true"></i><strong>Import from cloud</strong><span>Drive, SharePoint, Dropbox</span></button>
+            </div>
+            <div class="me-section-head"><span class="me-section-title">Continue working</span><button class="me-link" type="button">See all</button></div>
+            <div class="me-recent"><div class="me-thumb">🦔</div><div><div class="me-item-name">Hedgehog textile design</div><div class="me-item-meta">Saved just now · v12</div></div><span class="me-chevron"><i data-lucide="chevron-right" aria-hidden="true"></i></span></div>
+            <div class="me-recent"><div class="me-thumb">PDF</div><div><div class="me-item-name">Supplier agreement</div><div class="me-item-meta">1 signature pending</div></div><span class="me-chevron"><i data-lucide="chevron-right" aria-hidden="true"></i></span></div>
+            <div class="me-job"><div class="me-job-head"><strong>Background export</strong><span>68%</span></div><div class="me-progress"><div class="me-progress-fill"></div></div><div class="me-muted" style="margin-top:6px">You can close the app. Completed files are preserved.</div></div>
+          </main>
+          <nav class="me-bottom-nav" aria-label="Mobile navigation"><button class="me-nav-item is-active" type="button"><i data-lucide="house" aria-hidden="true"></i>Home</button><button class="me-nav-item" type="button"><i data-lucide="folder-kanban" aria-hidden="true"></i>Projects</button><button class="me-nav-item" type="button"><i data-lucide="activity" aria-hidden="true"></i>Jobs</button><button class="me-nav-item" type="button"><i data-lucide="user" aria-hidden="true"></i>Account</button></nav>
+        </section>
+
+        <section data-mobile-content="project" hidden>
+          <header class="me-appbar"><button class="me-icon-button" type="button" aria-label="Back"><i data-lucide="arrow-left" aria-hidden="true"></i></button><div class="me-app-title"><div>Woodland collection</div><div class="me-app-subtitle">Kidswear 2027</div></div><button class="me-icon-button" type="button" aria-label="Share"><i data-lucide="user-plus" aria-hidden="true"></i></button></header>
+          <main class="me-content">
+            <div class="me-project-title"><h2>Review &amp; collaborate</h2><div class="me-muted">6 files · 3 collaborators · Access inherited</div></div>
+            <div class="me-source-update"><strong>Connected source changed</strong><br>Your current work remains unchanged.<br><button type="button">Review source update</button></div>
+            <article class="me-project-file"><div class="me-project-preview">🦔</div><div><div class="me-item-name">Hedgehog textile design</div><div class="me-item-meta">Graphic document · v12</div><div class="me-file-state"><i data-lucide="pen-line" aria-hidden="true"></i>You are editing</div></div></article>
+            <article class="me-project-file"><div class="me-project-preview">PDF</div><div><div class="me-item-name">Factory production brief</div><div class="me-item-meta">PDF · 8 pages · v5</div><div class="me-file-state"><i data-lucide="eye" aria-hidden="true"></i>Asha editing · View only</div></div></article>
+            <div class="me-section-head"><span class="me-section-title">Open comments</span><button class="me-link" type="button">All comments</button></div>
+            <div class="me-comment"><span class="me-mini-avatar">AS</span><div><div class="me-comment-meta">Asha · Artboard 2 · v12</div><div class="me-comment-copy">Please protect the lighter flower detail before export.</div></div></div>
+            <div class="me-comment"><span class="me-mini-avatar">RK</span><div><div class="me-comment-meta">Ravi · Carried from v10</div><div class="me-comment-copy">Factory confirmed the 60 cm width.</div></div></div>
+          </main>
+          <nav class="me-bottom-nav" aria-label="Project actions"><button class="me-nav-item is-active" type="button"><i data-lucide="files" aria-hidden="true"></i>Files</button><button class="me-nav-item" type="button"><i data-lucide="message-square" aria-hidden="true"></i>Comments</button><button class="me-nav-item" type="button"><i data-lucide="history" aria-hidden="true"></i>Versions</button><button class="me-nav-item" type="button"><i data-lucide="shield" aria-hidden="true"></i>Access</button></nav>
+        </section>
+
+        <section data-mobile-content="edit" hidden>
+          <header class="me-appbar"><button class="me-icon-button" type="button" aria-label="Back"><i data-lucide="arrow-left" aria-hidden="true"></i></button><div class="me-app-title"><div>Hedgehog textile design</div><div class="me-app-subtitle">Artboard 2 · Saved</div></div><button class="me-icon-button" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></header>
+          <main class="me-content">
+            <div class="me-edit-canvas"><div class="me-edit-art" aria-hidden="true">🦔</div><div class="me-zoom-label">Fit · 42%</div></div>
+            <div class="me-safe-note"><i data-lucide="circle-check" aria-hidden="true"></i><span><strong>Safe correction preview ready</strong><br>Fine outlines and text are protected. Apply only after review.</span></div>
+            <div class="me-tool-strip">
+              <button class="me-tool" type="button" aria-pressed="true"><i data-lucide="sparkles" aria-hidden="true"></i>Enhance</button>
+              <button class="me-tool" type="button" aria-pressed="false"><i data-lucide="crop" aria-hidden="true"></i>Crop</button>
+              <button class="me-tool" type="button" aria-pressed="false"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Adjust</button>
+              <button class="me-tool" type="button" aria-pressed="false"><i data-lucide="bot" aria-hidden="true"></i>AI</button>
+            </div>
+            <div class="me-section-head"><span class="me-section-title">Enhancement</span><button class="me-link" type="button">Before / after</button></div>
+            <div class="me-muted">Balanced · Preserve mode · Non-destructive</div>
+            <input type="range" min="0" max="100" value="58" aria-label="Enhancement strength" style="width:100%;margin-top:10px;accent-color:light-dark(#2757cf,#8aa6ff)">
+          </main>
+          <div class="me-submitbar"><button class="me-primary" type="button"><i data-lucide="check" aria-hidden="true"></i>Apply preview</button></div>
+        </section>
+
+        <section data-mobile-content="sign" hidden>
+          <header class="me-appbar"><div class="me-mark"><i data-lucide="shield-check" aria-hidden="true"></i></div><div class="me-app-title"><div>Supplier agreement</div><div class="me-app-subtitle">Secure recipient session</div></div><button class="me-icon-button" type="button" aria-label="Help"><i data-lucide="circle-help" aria-hidden="true"></i></button></header>
+          <main class="me-content">
+            <div class="me-muted">Vijay Kumar · 2 of 4 required fields completed</div>
+            <div class="me-sign-progress" aria-label="Two of four fields completed"><span class="is-complete"></span><span class="is-complete"></span><span></span><span></span></div>
+            <article class="me-doc-page">
+              <div class="me-doc-kicker">Service agreement</div>
+              <h3>Scope and acceptance</h3>
+              <p>By completing the fields below, you confirm review and acceptance of this agreement.</p>
+              <div class="me-recipient-field"><i data-lucide="user" aria-hidden="true"></i>Vijay Kumar</div>
+              <div class="me-recipient-field"><i data-lucide="calendar" aria-hidden="true"></i>30 August 2026</div>
+              <div class="me-recipient-field is-active"><i data-lucide="signature" aria-hidden="true"></i>Tap to add signature</div>
+              <div class="me-recipient-field"><i data-lucide="square" aria-hidden="true"></i>I accept the terms</div>
+            </article>
+            <div class="me-security"><i data-lucide="lock-keyhole" aria-hidden="true"></i><span>Your progress is saved securely. This link remains available until submission, expiry or revocation.</span></div>
+          </main>
+          <div class="me-submitbar"><button class="me-primary" type="button"><i data-lucide="arrow-right" aria-hidden="true"></i>Next required field</button></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('mobile-experience-direction');
+      const modes = [...root.querySelectorAll('.me-mode')];
+      const panels = [...root.querySelectorAll('[data-mobile-content]')];
+      modes.forEach((button) => button.addEventListener('click', () => {
+        modes.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.mobileContent !== button.dataset.mode; });
+      }));
+      const tools = [...root.querySelectorAll('.me-tool')];
+      tools.forEach((button) => button.addEventListener('click', () => {
+        tools.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      }));
+    })();
+  </script>
+</section>

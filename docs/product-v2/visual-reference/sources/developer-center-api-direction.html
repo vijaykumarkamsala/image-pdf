@@ -1,0 +1,324 @@
+<section id="developer-center-api" aria-label="Developer center API credentials asynchronous jobs webhooks and diagnostics experience">
+  <style>
+    #developer-center-api {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #developer-center-api * { box-sizing: border-box; }
+    #developer-center-api button,
+    #developer-center-api input,
+    #developer-center-api select { font: inherit; color: inherit; }
+    #developer-center-api button { cursor: pointer; }
+    #developer-center-api .dc-shell { min-height: 776px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #developer-center-api .dc-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #developer-center-api .dc-button,
+    #developer-center-api .dc-primary,
+    #developer-center-api .dc-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #developer-center-api .dc-icon-button { width: 37px; padding: 7px; }
+    #developer-center-api .dc-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #developer-center-api .dc-button svg,
+    #developer-center-api .dc-primary svg,
+    #developer-center-api .dc-icon-button svg { width: 16px; height: 16px; }
+    #developer-center-api .dc-title-block { min-width: 240px; }
+    #developer-center-api .dc-title { font-weight: 500; }
+    #developer-center-api .dc-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #developer-center-api .dc-spacer { flex: 1; }
+    #developer-center-api .dc-version { display: flex; align-items: center; gap: 6px; color: light-dark(#647087, #adb8ca); }
+    #developer-center-api .dc-version svg { width: 15px; height: 15px; }
+    #developer-center-api .dc-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 286px; min-height: 679px; }
+    #developer-center-api .dc-nav,
+    #developer-center-api .dc-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #developer-center-api .dc-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #developer-center-api .dc-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #developer-center-api .dc-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #developer-center-api .dc-nav-list { display: grid; gap: 3px; }
+    #developer-center-api .dc-nav-button {
+      width: 100%; min-height: 41px; border: 0; border-radius: 8px; background: transparent; padding: 8px; display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #developer-center-api .dc-nav-button svg { width: 17px; height: 17px; }
+    #developer-center-api .dc-nav-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #developer-center-api .dc-nav-count { margin-left: auto; min-width: 22px; text-align: center; border-radius: 10px; padding: 2px 6px; background: light-dark(#edf1f6, #2a3344); color: light-dark(#647087, #b4bfd0); }
+    #developer-center-api .dc-nav-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #developer-center-api .dc-content { min-width: 0; padding: 18px 20px 25px; }
+    #developer-center-api .dc-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+    #developer-center-api .dc-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #developer-center-api .dc-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #developer-center-api .dc-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #developer-center-api .dc-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #developer-center-api .dc-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #developer-center-api .dc-banner { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border-radius: 9px; margin-bottom: 12px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #developer-center-api .dc-banner svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
+    #developer-center-api .dc-job-list { display: grid; gap: 7px; }
+    #developer-center-api .dc-job {
+      width: 100%; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); padding: 9px;
+      display: grid; grid-template-columns: 38px minmax(0, 1fr) 110px; gap: 9px; align-items: center; text-align: left;
+    }
+    #developer-center-api .dc-job[aria-pressed="true"] { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #developer-center-api .dc-job-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #developer-center-api .dc-job[aria-pressed="true"] .dc-job-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #developer-center-api .dc-job-icon svg { width: 17px; height: 17px; }
+    #developer-center-api .dc-job-name { font-weight: 500; }
+    #developer-center-api .dc-job-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.35; }
+    #developer-center-api .dc-job-state { text-align: right; color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-job-state strong { display: block; font-weight: 500; }
+    #developer-center-api .dc-job-state small { display: block; color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #developer-center-api .dc-event-head { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 14px 0 7px; }
+    #developer-center-api .dc-section-title { font-weight: 500; }
+    #developer-center-api .dc-event { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; gap: 9px; padding: 8px 0; position: relative; }
+    #developer-center-api .dc-event:not(:last-child)::after { content: ""; position: absolute; left: 15px; top: 37px; bottom: -2px; width: 1px; background: light-dark(#ccd5e1, #445066); }
+    #developer-center-api .dc-event-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); z-index: 1; }
+    #developer-center-api .dc-event-icon svg { width: 14px; height: 14px; }
+    #developer-center-api .dc-event-icon.active { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #developer-center-api .dc-event-title { font-weight: 500; }
+    #developer-center-api .dc-event-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #developer-center-api .dc-event-time { color: light-dark(#6b768a, #a8b3c5); white-space: nowrap; }
+    #developer-center-api .dc-credential-head { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px; gap: 9px; padding: 7px 9px; color: light-dark(#707b8f, #a7b2c5); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #developer-center-api .dc-credential { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px; gap: 9px; align-items: center; padding: 10px 9px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-credential-main { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; }
+    #developer-center-api .dc-credential-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #developer-center-api .dc-credential-icon svg { width: 17px; height: 17px; }
+    #developer-center-api .dc-credential-name { font-weight: 500; }
+    #developer-center-api .dc-credential-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #developer-center-api .dc-scope { color: light-dark(#536078, #bec8d9); }
+    #developer-center-api .dc-status { color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-code {
+      border-radius: 9px; padding: 12px; overflow-x: auto; white-space: pre; margin: 0 0 12px;
+      background: light-dark(#202838, #101621); color: light-dark(#e8edf8, #dce5f4); line-height: 1.55;
+    }
+    #developer-center-api .dc-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    #developer-center-api .dc-quick { padding: 10px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); }
+    #developer-center-api .dc-quick-title { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+    #developer-center-api .dc-quick-title svg { width: 16px; height: 16px; }
+    #developer-center-api .dc-quick-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 4px; line-height: 1.4; }
+    #developer-center-api .dc-webhook { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-webhook-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #developer-center-api .dc-webhook-icon svg { width: 18px; height: 18px; }
+    #developer-center-api .dc-webhook-name { font-weight: 500; }
+    #developer-center-api .dc-webhook-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #developer-center-api .dc-delivery { text-align: right; color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-log-head { display: grid; grid-template-columns: 76px minmax(0, 1fr) 98px 110px; gap: 9px; padding: 7px 9px; color: light-dark(#707b8f, #a7b2c5); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #developer-center-api .dc-log { display: grid; grid-template-columns: 76px minmax(0, 1fr) 98px 110px; gap: 9px; padding: 10px 9px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-log-method { font-weight: 500; }
+    #developer-center-api .dc-log-path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #developer-center-api .dc-log-result { color: light-dark(#1d7153, #8de0bf); }
+    #developer-center-api .dc-log-trace { color: light-dark(#536078, #bec8d9); }
+    #developer-center-api .dc-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #developer-center-api .dc-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #developer-center-api .dc-selected { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #developer-center-api .dc-selected-name { font-weight: 500; }
+    #developer-center-api .dc-selected-id { color: light-dark(#6b758a, #aab4c7); margin-top: 3px; word-break: break-all; }
+    #developer-center-api .dc-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #developer-center-api .dc-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #developer-center-api .dc-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #developer-center-api .dc-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #developer-center-api .dc-fact strong { display: block; font-weight: 500; }
+    #developer-center-api .dc-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; word-break: break-word; }
+    #developer-center-api .dc-contract-note { padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #developer-center-api .dc-dialog { position: absolute; z-index: 10; width: min(455px, calc(100% - 28px)); left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 15px; border-radius: 11px; border: 1px solid light-dark(#d1d9e5, #3d485c); background: light-dark(#ffffff, #1f2737); box-shadow: 0 18px 45px light-dark(rgba(66,79,102,.3), rgba(2,4,8,.6)); }
+    #developer-center-api .dc-dialog[hidden] { display: none; }
+    #developer-center-api .dc-dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+    #developer-center-api .dc-dialog p { margin: 0 0 10px; color: light-dark(#637087, #afb9ca); line-height: 1.45; }
+    #developer-center-api .dc-field { display: block; margin-top: 9px; }
+    #developer-center-api .dc-field span { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #developer-center-api .dc-input,
+    #developer-center-api .dc-select { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; }
+    #developer-center-api .dc-check { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; line-height: 1.4; }
+    #developer-center-api .dc-check input { width: 18px; height: 18px; margin-top: 1px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #developer-center-api .dc-dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 11px; }
+    #developer-center-api .dc-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #developer-center-api .dc-toast[hidden] { display: none; }
+    #developer-center-api .dc-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #developer-center-api .dc-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #developer-center-api .dc-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #developer-center-api .dc-inspector { display: none; }
+      #developer-center-api .dc-version { display: none; }
+    }
+    @media (max-width: 650px) {
+      #developer-center-api .dc-header { flex-wrap: wrap; }
+      #developer-center-api .dc-title-block { min-width: 0; flex: 1; }
+      #developer-center-api .dc-main { display: block; }
+      #developer-center-api .dc-nav { display: none; }
+      #developer-center-api .dc-content { padding: 14px 11px 22px; }
+      #developer-center-api .dc-content-head h2 { font-size: 18px; }
+      #developer-center-api .dc-tabs { overflow-x: auto; }
+      #developer-center-api .dc-tab { flex: 0 0 auto; }
+      #developer-center-api .dc-job { grid-template-columns: 37px minmax(0, 1fr); }
+      #developer-center-api .dc-job-state { grid-column: 2; text-align: left; }
+      #developer-center-api .dc-event { grid-template-columns: 31px minmax(0, 1fr); }
+      #developer-center-api .dc-event-time { grid-column: 2; }
+      #developer-center-api .dc-credential-head,
+      #developer-center-api .dc-log-head { display: none; }
+      #developer-center-api .dc-credential { grid-template-columns: 1fr auto; }
+      #developer-center-api .dc-scope { grid-column: 1; padding-left: 46px; }
+      #developer-center-api .dc-quick-grid { grid-template-columns: 1fr; }
+      #developer-center-api .dc-log { grid-template-columns: 68px minmax(0, 1fr); }
+      #developer-center-api .dc-log-result,
+      #developer-center-api .dc-log-trace { grid-column: 2; }
+      #developer-center-api .dc-bottom { display: none; }
+    }
+  </style>
+
+  <div class="dc-shell">
+    <header class="dc-header">
+      <button class="dc-icon-button" type="button" aria-label="Back to workspace"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="dc-title-block"><div class="dc-title">Developer Center</div><div class="dc-subtitle">Northstar Studio · Stable automation and integration surface</div></div>
+      <div class="dc-spacer"></div>
+      <div class="dc-version"><i data-lucide="badge-check" aria-hidden="true"></i>API v1 · Stable contracts</div>
+      <button class="dc-button" type="button"><i data-lucide="book-open" aria-hidden="true"></i>API reference</button>
+      <button class="dc-primary" id="dc-create-account" type="button"><i data-lucide="key-round" aria-hidden="true"></i>Create service account</button>
+    </header>
+
+    <div class="dc-main">
+      <aside class="dc-nav" aria-label="Developer Center navigation">
+        <div class="dc-pane-head"><span>Integrate</span><i data-lucide="braces" aria-hidden="true"></i></div>
+        <div class="dc-nav-list">
+          <button class="dc-nav-button" type="button" data-target="overview" aria-pressed="false"><i data-lucide="rocket" aria-hidden="true"></i>Overview</button>
+          <button class="dc-nav-button" type="button" data-target="credentials" aria-pressed="false"><i data-lucide="key-round" aria-hidden="true"></i>Credentials</button>
+          <button class="dc-nav-button" type="button" data-target="jobs" aria-pressed="true"><i data-lucide="list-checks" aria-hidden="true"></i>Jobs<span class="dc-nav-count">3</span></button>
+          <button class="dc-nav-button" type="button" data-target="webhooks" aria-pressed="false"><i data-lucide="webhook" aria-hidden="true"></i>Webhooks</button>
+          <button class="dc-nav-button" type="button" data-target="logs" aria-pressed="false"><i data-lucide="scroll-text" aria-hidden="true"></i>Request logs</button>
+        </div>
+        <div class="dc-nav-note"><strong>One domain service layer.</strong><br>The customer UI and public API use the same permissions, jobs, provenance, exports and e-sign rules—preventing two different product behaviours.</div>
+      </aside>
+
+      <main class="dc-content">
+        <div class="dc-content-head"><div><h2 id="dc-heading">Asynchronous jobs</h2><div class="dc-content-subtitle" id="dc-subtitle">Long-running work returns immediately as a durable job with status, events and signed completion delivery.</div></div></div>
+        <div class="dc-tabs" role="tablist" aria-label="Developer Center views">
+          <button class="dc-tab" type="button" data-panel="overview" aria-selected="false">Overview</button>
+          <button class="dc-tab" type="button" data-panel="credentials" aria-selected="false">Credentials</button>
+          <button class="dc-tab" type="button" data-panel="jobs" aria-selected="true">Jobs</button>
+          <button class="dc-tab" type="button" data-panel="webhooks" aria-selected="false">Webhooks</button>
+          <button class="dc-tab" type="button" data-panel="logs" aria-selected="false">Logs</button>
+        </div>
+
+        <section data-content="jobs">
+          <div class="dc-banner"><i data-lucide="route" aria-hidden="true"></i><span>Large processing, batches, exports and e-sign actions are always durable. Proven small operations may respond synchronously, but use the same contracts and permissions.</span></div>
+          <div class="dc-job-list">
+            <button class="dc-job" type="button" data-job="textile" aria-pressed="true"><span class="dc-job-icon"><i data-lucide="images" aria-hidden="true"></i></span><span><span class="dc-job-name">Textile batch enhancement</span><span class="dc-job-meta">POST /v1/processing/jobs · 24 files · Idempotent request</span></span><span class="dc-job-state"><strong>Running</strong><small>17 / 24</small></span></button>
+            <button class="dc-job" type="button" data-job="pdf" aria-pressed="false"><span class="dc-job-icon"><i data-lucide="file-check-2" aria-hidden="true"></i></span><span><span class="dc-job-name">Accessible PDF export</span><span class="dc-job-meta">POST /v1/exports · 3 output profiles</span></span><span class="dc-job-state"><strong>Completed</strong><small>Webhook sent</small></span></button>
+            <button class="dc-job" type="button" data-job="esign" aria-pressed="false"><span class="dc-job-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span><span class="dc-job-name">Manufacturing agreement envelope</span><span class="dc-job-meta">POST /v1/esign/envelopes · Mixed recipient routing</span></span><span class="dc-job-state"><strong>Waiting</strong><small>2 signers</small></span></button>
+          </div>
+          <div class="dc-event-head"><span class="dc-section-title">Selected job events</span><button class="dc-button" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Refresh</button></div>
+          <div class="dc-event"><span class="dc-event-icon"><i data-lucide="check" aria-hidden="true"></i></span><span><span class="dc-event-title">Job accepted</span><span class="dc-event-meta">Validated scopes, workspace access, idempotency key and input references</span></span><span class="dc-event-time">09:42:01</span></div>
+          <div class="dc-event"><span class="dc-event-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><span><span class="dc-event-title">Inspection and preflight complete</span><span class="dc-event-meta">Originals preserved; files grouped into compatible processing recipes</span></span><span class="dc-event-time">09:42:18</span></div>
+          <div class="dc-event"><span class="dc-event-icon active"><i data-lucide="loader-circle" aria-hidden="true"></i></span><span><span class="dc-event-title">Processing checkpoint 17 committed</span><span class="dc-event-meta">Completed outputs durable; pending items may be cancelled independently</span></span><span class="dc-event-time">09:48:51</span></div>
+          <div class="dc-event"><span class="dc-event-icon"><i data-lucide="webhook" aria-hidden="true"></i></span><span><span class="dc-event-title">Completion webhook pending</span><span class="dc-event-meta">Signed event will include job state and expiring result references, not file bytes</span></span><span class="dc-event-time">After completion</span></div>
+        </section>
+
+        <section data-content="overview" hidden>
+          <div class="dc-banner"><i data-lucide="badge-check" aria-hidden="true"></i><span>All stable project, processing, export and e-sign capabilities are available where security permits. Unstable or quarantined processors never appear in production contracts.</span></div>
+          <pre class="dc-code" aria-label="API request example">POST /v1/processing/jobs
+Authorization: Bearer ••••••••••••
+Idempotency-Key: textile-order-4821
+
+{
+  "projectId": "prj_woodland",
+  "assetVersionIds": ["av_104", "av_105"],
+  "recipeId": "rcp_textile_preserve",
+  "callbackProfileId": "wh_factory"
+}</pre>
+          <div class="dc-quick-grid"><div class="dc-quick"><div class="dc-quick-title"><i data-lucide="zap" aria-hidden="true"></i>Small proven operations</div><div class="dc-quick-meta">May return synchronously when strict time, memory and output limits are satisfied.</div></div><div class="dc-quick"><div class="dc-quick-title"><i data-lucide="clock-3" aria-hidden="true"></i>Durable operations</div><div class="dc-quick-meta">Return a job resource immediately and continue after the client disconnects.</div></div><div class="dc-quick"><div class="dc-quick-title"><i data-lucide="repeat-2" aria-hidden="true"></i>Safe retries</div><div class="dc-quick-meta">Idempotency prevents duplicate processing, exports or signing envelopes.</div></div><div class="dc-quick"><div class="dc-quick-title"><i data-lucide="webhook" aria-hidden="true"></i>Signed completion</div><div class="dc-quick-meta">Webhook retries, signature verification and replay protection are built in.</div></div></div>
+        </section>
+
+        <section data-content="credentials" hidden>
+          <div class="dc-banner"><i data-lucide="shield-check" aria-hidden="true"></i><span>Use workspace service accounts for server integrations and scoped OAuth for applications acting on behalf of a signed-in customer. Secrets are shown only once and may be rotated without downtime.</span></div>
+          <div class="dc-credential-head"><span>Identity</span><span>Scopes</span><span>Status</span></div>
+          <div class="dc-credential"><span class="dc-credential-main"><span class="dc-credential-icon"><i data-lucide="server" aria-hidden="true"></i></span><span><span class="dc-credential-name">Factory production service</span><span class="dc-credential-meta">Service account · Last used 12 minutes ago</span></span></span><span class="dc-scope">jobs:create, exports:read</span><span class="dc-status">Active</span></div>
+          <div class="dc-credential"><span class="dc-credential-main"><span class="dc-credential-icon"><i data-lucide="cloud" aria-hidden="true"></i></span><span><span class="dc-credential-name">Cloud archive connector</span><span class="dc-credential-meta">Service account · Folder-limited write</span></span></span><span class="dc-scope">assets:read, cloud:write</span><span class="dc-status">Active</span></div>
+          <div class="dc-credential"><span class="dc-credential-main"><span class="dc-credential-icon"><i data-lucide="user-round-check" aria-hidden="true"></i></span><span><span class="dc-credential-name">Design review application</span><span class="dc-credential-meta">OAuth client · User-delegated access</span></span></span><span class="dc-scope">projects:read, comments:write</span><span class="dc-status">Active</span></div>
+        </section>
+
+        <section data-content="webhooks" hidden>
+          <div class="dc-banner"><i data-lucide="shield-check" aria-hidden="true"></i><span>Webhook payloads are signed, timestamped and retryable. Consumers verify the raw payload, reject old timestamps and safely deduplicate event IDs.</span></div>
+          <div class="dc-webhook"><span class="dc-webhook-icon"><i data-lucide="factory" aria-hidden="true"></i></span><span><span class="dc-webhook-name">Factory operations</span><span class="dc-webhook-meta">https://factory.example/hooks/visual-workspace · job.* and export.*</span></span><span class="dc-delivery">Healthy<br>200 · 184 ms</span></div>
+          <div class="dc-webhook"><span class="dc-webhook-icon"><i data-lucide="file-signature" aria-hidden="true"></i></span><span><span class="dc-webhook-name">Contract system</span><span class="dc-webhook-meta">https://contracts.example/events · esign.envelope.*</span></span><span class="dc-delivery">Healthy<br>200 · 241 ms</span></div>
+          <div class="dc-webhook"><span class="dc-webhook-icon"><i data-lucide="cloud" aria-hidden="true"></i></span><span><span class="dc-webhook-name">Archive workflow</span><span class="dc-webhook-meta">https://archive.example/ingest · export.completed</span></span><span class="dc-delivery">Retrying<br>503 · attempt 2</span></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:11px"><button class="dc-primary" type="button"><i data-lucide="plus" aria-hidden="true"></i>Add endpoint</button></div>
+        </section>
+
+        <section data-content="logs" hidden>
+          <div class="dc-banner"><i data-lucide="scan-search" aria-hidden="true"></i><span>Request logs expose stable identifiers, status, timing and sanitised errors. Customer content, credentials and signed download URLs are never logged.</span></div>
+          <div class="dc-log-head"><span>Method</span><span>Path</span><span>Result</span><span>Trace</span></div>
+          <div class="dc-log"><span class="dc-log-method">POST</span><span class="dc-log-path">/v1/processing/jobs</span><span class="dc-log-result">202 Accepted</span><span class="dc-log-trace">TR-9A7C2</span></div>
+          <div class="dc-log"><span class="dc-log-method">GET</span><span class="dc-log-path">/v1/jobs/job_01KJ8F</span><span class="dc-log-result">200 OK</span><span class="dc-log-trace">TR-2E8D1</span></div>
+          <div class="dc-log"><span class="dc-log-method">POST</span><span class="dc-log-path">/v1/exports</span><span class="dc-log-result">202 Accepted</span><span class="dc-log-trace">TR-6C1B4</span></div>
+          <div class="dc-log"><span class="dc-log-method">POST</span><span class="dc-log-path">/v1/esign/envelopes</span><span class="dc-log-result">201 Created</span><span class="dc-log-trace">TR-4D7A0</span></div>
+        </section>
+      </main>
+
+      <aside class="dc-inspector" aria-label="Selected API job details">
+        <h3>Selected job</h3><div class="dc-inspector-copy">Stable identifiers connect the API request, processing checkpoints, webhook events and customer-visible activity.</div>
+        <div class="dc-selected"><div class="dc-selected-name" id="dc-selected-name">Textile batch enhancement</div><div class="dc-selected-id" id="dc-selected-id">job_01KJ8F3QZ7A2P9M4</div></div>
+        <div class="dc-inspector-section"><div class="dc-inspector-title">Request contract</div><div class="dc-fact"><i data-lucide="route" aria-hidden="true"></i><span><strong id="dc-selected-endpoint">POST /v1/processing/jobs</strong><small>Returned 202 Accepted with job resource</small></span></div><div class="dc-fact"><i data-lucide="repeat-2" aria-hidden="true"></i><span><strong>Idempotency protected</strong><small>textile-order-4821</small></span></div><div class="dc-fact"><i data-lucide="map-pin" aria-hidden="true"></i><span><strong>India region</strong><small>Storage and processing boundary honoured</small></span></div><div class="dc-fact"><i data-lucide="webhook" aria-hidden="true"></i><span><strong>Signed webhook</strong><small>Factory operations endpoint</small></span></div></div>
+        <div class="dc-inspector-section"><div class="dc-contract-note"><strong>Contract-first extension point</strong><br>Future dynamic PDF variables, conditional layouts and document-generation APIs can extend versioned schemas without bypassing jobs, permissions, provenance or webhook security.</div></div>
+      </aside>
+    </div>
+
+    <section class="dc-dialog" id="dc-dialog" aria-label="Create service account" hidden>
+      <h3>Create service account</h3><p>Choose the minimum workspace capabilities this server integration requires. A secret is displayed only once after creation.</p>
+      <label class="dc-field"><span>Name</span><input class="dc-input" value="Factory production service"></label>
+      <label class="dc-field"><span>Purpose</span><select class="dc-select"><option>Create processing jobs and read approved exports</option><option>Read project assets</option><option>Send e-sign envelopes</option></select></label>
+      <label class="dc-check"><input type="checkbox" checked><span>Restrict to Kidswear 2027 project</span></label>
+      <label class="dc-check"><input type="checkbox" checked><span>Require IP or network policy configured by workspace</span></label>
+      <div class="dc-dialog-actions"><button class="dc-button" id="dc-dialog-cancel" type="button">Cancel</button><button class="dc-primary" id="dc-dialog-confirm" type="button">Create securely</button></div>
+    </section>
+
+    <div class="dc-toast" id="dc-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="dc-bottom"><span>UI and API parity</span><span>Scoped identities</span><span>Idempotent requests</span><span class="dc-bottom-right"><span>Durable jobs</span><span>Signed webhooks</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('developer-center-api');
+      const tabs = [...root.querySelectorAll('.dc-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const navButtons = [...root.querySelectorAll('.dc-nav-button')];
+      const titles = {
+        overview: ['API overview', 'One versioned surface for stable project, processing, export and e-sign capabilities.'],
+        credentials: ['Credentials & delegated access', 'Service accounts for servers, scoped OAuth for applications acting for customers.'],
+        jobs: ['Asynchronous jobs', 'Long-running work returns immediately as a durable job with status, events and signed completion delivery.'],
+        webhooks: ['Webhook endpoints', 'Deliver signed, retryable lifecycle events without polling or exposing file bytes.'],
+        logs: ['Request logs', 'Trace integrations with safe operational evidence and no customer content leakage.']
+      };
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+        navButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.target === name)));
+        root.querySelector('#dc-heading').textContent = titles[name][0];
+        root.querySelector('#dc-subtitle').textContent = titles[name][1];
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+      navButtons.forEach((button) => button.addEventListener('click', () => showPanel(button.dataset.target)));
+
+      const jobData = {
+        textile: ['Textile batch enhancement', 'job_01KJ8F3QZ7A2P9M4', 'POST /v1/processing/jobs'],
+        pdf: ['Accessible PDF export', 'job_01KJ7P1DW3F6R2C8', 'POST /v1/exports'],
+        esign: ['Manufacturing agreement envelope', 'env_01KJ6E8H2S5M0N7Q', 'POST /v1/esign/envelopes']
+      };
+      const jobs = [...root.querySelectorAll('.dc-job')];
+      jobs.forEach((job) => job.addEventListener('click', () => {
+        jobs.forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === job)));
+        const [name, id, endpoint] = jobData[job.dataset.job];
+        root.querySelector('#dc-selected-name').textContent = name;
+        root.querySelector('#dc-selected-id').textContent = id;
+        root.querySelector('#dc-selected-endpoint').textContent = endpoint;
+      }));
+
+      const toast = root.querySelector('#dc-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2500); };
+      const dialog = root.querySelector('#dc-dialog');
+      root.querySelector('#dc-create-account').addEventListener('click', () => { dialog.hidden = false; });
+      root.querySelector('#dc-dialog-cancel').addEventListener('click', () => { dialog.hidden = true; });
+      root.querySelector('#dc-dialog-confirm').addEventListener('click', () => { dialog.hidden = true; announce('Service account created. The one-time secret is ready for secure copy.'); });
+    })();
+  </script>
+</section>

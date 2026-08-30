@@ -1,0 +1,282 @@
+<style>
+  #upload-analysis-v2 {
+    --ua-page: light-dark(#f3f6fa, #10141c);
+    --ua-surface: light-dark(#ffffff, #181e28);
+    --ua-raised: light-dark(#f8fafc, #202733);
+    --ua-canvas: light-dark(#dfe5ec, #0e131b);
+    --ua-text: light-dark(#162033, #edf3fb);
+    --ua-muted: light-dark(#647188, #aab5c6);
+    --ua-line: light-dark(#dce4ed, #344052);
+    --ua-blue: light-dark(#3559e0, #88a1ff);
+    --ua-blue-ink: light-dark(#2946bd, #b7c5ff);
+    --ua-blue-soft: light-dark(#edf1ff, #222c50);
+    --ua-green: light-dark(#177a59, #72d9b2);
+    --ua-green-soft: light-dark(#e8f7f0, #17392f);
+    --ua-orange: light-dark(#a9600f, #ffc078);
+    --ua-orange-soft: light-dark(#fff3e4, #46301a);
+    width: 100%;
+    color: var(--ua-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  #upload-analysis-v2 * { box-sizing: border-box; }
+  #upload-analysis-v2 button, #upload-analysis-v2 select, #upload-analysis-v2 input { font: inherit; }
+
+  #upload-analysis-v2 .ua-sample-switch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  #upload-analysis-v2 .ua-sample-switch strong { font-weight: 500; margin-right: 6px; }
+  #upload-analysis-v2 .ua-sample-button {
+    appearance: none;
+    border: 1px solid var(--ua-line);
+    background: transparent;
+    color: var(--ua-text);
+    border-radius: 8px;
+    padding: 8px 11px;
+    cursor: pointer;
+  }
+  #upload-analysis-v2 .ua-sample-button[aria-selected="true"] { background: var(--ua-blue); border-color: var(--ua-blue); color: light-dark(#ffffff, #0d1428); }
+
+  #upload-analysis-v2 .ua-window {
+    min-height: 735px;
+    overflow: hidden;
+    border: 1px solid var(--ua-line);
+    border-radius: 14px;
+    background: var(--ua-page);
+    box-shadow: 0 18px 48px light-dark(rgba(40, 55, 82, .12), rgba(0, 0, 0, .28));
+  }
+
+  #upload-analysis-v2 .ua-header {
+    height: 60px;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    background: var(--ua-surface);
+    border-bottom: 1px solid var(--ua-line);
+  }
+  #upload-analysis-v2 .ua-logo { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; background: var(--ua-blue); color: light-dark(#ffffff, #0d1428); }
+  #upload-analysis-v2 .ua-file-title { min-width: 190px; }
+  #upload-analysis-v2 .ua-file-title strong { display: block; font-weight: 500; }
+  #upload-analysis-v2 .ua-small { color: var(--ua-muted); font-size: 12px; }
+  #upload-analysis-v2 .ua-grow { flex: 1; }
+
+  #upload-analysis-v2 .ua-button {
+    appearance: none;
+    border: 1px solid var(--ua-line);
+    background: var(--ua-surface);
+    color: var(--ua-text);
+    border-radius: 9px;
+    padding: 9px 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+  }
+  #upload-analysis-v2 .ua-button-primary { background: var(--ua-blue); color: light-dark(#ffffff, #0d1428); border-color: var(--ua-blue); }
+  #upload-analysis-v2 .ua-icon-button { width: 38px; height: 38px; padding: 0; }
+  #upload-analysis-v2 .ua-layout { display: grid; grid-template-columns: 84px minmax(0, 1fr) 330px; min-height: 674px; }
+
+  #upload-analysis-v2 .ua-files { background: var(--ua-raised); border-right: 1px solid var(--ua-line); padding: 10px; }
+  #upload-analysis-v2 .ua-file-thumb { width: 62px; height: 68px; margin-bottom: 9px; border: 2px solid var(--ua-blue); border-radius: 8px; background: var(--ua-surface); display: grid; place-items: center; color: var(--ua-blue-ink); position: relative; }
+  #upload-analysis-v2 .ua-file-thumb::after { content: "1"; position: absolute; right: 3px; bottom: 2px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: var(--ua-blue); color: light-dark(#ffffff, #0d1428); font-size: 11px; }
+  #upload-analysis-v2 .ua-add-file { width: 62px; height: 44px; border: 1px dashed var(--ua-line); background: transparent; color: var(--ua-muted); border-radius: 8px; cursor: pointer; }
+
+  #upload-analysis-v2 .ua-preview { min-width: 0; background: var(--ua-canvas); position: relative; display: grid; place-items: center; padding: 36px 28px 78px; }
+  #upload-analysis-v2 .ua-preview-toolbar { position: absolute; left: 15px; top: 14px; display: flex; gap: 6px; }
+  #upload-analysis-v2 .ua-chip { border: 1px solid var(--ua-line); background: var(--ua-surface); color: var(--ua-text); border-radius: 8px; padding: 7px 10px; font-size: 12px; }
+
+  #upload-analysis-v2 .ua-art {
+    width: min(520px, 88%);
+    aspect-ratio: 4 / 3;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .24);
+    background: linear-gradient(140deg, light-dark(#efe4d0, #4f453d), light-dark(#dce5ca, #374737));
+  }
+  #upload-analysis-v2 .ua-art::before { content: ""; position: absolute; width: 42%; aspect-ratio: 1; border-radius: 52% 48% 44% 56%; left: 29%; top: 23%; background: radial-gradient(circle at 62% 38%, light-dark(#272018, #17120f) 0 3%, transparent 4%), radial-gradient(ellipse at 58% 58%, light-dark(#f1e4d5, #ad8e75) 0 30%, transparent 31%), repeating-radial-gradient(ellipse at 35% 55%, light-dark(#68462d, #2d1c12) 0 4px, light-dark(#c4a07a, #725139) 5px 9px); }
+  #upload-analysis-v2 .ua-art::after { content: "Protected: outlines + colour layers"; position: absolute; left: 14%; right: 14%; bottom: 10%; border: 1px dashed var(--ua-blue); padding: 8px; text-align: center; color: var(--ua-blue-ink); background: light-dark(rgba(255,255,255,.82), rgba(24,30,40,.84)); font-size: 12px; }
+  #upload-analysis-v2 .ua-art.document { aspect-ratio: 3 / 4; width: min(390px, 70%); background: linear-gradient(105deg, light-dark(#d7c2b1, #4c3930), light-dark(#fffaf0, #d2c0aa) 24% 79%, light-dark(#efe7db, #655348)); transform: rotate(-1.5deg); }
+  #upload-analysis-v2 .ua-art.document::before { content: "PRESCRIPTION\A\A Patient details\A\A Medicine 1 ..........\A Medicine 2 ..........\A\A Instructions"; white-space: pre; inset: 13% 11%; width: auto; aspect-ratio: auto; border-radius: 0; background: transparent; color: light-dark(#403a34, #2f2925); font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7; }
+  #upload-analysis-v2 .ua-art.document::after { content: "Glare + shadow detected · text protected"; left: 8%; right: 8%; bottom: 6%; }
+  #upload-analysis-v2 .ua-art.quality { background: linear-gradient(145deg, light-dark(#bad5e8, #334d62), light-dark(#ead5ab, #63543a)); }
+  #upload-analysis-v2 .ua-art.quality::before { content: ""; left: 17%; top: 18%; width: 66%; background: radial-gradient(circle at 38% 35%, light-dark(#fff6db, #e4c489) 0 8%, transparent 9%), linear-gradient(155deg, transparent 0 42%, light-dark(#4d7452, #27442e) 43% 60%, transparent 61%); }
+  #upload-analysis-v2 .ua-art.quality::after { content: "Source quality is already suitable"; border-color: var(--ua-green); color: var(--ua-green); }
+
+  #upload-analysis-v2 .ua-preview-note { position: absolute; left: 18px; bottom: 20px; display: flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--ua-line); border-radius: 8px; background: var(--ua-surface); color: var(--ua-muted); font-size: 12px; }
+  #upload-analysis-v2 .ua-zoom { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 5px; }
+
+  #upload-analysis-v2 .ua-analysis { background: var(--ua-surface); border-left: 1px solid var(--ua-line); }
+  #upload-analysis-v2 .ua-panel-head { padding: 16px; border-bottom: 1px solid var(--ua-line); }
+  #upload-analysis-v2 .ua-panel-head h2 { font-size: 20px; font-weight: 500; margin: 0 0 5px; }
+  #upload-analysis-v2 .ua-panel-body { padding: 14px 16px 17px; }
+  #upload-analysis-v2 .ua-detected { padding: 12px; border-radius: 9px; background: var(--ua-blue-soft); margin-bottom: 13px; }
+  #upload-analysis-v2 .ua-detected strong { display: block; font-weight: 500; margin-bottom: 4px; }
+  #upload-analysis-v2 .ua-mode-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--ua-line); }
+  #upload-analysis-v2 .ua-mode-row strong { display: block; font-weight: 500; margin-bottom: 3px; }
+  #upload-analysis-v2 .ua-badge { border-radius: 999px; padding: 4px 7px; font-size: 11px; white-space: nowrap; }
+  #upload-analysis-v2 .ua-badge.safe { color: var(--ua-green); background: var(--ua-green-soft); }
+  #upload-analysis-v2 .ua-badge.review { color: var(--ua-orange); background: var(--ua-orange-soft); }
+  #upload-analysis-v2 .ua-check { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--ua-line); align-items: start; }
+  #upload-analysis-v2 .ua-check input { margin-top: 3px; }
+  #upload-analysis-v2 .ua-check strong { display: block; font-weight: 500; margin-bottom: 2px; }
+  #upload-analysis-v2 .ua-section-label { color: var(--ua-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin: 14px 0 3px; }
+  #upload-analysis-v2 .ua-purpose { width: 100%; margin: 8px 0 2px; padding: 9px; border: 1px solid var(--ua-line); border-radius: 8px; background: var(--ua-surface); color: var(--ua-text); }
+  #upload-analysis-v2 .ua-disclosure { margin: 12px 0; padding: 9px 10px; border-left: 3px solid var(--ua-green); background: var(--ua-raised); color: var(--ua-muted); font-size: 12px; line-height: 1.45; }
+  #upload-analysis-v2 .ua-primary-wide { width: 100%; }
+  #upload-analysis-v2 .ua-secondary-wide { width: 100%; margin-top: 7px; }
+  #upload-analysis-v2 .ua-no-change { padding: 14px; margin: 10px 0; border-radius: 9px; background: var(--ua-green-soft); color: var(--ua-green); }
+  #upload-analysis-v2 .ua-no-change strong { display: block; margin-bottom: 4px; font-weight: 500; }
+
+  @media (max-width: 920px) {
+    #upload-analysis-v2 .ua-layout { grid-template-columns: 70px minmax(0, 1fr); }
+    #upload-analysis-v2 .ua-analysis { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--ua-line); }
+    #upload-analysis-v2 .ua-panel-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    #upload-analysis-v2 .ua-panel-actions { align-self: end; }
+  }
+  @media (max-width: 620px) {
+    #upload-analysis-v2 .ua-window { min-height: 0; }
+    #upload-analysis-v2 .ua-header { padding: 0 10px; }
+    #upload-analysis-v2 .ua-logo, #upload-analysis-v2 .ua-header .ua-button:not(.ua-button-primary) { display: none; }
+    #upload-analysis-v2 .ua-file-title { min-width: 0; flex: 1; }
+    #upload-analysis-v2 .ua-layout { grid-template-columns: 1fr; }
+    #upload-analysis-v2 .ua-files { display: none; }
+    #upload-analysis-v2 .ua-preview { min-height: 430px; padding: 28px 12px 72px; }
+    #upload-analysis-v2 .ua-art { width: 92%; }
+    #upload-analysis-v2 .ua-panel-body { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div id="upload-analysis-v2">
+  <div class="ua-sample-switch" role="tablist" aria-label="Example source">
+    <strong>Example source</strong>
+    <button class="ua-sample-button" type="button" role="tab" aria-selected="true" data-example="textile">Textile artwork</button>
+    <button class="ua-sample-button" type="button" role="tab" aria-selected="false" data-example="document">Photographed page</button>
+    <button class="ua-sample-button" type="button" role="tab" aria-selected="false" data-example="quality">Good-quality image</button>
+  </div>
+
+  <div class="ua-window">
+    <header class="ua-header">
+      <span class="ua-logo"><i data-lucide="sparkles" aria-hidden="true"></i></span>
+      <button class="ua-button ua-icon-button" type="button" aria-label="Back"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="ua-file-title"><strong id="ua-file-name">hedgehog-screenshot.png</strong><span class="ua-small">Original safely stored · temporary guest session</span></div>
+      <div class="ua-grow"></div>
+      <button class="ua-button" type="button"><i data-lucide="plus" aria-hidden="true"></i> Add files</button>
+      <button class="ua-button ua-button-primary" type="button">Save project</button>
+    </header>
+
+    <div class="ua-layout">
+      <aside class="ua-files" aria-label="Uploaded files"><div class="ua-file-thumb"><i data-lucide="image" aria-hidden="true"></i></div><button class="ua-add-file" type="button" aria-label="Add another file"><i data-lucide="plus" aria-hidden="true"></i></button></aside>
+
+      <main class="ua-preview">
+        <div class="ua-preview-toolbar"><span class="ua-chip">Original</span><span class="ua-chip">Preview ready</span></div>
+        <div class="ua-art" id="ua-art" role="img" aria-label="Uploaded source preview with protected areas"></div>
+        <div class="ua-preview-note"><i data-lucide="shield-check" aria-hidden="true"></i><span id="ua-preview-note">No changes applied · original preserved</span></div>
+        <div class="ua-zoom"><button class="ua-button ua-icon-button" type="button" aria-label="Zoom out"><i data-lucide="minus" aria-hidden="true"></i></button><button class="ua-button" type="button">Fit</button><button class="ua-button ua-icon-button" type="button" aria-label="Zoom in"><i data-lucide="plus" aria-hidden="true"></i></button></div>
+      </main>
+
+      <aside class="ua-analysis">
+        <div class="ua-panel-head"><h2>We inspected your file</h2><div class="ua-small" id="ua-summary">Illustration · screenshot source · fine-detail risk</div></div>
+        <div class="ua-panel-body">
+          <div>
+            <div class="ua-detected"><strong id="ua-detected-title">Textile illustration detected</strong><span class="ua-small" id="ua-detected-note">Fine outlines, layered colours and repeated details need protection.</span></div>
+            <label class="ua-small" for="ua-purpose">What are you preparing it for?</label>
+            <select class="ua-purpose" id="ua-purpose"><option>Textile printing</option><option>Paper or card printing</option><option>Digital use</option><option>Not sure yet</option></select>
+            <div class="ua-mode-row"><div><strong id="ua-mode">Preserve mode</strong><span class="ua-small" id="ua-mode-note">Safest starting point for this source.</span></div><span class="ua-badge safe" id="ua-mode-badge">Recommended</span></div>
+
+            <div class="ua-section-label">Safe corrections prepared</div>
+            <div id="ua-corrections">
+              <label class="ua-check"><input type="checkbox" checked><span><strong>Repair compression</strong><span class="ua-small">Clean blocky edges without inventing design.</span></span><span class="ua-badge safe">Safe</span></label>
+              <label class="ua-check"><input type="checkbox" checked><span><strong>Balance colour</strong><span class="ua-small">Correct screenshot colour cast.</span></span><span class="ua-badge safe">Safe</span></label>
+              <label class="ua-check"><input type="checkbox"><span><strong>Restore fine detail</strong><span class="ua-small">Review fur, nails and flowers first.</span></span><span class="ua-badge review">Review</span></label>
+            </div>
+          </div>
+          <div class="ua-panel-actions">
+            <div class="ua-disclosure" id="ua-disclosure">A trustworthy preview is ready. No generative detail is included. Larger textile sizes may require a separate Restore or Recreate decision.</div>
+            <button class="ua-button ua-button-primary ua-primary-wide" id="ua-primary" type="button">Review correction preview</button>
+            <button class="ua-button ua-secondary-wide" id="ua-secondary" type="button">Continue without corrections</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const root = document.getElementById("upload-analysis-v2");
+    if (!root) return;
+    const examples = {
+      textile: {
+        file: "hedgehog-screenshot.png",
+        summary: "Illustration · screenshot source · fine-detail risk",
+        title: "Textile illustration detected",
+        note: "Fine outlines, layered colours and repeated details need protection.",
+        mode: "Preserve mode",
+        modeNote: "Safest starting point for this source.",
+        badge: "Recommended",
+        disclosure: "A trustworthy preview is ready. No generative detail is included. Larger textile sizes may require a separate Restore or Recreate decision.",
+        primary: "Review correction preview",
+        secondary: "Continue without corrections",
+        corrections: [
+          ["Repair compression", "Clean blocky edges without inventing design.", "Safe", true],
+          ["Balance colour", "Correct screenshot colour cast.", "Safe", true],
+          ["Restore fine detail", "Review fur, nails and flowers first.", "Review", false]
+        ]
+      },
+      document: {
+        file: "mobile-prescription.jpg",
+        summary: "Photographed document · glare · shadow · perspective",
+        title: "Photographed medical page detected",
+        note: "Visible text will be protected. Cleanup and OCR remain separate approvals.",
+        mode: "Preserve mode",
+        modeNote: "Required for visible medical text.",
+        badge: "Protected",
+        disclosure: "The visual page stays intact. OCR will create a separate searchable text layer and flag uncertain words for review.",
+        primary: "Review cleanup preview",
+        secondary: "Keep original page",
+        corrections: [
+          ["Straighten page", "Correct perspective from detected corners.", "Safe", true],
+          ["Reduce glare and shadow", "Preview measured visual cleanup.", "Review", true],
+          ["Propose searchable text", "Separate OCR layer; visible text unchanged.", "Review", false]
+        ]
+      },
+      quality: {
+        file: "studio-product-photo.tif",
+        summary: "High-quality photograph · colour profile present · no critical defects",
+        title: "This source is already high quality",
+        note: "Its detail, colour and dimensions are suitable for the selected digital use.",
+        mode: "No enhancement needed",
+        modeNote: "Continue directly to editing or export.",
+        badge: "Ready",
+        disclosure: "We will not process a good source unnecessarily. Sensitive GPS/device metadata will still be removed from exports by default.",
+        primary: "Open in editor",
+        secondary: "Go directly to Export Center",
+        corrections: []
+      }
+    };
+    const buttons = [...root.querySelectorAll("[data-example]")];
+    const art = root.querySelector("#ua-art");
+    const corrections = root.querySelector("#ua-corrections");
+    const fields = {
+      file: root.querySelector("#ua-file-name"), summary: root.querySelector("#ua-summary"), title: root.querySelector("#ua-detected-title"), note: root.querySelector("#ua-detected-note"), mode: root.querySelector("#ua-mode"), modeNote: root.querySelector("#ua-mode-note"), badge: root.querySelector("#ua-mode-badge"), disclosure: root.querySelector("#ua-disclosure"), primary: root.querySelector("#ua-primary"), secondary: root.querySelector("#ua-secondary")
+    };
+    const render = (key) => {
+      const data = examples[key];
+      if (!data || !art || !corrections) return;
+      Object.entries(fields).forEach(([name, element]) => { if (element) element.textContent = data[name]; });
+      art.className = `ua-art${key === "textile" ? "" : ` ${key}`}`;
+      corrections.innerHTML = data.corrections.length ? data.corrections.map(([name, note, state, checked]) => `<label class="ua-check"><input type="checkbox"${checked ? " checked" : ""}><span><strong>${name}</strong><span class="ua-small">${note}</span></span><span class="ua-badge ${state === "Safe" ? "safe" : "review"}">${state}</span></label>`).join("") : `<div class="ua-no-change"><strong>No corrective processing recommended</strong><span class="ua-small">The honest recommendation is to preserve the source as it is.</span></div>`;
+      const purpose = root.querySelector("#ua-purpose");
+      if (purpose) purpose.value = key === "textile" ? "Textile printing" : key === "document" ? "Not sure yet" : "Digital use";
+      buttons.forEach((button) => button.setAttribute("aria-selected", button.getAttribute("data-example") === key ? "true" : "false"));
+      if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+    };
+    buttons.forEach((button) => button.addEventListener("click", () => render(button.getAttribute("data-example"))));
+  })();
+</script>

@@ -1,0 +1,1608 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Image Graphic Studio Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Image Graphic Studio Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Image Graphic Studio Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;style&gt;
+  #graphic-studio-v2 {
+    --gs-page: light-dark(#f3f6fa, #10141c);
+    --gs-surface: light-dark(#ffffff, #181e28);
+    --gs-raised: light-dark(#f8fafc, #202733);
+    --gs-canvas: light-dark(#dce3eb, #0d1219);
+    --gs-text: light-dark(#162033, #edf3fb);
+    --gs-muted: light-dark(#647188, #aab5c6);
+    --gs-line: light-dark(#dce4ed, #344052);
+    --gs-blue: light-dark(#3559e0, #88a1ff);
+    --gs-blue-ink: light-dark(#2946bd, #b7c5ff);
+    --gs-blue-soft: light-dark(#edf1ff, #222c50);
+    --gs-green: light-dark(#177a59, #72d9b2);
+    --gs-green-soft: light-dark(#e8f7f0, #17392f);
+    --gs-orange: light-dark(#a9600f, #ffc078);
+    --gs-orange-soft: light-dark(#fff3e4, #46301a);
+    width: 100%;
+    color: var(--gs-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+  }
+  #graphic-studio-v2 * { box-sizing: border-box; }
+  #graphic-studio-v2 button, #graphic-studio-v2 input, #graphic-studio-v2 select, #graphic-studio-v2 textarea { font: inherit; }
+  #graphic-studio-v2 .gs-window { min-height: 770px; overflow: hidden; border: 1px solid var(--gs-line); border-radius: 14px; background: var(--gs-page); box-shadow: 0 18px 48px light-dark(rgba(40,55,82,.12),rgba(0,0,0,.28)); }
+
+  #graphic-studio-v2 .gs-topbar { height: 58px; padding: 0 12px; display: flex; align-items: center; gap: 8px; background: var(--gs-surface); border-bottom: 1px solid var(--gs-line); }
+  #graphic-studio-v2 .gs-button { appearance: none; border: 1px solid var(--gs-line); background: var(--gs-surface); color: var(--gs-text); border-radius: 8px; padding: 8px 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+  #graphic-studio-v2 .gs-button-primary { background: var(--gs-blue); border-color: var(--gs-blue); color: light-dark(#ffffff,#0d1428); }
+  #graphic-studio-v2 .gs-icon-button { width: 36px; height: 36px; padding: 0; }
+  #graphic-studio-v2 .gs-doc { min-width: 205px; margin-left: 2px; }
+  #graphic-studio-v2 .gs-doc strong { display: block; font-weight: 500; }
+  #graphic-studio-v2 .gs-small { color: var(--gs-muted); font-size: 12px; }
+  #graphic-studio-v2 .gs-grow { flex: 1; }
+  #graphic-studio-v2 .gs-mode { display: flex; padding: 3px; border: 1px solid var(--gs-line); border-radius: 8px; background: var(--gs-raised); }
+  #graphic-studio-v2 .gs-mode button { appearance: none; border: 0; background: transparent; color: var(--gs-muted); padding: 6px 9px; border-radius: 5px; cursor: pointer; }
+  #graphic-studio-v2 .gs-mode button[aria-pressed=&quot;true&quot;] { background: var(--gs-surface); color: var(--gs-blue-ink); box-shadow: 0 1px 4px light-dark(rgba(26,40,67,.12),rgba(0,0,0,.25)); }
+
+  #graphic-studio-v2 .gs-workspace { display: grid; grid-template-columns: 190px minmax(0,1fr) 305px; min-height: 654px; }
+  #graphic-studio-v2 .gs-tools { background: var(--gs-raised); border-right: 1px solid var(--gs-line); padding: 10px; }
+  #graphic-studio-v2 .gs-tool-search { display: flex; align-items: center; gap: 7px; padding: 8px 9px; border: 1px solid var(--gs-line); border-radius: 8px; background: var(--gs-surface); color: var(--gs-muted); margin-bottom: 12px; }
+  #graphic-studio-v2 .gs-group { margin-bottom: 14px; }
+  #graphic-studio-v2 .gs-group-label { color: var(--gs-muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; }
+  #graphic-studio-v2 .gs-tool { width: 100%; appearance: none; border: 0; background: transparent; color: var(--gs-text); border-radius: 7px; padding: 8px; display: flex; align-items: center; gap: 9px; text-align: left; cursor: pointer; }
+  #graphic-studio-v2 .gs-tool.is-active { background: var(--gs-blue-soft); color: var(--gs-blue-ink); }
+  #graphic-studio-v2 .gs-tool .gs-tool-status { margin-left: auto; color: var(--gs-orange); }
+
+  #graphic-studio-v2 .gs-center { min-width: 0; display: grid; grid-template-rows: 43px minmax(0,1fr) 90px; background: var(--gs-canvas); }
+  #graphic-studio-v2 .gs-contextbar { background: var(--gs-surface); border-bottom: 1px solid var(--gs-line); display: flex; align-items: center; gap: 7px; padding: 0 10px; }
+  #graphic-studio-v2 .gs-context-label { color: var(--gs-muted); font-size: 12px; }
+  #graphic-studio-v2 .gs-context-input { min-width: 70px; padding: 6px 7px; border: 1px solid var(--gs-line); border-radius: 6px; background: var(--gs-raised); color: var(--gs-text); font-size: 12px; }
+
+  #graphic-studio-v2 .gs-stage { min-height: 0; position: relative; display: grid; place-items: center; padding: 28px 30px 62px; overflow: hidden; }
+  #graphic-studio-v2 .gs-artboard { width: min(500px,82%); aspect-ratio: 4/3; position: relative; overflow: hidden; background: linear-gradient(140deg,light-dark(#efe4d0,#4f453d),light-dark(#dce5ca,#374737)); box-shadow: 0 16px 42px rgba(0,0,0,.24); }
+  #graphic-studio-v2 .gs-animal { position: absolute; width: 44%; aspect-ratio: 1; left: 28%; top: 22%; border-radius: 54% 46% 42% 58%; background: radial-gradient(circle at 65% 39%, light-dark(#231c16,#18120e) 0 3%, transparent 4%), radial-gradient(ellipse at 59% 58%, light-dark(#f1e4d5,#b09177) 0 31%, transparent 32%), repeating-radial-gradient(ellipse at 34% 55%, light-dark(#67452c,#2d1b11) 0 4px, light-dark(#c4a07a,#725139) 5px 9px); }
+  #graphic-studio-v2 .gs-plant { position: absolute; bottom: 9%; width: 2px; height: 42%; background: light-dark(#69745e,#8da082); transform-origin: bottom; }
+  #graphic-studio-v2 .gs-plant::before, #graphic-studio-v2 .gs-plant::after { content:&quot;&quot;; position:absolute; width:17px; height:8px; border-radius:80% 20% 80% 20%; background:light-dark(#829174,#78906e); }
+  #graphic-studio-v2 .gs-plant::before { left:-16px; top:28%; transform:rotate(25deg); }
+  #graphic-studio-v2 .gs-plant::after { left:1px; top:47%; transform:rotate(-25deg); }
+  #graphic-studio-v2 .gs-plant.p1 { left:17%; transform:rotate(-10deg); }
+  #graphic-studio-v2 .gs-plant.p2 { right:18%; transform:rotate(12deg); height:51%; }
+  #graphic-studio-v2 .gs-plant.p3 { right:34%; transform:rotate(-4deg); height:31%; }
+  #graphic-studio-v2 .gs-selection { position:absolute; left:25%; top:18%; width:50%; height:62%; border:1px solid var(--gs-blue); }
+  #graphic-studio-v2 .gs-selection::before, #graphic-studio-v2 .gs-selection::after { content:&quot;&quot;; position:absolute; width:7px; height:7px; background:var(--gs-surface); border:1px solid var(--gs-blue); }
+  #graphic-studio-v2 .gs-selection::before { left:-4px; top:-4px; }
+  #graphic-studio-v2 .gs-selection::after { right:-4px; bottom:-4px; }
+  #graphic-studio-v2 .gs-ai-context { position:absolute; right:-4px; top:-40px; border:1px solid var(--gs-blue); background:var(--gs-surface); color:var(--gs-blue-ink); border-radius:8px; padding:7px 9px; display:flex; align-items:center; gap:6px; white-space:nowrap; font-size:12px; }
+  #graphic-studio-v2 .gs-trust-note { position:absolute; left:15px; bottom:16px; max-width:70%; background:var(--gs-surface); border:1px solid var(--gs-line); color:var(--gs-muted); border-radius:8px; padding:8px 10px; display:flex; align-items:center; gap:7px; font-size:12px; }
+  #graphic-studio-v2 .gs-zoom { position:absolute; right:15px; bottom:14px; display:flex; gap:5px; }
+
+  #graphic-studio-v2 .gs-artboards { background:var(--gs-surface); border-top:1px solid var(--gs-line); display:flex; align-items:center; gap:10px; padding:9px 12px; }
+  #graphic-studio-v2 .gs-artboard-thumb { width:86px; height:62px; border:1px solid var(--gs-line); border-radius:7px; background:linear-gradient(140deg,light-dark(#efe4d0,#4f453d),light-dark(#dce5ca,#374737)); position:relative; }
+  #graphic-studio-v2 .gs-artboard-thumb.is-active { border:2px solid var(--gs-blue); }
+  #graphic-studio-v2 .gs-artboard-thumb span { position:absolute; left:4px; bottom:3px; background:var(--gs-surface); padding:2px 4px; border-radius:3px; font-size:10px; }
+  #graphic-studio-v2 .gs-add-artboard { height:62px; min-width:88px; border:1px dashed var(--gs-line); border-radius:7px; background:transparent; color:var(--gs-muted); cursor:pointer; }
+
+  #graphic-studio-v2 .gs-inspector { background:var(--gs-surface); border-left:1px solid var(--gs-line); min-width:0; }
+  #graphic-studio-v2 .gs-tabs { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid var(--gs-line); }
+  #graphic-studio-v2 .gs-tab { appearance:none; border:0; background:transparent; color:var(--gs-muted); padding:12px 5px; cursor:pointer; font-size:12px; }
+  #graphic-studio-v2 .gs-tab[aria-selected=&quot;true&quot;] { color:var(--gs-blue-ink); box-shadow:inset 0 -2px var(--gs-blue); }
+  #graphic-studio-v2 .gs-panel { display:none; padding:14px; }
+  #graphic-studio-v2 .gs-panel.is-active { display:block; }
+  #graphic-studio-v2 .gs-panel-head { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  #graphic-studio-v2 .gs-panel-head h2 { margin:0; font-size:18px; font-weight:500; }
+  #graphic-studio-v2 .gs-panel-section { padding:12px 0; border-bottom:1px solid var(--gs-line); }
+  #graphic-studio-v2 .gs-panel-section:last-child { border-bottom:0; }
+  #graphic-studio-v2 .gs-panel-label { display:block; font-weight:500; margin-bottom:7px; }
+  #graphic-studio-v2 .gs-select { width:100%; padding:8px; border:1px solid var(--gs-line); border-radius:7px; background:var(--gs-surface); color:var(--gs-text); }
+  #graphic-studio-v2 .gs-range-row { display:flex; align-items:center; gap:8px; color:var(--gs-muted); font-size:12px; }
+  #graphic-studio-v2 .gs-range-row input { flex:1; }
+  #graphic-studio-v2 .gs-safety { margin-top:10px; padding:9px; border-left:3px solid var(--gs-green); background:var(--gs-green-soft); color:var(--gs-green); font-size:12px; line-height:1.45; }
+  #graphic-studio-v2 .gs-layer { display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:8px; align-items:center; padding:8px; border-radius:7px; margin-bottom:4px; }
+  #graphic-studio-v2 .gs-layer.is-active { background:var(--gs-blue-soft); }
+  #graphic-studio-v2 .gs-layer-preview { width:27px; height:27px; display:grid; place-items:center; border-radius:5px; background:var(--gs-raised); color:var(--gs-blue-ink); }
+  #graphic-studio-v2 .gs-chat { display:flex; flex-direction:column; min-height:525px; }
+  #graphic-studio-v2 .gs-chat-context { padding:10px; border-radius:8px; background:var(--gs-blue-soft); margin-bottom:11px; font-size:12px; color:var(--gs-blue-ink); }
+  #graphic-studio-v2 .gs-message { max-width:90%; padding:9px 10px; border-radius:9px; margin-bottom:8px; line-height:1.45; font-size:13px; }
+  #graphic-studio-v2 .gs-message.assistant { background:var(--gs-raised); }
+  #graphic-studio-v2 .gs-message.user { margin-left:auto; background:var(--gs-blue); color:light-dark(#ffffff,#0d1428); }
+  #graphic-studio-v2 .gs-chat-compose { margin-top:auto; border:1px solid var(--gs-line); border-radius:9px; background:var(--gs-surface); padding:8px; }
+  #graphic-studio-v2 .gs-chat-compose textarea { width:100%; min-height:60px; resize:none; border:0; background:transparent; color:var(--gs-text); }
+  #graphic-studio-v2 .gs-chat-actions { display:flex; justify-content:flex-end; }
+
+  #graphic-studio-v2 .gs-statusbar { height:58px; padding:0 12px; display:flex; align-items:center; gap:8px; background:var(--gs-surface); border-top:1px solid var(--gs-line); color:var(--gs-muted); font-size:12px; }
+  #graphic-studio-v2 .gs-history-step { padding:5px 7px; border-radius:5px; background:var(--gs-raised); color:var(--gs-text); }
+  #graphic-studio-v2 .gs-production { color:var(--gs-orange); display:flex; align-items:center; gap:5px; }
+
+  @media (max-width:920px) {
+    #graphic-studio-v2 .gs-mode, #graphic-studio-v2 .gs-topbar .gs-button:not(.gs-button-primary):not(.gs-icon-button) { display:none; }
+    #graphic-studio-v2 .gs-workspace { grid-template-columns:58px minmax(0,1fr); }
+    #graphic-studio-v2 .gs-tools { padding:7px 5px; }
+    #graphic-studio-v2 .gs-tool-search, #graphic-studio-v2 .gs-group-label, #graphic-studio-v2 .gs-tool span { display:none; }
+    #graphic-studio-v2 .gs-tool { justify-content:center; min-height:42px; }
+    #graphic-studio-v2 .gs-inspector { grid-column:1/-1; border-left:0; border-top:1px solid var(--gs-line); }
+    #graphic-studio-v2 .gs-panel { min-height:260px; }
+    #graphic-studio-v2 .gs-chat { min-height:260px; }
+  }
+  @media (max-width:560px) {
+    #graphic-studio-v2 .gs-window { min-height:0; }
+    #graphic-studio-v2 .gs-doc { min-width:0; flex:1; }
+    #graphic-studio-v2 .gs-topbar .gs-icon-button:nth-of-type(n+2) { display:none; }
+    #graphic-studio-v2 .gs-contextbar { overflow:hidden; }
+    #graphic-studio-v2 .gs-contextbar &gt; :nth-child(n+5) { display:none; }
+    #graphic-studio-v2 .gs-center { grid-template-rows:43px minmax(360px,1fr) 78px; }
+    #graphic-studio-v2 .gs-stage { padding:24px 8px 66px; }
+    #graphic-studio-v2 .gs-artboard { width:94%; }
+    #graphic-studio-v2 .gs-trust-note { max-width:76%; }
+    #graphic-studio-v2 .gs-artboard-thumb { width:72px; height:52px; }
+    #graphic-studio-v2 .gs-add-artboard { height:52px; min-width:70px; }
+    #graphic-studio-v2 .gs-statusbar .gs-history-step:nth-of-type(n+2), #graphic-studio-v2 .gs-production { display:none; }
+  }
+&lt;/style&gt;
+
+&lt;div id=&quot;graphic-studio-v2&quot;&gt;
+  &lt;div class=&quot;gs-window&quot;&gt;
+    &lt;header class=&quot;gs-topbar&quot;&gt;
+      &lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Back to project&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;gs-doc&quot;&gt;&lt;strong&gt;Hedgehog textile artwork&lt;/strong&gt;&lt;span class=&quot;gs-small&quot;&gt;Summer collection · Saved just now&lt;/span&gt;&lt;/div&gt;
+      &lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Undo&quot;&gt;&lt;i data-lucide=&quot;undo-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Redo&quot;&gt;&lt;i data-lucide=&quot;redo-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;gs-mode&quot; aria-label=&quot;Enhancement mode&quot;&gt;&lt;button type=&quot;button&quot; aria-pressed=&quot;true&quot;&gt;Preserve&lt;/button&gt;&lt;button type=&quot;button&quot; aria-pressed=&quot;false&quot;&gt;Restore&lt;/button&gt;&lt;button type=&quot;button&quot; aria-pressed=&quot;false&quot;&gt;Recreate&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;
+      &lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;columns-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Compare&lt;/button&gt;
+      &lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;message-square&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Share&lt;/button&gt;
+      &lt;button class=&quot;gs-button gs-button-primary&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;package-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Export&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;gs-workspace&quot;&gt;
+      &lt;aside class=&quot;gs-tools&quot;&gt;
+        &lt;div class=&quot;gs-tool-search&quot;&gt;&lt;i data-lucide=&quot;search&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Search all tools&lt;/div&gt;
+        &lt;div class=&quot;gs-group&quot;&gt;&lt;div class=&quot;gs-group-label&quot;&gt;Recommended&lt;/div&gt;&lt;button class=&quot;gs-tool is-active&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;scan-search&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Analysis&lt;/span&gt;&lt;span class=&quot;gs-tool-status&quot;&gt;2&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;wand-sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Restore detail&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;gs-group&quot;&gt;&lt;div class=&quot;gs-group-label&quot;&gt;Edit&lt;/div&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;mouse-pointer-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Select&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;crop&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Crop &amp;amp; resize&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;sliders-horizontal&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Light &amp;amp; colour&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;eraser&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Clean up&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;gs-group&quot;&gt;&lt;div class=&quot;gs-group-label&quot;&gt;Create&lt;/div&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;type&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Text&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;shapes&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Shapes&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;pen-tool&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Draw &amp;amp; vector&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;image-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Assets&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;gs-group&quot;&gt;&lt;div class=&quot;gs-group-label&quot;&gt;Output&lt;/div&gt;&lt;button class=&quot;gs-tool&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;printer&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Production&lt;/span&gt;&lt;span class=&quot;gs-tool-status&quot;&gt;!&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;section class=&quot;gs-center&quot;&gt;
+        &lt;div class=&quot;gs-contextbar&quot;&gt;&lt;span class=&quot;gs-context-label&quot;&gt;Selected layer&lt;/span&gt;&lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;move&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Position&lt;/button&gt;&lt;input class=&quot;gs-context-input&quot; value=&quot;100%&quot; aria-label=&quot;Layer opacity&quot;&gt;&lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;copy&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;lock&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;&lt;button class=&quot;gs-button&quot; id=&quot;gs-ai-open&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Ask AI&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;gs-stage&quot;&gt;
+          &lt;div class=&quot;gs-artboard&quot; role=&quot;img&quot; aria-label=&quot;Layered hedgehog textile artboard&quot;&gt;&lt;span class=&quot;gs-plant p1&quot;&gt;&lt;/span&gt;&lt;span class=&quot;gs-plant p2&quot;&gt;&lt;/span&gt;&lt;span class=&quot;gs-plant p3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;gs-animal&quot;&gt;&lt;/span&gt;&lt;div class=&quot;gs-selection&quot;&gt;&lt;button class=&quot;gs-ai-context&quot; id=&quot;gs-context-ai&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Edit this selection with AI&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-trust-note&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Trustworthy at 20 × 15 cm · 300 PPI · original preserved&lt;/div&gt;
+          &lt;div class=&quot;gs-zoom&quot;&gt;&lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Zoom out&quot;&gt;&lt;i data-lucide=&quot;minus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;64%&lt;/button&gt;&lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Zoom in&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;gs-artboards&quot;&gt;&lt;div class=&quot;gs-artboard-thumb is-active&quot;&gt;&lt;span&gt;Original size&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gs-artboard-thumb&quot;&gt;&lt;span&gt;T-shirt front&lt;/span&gt;&lt;/div&gt;&lt;button class=&quot;gs-add-artboard&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;br&gt;Add artboard&lt;/button&gt;&lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;&lt;button class=&quot;gs-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;maximize-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Smart Resize&lt;/button&gt;&lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;aside class=&quot;gs-inspector&quot;&gt;
+        &lt;div class=&quot;gs-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Editor panels&quot;&gt;&lt;button class=&quot;gs-tab&quot; type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot; data-panel=&quot;properties&quot;&gt;Properties&lt;/button&gt;&lt;button class=&quot;gs-tab&quot; type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-panel=&quot;layers&quot;&gt;Layers&lt;/button&gt;&lt;button class=&quot;gs-tab&quot; type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-panel=&quot;assistant&quot;&gt;AI assistant&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;gs-panel is-active&quot; data-panel-content=&quot;properties&quot;&gt;
+          &lt;div class=&quot;gs-panel-head&quot;&gt;&lt;h2&gt;Selected artwork&lt;/h2&gt;&lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;&lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Detach panel&quot;&gt;&lt;i data-lucide=&quot;panel-right-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-panel-section&quot;&gt;&lt;label class=&quot;gs-panel-label&quot; for=&quot;gs-purpose&quot;&gt;Intended output&lt;/label&gt;&lt;select class=&quot;gs-select&quot; id=&quot;gs-purpose&quot;&gt;&lt;option&gt;DTF textile print&lt;/option&gt;&lt;option&gt;Digital image&lt;/option&gt;&lt;option&gt;Paper print&lt;/option&gt;&lt;/select&gt;&lt;div class=&quot;gs-safety&quot;&gt;&lt;strong&gt;Preserve mode&lt;/strong&gt;&lt;br&gt;No new visual content will be invented.&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-panel-section&quot;&gt;&lt;span class=&quot;gs-panel-label&quot;&gt;Prepared corrections&lt;/span&gt;&lt;label class=&quot;gs-range-row&quot;&gt;&lt;span&gt;Compression repair&lt;/span&gt;&lt;input type=&quot;range&quot; min=&quot;0&quot; max=&quot;100&quot; value=&quot;58&quot;&gt;&lt;span&gt;58%&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;gs-range-row&quot;&gt;&lt;span&gt;Colour balance&lt;/span&gt;&lt;input type=&quot;range&quot; min=&quot;0&quot; max=&quot;100&quot; value=&quot;34&quot;&gt;&lt;span&gt;34%&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;gs-range-row&quot;&gt;&lt;span&gt;Edge clarity&lt;/span&gt;&lt;input type=&quot;range&quot; min=&quot;0&quot; max=&quot;100&quot; value=&quot;22&quot;&gt;&lt;span&gt;22%&lt;/span&gt;&lt;/label&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-panel-section&quot;&gt;&lt;span class=&quot;gs-panel-label&quot;&gt;Output confidence&lt;/span&gt;&lt;div class=&quot;gs-small&quot;&gt;Current source supports 20 × 15 cm at 300 PPI. For a larger print, Restore can be reviewed; Recreate requires explicit permission.&lt;/div&gt;&lt;button class=&quot;gs-button&quot; style=&quot;margin-top:10px&quot; type=&quot;button&quot;&gt;View size limits&lt;/button&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;gs-panel&quot; data-panel-content=&quot;layers&quot;&gt;
+          &lt;div class=&quot;gs-panel-head&quot;&gt;&lt;h2&gt;Layers&lt;/h2&gt;&lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;&lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Add layer&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-layer is-active&quot;&gt;&lt;span class=&quot;gs-layer-preview&quot;&gt;&lt;i data-lucide=&quot;image&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Restored artwork&lt;/strong&gt;&lt;div class=&quot;gs-small&quot;&gt;Non-destructive variant&lt;/div&gt;&lt;/div&gt;&lt;i data-lucide=&quot;eye&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-layer&quot;&gt;&lt;span class=&quot;gs-layer-preview&quot;&gt;&lt;i data-lucide=&quot;shield&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Protected outlines&lt;/strong&gt;&lt;div class=&quot;gs-small&quot;&gt;Mask&lt;/div&gt;&lt;/div&gt;&lt;i data-lucide=&quot;eye&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-layer&quot;&gt;&lt;span class=&quot;gs-layer-preview&quot;&gt;&lt;i data-lucide=&quot;flower-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Botanical details&lt;/strong&gt;&lt;div class=&quot;gs-small&quot;&gt;Linked group&lt;/div&gt;&lt;/div&gt;&lt;i data-lucide=&quot;eye&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-layer&quot;&gt;&lt;span class=&quot;gs-layer-preview&quot;&gt;&lt;i data-lucide=&quot;image&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Original source&lt;/strong&gt;&lt;div class=&quot;gs-small&quot;&gt;Locked · immutable&lt;/div&gt;&lt;/div&gt;&lt;i data-lucide=&quot;lock&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;gs-panel&quot; data-panel-content=&quot;assistant&quot;&gt;
+          &lt;div class=&quot;gs-panel-head&quot;&gt;&lt;h2&gt;AI assistant&lt;/h2&gt;&lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;&lt;button class=&quot;gs-button gs-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Detach panel&quot;&gt;&lt;i data-lucide=&quot;panel-right-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;gs-chat&quot;&gt;&lt;div class=&quot;gs-chat-context&quot;&gt;&lt;i data-lucide=&quot;crosshair&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Context: selected hedgehog artwork layer&lt;/div&gt;&lt;div class=&quot;gs-message assistant&quot;&gt;I’ll protect the face, nails, outline and existing colour regions. What would you like to change?&lt;/div&gt;&lt;div class=&quot;gs-message user&quot;&gt;Make the fur and flowers clearer, but do not change the illustration style.&lt;/div&gt;&lt;div class=&quot;gs-message assistant&quot;&gt;I can prepare two Restore candidates for those regions. Nothing will be applied until you choose one.&lt;/div&gt;&lt;div class=&quot;gs-chat-compose&quot;&gt;&lt;textarea aria-label=&quot;Message AI assistant&quot; placeholder=&quot;Describe the result you want…&quot;&gt;&lt;/textarea&gt;&lt;div class=&quot;gs-chat-actions&quot;&gt;&lt;button class=&quot;gs-button gs-button-primary&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;send&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Send&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;footer class=&quot;gs-statusbar&quot;&gt;&lt;span&gt;History&lt;/span&gt;&lt;span class=&quot;gs-history-step&quot;&gt;Original&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;gs-history-step&quot;&gt;Safe correction preview&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;gs-history-step&quot;&gt;Current&lt;/span&gt;&lt;div class=&quot;gs-grow&quot;&gt;&lt;/div&gt;&lt;span class=&quot;gs-production&quot;&gt;&lt;i data-lucide=&quot;triangle-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Production profile needs review&lt;/span&gt;&lt;span&gt;Autosaved&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+  (() =&gt; {
+    const root = document.getElementById(&quot;graphic-studio-v2&quot;);
+    if (!root) return;
+    const tabs = [...root.querySelectorAll(&quot;.gs-tab&quot;)];
+    const panels = [...root.querySelectorAll(&quot;[data-panel-content]&quot;)];
+    const activate = (name) =&gt; {
+      tabs.forEach((tab) =&gt; tab.setAttribute(&quot;aria-selected&quot;, tab.getAttribute(&quot;data-panel&quot;) === name ? &quot;true&quot; : &quot;false&quot;));
+      panels.forEach((panel) =&gt; panel.classList.toggle(&quot;is-active&quot;, panel.getAttribute(&quot;data-panel-content&quot;) === name));
+    };
+    tabs.forEach((tab) =&gt; tab.addEventListener(&quot;click&quot;, () =&gt; activate(tab.getAttribute(&quot;data-panel&quot;))));
+    [root.querySelector(&quot;#gs-ai-open&quot;), root.querySelector(&quot;#gs-context-ai&quot;)].forEach((button) =&gt; { if (button) button.addEventListener(&quot;click&quot;, () =&gt; activate(&quot;assistant&quot;)); });
+    const modes = [...root.querySelectorAll(&quot;.gs-mode button&quot;)];
+    modes.forEach((button) =&gt; button.addEventListener(&quot;click&quot;, () =&gt; modes.forEach((item) =&gt; item.setAttribute(&quot;aria-pressed&quot;, item === button ? &quot;true&quot; : &quot;false&quot;))));
+  })();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

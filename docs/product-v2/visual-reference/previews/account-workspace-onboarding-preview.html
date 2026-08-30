@@ -1,0 +1,1693 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Account Workspace Onboarding Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Account Workspace Onboarding Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Account Workspace Onboarding Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;account-workspace-onboarding&quot; aria-label=&quot;Account workspace onboarding and identity experience&quot;&gt;
+  &lt;style&gt;
+    #account-workspace-onboarding {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #account-workspace-onboarding * { box-sizing: border-box; }
+    #account-workspace-onboarding button,
+    #account-workspace-onboarding input,
+    #account-workspace-onboarding select { font: inherit; color: inherit; }
+    #account-workspace-onboarding button { cursor: pointer; }
+    #account-workspace-onboarding .aw-shell { min-height: 758px; position: relative; overflow: hidden; background: light-dark(#f7f8fb, #151b28); }
+    #account-workspace-onboarding .aw-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #account-workspace-onboarding .aw-brand { display: flex; align-items: center; gap: 9px; min-width: 220px; }
+    #account-workspace-onboarding .aw-brand-mark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); }
+    #account-workspace-onboarding .aw-brand-mark svg { width: 17px; height: 17px; }
+    #account-workspace-onboarding .aw-brand-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-button,
+    #account-workspace-onboarding .aw-primary,
+    #account-workspace-onboarding .aw-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #account-workspace-onboarding .aw-icon-button { width: 37px; padding: 7px; }
+    #account-workspace-onboarding .aw-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #account-workspace-onboarding .aw-button svg,
+    #account-workspace-onboarding .aw-primary svg,
+    #account-workspace-onboarding .aw-icon-button svg { width: 16px; height: 16px; }
+    #account-workspace-onboarding .aw-spacer { flex: 1; }
+    #account-workspace-onboarding .aw-free { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #account-workspace-onboarding .aw-free svg { width: 15px; height: 15px; }
+    #account-workspace-onboarding .aw-avatar { width: 34px; height: 34px; border: 0; border-radius: 50%; display: grid; place-items: center; background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500; }
+    #account-workspace-onboarding .aw-main { display: grid; grid-template-columns: 216px minmax(0, 1fr) 286px; min-height: 661px; }
+    #account-workspace-onboarding .aw-nav,
+    #account-workspace-onboarding .aw-summary { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #account-workspace-onboarding .aw-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 12px 10px; }
+    #account-workspace-onboarding .aw-summary { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #account-workspace-onboarding .aw-switcher {
+      width: 100%; min-height: 47px; border: 1px solid light-dark(#d5dce7, #3b4659); border-radius: 9px; background: light-dark(#ffffff, #232b3b);
+      display: grid; grid-template-columns: 31px minmax(0, 1fr) 16px; gap: 8px; align-items: center; padding: 7px; text-align: left;
+    }
+    #account-workspace-onboarding .aw-switcher-icon { width: 31px; height: 31px; border-radius: 7px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #account-workspace-onboarding .aw-switcher-icon svg,
+    #account-workspace-onboarding .aw-switcher &gt; svg { width: 15px; height: 15px; }
+    #account-workspace-onboarding .aw-switcher-name { font-weight: 500; display: block; }
+    #account-workspace-onboarding .aw-switcher-meta { color: light-dark(#6b768a, #a8b3c5); display: block; margin-top: 1px; }
+    #account-workspace-onboarding .aw-nav-list { display: grid; gap: 3px; margin-top: 12px; }
+    #account-workspace-onboarding .aw-nav-heading { margin: 16px 8px 6px; color: light-dark(#707b8e, #a8b3c5); }
+    #account-workspace-onboarding .aw-nav-button {
+      width: 100%; min-height: 39px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #account-workspace-onboarding .aw-nav-button svg { width: 17px; height: 17px; }
+    #account-workspace-onboarding .aw-nav-button[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #account-workspace-onboarding .aw-content { min-width: 0; padding: 18px 20px 25px; }
+    #account-workspace-onboarding .aw-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    #account-workspace-onboarding .aw-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #account-workspace-onboarding .aw-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #account-workspace-onboarding .aw-progress-label { color: light-dark(#637087, #adb7ca); text-align: right; }
+    #account-workspace-onboarding .aw-progress-track { width: 108px; height: 5px; border-radius: 4px; margin-top: 6px; background: light-dark(#e1e6ee, #333d50); overflow: hidden; }
+    #account-workspace-onboarding .aw-progress-fill { width: 50%; height: 100%; background: light-dark(#2757cf, #8aa6ff); }
+    #account-workspace-onboarding .aw-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #account-workspace-onboarding .aw-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #account-workspace-onboarding .aw-tab[aria-selected=&quot;true&quot;] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #account-workspace-onboarding .aw-resume {
+      display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border-radius: 10px;
+      background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); margin-bottom: 13px;
+    }
+    #account-workspace-onboarding .aw-resume-preview { width: 58px; height: 58px; border-radius: 8px; background: light-dark(#e9dfd0, #3b352d); display: grid; place-items: center; color: light-dark(#6e4c34, #d0b49d); }
+    #account-workspace-onboarding .aw-resume-preview svg { width: 25px; height: 25px; }
+    #account-workspace-onboarding .aw-resume-title { font-weight: 500; }
+    #account-workspace-onboarding .aw-resume-meta { margin-top: 3px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-outcome-title { font-weight: 500; margin: 13px 0 8px; }
+    #account-workspace-onboarding .aw-outcomes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    #account-workspace-onboarding .aw-outcome {
+      min-height: 96px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; background: light-dark(#ffffff, #1d2534); padding: 11px;
+      display: grid; grid-template-columns: 37px minmax(0, 1fr); gap: 9px; align-content: start; text-align: left;
+    }
+    #account-workspace-onboarding .aw-outcome-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #account-workspace-onboarding .aw-outcome:hover .aw-outcome-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #account-workspace-onboarding .aw-outcome-icon svg { width: 18px; height: 18px; }
+    #account-workspace-onboarding .aw-outcome-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-outcome-meta { color: light-dark(#687388, #aeb8ca); margin-top: 3px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-default-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border-radius: 8px; margin-top: 12px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #account-workspace-onboarding .aw-default-note svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+    #account-workspace-onboarding .aw-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #account-workspace-onboarding .aw-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #account-workspace-onboarding .aw-input,
+    #account-workspace-onboarding .aw-select { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #account-workspace-onboarding .aw-identity-row { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #account-workspace-onboarding .aw-identity-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #account-workspace-onboarding .aw-identity-icon svg { width: 18px; height: 18px; }
+    #account-workspace-onboarding .aw-identity-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-identity-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-state { display: inline-flex; align-items: center; gap: 5px; color: light-dark(#1d7153, #8de0bf); }
+    #account-workspace-onboarding .aw-state svg { width: 15px; height: 15px; }
+    #account-workspace-onboarding .aw-member-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 120px; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #account-workspace-onboarding .aw-member-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e3e8f0, #303a4d); color: light-dark(#46536a, #c8d1df); font-weight: 500; }
+    #account-workspace-onboarding .aw-member-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-member-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #account-workspace-onboarding .aw-member-role { text-align: right; color: light-dark(#536078, #bec8d9); }
+    #account-workspace-onboarding .aw-invite-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 8px; margin-bottom: 10px; }
+    #account-workspace-onboarding .aw-region-choice { display: grid; gap: 7px; }
+    #account-workspace-onboarding .aw-region {
+      display: grid; grid-template-columns: 19px minmax(0, 1fr); gap: 9px; padding: 10px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534);
+    }
+    #account-workspace-onboarding .aw-region:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #account-workspace-onboarding .aw-region input { width: 17px; height: 17px; margin-top: 2px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #account-workspace-onboarding .aw-region strong { display: block; font-weight: 500; }
+    #account-workspace-onboarding .aw-region small { display: block; color: light-dark(#667187, #adb7ca); margin-top: 2px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-region-note { margin-top: 10px; padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #account-workspace-onboarding .aw-panel-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+    #account-workspace-onboarding .aw-summary h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #account-workspace-onboarding .aw-summary-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #account-workspace-onboarding .aw-summary-box { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #account-workspace-onboarding .aw-summary-workspace { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 9px; align-items: center; }
+    #account-workspace-onboarding .aw-summary-icon { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #account-workspace-onboarding .aw-summary-icon svg { width: 17px; height: 17px; }
+    #account-workspace-onboarding .aw-summary-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #account-workspace-onboarding .aw-summary-title { font-weight: 500; margin-bottom: 8px; }
+    #account-workspace-onboarding .aw-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #account-workspace-onboarding .aw-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #account-workspace-onboarding .aw-fact strong { display: block; font-weight: 500; }
+    #account-workspace-onboarding .aw-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-independent { padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #account-workspace-onboarding .aw-toast { position: absolute; z-index: 8; left: 50%; bottom: 48px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #account-workspace-onboarding .aw-toast[hidden] { display: none; }
+    #account-workspace-onboarding .aw-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #account-workspace-onboarding .aw-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #account-workspace-onboarding .aw-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #account-workspace-onboarding .aw-summary { display: none; }
+      #account-workspace-onboarding .aw-free { display: none; }
+    }
+    @media (max-width: 650px) {
+      #account-workspace-onboarding .aw-header { flex-wrap: wrap; }
+      #account-workspace-onboarding .aw-brand { min-width: 0; flex: 1; }
+      #account-workspace-onboarding .aw-main { display: block; }
+      #account-workspace-onboarding .aw-nav { display: none; }
+      #account-workspace-onboarding .aw-content { padding: 14px 11px 21px; }
+      #account-workspace-onboarding .aw-content-head h2 { font-size: 18px; }
+      #account-workspace-onboarding .aw-tabs { overflow-x: auto; }
+      #account-workspace-onboarding .aw-tab { flex: 0 0 auto; }
+      #account-workspace-onboarding .aw-resume { grid-template-columns: 52px minmax(0, 1fr); }
+      #account-workspace-onboarding .aw-resume .aw-primary { grid-column: 1 / -1; }
+      #account-workspace-onboarding .aw-outcomes { grid-template-columns: 1fr; }
+      #account-workspace-onboarding .aw-form-grid { grid-template-columns: 1fr; }
+      #account-workspace-onboarding .aw-invite-row { grid-template-columns: 1fr; }
+      #account-workspace-onboarding .aw-bottom { display: none; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;aw-shell&quot;&gt;
+    &lt;header class=&quot;aw-header&quot;&gt;
+      &lt;div class=&quot;aw-brand&quot;&gt;&lt;span class=&quot;aw-brand-mark&quot;&gt;&lt;i data-lucide=&quot;layers-3&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;aw-brand-name&quot;&gt;Visual Workspace&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;aw-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;aw-free&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Free during testing&lt;/div&gt;
+      &lt;button class=&quot;aw-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Help&quot;&gt;&lt;i data-lucide=&quot;circle-help&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;button class=&quot;aw-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Notifications&quot;&gt;&lt;i data-lucide=&quot;bell&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;button class=&quot;aw-avatar&quot; type=&quot;button&quot; aria-label=&quot;Open Vijay Kumar account menu&quot;&gt;VK&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;aw-main&quot;&gt;
+      &lt;aside class=&quot;aw-nav&quot; aria-label=&quot;Workspace navigation&quot;&gt;
+        &lt;button class=&quot;aw-switcher&quot; type=&quot;button&quot;&gt;&lt;span class=&quot;aw-switcher-icon&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-switcher-name&quot;&gt;Northstar Studio&lt;/span&gt;&lt;span class=&quot;aw-switcher-meta&quot;&gt;Your workspace&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevrons-up-down&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;nav class=&quot;aw-nav-list&quot;&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;house&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Home&lt;/button&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;folder-kanban&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Projects&lt;/button&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;files&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Default files&lt;/button&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;users&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Shared with me&lt;/button&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;cloud&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Connected storage&lt;/button&gt;
+        &lt;/nav&gt;
+        &lt;div class=&quot;aw-nav-heading&quot;&gt;Settings&lt;/div&gt;
+        &lt;nav class=&quot;aw-nav-list&quot; style=&quot;margin-top:0&quot;&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;user-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;My profile&lt;/button&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot; aria-pressed=&quot;true&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Workspace setup&lt;/button&gt;
+          &lt;button class=&quot;aw-nav-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Security&lt;/button&gt;
+        &lt;/nav&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;aw-content&quot;&gt;
+        &lt;div class=&quot;aw-content-head&quot;&gt;&lt;div&gt;&lt;h2 id=&quot;aw-heading&quot;&gt;Welcome, Vijay&lt;/h2&gt;&lt;div class=&quot;aw-content-subtitle&quot; id=&quot;aw-subtitle&quot;&gt;Your file and its analysis followed you safely through sign-up.&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;aw-progress-label&quot;&gt;Workspace ready · 2 of 4 optional steps&lt;/div&gt;&lt;div class=&quot;aw-progress-track&quot; aria-label=&quot;Optional setup progress&quot;&gt;&lt;div class=&quot;aw-progress-fill&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;aw-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Workspace onboarding&quot;&gt;
+          &lt;button class=&quot;aw-tab&quot; type=&quot;button&quot; data-panel=&quot;start&quot; aria-selected=&quot;true&quot;&gt;Start working&lt;/button&gt;
+          &lt;button class=&quot;aw-tab&quot; type=&quot;button&quot; data-panel=&quot;workspace&quot; aria-selected=&quot;false&quot;&gt;Workspace&lt;/button&gt;
+          &lt;button class=&quot;aw-tab&quot; type=&quot;button&quot; data-panel=&quot;people&quot; aria-selected=&quot;false&quot;&gt;People&lt;/button&gt;
+          &lt;button class=&quot;aw-tab&quot; type=&quot;button&quot; data-panel=&quot;security&quot; aria-selected=&quot;false&quot;&gt;Sign-in &amp;amp; security&lt;/button&gt;
+          &lt;button class=&quot;aw-tab&quot; type=&quot;button&quot; data-panel=&quot;region&quot; aria-selected=&quot;false&quot;&gt;Data region&lt;/button&gt;
+        &lt;/div&gt;
+
+        &lt;section data-content=&quot;start&quot;&gt;
+          &lt;div class=&quot;aw-resume&quot;&gt;&lt;span class=&quot;aw-resume-preview&quot;&gt;&lt;i data-lucide=&quot;image&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-resume-title&quot;&gt;Continue hedgehog-watercolour.png&lt;/span&gt;&lt;span class=&quot;aw-resume-meta&quot;&gt;Uploaded as a guest · Analysis and correction preview preserved · Not yet applied&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;aw-primary&quot; id=&quot;aw-continue-file&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;arrow-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Continue&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-outcome-title&quot;&gt;Or start from any major outcome&lt;/div&gt;
+          &lt;div class=&quot;aw-outcomes&quot;&gt;
+            &lt;button class=&quot;aw-outcome&quot; type=&quot;button&quot; data-outcome=&quot;Image &amp; Graphic Studio&quot;&gt;&lt;span class=&quot;aw-outcome-icon&quot;&gt;&lt;i data-lucide=&quot;palette&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-outcome-name&quot;&gt;Image &amp;amp; Graphic Studio&lt;/span&gt;&lt;span class=&quot;aw-outcome-meta&quot;&gt;Enhance, restore, design and prepare digital or production artwork.&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+            &lt;button class=&quot;aw-outcome&quot; type=&quot;button&quot; data-outcome=&quot;Create PDF&quot;&gt;&lt;span class=&quot;aw-outcome-icon&quot;&gt;&lt;i data-lucide=&quot;file-plus-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-outcome-name&quot;&gt;Create PDF&lt;/span&gt;&lt;span class=&quot;aw-outcome-meta&quot;&gt;Build editable pages from text, layouts, images, tables and more.&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+            &lt;button class=&quot;aw-outcome&quot; type=&quot;button&quot; data-outcome=&quot;Edit &amp; Manage PDF&quot;&gt;&lt;span class=&quot;aw-outcome-icon&quot;&gt;&lt;i data-lucide=&quot;file-pen-line&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-outcome-name&quot;&gt;Edit &amp;amp; Manage PDF&lt;/span&gt;&lt;span class=&quot;aw-outcome-meta&quot;&gt;Safely edit, organise, convert, sign, redact and repair PDFs.&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+            &lt;button class=&quot;aw-outcome&quot; type=&quot;button&quot; data-outcome=&quot;Print &amp; Production&quot;&gt;&lt;span class=&quot;aw-outcome-icon&quot;&gt;&lt;i data-lucide=&quot;printer&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-outcome-name&quot;&gt;Print &amp;amp; Production&lt;/span&gt;&lt;span class=&quot;aw-outcome-meta&quot;&gt;Preflight and export for materials, machines and trusted sizes.&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;aw-default-note&quot;&gt;&lt;i data-lucide=&quot;folder-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;No project decision is required now.&lt;/strong&gt; Unspecific uploads, saved results and clones go to &lt;strong&gt;Default files&lt;/strong&gt;. They can be moved into a project later without losing versions.&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;workspace&quot; hidden&gt;
+          &lt;div class=&quot;aw-form-grid&quot;&gt;&lt;div class=&quot;aw-field&quot;&gt;&lt;label for=&quot;aw-workspace-name&quot;&gt;Workspace name&lt;/label&gt;&lt;input id=&quot;aw-workspace-name&quot; class=&quot;aw-input&quot; value=&quot;Northstar Studio&quot;&gt;&lt;/div&gt;&lt;div class=&quot;aw-field&quot;&gt;&lt;label for=&quot;aw-workspace-handle&quot;&gt;Workspace address&lt;/label&gt;&lt;input id=&quot;aw-workspace-handle&quot; class=&quot;aw-input&quot; value=&quot;northstar-studio&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-default-note&quot;&gt;&lt;i data-lucide=&quot;users-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;One universal workspace model.&lt;/strong&gt; We never ask whether you are an individual or a business. Work alone today, invite collaborators tomorrow, and keep the same workspace and files.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-identity-row&quot;&gt;&lt;span class=&quot;aw-identity-icon&quot;&gt;&lt;i data-lucide=&quot;files&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-identity-name&quot;&gt;Default files&lt;/span&gt;&lt;span class=&quot;aw-identity-meta&quot;&gt;Automatic home for work that has not been assigned to a project.&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;aw-state&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Ready&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-identity-row&quot;&gt;&lt;span class=&quot;aw-identity-icon&quot;&gt;&lt;i data-lucide=&quot;folder-kanban&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-identity-name&quot;&gt;Projects and subprojects&lt;/span&gt;&lt;span class=&quot;aw-identity-meta&quot;&gt;Create single-design or multi-asset projects only when useful.&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;aw-button&quot; type=&quot;button&quot;&gt;Create project&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-panel-actions&quot;&gt;&lt;button class=&quot;aw-primary&quot; id=&quot;aw-save-workspace&quot; type=&quot;button&quot;&gt;Save workspace&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;people&quot; hidden&gt;
+          &lt;div class=&quot;aw-invite-row&quot;&gt;&lt;input class=&quot;aw-input&quot; aria-label=&quot;Invite email or name&quot; placeholder=&quot;Email address or name&quot;&gt;&lt;select class=&quot;aw-select&quot; aria-label=&quot;Invite role&quot;&gt;&lt;option&gt;Editor&lt;/option&gt;&lt;option&gt;Viewer&lt;/option&gt;&lt;option&gt;Owner&lt;/option&gt;&lt;/select&gt;&lt;button class=&quot;aw-primary&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;send&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Invite&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-default-note&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;This step is optional. Your workspace works completely for one person and expands naturally when you invite others.&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-member-row&quot;&gt;&lt;span class=&quot;aw-avatar&quot; style=&quot;width:32px;height:32px&quot;&gt;VK&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-member-name&quot;&gt;Vijay Kumar&lt;/span&gt;&lt;span class=&quot;aw-member-meta&quot;&gt;Signed in with verified email&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;aw-member-role&quot;&gt;Owner&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-member-row&quot;&gt;&lt;span class=&quot;aw-member-avatar&quot;&gt;&lt;i data-lucide=&quot;mail&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-member-name&quot;&gt;Factory reviewer&lt;/span&gt;&lt;span class=&quot;aw-member-meta&quot;&gt;Secure project link · Account optional for viewing&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;aw-member-role&quot;&gt;Viewer&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;security&quot; hidden&gt;
+          &lt;div class=&quot;aw-policy-banner&quot;&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-identity-row&quot;&gt;&lt;span class=&quot;aw-identity-icon&quot;&gt;&lt;i data-lucide=&quot;mail-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-identity-name&quot;&gt;Verified email&lt;/span&gt;&lt;span class=&quot;aw-identity-meta&quot;&gt;vijay@example.com · Recovery notifications enabled&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;aw-state&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Verified&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-identity-row&quot;&gt;&lt;span class=&quot;aw-identity-icon&quot;&gt;&lt;i data-lucide=&quot;key-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-identity-name&quot;&gt;Passkey&lt;/span&gt;&lt;span class=&quot;aw-identity-meta&quot;&gt;Fast phishing-resistant sign-in on supported devices.&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;aw-button&quot; type=&quot;button&quot;&gt;Add passkey&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-identity-row&quot;&gt;&lt;span class=&quot;aw-identity-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-identity-name&quot;&gt;Multi-factor authentication&lt;/span&gt;&lt;span class=&quot;aw-identity-meta&quot;&gt;Recommended for owners; enforceable by workspace policy.&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;aw-button&quot; type=&quot;button&quot;&gt;Set up&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;aw-identity-row&quot;&gt;&lt;span class=&quot;aw-identity-icon&quot;&gt;&lt;i data-lucide=&quot;monitor-smartphone&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-identity-name&quot;&gt;Active sessions&lt;/span&gt;&lt;span class=&quot;aw-identity-meta&quot;&gt;2 trusted sessions · Bengaluru, India&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;aw-button&quot; type=&quot;button&quot;&gt;Review&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;region&quot; hidden&gt;
+          &lt;div class=&quot;aw-region-choice&quot;&gt;
+            &lt;label class=&quot;aw-region&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;home-region&quot; value=&quot;india&quot; checked&gt;&lt;span&gt;&lt;strong&gt;India&lt;/strong&gt;&lt;small&gt;Recommended from your location. Store and process workspace data in India when supported.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;label class=&quot;aw-region&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;home-region&quot; value=&quot;asia&quot;&gt;&lt;span&gt;&lt;strong&gt;Asia Pacific&lt;/strong&gt;&lt;small&gt;Alternative regional processing when a required capability is unavailable in India.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+            &lt;label class=&quot;aw-region&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;home-region&quot; value=&quot;eu&quot;&gt;&lt;span&gt;&lt;strong&gt;European Union&lt;/strong&gt;&lt;small&gt;Choose when customer contracts or organisational policy require EU residency.&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;aw-region-note&quot;&gt;&lt;strong&gt;Transparent exceptions.&lt;/strong&gt; If a requested model, OCR engine, connector or signing provider cannot operate in the home region, the application explains the exception before processing. Controlled migration remains available later.&lt;/div&gt;
+          &lt;div class=&quot;aw-panel-actions&quot;&gt;&lt;button class=&quot;aw-primary&quot; id=&quot;aw-save-region&quot; type=&quot;button&quot;&gt;Confirm home region&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;aw-summary&quot; aria-label=&quot;Workspace setup summary&quot;&gt;
+        &lt;h3&gt;Workspace foundation&lt;/h3&gt;&lt;div class=&quot;aw-summary-copy&quot;&gt;A simple account for anyone, with team capability available without changing account type.&lt;/div&gt;
+        &lt;div class=&quot;aw-summary-box&quot;&gt;&lt;div class=&quot;aw-summary-workspace&quot;&gt;&lt;span class=&quot;aw-summary-icon&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;aw-workspace-name-display&quot; style=&quot;font-weight:500&quot;&gt;Northstar Studio&lt;/span&gt;&lt;span style=&quot;display:block;color:light-dark(#6b758a,#aab4c7);margin-top:2px&quot;&gt;Universal workspace&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;aw-summary-section&quot;&gt;&lt;div class=&quot;aw-summary-title&quot;&gt;Ready now&lt;/div&gt;&lt;div class=&quot;aw-fact&quot;&gt;&lt;i data-lucide=&quot;files&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Default files&lt;/strong&gt;&lt;small&gt;Work starts without project setup&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;aw-fact&quot;&gt;&lt;i data-lucide=&quot;user-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Verified identity&lt;/strong&gt;&lt;small&gt;Recovery and security controls active&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;aw-fact&quot;&gt;&lt;i data-lucide=&quot;map-pin&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;India home region&lt;/strong&gt;&lt;small&gt;Exceptions disclosed before processing&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;aw-summary-section&quot;&gt;&lt;div class=&quot;aw-summary-title&quot;&gt;Optional later&lt;/div&gt;&lt;div class=&quot;aw-fact&quot;&gt;&lt;i data-lucide=&quot;user-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Invite collaborators&lt;/strong&gt;&lt;small&gt;No separate business conversion&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;aw-fact&quot;&gt;&lt;i data-lucide=&quot;folder-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Create projects&lt;/strong&gt;&lt;small&gt;Move default files without losing history&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;aw-summary-section&quot;&gt;&lt;div class=&quot;aw-independent&quot;&gt;&lt;strong&gt;Independent product identity&lt;/strong&gt;&lt;br&gt;No YearShift account, database or billing dependency. Future umbrella access may use stable integration boundaries only.&lt;/div&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;aw-toast&quot; id=&quot;aw-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;/div&gt;
+    &lt;footer class=&quot;aw-bottom&quot;&gt;&lt;span&gt;No individual/business split&lt;/span&gt;&lt;span&gt;Guest work preserved&lt;/span&gt;&lt;span&gt;Default files ready&lt;/span&gt;&lt;span class=&quot;aw-bottom-right&quot;&gt;&lt;span&gt;Team-capable&lt;/span&gt;&lt;span&gt;Region-aware&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;account-workspace-onboarding&#x27;);
+      const tabs = [...root.querySelectorAll(&#x27;.aw-tab&#x27;)];
+      const panels = [...root.querySelectorAll(&#x27;[data-content]&#x27;)];
+      const titles = {
+        start: [&#x27;Welcome, Vijay&#x27;, &#x27;Your file and its analysis followed you safely through sign-up.&#x27;],
+        workspace: [&#x27;Set up your workspace&#x27;, &#x27;Use the same workspace whether you work alone or with a team.&#x27;],
+        people: [&#x27;Invite people when useful&#x27;, &#x27;Collaboration is optional and does not change your account type.&#x27;],
+        security: [&#x27;Protect your identity&#x27;, &#x27;Modern sign-in, recovery and workspace security without unnecessary friction.&#x27;],
+        region: [&#x27;Choose a home region&#x27;, &#x27;Keep storage and processing in one region when supported, with transparent exceptions.&#x27;]
+      };
+      const showPanel = (name) =&gt; {
+        tabs.forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab.dataset.panel === name)));
+        panels.forEach((panel) =&gt; { panel.hidden = panel.dataset.content !== name; });
+        root.querySelector(&#x27;#aw-heading&#x27;).textContent = titles[name][0];
+        root.querySelector(&#x27;#aw-subtitle&#x27;).textContent = titles[name][1];
+      };
+      tabs.forEach((tab) =&gt; tab.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(tab.dataset.panel)));
+
+      const toast = root.querySelector(&#x27;#aw-toast&#x27;);
+      let toastTimer;
+      const announce = (message) =&gt; { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 2600); };
+      root.querySelector(&#x27;#aw-continue-file&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Opening the preserved guest file in Image &amp; Graphic Studio.&#x27;));
+      root.querySelectorAll(&#x27;[data-outcome]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Opening &#x27; + button.dataset.outcome + &#x27;.&#x27;)));
+      root.querySelector(&#x27;#aw-save-workspace&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        const name = root.querySelector(&#x27;#aw-workspace-name&#x27;).value.trim() || &#x27;Your workspace&#x27;;
+        root.querySelector(&#x27;.aw-workspace-name-display&#x27;).textContent = name;
+        announce(&#x27;Workspace details saved.&#x27;);
+      });
+      root.querySelector(&#x27;#aw-save-region&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        const region = root.querySelector(&#x27;input[name=&quot;home-region&quot;]:checked&#x27;).value;
+        const names = { india: &#x27;India&#x27;, asia: &#x27;Asia Pacific&#x27;, eu: &#x27;European Union&#x27; };
+        announce(names[region] + &#x27; selected as the workspace home region.&#x27;);
+      });
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

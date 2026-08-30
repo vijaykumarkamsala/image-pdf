@@ -1,0 +1,410 @@
+<style>
+  #workspace-home-v2 {
+    --ws-page: light-dark(#f4f7fb, #10141c);
+    --ws-surface: light-dark(#ffffff, #181e28);
+    --ws-raised: light-dark(#f9fbfd, #202733);
+    --ws-text: light-dark(#162033, #edf3fb);
+    --ws-muted: light-dark(#647188, #aab5c6);
+    --ws-line: light-dark(#dce4ed, #344052);
+    --ws-blue: light-dark(#3559e0, #88a1ff);
+    --ws-blue-ink: light-dark(#2946bd, #b7c5ff);
+    --ws-blue-soft: light-dark(#edf1ff, #222c50);
+    --ws-green: light-dark(#177a59, #72d9b2);
+    --ws-green-soft: light-dark(#e9f7f1, #18392f);
+    --ws-orange: light-dark(#a9600f, #ffc078);
+    --ws-orange-soft: light-dark(#fff4e6, #46301a);
+    width: 100%;
+    color: var(--ws-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  #workspace-home-v2 * { box-sizing: border-box; }
+  #workspace-home-v2 button, #workspace-home-v2 input { font: inherit; }
+
+  #workspace-home-v2 .ws-window {
+    min-height: 760px;
+    overflow: hidden;
+    border: 1px solid var(--ws-line);
+    border-radius: 14px;
+    background: var(--ws-page);
+    box-shadow: 0 18px 48px light-dark(rgba(40, 55, 82, .12), rgba(0, 0, 0, .28));
+  }
+
+  #workspace-home-v2 .ws-header {
+    height: 64px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--ws-surface);
+    border-bottom: 1px solid var(--ws-line);
+  }
+
+  #workspace-home-v2 .ws-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  #workspace-home-v2 .ws-logo {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--ws-blue);
+    color: light-dark(#ffffff, #0d1428);
+  }
+
+  #workspace-home-v2 .ws-workspace-switch {
+    appearance: none;
+    border: 1px solid var(--ws-line);
+    border-radius: 8px;
+    background: var(--ws-raised);
+    color: var(--ws-text);
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+  }
+
+  #workspace-home-v2 .ws-search {
+    max-width: 420px;
+    min-width: 220px;
+    flex: 1;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    background: var(--ws-raised);
+    border: 1px solid var(--ws-line);
+    border-radius: 9px;
+    color: var(--ws-muted);
+  }
+
+  #workspace-home-v2 .ws-grow { flex: 1; }
+
+  #workspace-home-v2 .ws-button {
+    appearance: none;
+    border: 1px solid var(--ws-line);
+    background: var(--ws-surface);
+    color: var(--ws-text);
+    border-radius: 9px;
+    padding: 9px 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+  }
+
+  #workspace-home-v2 .ws-button-primary {
+    background: var(--ws-blue);
+    color: light-dark(#ffffff, #0d1428);
+    border-color: var(--ws-blue);
+  }
+
+  #workspace-home-v2 .ws-icon-button { width: 38px; height: 38px; padding: 0; }
+
+  #workspace-home-v2 .ws-avatar {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--ws-blue-soft);
+    color: var(--ws-blue-ink);
+    font-weight: 500;
+  }
+
+  #workspace-home-v2 .ws-layout { min-height: 696px; display: grid; grid-template-columns: 205px minmax(0, 1fr); }
+
+  #workspace-home-v2 .ws-sidebar {
+    background: var(--ws-surface);
+    border-right: 1px solid var(--ws-line);
+    padding: 17px 11px;
+  }
+
+  #workspace-home-v2 .ws-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ws-muted);
+    text-decoration: none;
+    padding: 10px 11px;
+    margin-bottom: 3px;
+    border-radius: 8px;
+  }
+
+  #workspace-home-v2 .ws-nav-item.is-active { background: var(--ws-blue-soft); color: var(--ws-blue-ink); }
+  #workspace-home-v2 .ws-nav-label { margin: 21px 11px 8px; color: var(--ws-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  #workspace-home-v2 .ws-count { margin-left: auto; min-width: 20px; text-align: center; color: var(--ws-orange); font-size: 12px; }
+  #workspace-home-v2 .ws-storage { margin: 24px 10px 0; padding-top: 15px; border-top: 1px solid var(--ws-line); color: var(--ws-muted); font-size: 12px; }
+  #workspace-home-v2 .ws-storage-line { height: 5px; background: var(--ws-raised); border-radius: 99px; margin: 8px 0 5px; overflow: hidden; }
+  #workspace-home-v2 .ws-storage-line span { display: block; width: 18%; height: 100%; background: var(--ws-blue); }
+
+  #workspace-home-v2 .ws-main { min-width: 0; padding: 28px; background: var(--ws-page); }
+  #workspace-home-v2 .ws-welcome { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 21px; }
+  #workspace-home-v2 h1 { font-size: 28px; line-height: 1.15; font-weight: 500; margin: 0 0 5px; }
+  #workspace-home-v2 h2 { font-size: 19px; font-weight: 500; margin: 0; }
+  #workspace-home-v2 h3 { font-size: 15px; font-weight: 500; margin: 0 0 4px; }
+  #workspace-home-v2 p { margin: 0; color: var(--ws-muted); line-height: 1.5; }
+
+  #workspace-home-v2 .ws-start-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  #workspace-home-v2 .ws-start {
+    appearance: none;
+    border: 1px solid var(--ws-line);
+    background: var(--ws-surface);
+    color: var(--ws-text);
+    border-radius: 10px;
+    padding: 13px;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #workspace-home-v2 .ws-start i { color: var(--ws-blue-ink); }
+  #workspace-home-v2 .ws-start:hover { border-color: var(--ws-blue); background: var(--ws-blue-soft); }
+
+  #workspace-home-v2 .ws-content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 20px; }
+  #workspace-home-v2 .ws-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  #workspace-home-v2 .ws-link { color: var(--ws-blue-ink); text-decoration: none; font-size: 13px; }
+
+  #workspace-home-v2 .ws-view-switch {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--ws-line);
+    border-radius: 8px;
+    background: var(--ws-surface);
+  }
+
+  #workspace-home-v2 .ws-view-switch button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ws-muted);
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  #workspace-home-v2 .ws-view-switch button[aria-pressed="true"] { background: var(--ws-blue-soft); color: var(--ws-blue-ink); }
+
+  #workspace-home-v2 .ws-projects {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #workspace-home-v2 .ws-project {
+    border: 1px solid var(--ws-line);
+    background: var(--ws-surface);
+    border-radius: 11px;
+    overflow: hidden;
+  }
+
+  #workspace-home-v2 .ws-project-visual { height: 108px; position: relative; overflow: hidden; background: var(--ws-raised); }
+  #workspace-home-v2 .ws-project-visual.artwork { background: radial-gradient(circle at 50% 50%, light-dark(#f7e8d8, #70523d) 0 15%, transparent 16%), radial-gradient(ellipse at 50% 60%, light-dark(#cba784, #68452f) 0 30%, transparent 31%), linear-gradient(145deg, light-dark(#efe3ce, #4c443d), light-dark(#dbe4ca, #344536)); }
+  #workspace-home-v2 .ws-project-visual.pdf { background: linear-gradient(135deg, var(--ws-blue-soft), var(--ws-raised)); }
+  #workspace-home-v2 .ws-project-visual.production { background: repeating-linear-gradient(45deg, light-dark(#e9d0b6, #59402d) 0 14px, light-dark(#d5e4c6, #3b513a) 14px 28px); }
+  #workspace-home-v2 .ws-project-visual.default { background: linear-gradient(135deg, light-dark(#e9effb, #252f43), light-dark(#f4eadb, #493c31)); }
+  #workspace-home-v2 .ws-project-visual > i { position: absolute; inset: 0; margin: auto; color: var(--ws-blue-ink); }
+  #workspace-home-v2 .ws-project-body { padding: 13px; }
+  #workspace-home-v2 .ws-project-meta { display: flex; align-items: center; gap: 7px; color: var(--ws-muted); font-size: 12px; margin-top: 8px; }
+  #workspace-home-v2 .ws-project-meta .ws-grow { min-width: 4px; }
+  #workspace-home-v2 .ws-status { display: inline-flex; align-items: center; gap: 5px; }
+  #workspace-home-v2 .ws-status.good { color: var(--ws-green); }
+  #workspace-home-v2 .ws-status.warn { color: var(--ws-orange); }
+
+  #workspace-home-v2 .ws-side-section { margin-bottom: 19px; }
+  #workspace-home-v2 .ws-attention,
+  #workspace-home-v2 .ws-jobs {
+    border: 1px solid var(--ws-line);
+    background: var(--ws-surface);
+    border-radius: 11px;
+    overflow: hidden;
+  }
+
+  #workspace-home-v2 .ws-attention-item,
+  #workspace-home-v2 .ws-job {
+    padding: 13px;
+    border-bottom: 1px solid var(--ws-line);
+  }
+
+  #workspace-home-v2 .ws-attention-item:last-child,
+  #workspace-home-v2 .ws-job:last-child { border-bottom: 0; }
+  #workspace-home-v2 .ws-item-title { font-weight: 500; margin-bottom: 4px; }
+  #workspace-home-v2 .ws-item-note { color: var(--ws-muted); font-size: 12px; line-height: 1.4; }
+  #workspace-home-v2 .ws-item-action { margin-top: 8px; color: var(--ws-blue-ink); font-size: 12px; }
+  #workspace-home-v2 .ws-progress { height: 6px; border-radius: 99px; background: var(--ws-raised); margin-top: 9px; overflow: hidden; }
+  #workspace-home-v2 .ws-progress span { display: block; height: 100%; background: var(--ws-blue); }
+  #workspace-home-v2 .ws-complete { color: var(--ws-green); display: flex; align-items: center; gap: 5px; margin-top: 7px; font-size: 12px; }
+
+  #workspace-home-v2 .ws-create-menu {
+    display: none;
+    position: absolute;
+    top: 58px;
+    right: 54px;
+    z-index: 4;
+    width: 250px;
+    border: 1px solid var(--ws-line);
+    border-radius: 11px;
+    background: var(--ws-surface);
+    box-shadow: 0 16px 36px light-dark(rgba(32, 47, 77, .18), rgba(0, 0, 0, .38));
+    padding: 8px;
+  }
+
+  #workspace-home-v2 .ws-create-menu.is-open { display: block; }
+  #workspace-home-v2 .ws-create-option { width: 100%; appearance: none; border: 0; background: transparent; color: var(--ws-text); padding: 10px; display: flex; align-items: center; gap: 10px; text-align: left; border-radius: 7px; cursor: pointer; }
+  #workspace-home-v2 .ws-create-option:hover { background: var(--ws-blue-soft); }
+
+  @media (max-width: 900px) {
+    #workspace-home-v2 .ws-search { display: none; }
+    #workspace-home-v2 .ws-content-grid { grid-template-columns: 1fr; }
+    #workspace-home-v2 .ws-right-rail { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  }
+
+  @media (max-width: 680px) {
+    #workspace-home-v2 .ws-header { padding: 0 10px; }
+    #workspace-home-v2 .ws-brand span:last-child, #workspace-home-v2 .ws-workspace-switch span { display: none; }
+    #workspace-home-v2 .ws-layout { grid-template-columns: 58px minmax(0, 1fr); }
+    #workspace-home-v2 .ws-sidebar { padding: 12px 6px; }
+    #workspace-home-v2 .ws-nav-item { justify-content: center; min-height: 44px; }
+    #workspace-home-v2 .ws-nav-item span, #workspace-home-v2 .ws-nav-label, #workspace-home-v2 .ws-storage, #workspace-home-v2 .ws-count { display: none; }
+    #workspace-home-v2 .ws-main { padding: 18px; }
+    #workspace-home-v2 .ws-start-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #workspace-home-v2 .ws-projects { grid-template-columns: 1fr; }
+    #workspace-home-v2 .ws-right-rail { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 430px) {
+    #workspace-home-v2 .ws-window { min-height: 0; }
+    #workspace-home-v2 .ws-header .ws-icon-button { display: none; }
+    #workspace-home-v2 .ws-layout { grid-template-columns: 1fr; }
+    #workspace-home-v2 .ws-sidebar { display: none; }
+    #workspace-home-v2 .ws-welcome { display: block; }
+    #workspace-home-v2 .ws-welcome .ws-button { margin-top: 12px; width: 100%; }
+    #workspace-home-v2 .ws-start-row { grid-template-columns: 1fr; }
+    #workspace-home-v2 .ws-create-menu { right: 10px; left: 10px; width: auto; }
+  }
+</style>
+
+<div id="workspace-home-v2">
+  <div class="ws-window">
+    <header class="ws-header">
+      <div class="ws-brand"><span class="ws-logo"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Visual Production</span></div>
+      <button class="ws-workspace-switch" type="button"><i data-lucide="user-round" aria-hidden="true"></i><span>Vijay’s workspace</span><i data-lucide="chevron-down" aria-hidden="true"></i></button>
+      <div class="ws-search"><i data-lucide="search" aria-hidden="true"></i> Search projects, files and tools</div>
+      <div class="ws-grow"></div>
+      <button class="ws-button ws-icon-button" type="button" aria-label="Help"><i data-lucide="circle-help" aria-hidden="true"></i></button>
+      <button class="ws-button ws-icon-button" type="button" aria-label="Notifications"><i data-lucide="bell" aria-hidden="true"></i></button>
+      <button class="ws-button ws-button-primary" id="ws-create-trigger" type="button" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i> Create</button>
+      <div class="ws-avatar" aria-label="Vijay profile">VK</div>
+      <div class="ws-create-menu" id="ws-create-menu">
+        <button class="ws-create-option" type="button"><i data-lucide="upload" aria-hidden="true"></i> Upload or import files</button>
+        <button class="ws-create-option" type="button"><i data-lucide="folder-plus" aria-hidden="true"></i> New project</button>
+        <button class="ws-create-option" type="button"><i data-lucide="image" aria-hidden="true"></i> New graphic</button>
+        <button class="ws-create-option" type="button"><i data-lucide="file-plus-2" aria-hidden="true"></i> New PDF</button>
+      </div>
+    </header>
+
+    <div class="ws-layout">
+      <aside class="ws-sidebar">
+        <a class="ws-nav-item is-active" href="#"><i data-lucide="home" aria-hidden="true"></i><span>Home</span></a>
+        <a class="ws-nav-item" href="#"><i data-lucide="folder-kanban" aria-hidden="true"></i><span>Projects</span></a>
+        <a class="ws-nav-item" href="#"><i data-lucide="files" aria-hidden="true"></i><span>Default files</span></a>
+        <a class="ws-nav-item" href="#"><i data-lucide="users" aria-hidden="true"></i><span>Shared with me</span><span class="ws-count">3</span></a>
+        <div class="ws-nav-label">Work</div>
+        <a class="ws-nav-item" href="#"><i data-lucide="activity" aria-hidden="true"></i><span>Processing</span><span class="ws-count">2</span></a>
+        <a class="ws-nav-item" href="#"><i data-lucide="message-square-check" aria-hidden="true"></i><span>Reviews</span><span class="ws-count">2</span></a>
+        <a class="ws-nav-item" href="#"><i data-lucide="cloud" aria-hidden="true"></i><span>Cloud storage</span></a>
+        <div class="ws-nav-label">Workspace</div>
+        <a class="ws-nav-item" href="#"><i data-lucide="users-round" aria-hidden="true"></i><span>Members</span></a>
+        <a class="ws-nav-item" href="#"><i data-lucide="settings" aria-hidden="true"></i><span>Settings</span></a>
+        <div class="ws-storage">18 GB of 100 GB used<div class="ws-storage-line"><span></span></div>Free during testing</div>
+      </aside>
+
+      <main class="ws-main">
+        <section class="ws-welcome">
+          <div><h1>Good morning, Vijay</h1><p>Continue where you stopped, or begin with any file and we’ll guide the right workflow.</p></div>
+          <div class="ws-grow"></div>
+          <button class="ws-button" type="button"><i data-lucide="upload-cloud" aria-hidden="true"></i> Upload or import</button>
+        </section>
+
+        <section class="ws-start-row" aria-label="Quick starts">
+          <button class="ws-start" type="button"><i data-lucide="image" aria-hidden="true"></i> Enhance or design</button>
+          <button class="ws-start" type="button"><i data-lucide="file-plus-2" aria-hidden="true"></i> Create PDF</button>
+          <button class="ws-start" type="button"><i data-lucide="files" aria-hidden="true"></i> Edit PDF</button>
+          <button class="ws-start" type="button"><i data-lucide="printer" aria-hidden="true"></i> Prepare production file</button>
+        </section>
+
+        <div class="ws-content-grid">
+          <section>
+            <div class="ws-section-head">
+              <h2>Recent work</h2>
+              <div class="ws-grow"></div>
+              <div class="ws-view-switch" aria-label="Recent work view"><button type="button" aria-pressed="true" aria-label="Grid view"><i data-lucide="layout-grid" aria-hidden="true"></i></button><button type="button" aria-pressed="false" aria-label="List view"><i data-lucide="list" aria-hidden="true"></i></button></div>
+              <a class="ws-link" href="#">View all</a>
+            </div>
+
+            <div class="ws-projects">
+              <article class="ws-project"><div class="ws-project-visual artwork"></div><div class="ws-project-body"><h3>Kidswear hedgehog artwork</h3><p>Textile collection</p><div class="ws-project-meta"><span class="ws-status warn"><i data-lucide="triangle-alert" aria-hidden="true"></i> Review needed</span><span class="ws-grow"></span><span>8 min ago</span></div></div></article>
+              <article class="ws-project"><div class="ws-project-visual production"></div><div class="ws-project-body"><h3>Summer print collection</h3><p>Shared project · 8 artboards</p><div class="ws-project-meta"><span class="ws-status good"><i data-lucide="circle-check" aria-hidden="true"></i> Approved</span><span class="ws-grow"></span><span>Yesterday</span></div></div></article>
+              <article class="ws-project"><div class="ws-project-visual pdf"><i data-lucide="file-text" aria-hidden="true"></i></div><div class="ws-project-body"><h3>Prescription archive</h3><p>Default files · 12 pages</p><div class="ws-project-meta"><span class="ws-status good"><i data-lucide="search-check" aria-hidden="true"></i> Searchable</span><span class="ws-grow"></span><span>2 days ago</span></div></div></article>
+              <article class="ws-project"><div class="ws-project-visual default"><i data-lucide="folder-open" aria-hidden="true"></i></div><div class="ws-project-body"><h3>Default files</h3><p>Files not yet organised into a project</p><div class="ws-project-meta"><span>24 files</span><span class="ws-grow"></span><span>Open</span></div></div></article>
+            </div>
+          </section>
+
+          <aside class="ws-right-rail">
+            <section class="ws-side-section">
+              <div class="ws-section-head"><h2>Needs your attention</h2><div class="ws-grow"></div><a class="ws-link" href="#">View</a></div>
+              <div class="ws-attention">
+                <div class="ws-attention-item"><div class="ws-item-title">Choose restored detail</div><div class="ws-item-note">Two candidates are ready for the hedgehog’s fur and flowers.</div><div class="ws-item-action">Review candidates →</div></div>
+                <div class="ws-attention-item"><div class="ws-item-title">Production preflight</div><div class="ws-item-note">Two artboards need a larger source or an approved override.</div><div class="ws-item-action">Review findings →</div></div>
+              </div>
+            </section>
+
+            <section class="ws-side-section">
+              <div class="ws-section-head"><h2>Background work</h2><div class="ws-grow"></div><a class="ws-link" href="#">All jobs</a></div>
+              <div class="ws-jobs">
+                <div class="ws-job"><div class="ws-item-title">Restore 14 illustrations</div><div class="ws-item-note">9 completed · safe to close this page</div><div class="ws-progress"><span style="width:64%"></span></div></div>
+                <div class="ws-job"><div class="ws-item-title">Print PDF export</div><div class="ws-complete"><i data-lucide="circle-check" aria-hidden="true"></i> Ready to download</div></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const root = document.getElementById("workspace-home-v2");
+    if (!root) return;
+    const trigger = root.querySelector("#ws-create-trigger");
+    const menu = root.querySelector("#ws-create-menu");
+    if (trigger && menu) {
+      trigger.addEventListener("click", () => {
+        const open = !menu.classList.contains("is-open");
+        menu.classList.toggle("is-open", open);
+        trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+    const views = [...root.querySelectorAll(".ws-view-switch button")];
+    views.forEach((view) => view.addEventListener("click", () => views.forEach((item) => item.setAttribute("aria-pressed", item === view ? "true" : "false"))));
+  })();
+</script>

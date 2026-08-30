@@ -1,0 +1,291 @@
+<section id="account-workspace-onboarding" aria-label="Account workspace onboarding and identity experience">
+  <style>
+    #account-workspace-onboarding {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #account-workspace-onboarding * { box-sizing: border-box; }
+    #account-workspace-onboarding button,
+    #account-workspace-onboarding input,
+    #account-workspace-onboarding select { font: inherit; color: inherit; }
+    #account-workspace-onboarding button { cursor: pointer; }
+    #account-workspace-onboarding .aw-shell { min-height: 758px; position: relative; overflow: hidden; background: light-dark(#f7f8fb, #151b28); }
+    #account-workspace-onboarding .aw-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #account-workspace-onboarding .aw-brand { display: flex; align-items: center; gap: 9px; min-width: 220px; }
+    #account-workspace-onboarding .aw-brand-mark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); }
+    #account-workspace-onboarding .aw-brand-mark svg { width: 17px; height: 17px; }
+    #account-workspace-onboarding .aw-brand-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-button,
+    #account-workspace-onboarding .aw-primary,
+    #account-workspace-onboarding .aw-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #account-workspace-onboarding .aw-icon-button { width: 37px; padding: 7px; }
+    #account-workspace-onboarding .aw-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #account-workspace-onboarding .aw-button svg,
+    #account-workspace-onboarding .aw-primary svg,
+    #account-workspace-onboarding .aw-icon-button svg { width: 16px; height: 16px; }
+    #account-workspace-onboarding .aw-spacer { flex: 1; }
+    #account-workspace-onboarding .aw-free { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #account-workspace-onboarding .aw-free svg { width: 15px; height: 15px; }
+    #account-workspace-onboarding .aw-avatar { width: 34px; height: 34px; border: 0; border-radius: 50%; display: grid; place-items: center; background: light-dark(#dce6ff, #394864); color: light-dark(#214db8, #d2dcff); font-weight: 500; }
+    #account-workspace-onboarding .aw-main { display: grid; grid-template-columns: 216px minmax(0, 1fr) 286px; min-height: 661px; }
+    #account-workspace-onboarding .aw-nav,
+    #account-workspace-onboarding .aw-summary { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #account-workspace-onboarding .aw-nav { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 12px 10px; }
+    #account-workspace-onboarding .aw-summary { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #account-workspace-onboarding .aw-switcher {
+      width: 100%; min-height: 47px; border: 1px solid light-dark(#d5dce7, #3b4659); border-radius: 9px; background: light-dark(#ffffff, #232b3b);
+      display: grid; grid-template-columns: 31px minmax(0, 1fr) 16px; gap: 8px; align-items: center; padding: 7px; text-align: left;
+    }
+    #account-workspace-onboarding .aw-switcher-icon { width: 31px; height: 31px; border-radius: 7px; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #account-workspace-onboarding .aw-switcher-icon svg,
+    #account-workspace-onboarding .aw-switcher > svg { width: 15px; height: 15px; }
+    #account-workspace-onboarding .aw-switcher-name { font-weight: 500; display: block; }
+    #account-workspace-onboarding .aw-switcher-meta { color: light-dark(#6b768a, #a8b3c5); display: block; margin-top: 1px; }
+    #account-workspace-onboarding .aw-nav-list { display: grid; gap: 3px; margin-top: 12px; }
+    #account-workspace-onboarding .aw-nav-heading { margin: 16px 8px 6px; color: light-dark(#707b8e, #a8b3c5); }
+    #account-workspace-onboarding .aw-nav-button {
+      width: 100%; min-height: 39px; border: 0; border-radius: 8px; background: transparent; padding: 8px;
+      display: flex; align-items: center; gap: 8px; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #account-workspace-onboarding .aw-nav-button svg { width: 17px; height: 17px; }
+    #account-workspace-onboarding .aw-nav-button[aria-pressed="true"] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #account-workspace-onboarding .aw-content { min-width: 0; padding: 18px 20px 25px; }
+    #account-workspace-onboarding .aw-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    #account-workspace-onboarding .aw-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #account-workspace-onboarding .aw-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #account-workspace-onboarding .aw-progress-label { color: light-dark(#637087, #adb7ca); text-align: right; }
+    #account-workspace-onboarding .aw-progress-track { width: 108px; height: 5px; border-radius: 4px; margin-top: 6px; background: light-dark(#e1e6ee, #333d50); overflow: hidden; }
+    #account-workspace-onboarding .aw-progress-fill { width: 50%; height: 100%; background: light-dark(#2757cf, #8aa6ff); }
+    #account-workspace-onboarding .aw-tabs { display: flex; gap: 3px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); margin-bottom: 14px; }
+    #account-workspace-onboarding .aw-tab { min-height: 38px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 7px 10px; color: light-dark(#667187, #adb7ca); }
+    #account-workspace-onboarding .aw-tab[aria-selected="true"] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #account-workspace-onboarding .aw-resume {
+      display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border-radius: 10px;
+      background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); margin-bottom: 13px;
+    }
+    #account-workspace-onboarding .aw-resume-preview { width: 58px; height: 58px; border-radius: 8px; background: light-dark(#e9dfd0, #3b352d); display: grid; place-items: center; color: light-dark(#6e4c34, #d0b49d); }
+    #account-workspace-onboarding .aw-resume-preview svg { width: 25px; height: 25px; }
+    #account-workspace-onboarding .aw-resume-title { font-weight: 500; }
+    #account-workspace-onboarding .aw-resume-meta { margin-top: 3px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-outcome-title { font-weight: 500; margin: 13px 0 8px; }
+    #account-workspace-onboarding .aw-outcomes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    #account-workspace-onboarding .aw-outcome {
+      min-height: 96px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; background: light-dark(#ffffff, #1d2534); padding: 11px;
+      display: grid; grid-template-columns: 37px minmax(0, 1fr); gap: 9px; align-content: start; text-align: left;
+    }
+    #account-workspace-onboarding .aw-outcome-icon { width: 37px; height: 37px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #account-workspace-onboarding .aw-outcome:hover .aw-outcome-icon { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #account-workspace-onboarding .aw-outcome-icon svg { width: 18px; height: 18px; }
+    #account-workspace-onboarding .aw-outcome-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-outcome-meta { color: light-dark(#687388, #aeb8ca); margin-top: 3px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-default-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border-radius: 8px; margin-top: 12px; background: light-dark(#f1f4f9, #242d3e); color: light-dark(#536078, #bec8d9); line-height: 1.42; }
+    #account-workspace-onboarding .aw-default-note svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+    #account-workspace-onboarding .aw-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #account-workspace-onboarding .aw-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #account-workspace-onboarding .aw-input,
+    #account-workspace-onboarding .aw-select { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #account-workspace-onboarding .aw-identity-row { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #account-workspace-onboarding .aw-identity-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #account-workspace-onboarding .aw-identity-icon svg { width: 18px; height: 18px; }
+    #account-workspace-onboarding .aw-identity-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-identity-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-state { display: inline-flex; align-items: center; gap: 5px; color: light-dark(#1d7153, #8de0bf); }
+    #account-workspace-onboarding .aw-state svg { width: 15px; height: 15px; }
+    #account-workspace-onboarding .aw-member-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 120px; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #account-workspace-onboarding .aw-member-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e3e8f0, #303a4d); color: light-dark(#46536a, #c8d1df); font-weight: 500; }
+    #account-workspace-onboarding .aw-member-name { font-weight: 500; }
+    #account-workspace-onboarding .aw-member-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #account-workspace-onboarding .aw-member-role { text-align: right; color: light-dark(#536078, #bec8d9); }
+    #account-workspace-onboarding .aw-invite-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 8px; margin-bottom: 10px; }
+    #account-workspace-onboarding .aw-region-choice { display: grid; gap: 7px; }
+    #account-workspace-onboarding .aw-region {
+      display: grid; grid-template-columns: 19px minmax(0, 1fr); gap: 9px; padding: 10px; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534);
+    }
+    #account-workspace-onboarding .aw-region:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #account-workspace-onboarding .aw-region input { width: 17px; height: 17px; margin-top: 2px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #account-workspace-onboarding .aw-region strong { display: block; font-weight: 500; }
+    #account-workspace-onboarding .aw-region small { display: block; color: light-dark(#667187, #adb7ca); margin-top: 2px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-region-note { margin-top: 10px; padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #account-workspace-onboarding .aw-panel-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+    #account-workspace-onboarding .aw-summary h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #account-workspace-onboarding .aw-summary-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #account-workspace-onboarding .aw-summary-box { padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #account-workspace-onboarding .aw-summary-workspace { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 9px; align-items: center; }
+    #account-workspace-onboarding .aw-summary-icon { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #account-workspace-onboarding .aw-summary-icon svg { width: 17px; height: 17px; }
+    #account-workspace-onboarding .aw-summary-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #account-workspace-onboarding .aw-summary-title { font-weight: 500; margin-bottom: 8px; }
+    #account-workspace-onboarding .aw-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #account-workspace-onboarding .aw-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #account-workspace-onboarding .aw-fact strong { display: block; font-weight: 500; }
+    #account-workspace-onboarding .aw-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #account-workspace-onboarding .aw-independent { padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #account-workspace-onboarding .aw-toast { position: absolute; z-index: 8; left: 50%; bottom: 48px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #account-workspace-onboarding .aw-toast[hidden] { display: none; }
+    #account-workspace-onboarding .aw-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #account-workspace-onboarding .aw-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #account-workspace-onboarding .aw-main { grid-template-columns: 202px minmax(0, 1fr); }
+      #account-workspace-onboarding .aw-summary { display: none; }
+      #account-workspace-onboarding .aw-free { display: none; }
+    }
+    @media (max-width: 650px) {
+      #account-workspace-onboarding .aw-header { flex-wrap: wrap; }
+      #account-workspace-onboarding .aw-brand { min-width: 0; flex: 1; }
+      #account-workspace-onboarding .aw-main { display: block; }
+      #account-workspace-onboarding .aw-nav { display: none; }
+      #account-workspace-onboarding .aw-content { padding: 14px 11px 21px; }
+      #account-workspace-onboarding .aw-content-head h2 { font-size: 18px; }
+      #account-workspace-onboarding .aw-tabs { overflow-x: auto; }
+      #account-workspace-onboarding .aw-tab { flex: 0 0 auto; }
+      #account-workspace-onboarding .aw-resume { grid-template-columns: 52px minmax(0, 1fr); }
+      #account-workspace-onboarding .aw-resume .aw-primary { grid-column: 1 / -1; }
+      #account-workspace-onboarding .aw-outcomes { grid-template-columns: 1fr; }
+      #account-workspace-onboarding .aw-form-grid { grid-template-columns: 1fr; }
+      #account-workspace-onboarding .aw-invite-row { grid-template-columns: 1fr; }
+      #account-workspace-onboarding .aw-bottom { display: none; }
+    }
+  </style>
+
+  <div class="aw-shell">
+    <header class="aw-header">
+      <div class="aw-brand"><span class="aw-brand-mark"><i data-lucide="layers-3" aria-hidden="true"></i></span><span class="aw-brand-name">Visual Workspace</span></div>
+      <div class="aw-spacer"></div>
+      <div class="aw-free"><i data-lucide="sparkles" aria-hidden="true"></i>Free during testing</div>
+      <button class="aw-icon-button" type="button" aria-label="Help"><i data-lucide="circle-help" aria-hidden="true"></i></button>
+      <button class="aw-icon-button" type="button" aria-label="Notifications"><i data-lucide="bell" aria-hidden="true"></i></button>
+      <button class="aw-avatar" type="button" aria-label="Open Vijay Kumar account menu">VK</button>
+    </header>
+
+    <div class="aw-main">
+      <aside class="aw-nav" aria-label="Workspace navigation">
+        <button class="aw-switcher" type="button"><span class="aw-switcher-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span><span class="aw-switcher-name">Northstar Studio</span><span class="aw-switcher-meta">Your workspace</span></span><i data-lucide="chevrons-up-down" aria-hidden="true"></i></button>
+        <nav class="aw-nav-list">
+          <button class="aw-nav-button" type="button"><i data-lucide="house" aria-hidden="true"></i>Home</button>
+          <button class="aw-nav-button" type="button"><i data-lucide="folder-kanban" aria-hidden="true"></i>Projects</button>
+          <button class="aw-nav-button" type="button"><i data-lucide="files" aria-hidden="true"></i>Default files</button>
+          <button class="aw-nav-button" type="button"><i data-lucide="users" aria-hidden="true"></i>Shared with me</button>
+          <button class="aw-nav-button" type="button"><i data-lucide="cloud" aria-hidden="true"></i>Connected storage</button>
+        </nav>
+        <div class="aw-nav-heading">Settings</div>
+        <nav class="aw-nav-list" style="margin-top:0">
+          <button class="aw-nav-button" type="button"><i data-lucide="user-round" aria-hidden="true"></i>My profile</button>
+          <button class="aw-nav-button" type="button" aria-pressed="true"><i data-lucide="building-2" aria-hidden="true"></i>Workspace setup</button>
+          <button class="aw-nav-button" type="button"><i data-lucide="shield-check" aria-hidden="true"></i>Security</button>
+        </nav>
+      </aside>
+
+      <main class="aw-content">
+        <div class="aw-content-head"><div><h2 id="aw-heading">Welcome, Vijay</h2><div class="aw-content-subtitle" id="aw-subtitle">Your file and its analysis followed you safely through sign-up.</div></div><div><div class="aw-progress-label">Workspace ready · 2 of 4 optional steps</div><div class="aw-progress-track" aria-label="Optional setup progress"><div class="aw-progress-fill"></div></div></div></div>
+        <div class="aw-tabs" role="tablist" aria-label="Workspace onboarding">
+          <button class="aw-tab" type="button" data-panel="start" aria-selected="true">Start working</button>
+          <button class="aw-tab" type="button" data-panel="workspace" aria-selected="false">Workspace</button>
+          <button class="aw-tab" type="button" data-panel="people" aria-selected="false">People</button>
+          <button class="aw-tab" type="button" data-panel="security" aria-selected="false">Sign-in &amp; security</button>
+          <button class="aw-tab" type="button" data-panel="region" aria-selected="false">Data region</button>
+        </div>
+
+        <section data-content="start">
+          <div class="aw-resume"><span class="aw-resume-preview"><i data-lucide="image" aria-hidden="true"></i></span><span><span class="aw-resume-title">Continue hedgehog-watercolour.png</span><span class="aw-resume-meta">Uploaded as a guest · Analysis and correction preview preserved · Not yet applied</span></span><button class="aw-primary" id="aw-continue-file" type="button"><i data-lucide="arrow-right" aria-hidden="true"></i>Continue</button></div>
+          <div class="aw-outcome-title">Or start from any major outcome</div>
+          <div class="aw-outcomes">
+            <button class="aw-outcome" type="button" data-outcome="Image & Graphic Studio"><span class="aw-outcome-icon"><i data-lucide="palette" aria-hidden="true"></i></span><span><span class="aw-outcome-name">Image &amp; Graphic Studio</span><span class="aw-outcome-meta">Enhance, restore, design and prepare digital or production artwork.</span></span></button>
+            <button class="aw-outcome" type="button" data-outcome="Create PDF"><span class="aw-outcome-icon"><i data-lucide="file-plus-2" aria-hidden="true"></i></span><span><span class="aw-outcome-name">Create PDF</span><span class="aw-outcome-meta">Build editable pages from text, layouts, images, tables and more.</span></span></button>
+            <button class="aw-outcome" type="button" data-outcome="Edit & Manage PDF"><span class="aw-outcome-icon"><i data-lucide="file-pen-line" aria-hidden="true"></i></span><span><span class="aw-outcome-name">Edit &amp; Manage PDF</span><span class="aw-outcome-meta">Safely edit, organise, convert, sign, redact and repair PDFs.</span></span></button>
+            <button class="aw-outcome" type="button" data-outcome="Print & Production"><span class="aw-outcome-icon"><i data-lucide="printer" aria-hidden="true"></i></span><span><span class="aw-outcome-name">Print &amp; Production</span><span class="aw-outcome-meta">Preflight and export for materials, machines and trusted sizes.</span></span></button>
+          </div>
+          <div class="aw-default-note"><i data-lucide="folder-check" aria-hidden="true"></i><span><strong>No project decision is required now.</strong> Unspecific uploads, saved results and clones go to <strong>Default files</strong>. They can be moved into a project later without losing versions.</span></div>
+        </section>
+
+        <section data-content="workspace" hidden>
+          <div class="aw-form-grid"><div class="aw-field"><label for="aw-workspace-name">Workspace name</label><input id="aw-workspace-name" class="aw-input" value="Northstar Studio"></div><div class="aw-field"><label for="aw-workspace-handle">Workspace address</label><input id="aw-workspace-handle" class="aw-input" value="northstar-studio"></div></div>
+          <div class="aw-default-note"><i data-lucide="users-round" aria-hidden="true"></i><span><strong>One universal workspace model.</strong> We never ask whether you are an individual or a business. Work alone today, invite collaborators tomorrow, and keep the same workspace and files.</span></div>
+          <div class="aw-identity-row"><span class="aw-identity-icon"><i data-lucide="files" aria-hidden="true"></i></span><span><span class="aw-identity-name">Default files</span><span class="aw-identity-meta">Automatic home for work that has not been assigned to a project.</span></span><span class="aw-state"><i data-lucide="check" aria-hidden="true"></i>Ready</span></div>
+          <div class="aw-identity-row"><span class="aw-identity-icon"><i data-lucide="folder-kanban" aria-hidden="true"></i></span><span><span class="aw-identity-name">Projects and subprojects</span><span class="aw-identity-meta">Create single-design or multi-asset projects only when useful.</span></span><button class="aw-button" type="button">Create project</button></div>
+          <div class="aw-panel-actions"><button class="aw-primary" id="aw-save-workspace" type="button">Save workspace</button></div>
+        </section>
+
+        <section data-content="people" hidden>
+          <div class="aw-invite-row"><input class="aw-input" aria-label="Invite email or name" placeholder="Email address or name"><select class="aw-select" aria-label="Invite role"><option>Editor</option><option>Viewer</option><option>Owner</option></select><button class="aw-primary" type="button"><i data-lucide="send" aria-hidden="true"></i>Invite</button></div>
+          <div class="aw-default-note"><i data-lucide="sparkles" aria-hidden="true"></i><span>This step is optional. Your workspace works completely for one person and expands naturally when you invite others.</span></div>
+          <div class="aw-member-row"><span class="aw-avatar" style="width:32px;height:32px">VK</span><span><span class="aw-member-name">Vijay Kumar</span><span class="aw-member-meta">Signed in with verified email</span></span><span class="aw-member-role">Owner</span></div>
+          <div class="aw-member-row"><span class="aw-member-avatar"><i data-lucide="mail" aria-hidden="true"></i></span><span><span class="aw-member-name">Factory reviewer</span><span class="aw-member-meta">Secure project link · Account optional for viewing</span></span><span class="aw-member-role">Viewer</span></div>
+        </section>
+
+        <section data-content="security" hidden>
+          <div class="aw-policy-banner"></div>
+          <div class="aw-identity-row"><span class="aw-identity-icon"><i data-lucide="mail-check" aria-hidden="true"></i></span><span><span class="aw-identity-name">Verified email</span><span class="aw-identity-meta">vijay@example.com · Recovery notifications enabled</span></span><span class="aw-state"><i data-lucide="check" aria-hidden="true"></i>Verified</span></div>
+          <div class="aw-identity-row"><span class="aw-identity-icon"><i data-lucide="key-round" aria-hidden="true"></i></span><span><span class="aw-identity-name">Passkey</span><span class="aw-identity-meta">Fast phishing-resistant sign-in on supported devices.</span></span><button class="aw-button" type="button">Add passkey</button></div>
+          <div class="aw-identity-row"><span class="aw-identity-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><span><span class="aw-identity-name">Multi-factor authentication</span><span class="aw-identity-meta">Recommended for owners; enforceable by workspace policy.</span></span><button class="aw-button" type="button">Set up</button></div>
+          <div class="aw-identity-row"><span class="aw-identity-icon"><i data-lucide="monitor-smartphone" aria-hidden="true"></i></span><span><span class="aw-identity-name">Active sessions</span><span class="aw-identity-meta">2 trusted sessions · Bengaluru, India</span></span><button class="aw-button" type="button">Review</button></div>
+        </section>
+
+        <section data-content="region" hidden>
+          <div class="aw-region-choice">
+            <label class="aw-region"><input type="radio" name="home-region" value="india" checked><span><strong>India</strong><small>Recommended from your location. Store and process workspace data in India when supported.</small></span></label>
+            <label class="aw-region"><input type="radio" name="home-region" value="asia"><span><strong>Asia Pacific</strong><small>Alternative regional processing when a required capability is unavailable in India.</small></span></label>
+            <label class="aw-region"><input type="radio" name="home-region" value="eu"><span><strong>European Union</strong><small>Choose when customer contracts or organisational policy require EU residency.</small></span></label>
+          </div>
+          <div class="aw-region-note"><strong>Transparent exceptions.</strong> If a requested model, OCR engine, connector or signing provider cannot operate in the home region, the application explains the exception before processing. Controlled migration remains available later.</div>
+          <div class="aw-panel-actions"><button class="aw-primary" id="aw-save-region" type="button">Confirm home region</button></div>
+        </section>
+      </main>
+
+      <aside class="aw-summary" aria-label="Workspace setup summary">
+        <h3>Workspace foundation</h3><div class="aw-summary-copy">A simple account for anyone, with team capability available without changing account type.</div>
+        <div class="aw-summary-box"><div class="aw-summary-workspace"><span class="aw-summary-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span><span class="aw-workspace-name-display" style="font-weight:500">Northstar Studio</span><span style="display:block;color:light-dark(#6b758a,#aab4c7);margin-top:2px">Universal workspace</span></span></div></div>
+        <div class="aw-summary-section"><div class="aw-summary-title">Ready now</div><div class="aw-fact"><i data-lucide="files" aria-hidden="true"></i><span><strong>Default files</strong><small>Work starts without project setup</small></span></div><div class="aw-fact"><i data-lucide="user-check" aria-hidden="true"></i><span><strong>Verified identity</strong><small>Recovery and security controls active</small></span></div><div class="aw-fact"><i data-lucide="map-pin" aria-hidden="true"></i><span><strong>India home region</strong><small>Exceptions disclosed before processing</small></span></div></div>
+        <div class="aw-summary-section"><div class="aw-summary-title">Optional later</div><div class="aw-fact"><i data-lucide="user-plus" aria-hidden="true"></i><span><strong>Invite collaborators</strong><small>No separate business conversion</small></span></div><div class="aw-fact"><i data-lucide="folder-plus" aria-hidden="true"></i><span><strong>Create projects</strong><small>Move default files without losing history</small></span></div></div>
+        <div class="aw-summary-section"><div class="aw-independent"><strong>Independent product identity</strong><br>No YearShift account, database or billing dependency. Future umbrella access may use stable integration boundaries only.</div></div>
+      </aside>
+    </div>
+
+    <div class="aw-toast" id="aw-toast" role="status" aria-live="polite" hidden></div>
+    <footer class="aw-bottom"><span>No individual/business split</span><span>Guest work preserved</span><span>Default files ready</span><span class="aw-bottom-right"><span>Team-capable</span><span>Region-aware</span></span></footer>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('account-workspace-onboarding');
+      const tabs = [...root.querySelectorAll('.aw-tab')];
+      const panels = [...root.querySelectorAll('[data-content]')];
+      const titles = {
+        start: ['Welcome, Vijay', 'Your file and its analysis followed you safely through sign-up.'],
+        workspace: ['Set up your workspace', 'Use the same workspace whether you work alone or with a team.'],
+        people: ['Invite people when useful', 'Collaboration is optional and does not change your account type.'],
+        security: ['Protect your identity', 'Modern sign-in, recovery and workspace security without unnecessary friction.'],
+        region: ['Choose a home region', 'Keep storage and processing in one region when supported, with transparent exceptions.']
+      };
+      const showPanel = (name) => {
+        tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+        panels.forEach((panel) => { panel.hidden = panel.dataset.content !== name; });
+        root.querySelector('#aw-heading').textContent = titles[name][0];
+        root.querySelector('#aw-subtitle').textContent = titles[name][1];
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => showPanel(tab.dataset.panel)));
+
+      const toast = root.querySelector('#aw-toast');
+      let toastTimer;
+      const announce = (message) => { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() => { toast.hidden = true; }, 2600); };
+      root.querySelector('#aw-continue-file').addEventListener('click', () => announce('Opening the preserved guest file in Image & Graphic Studio.'));
+      root.querySelectorAll('[data-outcome]').forEach((button) => button.addEventListener('click', () => announce('Opening ' + button.dataset.outcome + '.')));
+      root.querySelector('#aw-save-workspace').addEventListener('click', () => {
+        const name = root.querySelector('#aw-workspace-name').value.trim() || 'Your workspace';
+        root.querySelector('.aw-workspace-name-display').textContent = name;
+        announce('Workspace details saved.');
+      });
+      root.querySelector('#aw-save-region').addEventListener('click', () => {
+        const region = root.querySelector('input[name="home-region"]:checked').value;
+        const names = { india: 'India', asia: 'Asia Pacific', eu: 'European Union' };
+        announce(names[region] + ' selected as the workspace home region.');
+      });
+    })();
+  </script>
+</section>

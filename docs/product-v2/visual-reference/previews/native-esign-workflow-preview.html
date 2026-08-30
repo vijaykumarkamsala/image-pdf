@@ -1,0 +1,1701 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Native Esign Workflow Direction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Native Esign Workflow Direction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Native Esign Workflow Direction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;native-esign-workflow&quot; aria-label=&quot;Native electronic signature envelope routing and secure recipient experience&quot;&gt;
+  &lt;style&gt;
+    #native-esign-workflow {
+      width: 100%; min-width: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      color: light-dark(#172033, #eef2ff); background: light-dark(#e9edf4, #111722);
+    }
+    #native-esign-workflow * { box-sizing: border-box; }
+    #native-esign-workflow button,
+    #native-esign-workflow input,
+    #native-esign-workflow select { font: inherit; color: inherit; }
+    #native-esign-workflow button { cursor: pointer; }
+    #native-esign-workflow .es-shell { min-height: 774px; overflow: hidden; position: relative; background: light-dark(#f7f8fb, #151b28); }
+    #native-esign-workflow .es-header {
+      min-height: 61px; display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+      background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b);
+    }
+    #native-esign-workflow .es-button,
+    #native-esign-workflow .es-primary,
+    #native-esign-workflow .es-icon-button {
+      min-height: 37px; border-radius: 8px; border: 1px solid light-dark(#d2dae6, #3a4558);
+      background: light-dark(#ffffff, #232b3b); padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+    }
+    #native-esign-workflow .es-icon-button { width: 37px; padding: 7px; }
+    #native-esign-workflow .es-primary { border-color: transparent; background: light-dark(#2356d8, #8aa6ff); color: light-dark(#ffffff, #101827); font-weight: 500; padding-inline: 14px; }
+    #native-esign-workflow .es-button svg,
+    #native-esign-workflow .es-primary svg,
+    #native-esign-workflow .es-icon-button svg { width: 16px; height: 16px; }
+    #native-esign-workflow .es-title-block { min-width: 278px; }
+    #native-esign-workflow .es-title { font-weight: 500; }
+    #native-esign-workflow .es-subtitle { color: light-dark(#687388, #aeb8ca); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #native-esign-workflow .es-spacer { flex: 1; }
+    #native-esign-workflow .es-security { display: flex; align-items: center; gap: 6px; color: light-dark(#1b6b4e, #8de0bf); }
+    #native-esign-workflow .es-security svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-tabs { display: flex; gap: 3px; padding: 0 14px; background: light-dark(#ffffff, #1c2333); border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #native-esign-workflow .es-tab { min-height: 42px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 8px 12px; color: light-dark(#667187, #adb7ca); }
+    #native-esign-workflow .es-tab[aria-selected=&quot;true&quot;] { color: light-dark(#204fc6, #c3cfff); border-bottom-color: light-dark(#2757cf, #8aa6ff); }
+    #native-esign-workflow .es-main { display: grid; grid-template-columns: 218px minmax(0, 1fr) 288px; min-height: 635px; }
+    #native-esign-workflow .es-left,
+    #native-esign-workflow .es-inspector { min-width: 0; background: light-dark(#ffffff, #1b2232); }
+    #native-esign-workflow .es-left { border-right: 1px solid light-dark(#dce2eb, #30394b); padding: 13px 10px; }
+    #native-esign-workflow .es-inspector { border-left: 1px solid light-dark(#dce2eb, #30394b); padding: 14px; }
+    #native-esign-workflow .es-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 10px; font-weight: 500; }
+    #native-esign-workflow .es-doc-summary { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 9px; align-items: center; padding: 9px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #native-esign-workflow .es-doc-icon { width: 39px; height: 39px; border-radius: 8px; display: grid; place-items: center; background: light-dark(#f4e6e6, #3a292d); color: light-dark(#984141, #efaaaa); }
+    #native-esign-workflow .es-doc-icon svg { width: 18px; height: 18px; }
+    #native-esign-workflow .es-doc-name { font-weight: 500; }
+    #native-esign-workflow .es-doc-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-left-heading { margin: 15px 6px 7px; color: light-dark(#707b8e, #a8b3c5); }
+    #native-esign-workflow .es-step-list { display: grid; gap: 3px; }
+    #native-esign-workflow .es-step {
+      width: 100%; min-height: 42px; border: 0; border-radius: 8px; background: transparent; padding: 7px 8px;
+      display: grid; grid-template-columns: 27px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left; color: light-dark(#465167, #c4cede);
+    }
+    #native-esign-workflow .es-step[aria-pressed=&quot;true&quot;] { background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); }
+    #native-esign-workflow .es-step-number { width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#5d6a80, #b6c0d1); }
+    #native-esign-workflow .es-step[aria-pressed=&quot;true&quot;] .es-step-number { background: light-dark(#dce7ff, #3b4967); color: light-dark(#204fc6, #d0d9ff); }
+    #native-esign-workflow .es-step-check { color: light-dark(#1d7153, #8de0bf); }
+    #native-esign-workflow .es-step-check svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-left-note { margin: 15px 5px 0; padding: 10px; border-radius: 8px; background: light-dark(#eaf7f2, #20382f); color: light-dark(#1f684f, #9bdec4); line-height: 1.42; }
+    #native-esign-workflow .es-content { min-width: 0; padding: 17px 19px 24px; }
+    #native-esign-workflow .es-content-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    #native-esign-workflow .es-content-head h2 { margin: 0 0 4px; font-size: 21px; font-weight: 500; }
+    #native-esign-workflow .es-content-subtitle { color: light-dark(#687388, #aeb8ca); line-height: 1.42; }
+    #native-esign-workflow .es-status { display: inline-flex; align-items: center; gap: 6px; color: light-dark(#1d7153, #8de0bf); white-space: nowrap; }
+    #native-esign-workflow .es-status svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-route { display: grid; gap: 8px; }
+    #native-esign-workflow .es-route-group { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; position: relative; }
+    #native-esign-workflow .es-route-group:not(:last-child)::after { content: &quot;&quot;; position: absolute; left: 21px; top: 44px; bottom: -9px; width: 2px; background: light-dark(#d4dbe6, #414c60); }
+    #native-esign-workflow .es-route-order { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#eaf0ff, #2b3750); color: light-dark(#204fc6, #c3cfff); font-weight: 500; z-index: 1; }
+    #native-esign-workflow .es-route-body { min-width: 0; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); padding-bottom: 8px; }
+    #native-esign-workflow .es-route-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    #native-esign-workflow .es-route-title strong { font-weight: 500; }
+    #native-esign-workflow .es-route-mode { color: light-dark(#687388, #aeb8ca); }
+    #native-esign-workflow .es-recipient-list { display: grid; gap: 6px; }
+    #native-esign-workflow .es-recipient {
+      width: 100%; border: 1px solid light-dark(#d8dee8, #394356); border-radius: 9px; background: light-dark(#ffffff, #1d2534); padding: 8px;
+      display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left;
+    }
+    #native-esign-workflow .es-recipient[aria-pressed=&quot;true&quot;] { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #native-esign-workflow .es-recipient-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e3e8f0, #303a4d); color: light-dark(#46536a, #c8d1df); font-weight: 500; }
+    #native-esign-workflow .es-recipient-name { font-weight: 500; }
+    #native-esign-workflow .es-recipient-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-role { color: light-dark(#526078, #b8c2d3); text-align: right; }
+    #native-esign-workflow .es-role strong { display: block; font-weight: 500; color: light-dark(#26334a, #e2e7f1); }
+    #native-esign-workflow .es-add-row { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+    #native-esign-workflow .es-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #native-esign-workflow .es-field label { display: block; color: light-dark(#637086, #adb7ca); margin-bottom: 4px; }
+    #native-esign-workflow .es-input,
+    #native-esign-workflow .es-select { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid light-dark(#ccd5e2, #414c60); background: light-dark(#ffffff, #232b3b); padding: 7px 9px; min-width: 0; }
+    #native-esign-workflow .es-prepare-row { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #native-esign-workflow .es-prepare-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #native-esign-workflow .es-prepare-icon svg { width: 18px; height: 18px; }
+    #native-esign-workflow .es-prepare-title { font-weight: 500; }
+    #native-esign-workflow .es-prepare-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; line-height: 1.4; }
+    #native-esign-workflow .es-page-editor { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
+    #native-esign-workflow .es-pages { display: grid; gap: 7px; align-content: start; }
+    #native-esign-workflow .es-page-thumb { height: 104px; border-radius: 7px; border: 1px solid light-dark(#d6dde8, #3d485b); background: light-dark(#ffffff, #202838); display: grid; place-items: center; color: light-dark(#7a8496, #9da9bc); }
+    #native-esign-workflow .es-page-thumb.selected { border-color: light-dark(#5379d8, #829cf0); box-shadow: 0 0 0 2px light-dark(rgba(61,100,196,.13), rgba(136,165,255,.16)); }
+    #native-esign-workflow .es-document-page { min-height: 442px; border-radius: 4px; background: light-dark(#ffffff, #f5f6fa); color: light-dark(#263041, #202735); box-shadow: 0 4px 18px light-dark(rgba(59,72,95,.17), rgba(0,0,0,.35)); padding: 34px 38px; position: relative; }
+    #native-esign-workflow .es-doc-heading { font-weight: 500; margin-bottom: 14px; text-align: center; }
+    #native-esign-workflow .es-doc-line { height: 7px; border-radius: 4px; background: light-dark(#d7dce5, #cfd5df); margin: 8px 0; }
+    #native-esign-workflow .es-doc-line.short { width: 67%; }
+    #native-esign-workflow .es-sign-field { position: absolute; border: 1px solid light-dark(#5c7ed3, #4868b0); background: light-dark(#eaf0ff, #dfe8ff); color: light-dark(#244dba, #1d3f94); border-radius: 5px; padding: 7px 9px; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+    #native-esign-workflow .es-sign-field svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-signature { right: 34px; bottom: 72px; }
+    #native-esign-workflow .es-date { left: 38px; bottom: 72px; }
+    #native-esign-workflow .es-signer-shell { border: 1px solid light-dark(#d8dee8, #394356); border-radius: 10px; overflow: hidden; background: light-dark(#ffffff, #1d2534); }
+    #native-esign-workflow .es-signer-header { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-bottom: 1px solid light-dark(#dce2eb, #30394b); }
+    #native-esign-workflow .es-signer-copy { flex: 1; }
+    #native-esign-workflow .es-signer-title { font-weight: 500; }
+    #native-esign-workflow .es-signer-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-signer-body { padding: 15px; display: grid; grid-template-columns: minmax(0, 1fr) 196px; gap: 13px; }
+    #native-esign-workflow .es-signer-page { min-height: 374px; border-radius: 4px; padding: 28px; position: relative; background: light-dark(#ffffff, #f5f6fa); color: light-dark(#263041, #202735); box-shadow: 0 3px 14px light-dark(rgba(59,72,95,.15), rgba(0,0,0,.3)); }
+    #native-esign-workflow .es-required-field { position: absolute; border: 2px solid light-dark(#315eca, #4868b0); background: light-dark(#eef3ff, #dfe8ff); color: light-dark(#214cb8, #1d3f94); border-radius: 6px; padding: 7px 9px; font-weight: 500; }
+    #native-esign-workflow .es-required-sign { right: 24px; bottom: 62px; }
+    #native-esign-workflow .es-required-date { left: 26px; bottom: 62px; }
+    #native-esign-workflow .es-signer-guide { display: grid; align-content: start; gap: 8px; }
+    #native-esign-workflow .es-guide-box { padding: 10px; border-radius: 8px; background: light-dark(#edf2ff, #29354c); color: light-dark(#294b93, #cedaff); line-height: 1.42; }
+    #native-esign-workflow .es-guide-step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 7px; padding: 7px 0; }
+    #native-esign-workflow .es-guide-number { width: 23px; height: 23px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#e7ecf4, #303a4d); color: light-dark(#536078, #bec8d9); }
+    #native-esign-workflow .es-audit-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px 2px; border-bottom: 1px solid light-dark(#e1e5ec, #30394b); }
+    #native-esign-workflow .es-audit-icon { width: 33px; height: 33px; border-radius: 50%; display: grid; place-items: center; background: light-dark(#edf1f6, #2a3344); color: light-dark(#536079, #bac5d7); }
+    #native-esign-workflow .es-audit-icon svg { width: 15px; height: 15px; }
+    #native-esign-workflow .es-audit-title { font-weight: 500; }
+    #native-esign-workflow .es-audit-meta { color: light-dark(#6b768a, #a8b3c5); margin-top: 2px; }
+    #native-esign-workflow .es-inspector h3 { margin: 0 0 4px; font-size: inherit; font-weight: 500; }
+    #native-esign-workflow .es-inspector-copy { color: light-dark(#6b758a, #aab4c7); line-height: 1.45; margin-bottom: 13px; }
+    #native-esign-workflow .es-selected-person { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px; border-radius: 9px; background: light-dark(#f1f4f9, #242d3e); }
+    #native-esign-workflow .es-inspector-section { margin-top: 13px; padding-top: 13px; border-top: 1px solid light-dark(#e1e5ec, #30394b); }
+    #native-esign-workflow .es-inspector-title { font-weight: 500; margin-bottom: 8px; }
+    #native-esign-workflow .es-recommendation { padding: 10px; border-radius: 8px; background: light-dark(#fff6e4, #3a3020); color: light-dark(#75500f, #f0cf8a); line-height: 1.42; }
+    #native-esign-workflow .es-auth-options { display: grid; gap: 6px; }
+    #native-esign-workflow .es-auth {
+      display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px; padding: 7px; border-radius: 7px; border: 1px solid light-dark(#d8dee8, #394356); background: light-dark(#ffffff, #1d2534);
+    }
+    #native-esign-workflow .es-auth:has(input:checked) { border-color: light-dark(#91a9df, #6680b5); background: light-dark(#f1f5ff, #253149); }
+    #native-esign-workflow .es-auth input { width: 16px; height: 16px; margin-top: 2px; accent-color: light-dark(#2757cf, #8aa6ff); }
+    #native-esign-workflow .es-auth strong { display: block; font-weight: 500; }
+    #native-esign-workflow .es-auth small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; }
+    #native-esign-workflow .es-fact { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+    #native-esign-workflow .es-fact svg { width: 16px; height: 16px; flex: 0 0 auto; color: light-dark(#2453c4, #bdcaff); margin-top: 1px; }
+    #native-esign-workflow .es-fact strong { display: block; font-weight: 500; }
+    #native-esign-workflow .es-fact small { display: block; color: light-dark(#6b758a, #aab4c7); margin-top: 2px; line-height: 1.4; }
+    #native-esign-workflow .es-toast { position: absolute; z-index: 12; left: 50%; bottom: 46px; transform: translateX(-50%); border-radius: 9px; padding: 9px 12px; background: light-dark(#1f293b, #eef2ff); color: light-dark(#ffffff, #111827); box-shadow: 0 9px 30px light-dark(rgba(41,53,75,.24), rgba(0,0,0,.5)); }
+    #native-esign-workflow .es-toast[hidden] { display: none; }
+    #native-esign-workflow .es-bottom { min-height: 36px; display: flex; align-items: center; gap: 15px; padding: 6px 12px; background: light-dark(#ffffff, #1c2333); border-top: 1px solid light-dark(#dce2eb, #30394b); color: light-dark(#687388, #aeb8ca); }
+    #native-esign-workflow .es-bottom-right { margin-left: auto; display: flex; gap: 13px; }
+    @media (max-width: 920px) {
+      #native-esign-workflow .es-main { grid-template-columns: 200px minmax(0, 1fr); }
+      #native-esign-workflow .es-inspector { display: none; }
+      #native-esign-workflow .es-security { display: none; }
+    }
+    @media (max-width: 650px) {
+      #native-esign-workflow .es-header { flex-wrap: wrap; }
+      #native-esign-workflow .es-title-block { min-width: 0; flex: 1; }
+      #native-esign-workflow .es-primary span { display: none; }
+      #native-esign-workflow .es-tabs { overflow-x: auto; }
+      #native-esign-workflow .es-tab { flex: 0 0 auto; }
+      #native-esign-workflow .es-main { display: block; }
+      #native-esign-workflow .es-left { display: none; }
+      #native-esign-workflow .es-content { padding: 14px 11px 22px; }
+      #native-esign-workflow .es-content-head h2 { font-size: 18px; }
+      #native-esign-workflow .es-form-grid { grid-template-columns: 1fr; }
+      #native-esign-workflow .es-page-editor { grid-template-columns: 1fr; }
+      #native-esign-workflow .es-pages { display: none; }
+      #native-esign-workflow .es-document-page { min-height: 390px; padding-inline: 22px; }
+      #native-esign-workflow .es-signer-body { grid-template-columns: 1fr; }
+      #native-esign-workflow .es-signer-page { min-height: 330px; }
+      #native-esign-workflow .es-bottom { display: none; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;es-shell&quot;&gt;
+    &lt;header class=&quot;es-header&quot;&gt;
+      &lt;button class=&quot;es-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Back to PDF workspace&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;div class=&quot;es-title-block&quot;&gt;&lt;div class=&quot;es-title&quot;&gt;Vendor manufacturing agreement&lt;/div&gt;&lt;div class=&quot;es-subtitle&quot;&gt;E-sign envelope · Draft autosaved&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;es-spacer&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;es-security&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Original PDF and signed evidence protected&lt;/div&gt;
+      &lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;eye&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Preview&lt;/button&gt;
+      &lt;button class=&quot;es-primary&quot; id=&quot;es-review-send&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;send&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Review &amp;amp; send&lt;/span&gt;&lt;/button&gt;
+    &lt;/header&gt;
+
+    &lt;div class=&quot;es-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Electronic signature workflow&quot;&gt;
+      &lt;button class=&quot;es-tab&quot; type=&quot;button&quot; data-panel=&quot;prepare&quot; aria-selected=&quot;false&quot;&gt;Prepare&lt;/button&gt;
+      &lt;button class=&quot;es-tab&quot; type=&quot;button&quot; data-panel=&quot;routing&quot; aria-selected=&quot;true&quot;&gt;Recipients &amp;amp; routing&lt;/button&gt;
+      &lt;button class=&quot;es-tab&quot; type=&quot;button&quot; data-panel=&quot;fields&quot; aria-selected=&quot;false&quot;&gt;Fields&lt;/button&gt;
+      &lt;button class=&quot;es-tab&quot; type=&quot;button&quot; data-panel=&quot;signer&quot; aria-selected=&quot;false&quot;&gt;Signer experience&lt;/button&gt;
+      &lt;button class=&quot;es-tab&quot; type=&quot;button&quot; data-panel=&quot;audit&quot; aria-selected=&quot;false&quot;&gt;Completion &amp;amp; audit&lt;/button&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;es-main&quot;&gt;
+      &lt;aside class=&quot;es-left&quot; aria-label=&quot;Envelope progress&quot;&gt;
+        &lt;div class=&quot;es-pane-head&quot;&gt;&lt;span&gt;Envelope&lt;/span&gt;&lt;i data-lucide=&quot;file-signature&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;div class=&quot;es-doc-summary&quot;&gt;&lt;span class=&quot;es-doc-icon&quot;&gt;&lt;i data-lucide=&quot;file-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-doc-name&quot;&gt;Agreement.pdf&lt;/span&gt;&lt;span class=&quot;es-doc-meta&quot;&gt;8 pages · Protected source&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;es-left-heading&quot;&gt;Setup&lt;/div&gt;
+        &lt;div class=&quot;es-step-list&quot;&gt;
+          &lt;button class=&quot;es-step&quot; type=&quot;button&quot; data-step=&quot;prepare&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-step-number&quot;&gt;1&lt;/span&gt;&lt;span&gt;Prepare&lt;/span&gt;&lt;span class=&quot;es-step-check&quot;&gt;&lt;i data-lucide=&quot;check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;es-step&quot; type=&quot;button&quot; data-step=&quot;routing&quot; aria-pressed=&quot;true&quot;&gt;&lt;span class=&quot;es-step-number&quot;&gt;2&lt;/span&gt;&lt;span&gt;Recipients&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;es-step&quot; type=&quot;button&quot; data-step=&quot;fields&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-step-number&quot;&gt;3&lt;/span&gt;&lt;span&gt;Assign fields&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;es-step&quot; type=&quot;button&quot; data-step=&quot;signer&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-step-number&quot;&gt;4&lt;/span&gt;&lt;span&gt;Preview signing&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;/button&gt;
+          &lt;button class=&quot;es-step&quot; type=&quot;button&quot; data-step=&quot;audit&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-step-number&quot;&gt;5&lt;/span&gt;&lt;span&gt;Audit package&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;es-left-note&quot;&gt;&lt;strong&gt;Accounts remain optional for recipients.&lt;/strong&gt;&lt;br&gt;Each signer receives a secure one-time envelope link with the authentication required by this envelope.&lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;main class=&quot;es-content&quot;&gt;
+        &lt;section data-content=&quot;routing&quot;&gt;
+          &lt;div class=&quot;es-content-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Recipients &amp;amp; routing&lt;/h2&gt;&lt;div class=&quot;es-content-subtitle&quot;&gt;Use sequential, parallel or mixed groups without exposing technical workflow language.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;es-status&quot;&gt;&lt;i data-lucide=&quot;check-circle-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;4 recipients&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-route&quot;&gt;
+            &lt;div class=&quot;es-route-group&quot;&gt;&lt;span class=&quot;es-route-order&quot;&gt;1&lt;/span&gt;&lt;div class=&quot;es-route-body&quot;&gt;&lt;div class=&quot;es-route-title&quot;&gt;&lt;strong&gt;Review first&lt;/strong&gt;&lt;span class=&quot;es-route-mode&quot;&gt;Sequential&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-recipient-list&quot;&gt;&lt;button class=&quot;es-recipient&quot; type=&quot;button&quot; data-recipient=&quot;meera&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-recipient-avatar&quot;&gt;MJ&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-recipient-name&quot;&gt;Meera Jain&lt;/span&gt;&lt;span class=&quot;es-recipient-meta&quot;&gt;meera@factory.example&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;es-role&quot;&gt;&lt;strong&gt;Approver&lt;/strong&gt;Email&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;es-route-group&quot;&gt;&lt;span class=&quot;es-route-order&quot;&gt;2&lt;/span&gt;&lt;div class=&quot;es-route-body&quot;&gt;&lt;div class=&quot;es-route-title&quot;&gt;&lt;strong&gt;Sign together&lt;/strong&gt;&lt;span class=&quot;es-route-mode&quot;&gt;Parallel group&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-recipient-list&quot;&gt;&lt;button class=&quot;es-recipient&quot; type=&quot;button&quot; data-recipient=&quot;ravi&quot; aria-pressed=&quot;true&quot;&gt;&lt;span class=&quot;es-recipient-avatar&quot;&gt;RK&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-recipient-name&quot;&gt;Ravi Kumar&lt;/span&gt;&lt;span class=&quot;es-recipient-meta&quot;&gt;ravi@supplier.example&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;es-role&quot;&gt;&lt;strong&gt;Signer&lt;/strong&gt;Email OTP&lt;/span&gt;&lt;/button&gt;&lt;button class=&quot;es-recipient&quot; type=&quot;button&quot; data-recipient=&quot;asha&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-recipient-avatar&quot;&gt;AS&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-recipient-name&quot;&gt;Asha Sharma&lt;/span&gt;&lt;span class=&quot;es-recipient-meta&quot;&gt;asha@northstar.example&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;es-role&quot;&gt;&lt;strong&gt;Signer&lt;/strong&gt;Email OTP&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;es-route-group&quot;&gt;&lt;span class=&quot;es-route-order&quot;&gt;3&lt;/span&gt;&lt;div class=&quot;es-route-body&quot;&gt;&lt;div class=&quot;es-route-title&quot;&gt;&lt;strong&gt;Witness after signing&lt;/strong&gt;&lt;span class=&quot;es-route-mode&quot;&gt;Sequential&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-recipient-list&quot;&gt;&lt;button class=&quot;es-recipient&quot; type=&quot;button&quot; data-recipient=&quot;anil&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-recipient-avatar&quot;&gt;AN&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-recipient-name&quot;&gt;Anil Nair&lt;/span&gt;&lt;span class=&quot;es-recipient-meta&quot;&gt;anil@legal.example&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;es-role&quot;&gt;&lt;strong&gt;Witness&lt;/strong&gt;Identity check&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;es-route-group&quot;&gt;&lt;span class=&quot;es-route-order&quot;&gt;&lt;i data-lucide=&quot;mail&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div class=&quot;es-route-body&quot;&gt;&lt;div class=&quot;es-route-title&quot;&gt;&lt;strong&gt;Receive completed copy&lt;/strong&gt;&lt;span class=&quot;es-route-mode&quot;&gt;After completion&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-recipient-list&quot;&gt;&lt;button class=&quot;es-recipient&quot; type=&quot;button&quot; data-recipient=&quot;finance&quot; aria-pressed=&quot;false&quot;&gt;&lt;span class=&quot;es-recipient-avatar&quot;&gt;&lt;i data-lucide=&quot;building-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-recipient-name&quot;&gt;Finance archive&lt;/span&gt;&lt;span class=&quot;es-recipient-meta&quot;&gt;contracts@northstar.example&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;es-role&quot;&gt;&lt;strong&gt;Copy&lt;/strong&gt;No action&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;es-add-row&quot;&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;users-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Add routing group&lt;/button&gt;&lt;button class=&quot;es-primary&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;user-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Add recipient&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;prepare&quot; hidden&gt;
+          &lt;div class=&quot;es-content-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Prepare envelope&lt;/h2&gt;&lt;div class=&quot;es-content-subtitle&quot;&gt;The signed original is protected; envelope settings create a controlled signing copy and evidence package.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;es-status&quot;&gt;&lt;i data-lucide=&quot;check-circle-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Document ready&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-form-grid&quot;&gt;&lt;div class=&quot;es-field&quot;&gt;&lt;label for=&quot;es-envelope-name&quot;&gt;Envelope name&lt;/label&gt;&lt;input id=&quot;es-envelope-name&quot; class=&quot;es-input&quot; value=&quot;Vendor manufacturing agreement&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-field&quot;&gt;&lt;label for=&quot;es-expiry&quot;&gt;Signing deadline&lt;/label&gt;&lt;input id=&quot;es-expiry&quot; class=&quot;es-input&quot; type=&quot;date&quot; value=&quot;2026-09-15&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-prepare-row&quot;&gt;&lt;span class=&quot;es-prepare-icon&quot;&gt;&lt;i data-lucide=&quot;file-check-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-prepare-title&quot;&gt;Agreement.pdf&lt;/span&gt;&lt;span class=&quot;es-prepare-meta&quot;&gt;8 pages · Active content checked · Source fingerprint recorded&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;Replace safely&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-prepare-row&quot;&gt;&lt;span class=&quot;es-prepare-icon&quot;&gt;&lt;i data-lucide=&quot;message-square-text&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-prepare-title&quot;&gt;Recipient message&lt;/span&gt;&lt;span class=&quot;es-prepare-meta&quot;&gt;Please review and sign the manufacturing terms by 15 September.&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;Edit&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-prepare-row&quot;&gt;&lt;span class=&quot;es-prepare-icon&quot;&gt;&lt;i data-lucide=&quot;bell-ring&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-prepare-title&quot;&gt;Reminders&lt;/span&gt;&lt;span class=&quot;es-prepare-meta&quot;&gt;After 2 days, then every 3 days until completion or expiry&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;Change&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-prepare-row&quot;&gt;&lt;span class=&quot;es-prepare-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-prepare-title&quot;&gt;Authentication policy&lt;/span&gt;&lt;span class=&quot;es-prepare-meta&quot;&gt;Risk-aware recommendation with per-recipient authorised override&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;Review&lt;/button&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;fields&quot; hidden&gt;
+          &lt;div class=&quot;es-content-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Assign signing fields&lt;/h2&gt;&lt;div class=&quot;es-content-subtitle&quot;&gt;Signature, name, date, initials, text, checkbox and attachment fields remain editable canvas objects.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;es-status&quot;&gt;&lt;i data-lucide=&quot;check-circle-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;6 required fields&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-page-editor&quot;&gt;&lt;div class=&quot;es-pages&quot;&gt;&lt;div class=&quot;es-page-thumb selected&quot;&gt;Page 8&lt;/div&gt;&lt;div class=&quot;es-page-thumb&quot;&gt;Page 7&lt;/div&gt;&lt;div class=&quot;es-page-thumb&quot;&gt;Page 6&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;es-document-page&quot;&gt;&lt;div class=&quot;es-doc-heading&quot;&gt;MANUFACTURING AGREEMENT&lt;/div&gt;&lt;div class=&quot;es-doc-line&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line short&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line short&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-sign-field es-date&quot;&gt;&lt;i data-lucide=&quot;calendar&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Date · Ravi&lt;/div&gt;&lt;div class=&quot;es-sign-field es-signature&quot;&gt;&lt;i data-lucide=&quot;pen-line&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Signature · Ravi&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;signer&quot; hidden&gt;
+          &lt;div class=&quot;es-content-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Secure signer experience&lt;/h2&gt;&lt;div class=&quot;es-content-subtitle&quot;&gt;Focused document review with only required input fields—no application account or editor complexity.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;es-status&quot;&gt;&lt;i data-lucide=&quot;lock-keyhole&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;OTP verified&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-signer-shell&quot;&gt;&lt;div class=&quot;es-signer-header&quot;&gt;&lt;span class=&quot;es-doc-icon&quot;&gt;&lt;i data-lucide=&quot;file-signature&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;es-signer-copy&quot;&gt;&lt;span class=&quot;es-signer-title&quot;&gt;Vendor manufacturing agreement&lt;/span&gt;&lt;span class=&quot;es-signer-meta&quot;&gt;Northstar Studio · Secure signing session · Expires 15 Sep&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;Download copy&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;es-signer-body&quot;&gt;&lt;div class=&quot;es-signer-page&quot;&gt;&lt;div class=&quot;es-doc-heading&quot;&gt;MANUFACTURING AGREEMENT&lt;/div&gt;&lt;div class=&quot;es-doc-line&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line short&quot;&gt;&lt;/div&gt;&lt;div class=&quot;es-doc-line&quot;&gt;&lt;/div&gt;&lt;button class=&quot;es-required-field es-required-date&quot; type=&quot;button&quot;&gt;Add date&lt;/button&gt;&lt;button class=&quot;es-required-field es-required-sign&quot; type=&quot;button&quot;&gt;Sign here&lt;/button&gt;&lt;/div&gt;&lt;aside class=&quot;es-signer-guide&quot;&gt;&lt;div class=&quot;es-guide-box&quot;&gt;&lt;strong&gt;2 required fields&lt;/strong&gt;&lt;br&gt;Your entries are saved securely. You can review everything before final submission.&lt;/div&gt;&lt;div class=&quot;es-guide-step&quot;&gt;&lt;span class=&quot;es-guide-number&quot;&gt;1&lt;/span&gt;&lt;span&gt;Review the full document&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-guide-step&quot;&gt;&lt;span class=&quot;es-guide-number&quot;&gt;2&lt;/span&gt;&lt;span&gt;Complete highlighted fields&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-guide-step&quot;&gt;&lt;span class=&quot;es-guide-number&quot;&gt;3&lt;/span&gt;&lt;span&gt;Consent and submit once&lt;/span&gt;&lt;/div&gt;&lt;button class=&quot;es-primary&quot; id=&quot;es-finish-signing&quot; type=&quot;button&quot;&gt;Finish &amp;amp; submit&lt;/button&gt;&lt;/aside&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section data-content=&quot;audit&quot; hidden&gt;
+          &lt;div class=&quot;es-content-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Completion &amp;amp; audit package&lt;/h2&gt;&lt;div class=&quot;es-content-subtitle&quot;&gt;A completed envelope produces the signed PDF, certificate, evidence timeline and protected retention record.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;es-status&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Evidence sealed&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-prepare-row&quot;&gt;&lt;span class=&quot;es-prepare-icon&quot;&gt;&lt;i data-lucide=&quot;file-check-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-prepare-title&quot;&gt;Signed agreement.pdf&lt;/span&gt;&lt;span class=&quot;es-prepare-meta&quot;&gt;Final signed derivative · Original source remains protected&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;View&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-prepare-row&quot;&gt;&lt;span class=&quot;es-prepare-icon&quot;&gt;&lt;i data-lucide=&quot;badge-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-prepare-title&quot;&gt;Certificate of completion&lt;/span&gt;&lt;span class=&quot;es-prepare-meta&quot;&gt;Envelope identity, consent, authentication and document fingerprint&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;es-button&quot; type=&quot;button&quot;&gt;Download&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-audit-row&quot;&gt;&lt;span class=&quot;es-audit-icon&quot;&gt;&lt;i data-lucide=&quot;send&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-audit-title&quot;&gt;Envelope sent&lt;/span&gt;&lt;span class=&quot;es-audit-meta&quot;&gt;Sender identity and document fingerprint recorded&lt;/span&gt;&lt;/span&gt;&lt;span&gt;10:02&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-audit-row&quot;&gt;&lt;span class=&quot;es-audit-icon&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-audit-title&quot;&gt;Ravi authenticated&lt;/span&gt;&lt;span class=&quot;es-audit-meta&quot;&gt;Email OTP · Device and network evidence safely recorded&lt;/span&gt;&lt;/span&gt;&lt;span&gt;10:18&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-audit-row&quot;&gt;&lt;span class=&quot;es-audit-icon&quot;&gt;&lt;i data-lucide=&quot;pen-line&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-audit-title&quot;&gt;Signature submitted&lt;/span&gt;&lt;span class=&quot;es-audit-meta&quot;&gt;Consent, field values and signed document hash sealed&lt;/span&gt;&lt;/span&gt;&lt;span&gt;10:24&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;es-audit-row&quot;&gt;&lt;span class=&quot;es-audit-icon&quot;&gt;&lt;i data-lucide=&quot;archive&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-audit-title&quot;&gt;Retention policy applied&lt;/span&gt;&lt;span class=&quot;es-audit-meta&quot;&gt;Completed package excluded from ordinary project cleanup&lt;/span&gt;&lt;/span&gt;&lt;span&gt;10:25&lt;/span&gt;&lt;/div&gt;
+        &lt;/section&gt;
+      &lt;/main&gt;
+
+      &lt;aside class=&quot;es-inspector&quot; aria-label=&quot;Selected recipient settings&quot;&gt;
+        &lt;h3&gt;Recipient settings&lt;/h3&gt;&lt;div class=&quot;es-inspector-copy&quot;&gt;Authentication is recommended from document risk and policy, then enforced specifically for this recipient.&lt;/div&gt;
+        &lt;div class=&quot;es-selected-person&quot;&gt;&lt;span class=&quot;es-recipient-avatar&quot; id=&quot;es-inspector-avatar&quot;&gt;RK&lt;/span&gt;&lt;span&gt;&lt;span class=&quot;es-recipient-name&quot; id=&quot;es-inspector-name&quot;&gt;Ravi Kumar&lt;/span&gt;&lt;span class=&quot;es-recipient-meta&quot; id=&quot;es-inspector-role&quot;&gt;Signer · Routing group 2&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;es-inspector-section&quot;&gt;&lt;div class=&quot;es-inspector-title&quot;&gt;Authentication&lt;/div&gt;&lt;div class=&quot;es-recommendation&quot; id=&quot;es-recommendation&quot;&gt;&lt;strong&gt;Email OTP recommended&lt;/strong&gt;&lt;br&gt;Appropriate for this agreement’s configured risk and workspace policy.&lt;/div&gt;&lt;div class=&quot;es-auth-options&quot; style=&quot;margin-top:8px&quot;&gt;&lt;label class=&quot;es-auth&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;recipient-auth&quot; checked&gt;&lt;span&gt;&lt;strong&gt;Email OTP&lt;/strong&gt;&lt;small&gt;One-time code before document access&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;es-auth&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;recipient-auth&quot;&gt;&lt;span&gt;&lt;strong&gt;Identity verification&lt;/strong&gt;&lt;small&gt;Use for higher-risk or jurisdictional needs&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;es-auth&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;recipient-auth&quot;&gt;&lt;span&gt;&lt;strong&gt;Qualified signing&lt;/strong&gt;&lt;small&gt;Provider-supported where legally required&lt;/small&gt;&lt;/span&gt;&lt;/label&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;es-inspector-section&quot;&gt;&lt;div class=&quot;es-inspector-title&quot;&gt;Secure delivery&lt;/div&gt;&lt;div class=&quot;es-fact&quot;&gt;&lt;i data-lucide=&quot;link-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;One-time envelope link&lt;/strong&gt;&lt;small&gt;Revocable and envelope-scoped&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-fact&quot;&gt;&lt;i data-lucide=&quot;user-x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;No account required&lt;/strong&gt;&lt;small&gt;Authentication policy still applies&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;es-fact&quot;&gt;&lt;i data-lucide=&quot;calendar-clock&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;&lt;strong&gt;Expires 15 September&lt;/strong&gt;&lt;small&gt;Sender may extend or revoke&lt;/small&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;/aside&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;es-toast&quot; id=&quot;es-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot; hidden&gt;&lt;/div&gt;
+    &lt;footer class=&quot;es-bottom&quot;&gt;&lt;span&gt;Native e-sign ownership&lt;/span&gt;&lt;span&gt;Mixed routing groups&lt;/span&gt;&lt;span&gt;Accounts optional&lt;/span&gt;&lt;span class=&quot;es-bottom-right&quot;&gt;&lt;span&gt;Risk-aware authentication&lt;/span&gt;&lt;span&gt;Protected evidence package&lt;/span&gt;&lt;/span&gt;&lt;/footer&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;native-esign-workflow&#x27;);
+      const tabs = [...root.querySelectorAll(&#x27;.es-tab&#x27;)];
+      const panels = [...root.querySelectorAll(&#x27;[data-content]&#x27;)];
+      const steps = [...root.querySelectorAll(&#x27;[data-step]&#x27;)];
+      const showPanel = (name) =&gt; {
+        tabs.forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab.dataset.panel === name)));
+        panels.forEach((panel) =&gt; { panel.hidden = panel.dataset.content !== name; });
+        steps.forEach((step) =&gt; step.setAttribute(&#x27;aria-pressed&#x27;, String(step.dataset.step === name)));
+      };
+      tabs.forEach((tab) =&gt; tab.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(tab.dataset.panel)));
+      steps.forEach((step) =&gt; step.addEventListener(&#x27;click&#x27;, () =&gt; showPanel(step.dataset.step)));
+
+      const recipientData = {
+        meera: [&#x27;MJ&#x27;, &#x27;Meera Jain&#x27;, &#x27;Approver · Routing group 1&#x27;, &#x27;&lt;strong&gt;Email access recommended&lt;/strong&gt;&lt;br&gt;Approval only; workspace policy permits verified email access.&#x27;],
+        ravi: [&#x27;RK&#x27;, &#x27;Ravi Kumar&#x27;, &#x27;Signer · Routing group 2&#x27;, &#x27;&lt;strong&gt;Email OTP recommended&lt;/strong&gt;&lt;br&gt;Appropriate for this agreement’s configured risk and workspace policy.&#x27;],
+        asha: [&#x27;AS&#x27;, &#x27;Asha Sharma&#x27;, &#x27;Signer · Routing group 2&#x27;, &#x27;&lt;strong&gt;Email OTP recommended&lt;/strong&gt;&lt;br&gt;Parallel signer with the same envelope authentication policy.&#x27;],
+        anil: [&#x27;AN&#x27;, &#x27;Anil Nair&#x27;, &#x27;Witness · Routing group 3&#x27;, &#x27;&lt;strong&gt;Identity verification recommended&lt;/strong&gt;&lt;br&gt;Witness role requires stronger identity assurance for this envelope.&#x27;],
+        finance: [&#x27;AR&#x27;, &#x27;Finance archive&#x27;, &#x27;Copy recipient · After completion&#x27;, &#x27;&lt;strong&gt;No signing authentication&lt;/strong&gt;&lt;br&gt;Receives the completed package through the workspace-controlled archive route.&#x27;]
+      };
+      const recipients = [...root.querySelectorAll(&#x27;.es-recipient&#x27;)];
+      recipients.forEach((recipient) =&gt; recipient.addEventListener(&#x27;click&#x27;, () =&gt; {
+        recipients.forEach((candidate) =&gt; candidate.setAttribute(&#x27;aria-pressed&#x27;, String(candidate === recipient)));
+        const [avatar, name, role, recommendation] = recipientData[recipient.dataset.recipient];
+        root.querySelector(&#x27;#es-inspector-avatar&#x27;).textContent = avatar;
+        root.querySelector(&#x27;#es-inspector-name&#x27;).textContent = name;
+        root.querySelector(&#x27;#es-inspector-role&#x27;).textContent = role;
+        root.querySelector(&#x27;#es-recommendation&#x27;).innerHTML = recommendation;
+      }));
+
+      const toast = root.querySelector(&#x27;#es-toast&#x27;);
+      let toastTimer;
+      const announce = (message) =&gt; { clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toastTimer = setTimeout(() =&gt; { toast.hidden = true; }, 2600); };
+      root.querySelector(&#x27;#es-review-send&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Envelope preflight opened: recipients, fields, authentication and evidence policy will be checked.&#x27;));
+      root.querySelector(&#x27;#es-finish-signing&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; announce(&#x27;Final consent review opened. Submission occurs only after signer confirmation.&#x27;));
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>
