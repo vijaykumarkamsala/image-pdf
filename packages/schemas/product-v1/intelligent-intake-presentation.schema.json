@@ -1,0 +1,380 @@
+{
+  "$defs": {
+    "IntakeClassificationRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Percent"
+        },
+        "customer_category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntakeSourceCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "inferred_category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntakeSourceCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "default": "1.10.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "updated_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "upload_session_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Upload Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_session_id",
+        "updated_at"
+      ],
+      "title": "IntakeClassificationRecord",
+      "type": "object"
+    },
+    "IntakeDimensionState": {
+      "enum": [
+        "clear",
+        "attention"
+      ],
+      "title": "IntakeDimensionState",
+      "type": "string"
+    },
+    "IntakeRiskDimension": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "enum": [
+            "safety",
+            "structure",
+            "privacy"
+          ],
+          "title": "Dimension",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.10.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/IntakeDimensionState"
+        },
+        "summary": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension",
+        "state",
+        "summary"
+      ],
+      "title": "IntakeRiskDimension",
+      "type": "object"
+    },
+    "IntakeSourceCategory": {
+      "enum": [
+        "photograph",
+        "graphic",
+        "document",
+        "scan",
+        "animation",
+        "other",
+        "unsure"
+      ],
+      "title": "IntakeSourceCategory",
+      "type": "string"
+    },
+    "MalwareScanState": {
+      "enum": [
+        "pending",
+        "clean",
+        "malicious",
+        "unavailable",
+        "timeout",
+        "error"
+      ],
+      "title": "MalwareScanState",
+      "type": "string"
+    },
+    "ProductOutcome": {
+      "enum": [
+        "image-graphic-studio",
+        "create-pdf",
+        "edit-manage-pdf",
+        "print-production"
+      ],
+      "title": "ProductOutcome",
+      "type": "string"
+    },
+    "SourceFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "bit_depth": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bit Depth"
+        },
+        "byte_size": {
+          "minimum": 1,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "detected_media_type": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Detected Media Type",
+          "type": "string"
+        },
+        "frame_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frame Count"
+        },
+        "has_alpha": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Has Alpha"
+        },
+        "has_icc_profile": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Has Icc Profile"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "malware_scan_state": {
+          "$ref": "#/$defs/MalwareScanState"
+        },
+        "megapixels_milli": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Megapixels Milli"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "page_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Count"
+        },
+        "schema_version": {
+          "default": "1.10.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sensitive_metadata": {
+          "default": [],
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Sensitive Metadata",
+          "type": "array"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "sha256",
+        "detected_media_type",
+        "byte_size",
+        "malware_scan_state"
+      ],
+      "title": "SourceFacts",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/intelligent-intake-presentation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "classification": {
+      "$ref": "#/$defs/IntakeClassificationRecord"
+    },
+    "filename": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Filename",
+      "type": "string"
+    },
+    "recommendation_rationale": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Recommendation Rationale",
+      "type": "string"
+    },
+    "recommended_outcome": {
+      "$ref": "#/$defs/ProductOutcome"
+    },
+    "risk_dimensions": {
+      "items": {
+        "$ref": "#/$defs/IntakeRiskDimension"
+      },
+      "title": "Risk Dimensions",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.10.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_facts": {
+      "$ref": "#/$defs/SourceFacts"
+    },
+    "suitable_explanation": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Suitable Explanation",
+      "type": "string"
+    },
+    "upload_session_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Upload Session Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "upload_session_id",
+    "filename",
+    "source_facts",
+    "classification",
+    "risk_dimensions",
+    "suitable_explanation",
+    "recommended_outcome",
+    "recommendation_rationale"
+  ],
+  "title": "IntelligentIntakePresentation",
+  "type": "object"
+}

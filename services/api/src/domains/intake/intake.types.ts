@@ -1,4 +1,4 @@
-import type { GuestSessionRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
+import type { GuestSessionRecord, IntakeClassificationRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
 
 import type { PrivateObjectRef, ProviderObjectMetadata } from "./private-object-store.js";
 
@@ -29,6 +29,11 @@ export interface StoredUploadSession {
 
 export interface UploadCreateResult {
   stored: StoredUploadSession;
+  replayed: boolean;
+}
+
+export interface ClassificationWriteResult {
+  classification: IntakeClassificationRecord;
   replayed: boolean;
 }
 
@@ -76,6 +81,13 @@ export interface IntakeRepository {
     now: string,
   ): Promise<StoredUploadSession>;
   cancelUpload(uploadSessionId: string, owner: IntakeOwner, now: string): Promise<StoredUploadSession>;
+  findClassification(uploadSessionId: string, owner: IntakeOwner): Promise<IntakeClassificationRecord | null>;
+  saveClassification(
+    classification: IntakeClassificationRecord,
+    owner: IntakeOwner,
+    command: IntakeCommand,
+    createdAt: string,
+  ): Promise<ClassificationWriteResult>;
   claimCleanup(
     workerId: string,
     now: string,

@@ -5,6 +5,9 @@ import type {
   GuestSessionAuthorization,
   GuestSessionRecord,
   IdempotentCommandResult,
+  IntelligentIntakePresentation,
+  IntakeClassificationRecord,
+  IntakeSourceCategory,
   UploadConstraints,
   UploadSessionCreated,
   UploadSessionRecord,
@@ -55,6 +58,16 @@ const CONSTRAINTS: UploadConstraints = {
   max_pages: 500,
 };
 
+const SOURCE_CATEGORIES = new Set<IntakeSourceCategory>([
+  "photograph",
+  "graphic",
+  "document",
+  "scan",
+  "animation",
+  "other",
+  "unsure",
+]);
+
 @Injectable()
 export class IntakeService implements OnApplicationShutdown {
   constructor(
@@ -104,6 +117,75 @@ export class IntakeService implements OnApplicationShutdown {
   async get(headers: Headers, uploadSessionId: string): Promise<{ schema_version: string; upload_session: UploadSessionRecord }> {
     const stored = await this.requireAccessible(headers, requireId(uploadSessionId, "upload session id"));
     return { schema_version: PRODUCT_SCHEMA_VERSION, upload_session: stored.record };
+  }
+
+  async presentation(
+    headers: Headers,
+    uploadSessionId: string,
+  ): Promise<{ schema_version: string; presentation: IntelligentIntakePresentation }> {
+    const stored = await this.requireAccessible(headers, requireId(uploadSessionId, "upload session id"));
+    this.requireReadyFacts(stored.record);
+    const owner = this.owner(stored.record);
+    const saved = await this.repository.findClassification(stored.record.upload_session_id, owner);
+    const classification = saved ?? this.inferClassification(stored.record);
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      presentation: this.intakePresentation(stored.record, classification),
+    };
+  }
+
+  async correctClassification(
+    headers: Headers,
+    uploadSessionId: string,
+    body: Record<string, unknown>,
+  ) {
+    const stored = await this.requireAccessible(headers, requireId(uploadSessionId, "upload session id"));
+    this.requireReadyFacts(stored.record);
+    const requested = requireText(body["category"], "source category", 50) as IntakeSourceCategory;
+    if (!SOURCE_CATEGORIES.has(requested)) {
+      throw new DomainError(400, "classification-invalid", "Choose an available source category");
+    }
+    const owner = this.owner(stored.record);
+    const inferred = await this.repository.findClassification(stored.record.upload_session_id, owner)
+      ?? this.inferClassification(stored.record);
+    const now = this.runtime.now();
+    const classification: IntakeClassificationRecord = {
+      ...inferred,
+      customer_category: requested,
+      updated_at: now,
+    };
+    const context = this.commandContext(headers, owner, "intake.classification.correct", {
+      uploadSessionId: stored.record.upload_session_id,
+      category: requested,
+    });
+    const saved = await this.repository.saveClassification(classification, owner, {
+      ownerScope: owner.ownerScope,
+      idempotencyKey: context.idempotencyKey,
+      commandName: "intake.classification.correct",
+      requestHash: context.requestHash,
+    }, now);
+    if (owner.ownerKind === "actor") {
+      await this.product.recordExternalMutation(
+        context,
+        owner.workspaceId!,
+        "intake.classification-corrected",
+        "upload_session",
+        stored.record.upload_session_id,
+      );
+    }
+    const command: IdempotentCommandResult = {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      idempotency_key: context.idempotencyKey,
+      replayed: saved.replayed,
+      resource_kind: "intake_classification",
+      resource_id: stored.record.upload_session_id,
+    };
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      classification: saved.classification,
+      presentation: this.intakePresentation(stored.record, saved.classification),
+      command,
+    };
   }
 
   async resume(
@@ -525,6 +607,98 @@ export class IntakeService implements OnApplicationShutdown {
       throw new DomainError(400, "checksum-invalid", "Expected SHA-256 must contain 64 hexadecimal characters");
     }
     return digest;
+  }
+
+  private requireReadyFacts(record: UploadSessionRecord): asserts record is UploadSessionRecord & {
+    source_facts: NonNullable<UploadSessionRecord["source_facts"]>;
+  } {
+    if (record.state !== "ready" || !record.source_facts || record.source_facts.malware_scan_state !== "clean") {
+      throw new DomainError(409, "intake-not-ready", "Verified source facts are not available for this upload");
+    }
+  }
+
+  private inferClassification(record: UploadSessionRecord & {
+    source_facts: NonNullable<UploadSessionRecord["source_facts"]>;
+  }): IntakeClassificationRecord {
+    const facts = record.source_facts;
+    let inferredCategory: IntakeSourceCategory | null = null;
+    let confidencePercent: number | null = null;
+    let evidence: string[] = [];
+    if (facts.detected_media_type === "application/pdf") {
+      inferredCategory = "document";
+      confidencePercent = 100;
+      evidence = ["The validated container is a PDF document."];
+    } else if ((facts.frame_count ?? 1) > 1) {
+      inferredCategory = "animation";
+      confidencePercent = 95;
+      evidence = ["The verified image contains multiple frames."];
+    } else if (facts.has_alpha === true) {
+      inferredCategory = "graphic";
+      confidencePercent = 78;
+      evidence = ["The verified image includes an alpha channel commonly used by composed graphics."];
+    }
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      upload_session_id: record.upload_session_id,
+      inferred_category: inferredCategory,
+      confidence_percent: confidencePercent,
+      evidence,
+      customer_category: null,
+      updated_at: record.updated_at,
+    };
+  }
+
+  private intakePresentation(
+    record: UploadSessionRecord & { source_facts: NonNullable<UploadSessionRecord["source_facts"]> },
+    classification: IntakeClassificationRecord,
+  ): IntelligentIntakePresentation {
+    const facts = record.source_facts;
+    const category = classification.customer_category ?? classification.inferred_category;
+    const isPdf = facts.detected_media_type === "application/pdf";
+    const recommendedOutcome = isPdf
+      ? "edit-manage-pdf" as const
+      : category === "document" || category === "scan"
+        ? "create-pdf" as const
+        : "image-graphic-studio" as const;
+    const recommendationRationale = isPdf
+      ? "The source is a verified PDF, so document organization and management is the relevant next outcome."
+      : recommendedOutcome === "create-pdf"
+        ? "Your source category indicates a page-like image that can be organized into a PDF."
+        : "The verified source is an image, so visual preparation is the relevant next outcome.";
+    const sensitiveMetadata = facts.sensitive_metadata ?? [];
+    const sensitive = sensitiveMetadata.length > 0;
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      upload_session_id: record.upload_session_id,
+      filename: record.display_name,
+      source_facts: facts,
+      classification,
+      risk_dimensions: [
+        {
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          dimension: "safety",
+          state: "clear",
+          summary: "Malware scanning completed cleanly before this source was accepted.",
+        },
+        {
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          dimension: "structure",
+          state: "clear",
+          summary: "The supported container passed integrity and approved resource-limit checks.",
+        },
+        {
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          dimension: "privacy",
+          state: sensitive ? "attention" : "clear",
+          summary: sensitive
+            ? `Sensitive metadata is present: ${sensitiveMetadata.join(", ")}.`
+            : "No sensitive metadata was detected by the approved inspection path.",
+        },
+      ],
+      suitable_explanation: "This original passed the currently approved safety and structure checks. It has not been changed.",
+      recommended_outcome: recommendedOutcome,
+      recommendation_rationale: recommendationRationale,
+    };
   }
 
   private authorizationInput(

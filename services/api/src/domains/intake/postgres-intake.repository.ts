@@ -1,5 +1,5 @@
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
-import type { GuestSessionRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
+import type { GuestSessionRecord, IntakeClassificationRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
 import { Pool, type QueryResultRow } from "pg";
 
 import { DomainError } from "../../kernel/errors.js";
@@ -17,6 +17,18 @@ import type { ProviderObjectMetadata } from "./private-object-store.js";
 
 function instant(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function classification(row: QueryResultRow): IntakeClassificationRecord {
+  return {
+    schema_version: PRODUCT_SCHEMA_VERSION,
+    upload_session_id: String(row["upload_session_id"]),
+    inferred_category: (row["inferred_category"] as IntakeClassificationRecord["inferred_category"]) ?? null,
+    confidence_percent: row["confidence_percent"] === null ? null : Number(row["confidence_percent"]),
+    evidence: Array.isArray(row["evidence"]) ? row["evidence"].map(String) : [],
+    customer_category: (row["customer_category"] as IntakeClassificationRecord["customer_category"]) ?? null,
+    updated_at: instant(row["updated_at"] as Date | string),
+  };
 }
 
 function stored(row: QueryResultRow): StoredUploadSession {
@@ -244,6 +256,82 @@ export class PostgresIntakeRepository implements IntakeRepository {
       [now, uploadSessionId, ...this.ownerValues(owner)],
     );
     return stored(result.rows[0]);
+  }
+
+  async findClassification(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+  ): Promise<IntakeClassificationRecord | null> {
+    const result = await this.pool.query(
+      `SELECT classification.* FROM intake_classifications classification
+       WHERE classification.upload_session_id=$1 AND EXISTS (
+         SELECT 1 FROM upload_sessions WHERE upload_session_id=classification.upload_session_id
+           AND ${this.ownerSql(owner, 2)}
+       )`,
+      [uploadSessionId, ...this.ownerValues(owner)],
+    );
+    return result.rows[0] ? classification(result.rows[0]) : null;
+  }
+
+  async saveClassification(
+    value: IntakeClassificationRecord,
+    owner: IntakeOwner,
+    command: IntakeCommand,
+    createdAt: string,
+  ) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const upload = await client.query(
+        `SELECT state FROM upload_sessions WHERE upload_session_id=$1
+         AND ${this.ownerSql(owner, 2)} FOR UPDATE`,
+        [value.upload_session_id, ...this.ownerValues(owner)],
+      );
+      if (!upload.rows[0]) throw new DomainError(404, "upload-not-found", "Upload session was not found");
+      if (upload.rows[0]["state"] !== "ready") {
+        throw new DomainError(409, "intake-not-ready", "Classification can be corrected only after inspection");
+      }
+      const prior = await client.query(
+        `SELECT command_name,request_hash,response_body FROM intake_idempotency_records
+         WHERE owner_scope=$1 AND idempotency_key=$2 FOR UPDATE`,
+        [command.ownerScope, command.idempotencyKey],
+      );
+      if (prior.rows[0]) {
+        if (prior.rows[0]["command_name"] !== command.commandName || prior.rows[0]["request_hash"] !== command.requestHash) {
+          throw new DomainError(409, "idempotency-conflict", "Idempotency key was already used for another request");
+        }
+        const replay = (prior.rows[0]["response_body"] as { classification: IntakeClassificationRecord }).classification;
+        await client.query("COMMIT");
+        return { classification: replay, replayed: true };
+      }
+      const result = await client.query(
+        `INSERT INTO intake_classifications(upload_session_id,inferred_category,confidence_percent,
+           evidence,customer_category,updated_at) VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (upload_session_id) DO UPDATE SET
+           inferred_category=EXCLUDED.inferred_category,
+           confidence_percent=EXCLUDED.confidence_percent,
+           evidence=EXCLUDED.evidence,
+           customer_category=EXCLUDED.customer_category,
+           updated_at=EXCLUDED.updated_at
+         RETURNING *`,
+        [value.upload_session_id, value.inferred_category, value.confidence_percent,
+          JSON.stringify(value.evidence), value.customer_category, value.updated_at],
+      );
+      const saved = classification(result.rows[0]);
+      await client.query(
+        `INSERT INTO intake_idempotency_records(owner_scope,idempotency_key,command_name,
+         request_hash,response_body,created_at) VALUES ($1,$2,$3,$4,$5,$6)`,
+        [command.ownerScope, command.idempotencyKey, command.commandName, command.requestHash,
+          { classification: saved }, createdAt],
+      );
+      await client.query("COMMIT");
+      return { classification: saved, replayed: false };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async claimCleanup(

@@ -386,6 +386,60 @@ class SourceFacts(ProductKernelContractModel):
     malware_scan_state: MalwareScanState
 
 
+class IntakeSourceCategory(StrEnum):
+    PHOTOGRAPH = "photograph"
+    GRAPHIC = "graphic"
+    DOCUMENT = "document"
+    SCAN = "scan"
+    ANIMATION = "animation"
+    OTHER = "other"
+    UNSURE = "unsure"
+
+
+class ProductOutcome(StrEnum):
+    IMAGE_GRAPHIC_STUDIO = "image-graphic-studio"
+    CREATE_PDF = "create-pdf"
+    EDIT_MANAGE_PDF = "edit-manage-pdf"
+    PRINT_PRODUCTION = "print-production"
+
+
+class IntakeDimensionState(StrEnum):
+    CLEAR = "clear"
+    ATTENTION = "attention"
+
+
+class IntakeClassificationRecord(ProductKernelContractModel):
+    upload_session_id: SlugId
+    inferred_category: IntakeSourceCategory | None = None
+    confidence_percent: int | None = Field(default=None, ge=0, le=100)
+    evidence: tuple[NonEmptyStr, ...] = ()
+    customer_category: IntakeSourceCategory | None = None
+    updated_at: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _confidence_requires_inference(self) -> IntakeClassificationRecord:
+        if self.inferred_category is None and self.confidence_percent is not None:
+            raise ValueError("classification confidence requires an inferred category")
+        return self
+
+
+class IntakeRiskDimension(ProductKernelContractModel):
+    dimension: Literal["safety", "structure", "privacy"]
+    state: IntakeDimensionState
+    summary: NonEmptyStr
+
+
+class IntelligentIntakePresentation(ProductKernelContractModel):
+    upload_session_id: SlugId
+    filename: NonEmptyStr
+    source_facts: SourceFacts
+    classification: IntakeClassificationRecord
+    risk_dimensions: tuple[IntakeRiskDimension, ...]
+    suitable_explanation: NonEmptyStr
+    recommended_outcome: ProductOutcome
+    recommendation_rationale: NonEmptyStr
+
+
 class IntakeFailure(ProductKernelContractModel):
     code: SlugId
     message: NonEmptyStr
@@ -523,6 +577,9 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "guest-session-record": GuestSessionRecord,
     "guest-session-authorization": GuestSessionAuthorization,
     "source-facts": SourceFacts,
+    "intake-classification-record": IntakeClassificationRecord,
+    "intake-risk-dimension": IntakeRiskDimension,
+    "intelligent-intake-presentation": IntelligentIntakePresentation,
     "intake-failure": IntakeFailure,
     "upload-authorization": UploadAuthorization,
     "upload-session-record": UploadSessionRecord,

@@ -13,6 +13,7 @@ import type { ProcessingJobRecord, UploadSessionRecord } from "ipw-contracts-ts/
 
 import { ApiError, api, createTraceId } from "../boundaries/apiClient.ts";
 import type { StoredGuestSession } from "../boundaries/session.ts";
+import { IntakeFacts } from "./IntakeFacts.tsx";
 import {
   mediaTypeFor,
   parseActiveUploads,
@@ -444,6 +445,9 @@ export function UploadDialog({
                     <button type="button" className="button primary compact" onClick={() => void saveGuest(item)}>Sign in to save</button>
                   )}
                 </div>
+                {item.phase === "ready" && item.upload?.source_facts && (
+                  <IntakeFacts upload={item.upload} traceId={item.traceId} guestToken={guestSession?.token} />
+                )}
               </li>
             );
           })}

@@ -106,7 +106,7 @@ def test_real_postgres_worker_claim_checkpoint_completion_and_redelivery() -> No
                 len(data),
                 json.dumps(
                     {
-                        "schema_version": "1.9.0",
+                        "schema_version": "1.10.0",
                         "allowed_media_types": ["image/png"],
                         "max_bytes": 1024,
                         "max_pixels": 10_000,
@@ -215,7 +215,7 @@ def test_real_postgres_worker_records_retry_request_and_performance_audits() -> 
                 len(data),
                 json.dumps(
                     {
-                        "schema_version": "1.9.0",
+                        "schema_version": "1.10.0",
                         "allowed_media_types": ["image/png"],
                         "max_bytes": 1024,
                         "max_pixels": 10_000,

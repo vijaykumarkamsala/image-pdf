@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.9.0";
+export const PRODUCT_SCHEMA_VERSION = "1.10.0";
 
 export interface Actor {
   schema_version?: string;
@@ -93,12 +93,35 @@ export interface IdempotentCommandResult {
 export type IdentityProviderKind = "local_test" | "oidc";
 export const IdentityProviderKindValues: readonly IdentityProviderKind[] = ["local_test", "oidc"] as const;
 
+export interface IntakeClassificationRecord {
+  schema_version?: string;
+  upload_session_id: string;
+  inferred_category?: IntakeSourceCategory | null;
+  confidence_percent?: number | null;
+  evidence?: string[];
+  customer_category?: IntakeSourceCategory | null;
+  updated_at: string;
+}
+
+export type IntakeDimensionState = "clear" | "attention";
+export const IntakeDimensionStateValues: readonly IntakeDimensionState[] = ["clear", "attention"] as const;
+
 export interface IntakeFailure {
   schema_version?: string;
   code: string;
   message: string;
   retryable?: boolean;
 }
+
+export interface IntakeRiskDimension {
+  schema_version?: string;
+  dimension: "safety" | "structure" | "privacy";
+  state: IntakeDimensionState;
+  summary: string;
+}
+
+export type IntakeSourceCategory = "photograph" | "graphic" | "document" | "scan" | "animation" | "other" | "unsure";
+export const IntakeSourceCategoryValues: readonly IntakeSourceCategory[] = ["photograph", "graphic", "document", "scan", "animation", "other", "unsure"] as const;
 
 export interface JobEventRecord {
   schema_version?: string;
@@ -134,6 +157,9 @@ export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_inta
 
 export type ProcessingJobState = "queued" | "leased" | "running" | "retry_wait" | "cancel_requested" | "succeeded" | "failed" | "cancelled";
 export const ProcessingJobStateValues: readonly ProcessingJobState[] = ["queued", "leased", "running", "retry_wait", "cancel_requested", "succeeded", "failed", "cancelled"] as const;
+
+export type ProductOutcome = "image-graphic-studio" | "create-pdf" | "edit-manage-pdf" | "print-production";
+export const ProductOutcomeValues: readonly ProductOutcome[] = ["image-graphic-studio", "create-pdf", "edit-manage-pdf", "print-production"] as const;
 
 export interface ProjectRecord {
   schema_version?: string;
@@ -294,6 +320,18 @@ export interface IdentityReference {
   actor_id: string;
   provider: IdentityProviderKind;
   provider_subject: string;
+}
+
+export interface IntelligentIntakePresentation {
+  schema_version?: string;
+  upload_session_id: string;
+  filename: string;
+  source_facts: SourceFacts;
+  classification: IntakeClassificationRecord;
+  risk_dimensions: IntakeRiskDimension[];
+  suitable_explanation: string;
+  recommended_outcome: ProductOutcome;
+  recommendation_rationale: string;
 }
 
 export interface JobEventList {

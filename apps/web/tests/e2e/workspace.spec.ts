@@ -52,6 +52,15 @@ test("real API secure upload becomes a preserved Default Files source", async ({
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
   await page.getByRole("button", { name: "Upload 1" }).click();
   await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible();
+  await expect(page.getByText("PNG image")).toBeVisible();
+  await expect(page.getByText("78% confidence")).toBeVisible();
+  await expect(page.getByText("No combined quality score")).toBeVisible();
+  await expect(page.getByText("This recommendation does not alter or process your source.")).toBeVisible();
+  await page.getByLabel("Correct source category").selectOption("document");
+  await expect(page.locator(".intake-recommendation").getByText("Create PDF", { exact: true })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(/4K quality|8K quality|Recreate|AI enhancement/i);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("link", { name: "Files" }).first().click();
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();

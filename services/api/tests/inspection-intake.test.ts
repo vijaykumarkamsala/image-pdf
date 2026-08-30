@@ -88,6 +88,42 @@ test("accepted bytes become an immutable source and Default Files entry only aft
     assert.equal(files.files[0].asset_original_id, upload.upload_session.asset_original_id);
     assert.equal(files.files[0].current_source_version_id, upload.upload_session.source_version_id);
     assert.equal(files.files[0].canonical_location.kind, "default_files");
+
+    const presentation = await json(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/intake-presentation`,
+    ));
+    assert.equal(presentation.presentation.classification.inferred_category, "graphic");
+    assert.equal(presentation.presentation.classification.confidence_percent, 78);
+    assert.equal(presentation.presentation.recommended_outcome, "image-graphic-studio");
+    assert.deepEqual(
+      presentation.presentation.risk_dimensions.map((dimension: any) => dimension.dimension),
+      ["safety", "structure", "privacy"],
+    );
+    assert.equal(presentation.presentation.source_facts.sha256, upload.upload_session.source_facts.sha256);
+
+    const correctionOptions = {
+      method: "PUT",
+      headers: { "idempotency-key": "classification-correction" },
+      body: JSON.stringify({ category: "document" }),
+    };
+    const correction = await json(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/classification`,
+      correctionOptions,
+    ));
+    const replay = await json(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/classification`,
+      correctionOptions,
+    ));
+    assert.equal(correction.classification.customer_category, "document");
+    assert.equal(correction.presentation.recommended_outcome, "create-pdf");
+    assert.equal(replay.command.replayed, true);
+    assert.equal((await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/intake-presentation`,
+      {},
+      "actor-other",
+    )).status, 404);
+    const audit = await json(await server.request(`/workspaces/${workspaceId}/audit-events`));
+    assert.equal(audit.events.filter((event: any) => event.action === "intake.classification-corrected").length, 1);
   } finally {
     await server.close();
   }

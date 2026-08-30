@@ -1,4 +1,9 @@
-import type { GuestSessionRecord, ProcessingJobRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
+import type {
+  GuestSessionRecord,
+  IntakeClassificationRecord,
+  ProcessingJobRecord,
+  UploadSessionRecord,
+} from "ipw-contracts-ts/product";
 
 import { DomainError } from "../../kernel/errors.js";
 import type {
@@ -21,13 +26,15 @@ interface GuestEntry {
 interface CommandEntry {
   commandName: string;
   requestHash: string;
-  uploadSessionId: string;
+  uploadSessionId?: string;
+  classification?: IntakeClassificationRecord;
 }
 
 export class MemoryIntakeRepository implements IntakeRepository {
   private readonly guests = new Map<string, GuestEntry>();
   private readonly uploads = new Map<string, StoredUploadSession>();
   private readonly commands = new Map<string, CommandEntry>();
+  private readonly classifications = new Map<string, IntakeClassificationRecord>();
   private readonly cleanup = new Map<string, { workerId: string; expiresAt: string; completedAt?: string }>();
 
   async createGuest(record: GuestSessionRecord, tokenHash: string): Promise<void> {
@@ -49,7 +56,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
       if (prior.commandName !== command.commandName || prior.requestHash !== command.requestHash) {
         throw new DomainError(409, "idempotency-conflict", "Idempotency key was already used for another request");
       }
-      const existing = this.uploads.get(prior.uploadSessionId);
+      const existing = prior.uploadSessionId ? this.uploads.get(prior.uploadSessionId) : undefined;
       if (!existing) throw new Error("idempotent upload session is unavailable");
       return { stored: existing, replayed: true };
     }
@@ -153,6 +160,37 @@ export class MemoryIntakeRepository implements IntakeRepository {
     const updated = { ...stored, record: { ...stored.record, state: "cancelled" as const, updated_at: now } };
     this.uploads.set(uploadSessionId, updated);
     return updated;
+  }
+
+  async findClassification(
+    uploadSessionId: string,
+    owner: IntakeOwner,
+  ): Promise<IntakeClassificationRecord | null> {
+    this.requireOwned(uploadSessionId, owner);
+    return this.classifications.get(uploadSessionId) ?? null;
+  }
+
+  async saveClassification(
+    classification: IntakeClassificationRecord,
+    owner: IntakeOwner,
+    command: IntakeCommand,
+  ) {
+    const stored = this.requireOwned(classification.upload_session_id, owner);
+    if (stored.record.state !== "ready") {
+      throw new DomainError(409, "intake-not-ready", "Classification can be corrected only after inspection");
+    }
+    const key = `${command.ownerScope}:${command.idempotencyKey}`;
+    const prior = this.commands.get(key);
+    if (prior) {
+      if (prior.commandName !== command.commandName || prior.requestHash !== command.requestHash) {
+        throw new DomainError(409, "idempotency-conflict", "Idempotency key was already used for another request");
+      }
+      if (!prior.classification) throw new Error("idempotent intake classification is unavailable");
+      return { classification: prior.classification, replayed: true };
+    }
+    this.classifications.set(classification.upload_session_id, classification);
+    this.commands.set(key, { commandName: command.commandName, requestHash: command.requestHash, classification });
+    return { classification, replayed: false };
   }
 
   async claimCleanup(

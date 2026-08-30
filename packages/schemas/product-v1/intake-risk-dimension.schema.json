@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "IntakeDimensionState": {
+      "enum": [
+        "clear",
+        "attention"
+      ],
+      "title": "IntakeDimensionState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/intake-risk-dimension.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "dimension": {
+      "enum": [
+        "safety",
+        "structure",
+        "privacy"
+      ],
+      "title": "Dimension",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/IntakeDimensionState"
+    },
+    "summary": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "dimension",
+    "state",
+    "summary"
+  ],
+  "title": "IntakeRiskDimension",
+  "type": "object"
+}

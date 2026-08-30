@@ -439,7 +439,7 @@ class PostgresWorkerRepository:
         now: datetime | None = None,
     ) -> None:
         instant = now or utcnow()
-        failure = {"schema_version": "1.9.0", "code": code, "message": message, "retryable": False}
+        failure = {"schema_version": "1.10.0", "code": code, "message": message, "retryable": False}
         cursor = self._connection.cursor()
         try:
             cursor.execute("BEGIN")
@@ -513,7 +513,7 @@ class PostgresWorkerRepository:
                 else None
             )
             failure = {
-                "schema_version": "1.9.0",
+                "schema_version": "1.10.0",
                 "code": code,
                 "message": message,
                 "retryable": retryable,

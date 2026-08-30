@@ -169,7 +169,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .upload-details dt { color: var(--color-text-muted); }
 .upload-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-family: var(--font-mono); }
 .upload-drop-compact { min-height: 140px; padding: 18px; }
-.upload-queue { display: grid; gap: 8px; max-height: min(310px, 38vh); margin: 14px 0 0; padding: 0; overflow-y: auto; list-style: none; }
+.upload-queue { display: grid; gap: 8px; max-height: min(680px, 70vh); margin: 14px 0 0; padding: 0; overflow-y: auto; list-style: none; }
 .upload-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 70px; padding: 11px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
 .upload-item-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-md); color: var(--color-brand); background: var(--color-brand-subtle); }
 .upload-item.phase-error .upload-item-icon, .upload-item.phase-rejected .upload-item-icon { color: var(--color-error); background: var(--color-error-subtle); }
@@ -181,6 +181,45 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .upload-item-copy .upload-item-error { color: var(--color-error); }
 .upload-item-copy progress { width: 100%; height: 6px; border: 0; accent-color: var(--color-brand); }
 .upload-item-actions { display: flex; align-items: center; gap: 5px; }
+.intake-facts, .intake-facts-loading { grid-column: 1 / -1; min-width: 0; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+.intake-facts { display: grid; gap: 16px; }
+.intake-facts-loading { display: grid; gap: 10px; }
+.intake-facts-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.intake-facts-title > div { display: grid; min-width: 0; gap: 3px; }
+.intake-facts-title h3 { margin: 0; overflow-wrap: anywhere; font-size: var(--text-md); }
+.intake-facts-title > div > span { color: var(--color-text-muted); font-size: var(--text-xs); }
+.intake-file-representation { display: grid; place-items: center; width: 54px; height: 62px; flex: 0 0 auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-info); background: var(--color-info-subtle); }
+.intake-file-representation svg { width: 27px; height: 27px; }
+.intake-fact-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.intake-fact-groups > section, .classification-panel, .intake-recommendation { min-width: 0; padding: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.intake-facts h4 { margin: 0 0 9px; font-size: var(--text-sm); }
+.fact-list { display: grid; gap: 7px; margin: 0; }
+.fact-list > div { display: grid; grid-template-columns: minmax(88px, 0.7fr) minmax(0, 1.3fr); gap: 8px; font-size: var(--text-xs); }
+.fact-list dt { color: var(--color-text-muted); }
+.fact-list dd { min-width: 0; margin: 0; text-align: right; overflow-wrap: anywhere; }
+.fact-list code { display: block; max-width: 100%; overflow-wrap: anywhere; font-size: 10px; }
+.fact-identity dt { display: flex; align-items: center; gap: 4px; }
+.fact-identity svg { width: 13px; height: 13px; }
+.muted-copy { margin: 0; color: var(--color-text-muted); font-size: var(--text-xs); }
+.intake-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.intake-section-heading span { color: var(--color-text-muted); font-size: 10px; }
+.risk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.risk-item { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.risk-item > svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.risk-clear > svg { color: var(--color-success); }
+.risk-attention { border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border)); background: var(--color-warning-subtle); }
+.risk-attention > svg { color: var(--color-warning); }
+.risk-item strong { text-transform: capitalize; font-size: var(--text-xs); }
+.risk-item p { margin: 3px 0 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.45; }
+.classification-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 0.8fr); align-items: end; gap: 14px; }
+.classification-panel p { margin: 4px 0 0; color: var(--color-text-muted); font-size: var(--text-xs); }
+.classification-panel p strong { color: var(--color-text); }
+.classification-panel .classification-evidence { display: flex; align-items: flex-start; gap: 5px; margin-top: 7px; }
+.classification-evidence svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--color-info); }
+.intake-recommendation { border-left: 3px solid var(--color-brand); }
+.intake-recommendation > span, .intake-recommendation small { display: block; color: var(--color-text-muted); font-size: var(--text-xs); }
+.intake-recommendation > strong { display: block; margin-top: 3px; }
+.intake-recommendation p { margin: 5px 0; color: var(--color-text-muted); font-size: var(--text-xs); }
 .upload-message { padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--color-error) 55%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-error); background: var(--color-error-subtle); font-size: var(--text-xs); }
 .upload-workspace { padding: 20px; border-block: 1px solid var(--color-border); background: var(--color-surface); }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -253,6 +292,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .dialog { width: 100%; max-height: calc(100vh - 12px); overflow-y: auto; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: 26px; }
   .upload-item { grid-template-columns: 30px minmax(0, 1fr); }
   .upload-item-actions { grid-column: 2; justify-content: flex-start; }
+  .intake-fact-groups, .risk-grid, .classification-panel { grid-template-columns: 1fr; }
+  .fact-list > div { grid-template-columns: 1fr; gap: 2px; }
+  .fact-list dd { text-align: left; }
+  .intake-section-heading { align-items: flex-start; flex-direction: column; gap: 1px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -34,6 +34,20 @@ export class IntakeController {
     return this.intake.get(headers, uploadSessionId);
   }
 
+  @Get("upload-sessions/:uploadSessionId/intake-presentation")
+  presentation(@Headers() headers: RequestHeaders, @Param("uploadSessionId") uploadSessionId: string) {
+    return this.intake.presentation(headers, uploadSessionId);
+  }
+
+  @Put("upload-sessions/:uploadSessionId/classification")
+  correctClassification(
+    @Headers() headers: RequestHeaders,
+    @Param("uploadSessionId") uploadSessionId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.intake.correctClassification(headers, uploadSessionId, body);
+  }
+
   @Post("upload-sessions/:uploadSessionId/resume")
   resume(@Headers() headers: RequestHeaders, @Param("uploadSessionId") uploadSessionId: string) {
     return this.intake.resume(headers, uploadSessionId);

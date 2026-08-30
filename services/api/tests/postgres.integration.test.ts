@@ -25,7 +25,7 @@ function context(actorId: string, key: string, command: string, payload: unknown
 }
 
 test(
-  "PostgreSQL 17 runs all Product V2 migrations and the Recovery 2B repository journey",
+  "PostgreSQL 17 runs all Product V2 migrations and the Recovery 2C repository journey",
   { skip: !connectionString },
   async () => {
     assert.ok(connectionString);
@@ -156,7 +156,7 @@ test(
 
       const intake = new PostgresIntakeRepository(pool);
       await intake.createGuest(
-        { schema_version: "1.9.0", guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
+        { schema_version: "1.10.0", guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
         "c".repeat(64),
         "2026-08-30T00:00:00.000Z",
       );
@@ -165,7 +165,7 @@ test(
         "guest-pg",
       );
       const uploadRecord = {
-        schema_version: "1.9.0" as const,
+        schema_version: "1.10.0" as const,
         upload_session_id: "upload-pg",
         owner_kind: "actor" as const,
         workspace_id: first.workspace.workspace_id,
@@ -177,7 +177,7 @@ test(
         bytes_received: 0,
         state: "initiated" as const,
         constraints: {
-          schema_version: "1.9.0" as const,
+          schema_version: "1.10.0" as const,
           allowed_media_types: ["image/png"],
           max_bytes: 4,
           max_pixels: 100,
@@ -335,7 +335,7 @@ test(
       );
       const durableJobs = new PostgresDurableJobRepository(pool);
       const jobRecord = {
-        schema_version: "1.9.0" as const,
+        schema_version: "1.10.0" as const,
         job_id: "job-pg",
         kind: "file_intake_inspection" as const,
         owner_kind: "actor" as const,
@@ -407,7 +407,7 @@ test(
       const retry = await durableJobs.fail(
         "job-pg",
         "3".repeat(64),
-        { schema_version: "1.9.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        { schema_version: "1.10.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
         "2026-08-30T00:07:40.000Z",
         "2026-08-30T00:10:00.000Z",
         "trace-postgres-job",
@@ -433,7 +433,7 @@ test(
       const cancellationWon = await durableJobs.fail(
         "job-pg",
         "4".repeat(64),
-        { schema_version: "1.9.0", code: "late-worker-error", message: "late", retryable: true },
+        { schema_version: "1.10.0", code: "late-worker-error", message: "late", retryable: true },
         "2026-08-30T00:10:12.000Z",
         "2026-08-30T00:11:00.000Z",
         "trace-postgres-job",
@@ -503,7 +503,7 @@ test(
         "trace-postgres-accepted",
       );
       const sourceFacts = {
-        schema_version: "1.9.0" as const,
+        schema_version: "1.10.0" as const,
         sha256: "9".repeat(64),
         detected_media_type: "image/png",
         byte_size: 4,
@@ -536,6 +536,39 @@ test(
       assert.equal(acceptedCompletion.upload.state, "ready");
       assert.equal(acceptedCompletion.job.state, "succeeded");
       assert.equal(acceptedCompletion.upload.asset_original_id, "asset-accepted-pg");
+      const intakeClassification = {
+        schema_version: "1.10.0" as const,
+        upload_session_id: "upload-accepted-pg",
+        inferred_category: "graphic" as const,
+        confidence_percent: 78,
+        evidence: ["The verified image includes an alpha channel."],
+        customer_category: "document" as const,
+        updated_at: "2026-08-30T00:11:45.000Z",
+      };
+      const classificationCommand = {
+        ownerScope: first.workspace.workspace_id,
+        idempotencyKey: "classification-pg",
+        commandName: "intake.classification.correct",
+        requestHash: "a".repeat(64),
+      };
+      const savedClassification = await intake.saveClassification(
+        intakeClassification,
+        jobOwner,
+        classificationCommand,
+        intakeClassification.updated_at,
+      );
+      const replayedClassification = await intake.saveClassification(
+        intakeClassification,
+        jobOwner,
+        classificationCommand,
+        intakeClassification.updated_at,
+      );
+      assert.equal(savedClassification.replayed, false);
+      assert.equal(replayedClassification.replayed, true);
+      assert.equal(
+        (await intake.findClassification("upload-accepted-pg", jobOwner))?.customer_category,
+        "document",
+      );
       const acceptedFiles = await repository.listFiles("actor-pg", first.workspace.workspace_id);
       assert.ok(acceptedFiles.some((file) => file.file_id === "file-accepted-pg"));
       const intakeUsage = await repository.listUsageEvents("actor-pg", first.workspace.workspace_id);

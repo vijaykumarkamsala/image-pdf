@@ -77,7 +77,7 @@
       "default": null
     },
     "schema_version": {
-      "default": "1.9.0",
+      "default": "1.10.0",
       "title": "Schema Version",
       "type": "string"
     }

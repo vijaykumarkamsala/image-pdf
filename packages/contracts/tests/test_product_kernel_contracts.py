@@ -8,6 +8,8 @@ from ipw.contracts.product_kernel import (
     FileLocationKind,
     FileLocationRef,
     GuestSessionRecord,
+    IntakeClassificationRecord,
+    IntakeSourceCategory,
     MalwareScanState,
     SourceFacts,
     SourceVersionRecord,
@@ -169,6 +171,24 @@ def test_source_facts_are_server_derived_and_nonempty() -> None:
     )
     assert facts.detected_media_type == "image/png"
     assert facts.byte_size == 67
+
+
+def test_intake_classification_confidence_requires_evidence_based_inference() -> None:
+    classification = IntakeClassificationRecord(
+        upload_session_id="upload-001",
+        inferred_category=IntakeSourceCategory.GRAPHIC,
+        confidence_percent=78,
+        evidence=("Verified alpha channel supports a graphic classification.",),
+        updated_at="2026-08-30T00:00:00.000Z",
+    )
+    assert classification.customer_category is None
+
+    with pytest.raises(ValidationError, match="confidence requires"):
+        IntakeClassificationRecord(
+            upload_session_id="upload-002",
+            confidence_percent=50,
+            updated_at="2026-08-30T00:00:00.000Z",
+        )
 
 
 def test_guest_contract_never_contains_a_persisted_token() -> None:

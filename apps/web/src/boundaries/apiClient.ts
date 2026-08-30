@@ -3,6 +3,9 @@ import type {
   DefaultFilesLocation,
   EffectivePermission,
   GuestSessionAuthorization,
+  IntelligentIntakePresentation,
+  IntakeClassificationRecord,
+  IntakeSourceCategory,
   JobEventList,
   Membership,
   ProcessingJobRecord,
@@ -72,6 +75,16 @@ export interface UploadResumeResponse extends UploadStatusResponse {
 export interface JobStatusResponse {
   schema_version: string;
   job: ProcessingJobRecord;
+}
+
+export interface IntakePresentationResponse {
+  schema_version: string;
+  presentation: IntelligentIntakePresentation;
+}
+
+export interface ClassificationCorrectionResponse extends IntakePresentationResponse {
+  classification: IntakeClassificationRecord;
+  command: { replayed: boolean };
 }
 
 interface RequestOptions {
@@ -315,6 +328,25 @@ export const api = {
   },
   uploadStatus(uploadSessionId: string, traceId: string, guestToken?: string): Promise<UploadStatusResponse> {
     return request(`/upload-sessions/${uploadSessionId}`, {}, { traceId, guestToken });
+  },
+  intakePresentation(
+    uploadSessionId: string,
+    traceId: string,
+    guestToken?: string,
+  ): Promise<IntakePresentationResponse> {
+    return request(`/upload-sessions/${uploadSessionId}/intake-presentation`, {}, { traceId, guestToken });
+  },
+  correctIntakeClassification(
+    uploadSessionId: string,
+    category: IntakeSourceCategory,
+    traceId: string,
+    guestToken?: string,
+  ): Promise<ClassificationCorrectionResponse> {
+    return request(`/upload-sessions/${uploadSessionId}/classification`, {
+      method: "PUT",
+      headers: { "idempotency-key": commandKey("classification") },
+      body: JSON.stringify({ category }),
+    }, { traceId, guestToken });
   },
   jobStatus(jobId: string, traceId: string, guestToken?: string): Promise<JobStatusResponse> {
     return request(`/jobs/${jobId}`, {}, { traceId, guestToken });
