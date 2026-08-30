@@ -53,10 +53,11 @@ Do not begin implementation from these documents until the product owner approve
 
 ## Current implementation authority
 
-Recovery 2A is governed by `PRODUCT_V2_CONSOLIDATED_IMPLEMENTATION_AUTHORITY.md`
-section 21 and the explicit product-owner approval dated 30 August 2026. The
-pre-contract contradiction record is
-`RECOVERY_2A_CONTRACT_RECONCILIATION.md`.
+Recovery 2C is governed by Sequence C of
+`PRODUCT_V2_CONSOLIDATED_IMPLEMENTATION_AUTHORITY.md` and the explicit
+product-owner approval dated 31 August 2026. Its pre-implementation
+reconciliation record is `RECOVERY_2C_CONTRACT_RECONCILIATION.md`. Recovery 2A
+and 2B records remain authoritative history for their delivered foundations.
 
 The files under `visual-reference/` are approved documentation and design
 evidence only. Production React code must not import or copy their HTML.

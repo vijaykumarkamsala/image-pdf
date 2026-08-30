@@ -173,8 +173,8 @@ path = "apps/web"
 name = "ipw-web"
 language = "typescript"
 stage = "production"
-task = "RECOVERY-2A"
-role = "Responsive React customer application for real workspace, Projects and Files metadata journeys."
+task = "RECOVERY-2C"
+role = "Responsive React/PWA customer application with the production design system and real guest, workspace, intake and job journeys."
 depends_on = ["ipw-contracts-ts"]
 
 [[workspace]]
