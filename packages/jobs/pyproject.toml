@@ -3,20 +3,14 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ipw-benchmark-runner"
+name = "ipw-jobs"
 version = "0.1.0"
-description = "Benchmark validation, identifiers, reporting and orchestration."
+description = "Production durable-job boundary contracts and protocols."
 requires-python = ">=3.11"
 license = "MIT"
-
 dependencies = [
   "ipw-contracts==0.1.0",
-  "ipw-processors==0.1.0",
-  "ipw-licence-registry==0.1.0",
 ]
-
-[project.scripts]
-bench = "ipw.benchmark_runner.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -24,4 +18,4 @@ include = ["ipw*"]
 namespaces = true
 
 [tool.setuptools.package-data]
-"ipw.benchmark_runner" = ["py.typed"]
+"ipw.jobs" = ["py.typed"]

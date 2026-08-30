@@ -5,7 +5,9 @@
   "description": "Image & PDF Workspace - npm workspace root. Python workspaces are managed separately by pip; see README.md.",
   "workspaces": [
     "packages/contracts-ts",
-    "apps/browser-lab"
+    "apps/browser-lab",
+    "apps/web",
+    "services/api"
   ],
   "engines": {
     "node": ">=22"

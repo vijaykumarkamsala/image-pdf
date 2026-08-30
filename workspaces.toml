@@ -83,6 +83,33 @@ stage = "poc"
 task = "POC-007"
 role = "Quality metric implementations. PSNR and SSIM landed at POC-007 for the model comparison; LPIPS, OCR and IoU arrive with the tasks that need them and each requires its own review."
 
+[[workspace]]
+path = "packages/storage"
+name = "ipw-storage"
+language = "python"
+stage = "production"
+task = "RECOVERY-1"
+role = "Production storage boundary contracts and protocols. Provider implementations are deferred."
+depends_on = ["ipw-contracts"]
+
+[[workspace]]
+path = "packages/jobs"
+name = "ipw-jobs"
+language = "python"
+stage = "production"
+task = "RECOVERY-1"
+role = "Production durable-job boundary contracts and protocols. Queue implementations are deferred."
+depends_on = ["ipw-contracts"]
+
+[[workspace]]
+path = "packages/licence-registry"
+name = "ipw-licence-registry"
+language = "python"
+stage = "production"
+task = "RECOVERY-1"
+role = "Production-safe licence and release gate evaluation, extracted from benchmark-runner ownership."
+depends_on = ["ipw-contracts"]
+
 # ---------------------------------------------------------------- services ----
 
 [[workspace]]
@@ -92,7 +119,7 @@ language = "python"
 stage = "poc"
 task = "POC-001"
 role = "Validation, identifiers, reporting, orchestration, model comparison, blinded review and the `bench` CLI."
-depends_on = ["ipw-contracts", "ipw-processors"]
+depends_on = ["ipw-contracts", "ipw-processors", "ipw-licence-registry"]
 
 [[workspace]]
 path = "services/workspace-api"
@@ -102,6 +129,24 @@ stage = "poc"
 task = "APP-001"
 role = "Local application service. Exposes the same processors the benchmark measures to the workspace UI, over the standard library HTTP server. No third-party dependency."
 depends_on = ["ipw-contracts", "ipw-processors", "ipw-benchmark-runner"]
+
+[[workspace]]
+path = "services/api"
+name = "ipw-api"
+language = "typescript"
+stage = "production"
+task = "RECOVERY-1"
+role = "NestJS product/control API skeleton. Owns orchestration boundaries; no real providers are connected."
+depends_on = ["ipw-contracts-ts"]
+
+[[workspace]]
+path = "services/processing-worker"
+name = "ipw-processing-worker"
+language = "python"
+stage = "production"
+task = "RECOVERY-1"
+role = "Python processing worker boundary with deterministic fake processor only."
+depends_on = ["ipw-contracts", "ipw-jobs", "ipw-storage", "ipw-licence-registry"]
 
 # -------------------------------------------------------------------- apps ----
 
@@ -113,6 +158,15 @@ stage = "poc"
 task = "APP-001"
 role = "Frozen legacy workspace UI. Plain ES modules, no build step: preserved as evidence, not the production customer application."
 depends_on = ["ipw-workspace-api"]
+
+[[workspace]]
+path = "apps/web"
+name = "ipw-web"
+language = "typescript"
+stage = "production"
+task = "RECOVERY-1"
+role = "React TypeScript customer application shell. No editor or production features are implemented."
+depends_on = ["ipw-contracts-ts"]
 
 [[workspace]]
 path = "apps/browser-lab"

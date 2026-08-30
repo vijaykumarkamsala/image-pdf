@@ -20,8 +20,12 @@ src = [
   "packages/metrics/src",
   "packages/pdf/src",
   "packages/vector/src",
+  "packages/storage/src",
+  "packages/jobs/src",
+  "packages/licence-registry/src",
   "services/benchmark-runner/src",
   "services/workspace-api/src",
+  "services/processing-worker/src",
 ]
 # Vendored third-party source is excluded on purpose (D-056). Formatting or
 # relinting code we copied verbatim would destroy the diff against upstream, and
@@ -84,6 +88,12 @@ files = [
   "packages/pdf/tests",
   "packages/vector/src",
   "packages/vector/tests",
+  "packages/storage/src",
+  "packages/storage/tests",
+  "packages/jobs/src",
+  "packages/jobs/tests",
+  "packages/licence-registry/src",
+  "packages/licence-registry/tests",
   "packages/contracts/tests",
   "packages/processors/src",
   "packages/processors/tests",
@@ -91,6 +101,8 @@ files = [
   "services/benchmark-runner/tests",
   "services/workspace-api/src",
   "services/workspace-api/tests",
+  "services/processing-worker/src",
+  "services/processing-worker/tests",
   "tests",
   "tools",
   "conftest.py",
@@ -98,7 +110,7 @@ files = [
 warn_unreachable = true
 disallow_any_unimported = true
 explicit_package_bases = true
-mypy_path = "packages/contracts/src:packages/processors/src:packages/metrics/src:packages/pdf/src:packages/vector/src:services/benchmark-runner/src:services/workspace-api/src"
+mypy_path = "packages/contracts/src:packages/processors/src:packages/metrics/src:packages/pdf/src:packages/vector/src:packages/storage/src:packages/jobs/src:packages/licence-registry/src:services/benchmark-runner/src:services/workspace-api/src:services/processing-worker/src"
 # Vendored upstream source: not ours to annotate, and reformatting or retyping it
 # would destroy the diff that makes the copy verifiable (D-056).
 exclude = ["packages/processors/src/ipw/processors/ai_adapters/vendor/"]
@@ -181,6 +193,10 @@ testpaths = [
   "packages/vector/tests",
   "services/benchmark-runner/tests",
   "services/workspace-api/tests",
+  "services/processing-worker/tests",
+  "packages/storage/tests",
+  "packages/jobs/tests",
+  "packages/licence-registry/tests",
   "tests",
 ]
 addopts = """

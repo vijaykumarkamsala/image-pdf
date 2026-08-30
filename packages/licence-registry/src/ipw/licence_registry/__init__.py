@@ -1,4 +1,4 @@
-"""Compatibility wrapper for the production-safe licence registry package."""
+"""Production-safe licence and release gate evaluation."""
 
 from __future__ import annotations
 
