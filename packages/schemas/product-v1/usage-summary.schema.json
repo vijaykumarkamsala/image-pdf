@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "UsageEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "credit_debit": {
+          "const": 0,
+          "default": 0,
+          "title": "Credit Debit",
+          "type": "integer"
+        },
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "customer_amount": {
+          "const": "0.00",
+          "default": "0.00",
+          "title": "Customer Amount",
+          "type": "string"
+        },
+        "event_kind": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Event Kind",
+          "type": "string"
+        },
+        "occurred_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "usage_event_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Usage Event Id",
+          "type": "string"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "usage_event_id",
+        "workspace_id",
+        "actor_id",
+        "event_kind",
+        "occurred_at"
+      ],
+      "title": "UsageEvent",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/usage-summary.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "credit_debit_total": {
+      "const": 0,
+      "default": 0,
+      "title": "Credit Debit Total",
+      "type": "integer"
+    },
+    "customer_total": {
+      "const": "0.00",
+      "default": "0.00",
+      "title": "Customer Total",
+      "type": "string"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/UsageEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.7.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "events"
+  ],
+  "title": "UsageSummary",
+  "type": "object"
+}

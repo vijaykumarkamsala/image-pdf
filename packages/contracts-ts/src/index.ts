@@ -11,5 +11,6 @@
  */
 
 export * from "./generated/contracts.ts";
+export * from "./generated/product.ts";
 export * from "./canonical.ts";
 export * from "./ids.ts";

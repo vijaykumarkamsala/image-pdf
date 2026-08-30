@@ -6,7 +6,8 @@
   "description": "TypeScript view of the benchmark contract, generated from packages/schemas.",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./product": "./src/generated/product.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -1,0 +1,32 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/workspace-project-policy.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "allow_collections": {
+      "default": true,
+      "title": "Allow Collections",
+      "type": "boolean"
+    },
+    "allow_subprojects": {
+      "default": true,
+      "title": "Allow Subprojects",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.7.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspace_id"
+  ],
+  "title": "WorkspaceProjectPolicy",
+  "type": "object"
+}

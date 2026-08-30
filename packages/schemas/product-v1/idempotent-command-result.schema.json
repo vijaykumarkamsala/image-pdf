@@ -1,0 +1,40 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/idempotent-command-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "idempotency_key": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "replayed": {
+      "title": "Replayed",
+      "type": "boolean"
+    },
+    "resource_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Resource Id",
+      "type": "string"
+    },
+    "resource_kind": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Resource Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.7.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "idempotency_key",
+    "replayed",
+    "resource_kind",
+    "resource_id"
+  ],
+  "title": "IdempotentCommandResult",
+  "type": "object"
+}

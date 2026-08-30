@@ -1,0 +1,306 @@
+{
+  "$defs": {
+    "Actor": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "display_name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actor_id",
+        "display_name"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "DefaultFilesLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "default_files_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Default Files Id",
+          "type": "string"
+        },
+        "name": {
+          "const": "Default Files",
+          "default": "Default Files",
+          "title": "Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "default_files_id",
+        "workspace_id"
+      ],
+      "title": "DefaultFilesLocation",
+      "type": "object"
+    },
+    "EffectivePermission": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "grant_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grant Id"
+        },
+        "origin": {
+          "$ref": "#/$defs/PermissionOrigin"
+        },
+        "permission": {
+          "$ref": "#/$defs/Permission"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RolePreset"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "permission",
+        "allowed",
+        "origin"
+      ],
+      "title": "EffectivePermission",
+      "type": "object"
+    },
+    "Membership": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "membership_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Membership Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/RolePreset"
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "membership_id",
+        "workspace_id",
+        "actor_id",
+        "role"
+      ],
+      "title": "Membership",
+      "type": "object"
+    },
+    "Permission": {
+      "enum": [
+        "workspace.read",
+        "project.create",
+        "project.read",
+        "file.create",
+        "file.read",
+        "file.move",
+        "audit.read",
+        "usage.read"
+      ],
+      "title": "Permission",
+      "type": "string"
+    },
+    "PermissionOrigin": {
+      "enum": [
+        "role",
+        "workspace_grant"
+      ],
+      "title": "PermissionOrigin",
+      "type": "string"
+    },
+    "RolePreset": {
+      "enum": [
+        "owner",
+        "admin",
+        "member",
+        "viewer"
+      ],
+      "title": "RolePreset",
+      "type": "string"
+    },
+    "Workspace": {
+      "additionalProperties": false,
+      "properties": {
+        "home_region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Home Region"
+        },
+        "name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "personal_for_actor_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Personal For Actor Id"
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "name"
+      ],
+      "title": "Workspace",
+      "type": "object"
+    },
+    "WorkspaceProjectPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_collections": {
+          "default": true,
+          "title": "Allow Collections",
+          "type": "boolean"
+        },
+        "allow_subprojects": {
+          "default": true,
+          "title": "Allow Subprojects",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.7.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id"
+      ],
+      "title": "WorkspaceProjectPolicy",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/workspace-context.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor": {
+      "$ref": "#/$defs/Actor"
+    },
+    "default_files": {
+      "$ref": "#/$defs/DefaultFilesLocation"
+    },
+    "effective_permissions": {
+      "items": {
+        "$ref": "#/$defs/EffectivePermission"
+      },
+      "title": "Effective Permissions",
+      "type": "array"
+    },
+    "membership": {
+      "$ref": "#/$defs/Membership"
+    },
+    "policy": {
+      "$ref": "#/$defs/WorkspaceProjectPolicy"
+    },
+    "schema_version": {
+      "default": "1.7.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "workspace": {
+      "$ref": "#/$defs/Workspace"
+    }
+  },
+  "required": [
+    "actor",
+    "workspace",
+    "membership",
+    "policy",
+    "default_files",
+    "effective_permissions"
+  ],
+  "title": "WorkspaceContext",
+  "type": "object"
+}
