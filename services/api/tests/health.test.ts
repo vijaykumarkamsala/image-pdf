@@ -29,8 +29,30 @@ test("health and readiness endpoints return v1 envelopes with trace propagation"
       version: "v1",
       trace_id: "trace-test",
     });
+
+    const readyResponse = await fetch(`http://127.0.0.1:${port}/v1/ready`, {
+      headers: { "x-trace-id": "trace-ready" },
+    });
+    const readyBody = (await readyResponse.json()) as {
+      ok: boolean;
+      service: string;
+      dependencies: Record<string, string>;
+      trace_id: string;
+    };
+
+    assert.equal(readyResponse.status, 200);
+    assert.equal(readyResponse.headers.get("x-trace-id"), "trace-ready");
+    assert.deepEqual(readyBody, {
+      ok: true,
+      service: "ipw-api",
+      dependencies: {
+        database: "deferred",
+        queue: "deferred",
+        object_storage: "deferred",
+      },
+      trace_id: "trace-ready",
+    });
   } finally {
     await app.close();
   }
 });
-
