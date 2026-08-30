@@ -5,6 +5,7 @@ import { Pool } from "pg";
 
 import { DomainError } from "../src/kernel/errors.js";
 import { PostgresIntakeRepository } from "../src/domains/intake/postgres-intake.repository.js";
+import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
@@ -235,6 +236,124 @@ test(
       await assert.rejects(
         pool.query("UPDATE upload_sessions SET bytes_received=3 WHERE upload_session_id='upload-pg'"),
         /terminal upload sessions are immutable/,
+      );
+
+      const jobUpload = {
+        ...storedUpload,
+        record: {
+          ...uploadRecord,
+          upload_session_id: "upload-job-pg",
+          display_name: "job.png",
+        },
+        quarantineRef: {
+          ...storedUpload.quarantineRef,
+          objectKey: `quarantine/${first.workspace.workspace_id}/upload-job-pg`,
+        },
+        uploadTokenHash: "f".repeat(64),
+      };
+      await intake.createUpload(
+        jobUpload,
+        { ...command, idempotencyKey: "upload-job-pg-key", requestHash: "1".repeat(64) },
+        uploadRecord.created_at,
+      );
+      await intake.recordUploadedBytes(
+        "upload-job-pg",
+        "f".repeat(64),
+        4,
+        "2026-08-30T00:05:00.000Z",
+      );
+      const durableJobs = new PostgresDurableJobRepository(pool);
+      const jobRecord = {
+        schema_version: "1.8.0" as const,
+        job_id: "job-pg",
+        kind: "file_intake_inspection" as const,
+        owner_kind: "actor" as const,
+        workspace_id: first.workspace.workspace_id,
+        actor_id: "actor-pg",
+        guest_session_id: null,
+        upload_session_id: "upload-job-pg",
+        state: "queued" as const,
+        attempt: 0,
+        max_attempts: 3,
+        progress_percent: 0,
+        lease_owner: null,
+        lease_expires_at: null,
+        heartbeat_at: null,
+        next_attempt_at: null,
+        failure: null,
+        created_at: "2026-08-30T00:06:00.000Z",
+        updated_at: "2026-08-30T00:06:00.000Z",
+      };
+      const jobOwner = {
+        ownerKind: "actor" as const,
+        ownerScope: first.workspace.workspace_id,
+        workspaceId: first.workspace.workspace_id,
+        actorId: "actor-pg",
+      };
+      const jobCommand = {
+        ownerScope: first.workspace.workspace_id,
+        idempotencyKey: "finalise-job-pg",
+        commandName: "upload.finalise",
+        requestHash: "2".repeat(64),
+      };
+      const durable = await durableJobs.createForUpload(
+        "upload-job-pg",
+        jobOwner,
+        jobRecord,
+        jobCommand,
+        "trace-postgres-job",
+      );
+      assert.equal(durable.upload.state, "finalising");
+      assert.equal(durable.job.state, "queued");
+      assert.equal((await durableJobs.createForUpload(
+        "upload-job-pg", jobOwner, jobRecord, jobCommand, "trace-postgres-job"
+      )).replayed, true);
+      assert.equal((await durableJobs.pendingOutbox("2026-08-30T00:06:00.000Z", 10)).length, 1);
+      const claim = await durableJobs.claim(
+        "worker-pg",
+        "lease-token-pg",
+        "3".repeat(64),
+        "2026-08-30T00:07:00.000Z",
+        "2026-08-30T00:08:00.000Z",
+        "trace-postgres-job",
+      );
+      assert.equal(claim?.job.attempt, 1);
+      const running = await durableJobs.start(
+        "job-pg", "3".repeat(64), "2026-08-30T00:07:10.000Z", "trace-postgres-job"
+      );
+      assert.equal(running.state, "running");
+      await durableJobs.heartbeat(
+        "job-pg", "3".repeat(64), "2026-08-30T00:07:20.000Z", "2026-08-30T00:09:00.000Z"
+      );
+      await durableJobs.checkpoint(
+        "job-pg", "3".repeat(64), "header", { media_type: "image/png" }, "2026-08-30T00:07:30.000Z"
+      );
+      const retry = await durableJobs.fail(
+        "job-pg",
+        "3".repeat(64),
+        { schema_version: "1.8.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        "2026-08-30T00:07:40.000Z",
+        "2026-08-30T00:10:00.000Z",
+        "trace-postgres-job",
+      );
+      assert.equal(retry.state, "retry_wait");
+      const secondClaim = await durableJobs.claim(
+        "worker-pg",
+        "lease-token-pg-2",
+        "4".repeat(64),
+        "2026-08-30T00:10:00.000Z",
+        "2026-08-30T00:11:00.000Z",
+        "trace-postgres-job",
+      );
+      assert.equal(secondClaim?.job.attempt, 2);
+      const cancelRequested = await durableJobs.requestCancel(
+        "job-pg", jobOwner, "2026-08-30T00:10:10.000Z", "trace-postgres-job"
+      );
+      assert.equal(cancelRequested.state, "cancel_requested");
+      const jobEvents = await durableJobs.listEvents("job-pg", jobOwner, 0, 20);
+      assert.deepEqual(
+        jobEvents.map((event) => event.event_kind),
+        ["job.queued", "job.leased", "job.started", "job.retry-scheduled", "job.leased", "job.cancel-requested"],
       );
     } finally {
       await repository.close();

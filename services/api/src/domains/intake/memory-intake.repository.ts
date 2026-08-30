@@ -1,4 +1,4 @@
-import type { GuestSessionRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
+import type { GuestSessionRecord, ProcessingJobRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
 
 import { DomainError } from "../../kernel/errors.js";
 import type {
@@ -126,6 +126,23 @@ export class MemoryIntakeRepository implements IntakeRepository {
   }
 
   async close(): Promise<void> {}
+
+  finaliseForJob(uploadSessionId: string, owner: IntakeOwner, job: ProcessingJobRecord, now: string): StoredUploadSession {
+    const stored = this.requireOwned(uploadSessionId, owner);
+    if (stored.record.job_id) {
+      if (stored.record.job_id !== job.job_id) throw new DomainError(409, "upload-already-finalised", "Upload is already finalising");
+      return stored;
+    }
+    if (stored.record.state !== "uploading" || stored.record.bytes_received !== stored.record.expected_byte_size) {
+      throw new DomainError(409, "upload-incomplete", "Finish uploading every byte before continuing");
+    }
+    const updated = {
+      ...stored,
+      record: { ...stored.record, state: "finalising" as const, job_id: job.job_id, updated_at: now },
+    };
+    this.uploads.set(uploadSessionId, updated);
+    return updated;
+  }
 
   private requireOwned(uploadSessionId: string, owner: IntakeOwner): StoredUploadSession {
     const stored = this.uploads.get(uploadSessionId);

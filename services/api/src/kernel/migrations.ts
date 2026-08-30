@@ -8,6 +8,7 @@ export const POSTGRESQL_MAJOR = 17;
 export const MIGRATION_VERSIONS = [
   "0001_recovery_2a_product_kernel",
   "0002_recovery_2b_upload_sessions",
+  "0003_recovery_2b_durable_jobs",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {

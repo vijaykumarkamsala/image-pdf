@@ -20,6 +20,7 @@ import {
 } from "../../kernel/product.types.js";
 import { requestDigest, type RuntimeValues } from "../../kernel/runtime.js";
 import { INTAKE_REPOSITORY, type IntakeOwner, type IntakeRepository } from "./intake.types.js";
+import type { StoredUploadSession } from "./intake.types.js";
 import {
   PRIVATE_OBJECT_STORE,
   UploadLimitExceeded,
@@ -151,6 +152,23 @@ export class IntakeService implements OnApplicationShutdown {
     const refs = await this.repository.expireUploads(this.runtime.now());
     await Promise.all(refs.map((ref) => this.objects.remove(ref)));
     return refs.length;
+  }
+
+  requireForInternal(headers: Headers, uploadSessionId: string): Promise<StoredUploadSession> {
+    return this.requireAccessible(headers, requireId(uploadSessionId, "upload session id"));
+  }
+
+  ownerFor(record: UploadSessionRecord): IntakeOwner {
+    return this.owner(record);
+  }
+
+  hasGuestToken(headers: Headers): boolean {
+    return Boolean(this.header(headers, "x-ipw-guest-token"));
+  }
+
+  async guestOwner(headers: Headers): Promise<IntakeOwner> {
+    const guest = await this.requireGuest(headers);
+    return { ownerKind: "guest", ownerScope: guest.guest_session_id, guestSessionId: guest.guest_session_id };
   }
 
   async onApplicationShutdown(): Promise<void> {
