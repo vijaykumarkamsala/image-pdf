@@ -1,0 +1,583 @@
+{
+  "$defs": {
+    "IdempotentCommandResult": {
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "replayed": {
+          "title": "Replayed",
+          "type": "boolean"
+        },
+        "resource_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Resource Id",
+          "type": "string"
+        },
+        "resource_kind": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Resource Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.8.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "idempotency_key",
+        "replayed",
+        "resource_kind",
+        "resource_id"
+      ],
+      "title": "IdempotentCommandResult",
+      "type": "object"
+    },
+    "IntakeFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.8.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "IntakeFailure",
+      "type": "object"
+    },
+    "MalwareScanState": {
+      "enum": [
+        "pending",
+        "clean",
+        "malicious",
+        "unavailable"
+      ],
+      "title": "MalwareScanState",
+      "type": "string"
+    },
+    "SourceFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "bit_depth": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bit Depth"
+        },
+        "byte_size": {
+          "minimum": 1,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "detected_media_type": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Detected Media Type",
+          "type": "string"
+        },
+        "frame_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frame Count"
+        },
+        "has_alpha": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Has Alpha"
+        },
+        "has_icc_profile": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Has Icc Profile"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "malware_scan_state": {
+          "$ref": "#/$defs/MalwareScanState"
+        },
+        "megapixels_milli": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Megapixels Milli"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "page_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Count"
+        },
+        "schema_version": {
+          "default": "1.8.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sensitive_metadata": {
+          "default": [],
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Sensitive Metadata",
+          "type": "array"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "sha256",
+        "detected_media_type",
+        "byte_size",
+        "malware_scan_state"
+      ],
+      "title": "SourceFacts",
+      "type": "object"
+    },
+    "UploadAuthorization": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Expires At",
+          "type": "string"
+        },
+        "method": {
+          "const": "PUT",
+          "default": "PUT",
+          "title": "Method",
+          "type": "string"
+        },
+        "required_headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Required Headers",
+          "type": "object"
+        },
+        "schema_version": {
+          "default": "1.8.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "transfer_kind": {
+          "$ref": "#/$defs/UploadTransferKind"
+        },
+        "upload_url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Upload Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transfer_kind",
+        "upload_url",
+        "expires_at"
+      ],
+      "title": "UploadAuthorization",
+      "type": "object"
+    },
+    "UploadConstraints": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_media_types": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Allowed Media Types",
+          "type": "array"
+        },
+        "max_bytes": {
+          "minimum": 1,
+          "title": "Max Bytes",
+          "type": "integer"
+        },
+        "max_pages": {
+          "minimum": 1,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "max_pixels": {
+          "minimum": 1,
+          "title": "Max Pixels",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.8.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "allowed_media_types",
+        "max_bytes",
+        "max_pixels",
+        "max_pages"
+      ],
+      "title": "UploadConstraints",
+      "type": "object"
+    },
+    "UploadOwnerKind": {
+      "enum": [
+        "actor",
+        "guest"
+      ],
+      "title": "UploadOwnerKind",
+      "type": "string"
+    },
+    "UploadSessionRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Id"
+        },
+        "asset_original_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Original Id"
+        },
+        "bytes_received": {
+          "minimum": 0,
+          "title": "Bytes Received",
+          "type": "integer"
+        },
+        "constraints": {
+          "$ref": "#/$defs/UploadConstraints"
+        },
+        "created_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Created At",
+          "type": "string"
+        },
+        "display_name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "expected_byte_size": {
+          "minimum": 1,
+          "title": "Expected Byte Size",
+          "type": "integer"
+        },
+        "expected_media_type": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Expected Media Type",
+          "type": "string"
+        },
+        "expires_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Expires At",
+          "type": "string"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntakeFailure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "file_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Id"
+        },
+        "guest_session_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Guest Session Id"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Job Id"
+        },
+        "owner_kind": {
+          "$ref": "#/$defs/UploadOwnerKind"
+        },
+        "schema_version": {
+          "default": "1.8.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_facts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_version_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Id"
+        },
+        "state": {
+          "$ref": "#/$defs/UploadSessionState"
+        },
+        "updated_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "upload_session_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Upload Session Id",
+          "type": "string"
+        },
+        "workspace_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workspace Id"
+        }
+      },
+      "required": [
+        "upload_session_id",
+        "owner_kind",
+        "display_name",
+        "expected_media_type",
+        "expected_byte_size",
+        "bytes_received",
+        "state",
+        "constraints",
+        "created_at",
+        "expires_at",
+        "updated_at"
+      ],
+      "title": "UploadSessionRecord",
+      "type": "object"
+    },
+    "UploadSessionState": {
+      "enum": [
+        "initiated",
+        "uploading",
+        "finalising",
+        "inspecting",
+        "ready",
+        "rejected",
+        "expired",
+        "cancelled"
+      ],
+      "title": "UploadSessionState",
+      "type": "string"
+    },
+    "UploadTransferKind": {
+      "enum": [
+        "single",
+        "resumable"
+      ],
+      "title": "UploadTransferKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/upload-session-created.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization": {
+      "$ref": "#/$defs/UploadAuthorization"
+    },
+    "command": {
+      "$ref": "#/$defs/IdempotentCommandResult"
+    },
+    "schema_version": {
+      "default": "1.8.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "upload_session": {
+      "$ref": "#/$defs/UploadSessionRecord"
+    }
+  },
+  "required": [
+    "upload_session",
+    "authorization",
+    "command"
+  ],
+  "title": "UploadSessionCreated",
+  "type": "object"
+}

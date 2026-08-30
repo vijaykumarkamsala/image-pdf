@@ -1,16 +1,17 @@
 {
-  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/collection-project-relation.schema.json",
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/guest-session-record.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "collection_id": {
-      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
-      "title": "Collection Id",
+    "expires_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Expires At",
       "type": "string"
     },
-    "project_id": {
+    "guest_session_id": {
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
-      "title": "Project Id",
+      "title": "Guest Session Id",
       "type": "string"
     },
     "schema_version": {
@@ -20,9 +21,9 @@
     }
   },
   "required": [
-    "collection_id",
-    "project_id"
+    "guest_session_id",
+    "expires_at"
   ],
-  "title": "CollectionProjectRelation",
+  "title": "GuestSessionRecord",
   "type": "object"
 }

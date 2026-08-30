@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "UploadTransferKind": {
+      "enum": [
+        "single",
+        "resumable"
+      ],
+      "title": "UploadTransferKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/upload-authorization.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "expires_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Expires At",
+      "type": "string"
+    },
+    "method": {
+      "const": "PUT",
+      "default": "PUT",
+      "title": "Method",
+      "type": "string"
+    },
+    "required_headers": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Required Headers",
+      "type": "object"
+    },
+    "schema_version": {
+      "default": "1.8.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "transfer_kind": {
+      "$ref": "#/$defs/UploadTransferKind"
+    },
+    "upload_url": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Upload Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "transfer_kind",
+    "upload_url",
+    "expires_at"
+  ],
+  "title": "UploadAuthorization",
+  "type": "object"
+}

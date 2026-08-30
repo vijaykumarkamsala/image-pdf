@@ -14,6 +14,7 @@ import type {
   WorkspaceFile,
   WorkspaceProjectPolicy,
 } from "ipw-contracts-ts/product";
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 import { DomainError } from "./errors.js";
 import { MetadataObjectReferenceCatalog } from "./object-references.js";
@@ -40,7 +41,7 @@ interface IdempotencyEntry<T> {
   value: T;
 }
 
-const VERSION = "1.7.0";
+const VERSION = PRODUCT_SCHEMA_VERSION;
 
 export class MemoryProductKernelRepository implements ProductKernelRepository {
   private readonly actors = new Map<string, Actor>();

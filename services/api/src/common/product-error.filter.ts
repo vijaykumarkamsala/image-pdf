@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
 import type { Response } from "express";
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 import { DomainError } from "../kernel/errors.js";
 
@@ -26,9 +27,9 @@ export class ProductErrorFilter implements ExceptionFilter {
         : "The service could not complete the request";
 
     response.status(status).json({
-      schema_version: "1.7.0",
+      schema_version: PRODUCT_SCHEMA_VERSION,
       error: {
-        schema_version: "1.7.0",
+        schema_version: PRODUCT_SCHEMA_VERSION,
         code,
         message,
         trace_id: request.headers["x-trace-id"] ?? "trace-unset",

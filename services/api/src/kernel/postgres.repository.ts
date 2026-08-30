@@ -13,6 +13,7 @@ import type {
   WorkspaceFile,
   WorkspaceProjectPolicy,
 } from "ipw-contracts-ts/product";
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 import { DomainError } from "./errors.js";
@@ -35,7 +36,7 @@ import type {
 } from "./product.types.js";
 import type { RuntimeValues } from "./runtime.js";
 
-const VERSION = "1.7.0";
+const VERSION = PRODUCT_SCHEMA_VERSION;
 
 function timestamp(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();

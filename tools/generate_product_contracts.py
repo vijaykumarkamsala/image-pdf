@@ -1,4 +1,4 @@
-"""Export and drift-check Recovery 2A product schemas and TypeScript types."""
+"""Export and drift-check Product V2 schemas and TypeScript types."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ TS_TARGET = REPO_ROOT / "packages" / "contracts-ts" / "src" / "generated" / "pro
 
 HEADER = """// GENERATED FILE - DO NOT EDIT.
 //
-// Produced by tools/generate_product_contracts.py from the Recovery 2A
+// Produced by tools/generate_product_contracts.py from the Product V2
 // product-kernel models in packages/contracts.
 //
 // Regenerate with:  python tools/generate_product_contracts.py

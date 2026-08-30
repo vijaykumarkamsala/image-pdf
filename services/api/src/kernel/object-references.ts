@@ -1,3 +1,4 @@
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import type { ObjectReference } from "ipw-contracts-ts/product";
 
 import type { RuntimeValues } from "./runtime.js";
@@ -19,7 +20,7 @@ export class MetadataObjectReferenceCatalog implements ObjectReferenceCatalog {
 
   create(workspaceId: string, input: ObjectReferenceInput): ObjectReference {
     return {
-      schema_version: "1.7.0",
+      schema_version: PRODUCT_SCHEMA_VERSION,
       object_reference_id: this.runtime.id("object"),
       workspace_id: workspaceId,
       object_key: input.objectKey,

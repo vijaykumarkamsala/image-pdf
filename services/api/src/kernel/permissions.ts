@@ -1,3 +1,4 @@
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import type { EffectivePermission, Permission, RolePreset } from "ipw-contracts-ts/product";
 
 const ALL_PERMISSIONS: Permission[] = [
@@ -9,6 +10,11 @@ const ALL_PERMISSIONS: Permission[] = [
   "file.move",
   "audit.read",
   "usage.read",
+  "upload.create",
+  "upload.read",
+  "upload.cancel",
+  "job.read",
+  "job.cancel",
 ];
 
 const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
@@ -21,6 +27,11 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
     "file.create",
     "file.read",
     "file.move",
+    "upload.create",
+    "upload.read",
+    "upload.cancel",
+    "job.read",
+    "job.cancel",
   ]),
   viewer: new Set(["workspace.read", "project.read", "file.read"]),
 };
@@ -28,7 +39,7 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
 export function permissionsForRole(role: RolePreset): EffectivePermission[] {
   const allowed = ROLE_PERMISSIONS[role];
   return ALL_PERMISSIONS.map((permission) => ({
-    schema_version: "1.7.0",
+    schema_version: PRODUCT_SCHEMA_VERSION,
     permission,
     allowed: allowed.has(permission),
     origin: "role",

@@ -1,0 +1,44 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/upload-constraints.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "allowed_media_types": {
+      "items": {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Allowed Media Types",
+      "type": "array"
+    },
+    "max_bytes": {
+      "minimum": 1,
+      "title": "Max Bytes",
+      "type": "integer"
+    },
+    "max_pages": {
+      "minimum": 1,
+      "title": "Max Pages",
+      "type": "integer"
+    },
+    "max_pixels": {
+      "minimum": 1,
+      "title": "Max Pixels",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": "1.8.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "allowed_media_types",
+    "max_bytes",
+    "max_pixels",
+    "max_pages"
+  ],
+  "title": "UploadConstraints",
+  "type": "object"
+}

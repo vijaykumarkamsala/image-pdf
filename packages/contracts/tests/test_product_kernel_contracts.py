@@ -7,7 +7,14 @@ from ipw.contracts.product_kernel import (
     AssetOriginalRecord,
     FileLocationKind,
     FileLocationRef,
+    GuestSessionRecord,
+    MalwareScanState,
+    SourceFacts,
     SourceVersionRecord,
+    UploadConstraints,
+    UploadOwnerKind,
+    UploadSessionRecord,
+    UploadSessionState,
     UsageEvent,
     WorkspaceFile,
 )
@@ -94,3 +101,63 @@ def test_location_rejects_mixed_targets() -> None:
             project_id="project-001",
             default_files_id="default-files-001",
         )
+
+
+def test_upload_owner_boundary_is_exactly_one() -> None:
+    values = {
+        "upload_session_id": "upload-001",
+        "display_name": "source.png",
+        "expected_media_type": "image/png",
+        "expected_byte_size": 67,
+        "bytes_received": 0,
+        "state": UploadSessionState.INITIATED,
+        "constraints": UploadConstraints(
+            allowed_media_types=("image/png", "application/pdf"),
+            max_bytes=10_000,
+            max_pixels=1_000_000,
+            max_pages=20,
+        ),
+        "created_at": "2026-08-30T00:00:00.000Z",
+        "expires_at": "2026-08-30T00:15:00.000Z",
+        "updated_at": "2026-08-30T00:00:00.000Z",
+    }
+    actor_upload = UploadSessionRecord(
+        **values,
+        owner_kind=UploadOwnerKind.ACTOR,
+        workspace_id="workspace-001",
+        actor_id="actor-001",
+    )
+    assert actor_upload.guest_session_id is None
+
+    with pytest.raises(ValidationError, match="exactly one owner"):
+        UploadSessionRecord(
+            **values,
+            owner_kind=UploadOwnerKind.GUEST,
+            workspace_id="workspace-001",
+            guest_session_id="guest-001",
+        )
+
+
+def test_source_facts_are_server_derived_and_nonempty() -> None:
+    facts = SourceFacts(
+        sha256="a" * 64,
+        detected_media_type="image/png",
+        byte_size=67,
+        width=1,
+        height=1,
+        megapixels_milli=0,
+        frame_count=1,
+        has_alpha=True,
+        bit_depth=8,
+        malware_scan_state=MalwareScanState.CLEAN,
+    )
+    assert facts.detected_media_type == "image/png"
+    assert facts.byte_size == 67
+
+
+def test_guest_contract_never_contains_a_persisted_token() -> None:
+    guest = GuestSessionRecord(
+        guest_session_id="guest-001",
+        expires_at="2026-08-30T01:00:00.000Z",
+    )
+    assert "token" not in guest.model_dump()

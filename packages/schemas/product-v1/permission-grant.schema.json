@@ -9,7 +9,12 @@
         "file.read",
         "file.move",
         "audit.read",
-        "usage.read"
+        "usage.read",
+        "upload.create",
+        "upload.read",
+        "upload.cancel",
+        "job.read",
+        "job.cancel"
       ],
       "title": "Permission",
       "type": "string"
@@ -37,7 +42,7 @@
       "$ref": "#/$defs/Permission"
     },
     "schema_version": {
-      "default": "1.7.0",
+      "default": "1.8.0",
       "title": "Schema Version",
       "type": "string"
     },

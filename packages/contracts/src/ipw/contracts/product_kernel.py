@@ -79,6 +79,11 @@ class Permission(StrEnum):
     FILE_MOVE = "file.move"
     AUDIT_READ = "audit.read"
     USAGE_READ = "usage.read"
+    UPLOAD_CREATE = "upload.create"
+    UPLOAD_READ = "upload.read"
+    UPLOAD_CANCEL = "upload.cancel"
+    JOB_READ = "job.read"
+    JOB_CANCEL = "job.cancel"
 
 
 class PermissionOrigin(StrEnum):
@@ -285,6 +290,181 @@ class UsageSummary(ProductKernelContractModel):
     credit_debit_total: Literal[0] = 0
 
 
+class UploadOwnerKind(StrEnum):
+    ACTOR = "actor"
+    GUEST = "guest"
+
+
+class UploadTransferKind(StrEnum):
+    SINGLE = "single"
+    RESUMABLE = "resumable"
+
+
+class UploadSessionState(StrEnum):
+    INITIATED = "initiated"
+    UPLOADING = "uploading"
+    FINALISING = "finalising"
+    INSPECTING = "inspecting"
+    READY = "ready"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+
+class ProcessingJobKind(StrEnum):
+    FILE_INTAKE_INSPECTION = "file_intake_inspection"
+
+
+class ProcessingJobState(StrEnum):
+    QUEUED = "queued"
+    LEASED = "leased"
+    RUNNING = "running"
+    RETRY_WAIT = "retry_wait"
+    CANCEL_REQUESTED = "cancel_requested"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class MalwareScanState(StrEnum):
+    PENDING = "pending"
+    CLEAN = "clean"
+    MALICIOUS = "malicious"
+    UNAVAILABLE = "unavailable"
+
+
+class UploadConstraints(ProductKernelContractModel):
+    allowed_media_types: tuple[NonEmptyStr, ...]
+    max_bytes: int = Field(ge=1)
+    max_pixels: int = Field(ge=1)
+    max_pages: int = Field(ge=1)
+
+
+class GuestSessionRecord(ProductKernelContractModel):
+    guest_session_id: SlugId
+    expires_at: NonEmptyStr
+
+
+class GuestSessionAuthorization(ProductKernelContractModel):
+    guest_session: GuestSessionRecord
+    token: NonEmptyStr
+
+
+class SourceFacts(ProductKernelContractModel):
+    sha256: Sha256Hex
+    detected_media_type: NonEmptyStr
+    byte_size: int = Field(ge=1)
+    width: int | None = Field(default=None, ge=1)
+    height: int | None = Field(default=None, ge=1)
+    megapixels_milli: int | None = Field(default=None, ge=0)
+    orientation: int | None = Field(default=None, ge=1, le=8)
+    frame_count: int | None = Field(default=None, ge=1)
+    page_count: int | None = Field(default=None, ge=1)
+    has_alpha: bool | None = None
+    bit_depth: int | None = Field(default=None, ge=1)
+    has_icc_profile: bool | None = None
+    sensitive_metadata: tuple[NonEmptyStr, ...] = ()
+    malware_scan_state: MalwareScanState
+
+
+class IntakeFailure(ProductKernelContractModel):
+    code: SlugId
+    message: NonEmptyStr
+    retryable: bool = False
+
+
+class UploadAuthorization(ProductKernelContractModel):
+    transfer_kind: UploadTransferKind
+    method: Literal["PUT"] = "PUT"
+    upload_url: NonEmptyStr
+    expires_at: NonEmptyStr
+    required_headers: dict[str, str] = Field(default_factory=dict)
+
+
+class UploadSessionRecord(ProductKernelContractModel):
+    upload_session_id: SlugId
+    owner_kind: UploadOwnerKind
+    workspace_id: SlugId | None = None
+    actor_id: SlugId | None = None
+    guest_session_id: SlugId | None = None
+    display_name: NonEmptyStr
+    expected_media_type: NonEmptyStr
+    expected_byte_size: int = Field(ge=1)
+    bytes_received: int = Field(ge=0)
+    state: UploadSessionState
+    constraints: UploadConstraints
+    job_id: SlugId | None = None
+    asset_original_id: SlugId | None = None
+    source_version_id: SlugId | None = None
+    file_id: SlugId | None = None
+    source_facts: SourceFacts | None = None
+    failure: IntakeFailure | None = None
+    created_at: NonEmptyStr
+    expires_at: NonEmptyStr
+    updated_at: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _owner_is_unambiguous(self) -> UploadSessionRecord:
+        actor_owned = (
+            self.owner_kind == UploadOwnerKind.ACTOR
+            and self.workspace_id is not None
+            and self.actor_id is not None
+            and self.guest_session_id is None
+        )
+        guest_owned = (
+            self.owner_kind == UploadOwnerKind.GUEST
+            and self.guest_session_id is not None
+            and self.workspace_id is None
+            and self.actor_id is None
+        )
+        if not (actor_owned or guest_owned):
+            raise ValueError("upload session must identify exactly one owner boundary")
+        return self
+
+
+class UploadSessionCreated(ProductKernelContractModel):
+    upload_session: UploadSessionRecord
+    authorization: UploadAuthorization
+    command: IdempotentCommandResult
+
+
+class ProcessingJobRecord(ProductKernelContractModel):
+    job_id: SlugId
+    kind: ProcessingJobKind
+    owner_kind: UploadOwnerKind
+    workspace_id: SlugId | None = None
+    actor_id: SlugId | None = None
+    guest_session_id: SlugId | None = None
+    upload_session_id: SlugId
+    state: ProcessingJobState
+    attempt: int = Field(ge=0)
+    max_attempts: int = Field(ge=1)
+    progress_percent: int = Field(ge=0, le=100)
+    lease_owner: str | None = None
+    lease_expires_at: str | None = None
+    heartbeat_at: str | None = None
+    next_attempt_at: str | None = None
+    failure: IntakeFailure | None = None
+    created_at: NonEmptyStr
+    updated_at: NonEmptyStr
+
+
+class JobEventRecord(ProductKernelContractModel):
+    job_event_id: SlugId
+    job_id: SlugId
+    cursor: int = Field(ge=1)
+    event_kind: NonEmptyStr
+    state: ProcessingJobState
+    progress_percent: int = Field(ge=0, le=100)
+    occurred_at: NonEmptyStr
+    trace_id: SlugId
+
+
+class JobEventList(ProductKernelContractModel):
+    events: tuple[JobEventRecord, ...]
+    next_cursor: int = Field(ge=0)
+
+
 PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "actor": Actor,
     "identity-reference": IdentityReference,
@@ -314,4 +494,15 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "file-list": FileList,
     "audit-event-list": AuditEventList,
     "usage-summary": UsageSummary,
+    "upload-constraints": UploadConstraints,
+    "guest-session-record": GuestSessionRecord,
+    "guest-session-authorization": GuestSessionAuthorization,
+    "source-facts": SourceFacts,
+    "intake-failure": IntakeFailure,
+    "upload-authorization": UploadAuthorization,
+    "upload-session-record": UploadSessionRecord,
+    "upload-session-created": UploadSessionCreated,
+    "processing-job-record": ProcessingJobRecord,
+    "job-event-record": JobEventRecord,
+    "job-event-list": JobEventList,
 }

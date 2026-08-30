@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "ProcessingJobState": {
+      "enum": [
+        "queued",
+        "leased",
+        "running",
+        "retry_wait",
+        "cancel_requested",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "ProcessingJobState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/job-event-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cursor": {
+      "minimum": 1,
+      "title": "Cursor",
+      "type": "integer"
+    },
+    "event_kind": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Event Kind",
+      "type": "string"
+    },
+    "job_event_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Event Id",
+      "type": "string"
+    },
+    "job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "occurred_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "progress_percent": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Progress Percent",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": "1.8.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/ProcessingJobState"
+    },
+    "trace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Trace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_event_id",
+    "job_id",
+    "cursor",
+    "event_kind",
+    "state",
+    "progress_percent",
+    "occurred_at",
+    "trace_id"
+  ],
+  "title": "JobEventRecord",
+  "type": "object"
+}
