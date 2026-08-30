@@ -15,7 +15,7 @@ async function identify(page: Page, suffix: string, theme: "light" | "dark" = "l
 
 async function openWorkspace(page: Page, suffix: string, theme: "light" | "dark" = "light") {
   await identify(page, suffix, theme);
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page.getByTestId("workspace-home")).toBeVisible();
 }
 
@@ -127,7 +127,7 @@ test("an interrupted transfer resumes the same file after browser refresh", asyn
 
 test("guest upload signs in to save the exact accepted source", async ({ page }) => {
   await page.goto("/guest/upload");
-  await expect(page.getByTestId("guest-upload-page")).toBeVisible();
+  await expect(page.getByTestId("guest-home")).toBeVisible();
   const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await page.getByRole("button", { name: "Upload 1" }).click();
@@ -144,7 +144,7 @@ test("guest upload signs in to save the exact accepted source", async ({ page })
 
 test("guest upload has no detectable accessibility violations", async ({ page }) => {
   await page.goto("/guest/upload");
-  await expect(page.getByTestId("guest-upload-page")).toBeVisible();
+  await expect(page.getByTestId("guest-home")).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
@@ -162,7 +162,7 @@ test("customer copy discloses testing and inactive product areas without interna
     ["Edit & Manage PDF", "Edit, organize, protect and convert PDFs"],
     ["Print & Production", "Check quality and prepare production outputs"],
   ] as const;
-  const tiles = page.locator(".outcome-tile");
+  const tiles = page.locator(".outcome-card");
   await expect(tiles).toHaveCount(4);
   for (const [label, description] of expectedOutcomes) {
     const tile = tiles.filter({ hasText: label });
@@ -184,8 +184,8 @@ test("loading, access-denied, and API error states are customer-safe", async ({ 
     });
   });
   await identify(page, "denied");
-  await page.goto("/");
-  await expect(page.getByText("Opening your workspace...")).toBeVisible();
+  await page.goto("/app");
+  await expect(page.getByRole("heading", { name: "Opening your workspace" })).toBeVisible();
   release?.();
   await expect(page.getByRole("heading", { name: "Workspace access denied" })).toBeVisible();
   await expect(page.getByText("You do not have access to this workspace")).toBeVisible();
@@ -216,7 +216,7 @@ test("phone navigation remains operable without page overflow", async ({ page })
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page, "phone-nav");
   await page.getByTitle("Open navigation").click();
-  await expect(page.locator(".sidebar.open")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Navigation" })).toBeVisible();
   await page.getByRole("link", { name: "Projects" }).last().click();
   await expect(page.getByTestId("projects-page")).toBeVisible();
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
@@ -241,11 +241,11 @@ for (const theme of ["light", "dark"] as const) {
       };
     });
     expect(styles).toEqual({
-      outlineColor: theme === "light" ? "rgb(0, 138, 126)" : "rgb(112, 210, 198)",
+      outlineColor: theme === "light" ? "rgb(18, 99, 214)" : "rgb(155, 179, 255)",
       outlineStyle: "solid",
       outlineWidth: "3px",
-      focusToken: theme === "light" ? "#008a7e" : "#70d2c6",
-      errorToken: theme === "light" ? "#a43e26" : "#ff9a7a",
+      focusToken: theme === "light" ? "#1263d6" : "#9bb3ff",
+      errorToken: theme === "light" ? "#b23d47" : "#ff99a1",
     });
     expect(styles.focusToken).not.toBe(styles.errorToken);
   });
@@ -337,14 +337,14 @@ test("@visual phone light Home with navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page, "visual-phone-navigation");
   await page.getByTitle("Open navigation").click();
-  await expect(page.locator(".sidebar.open")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Navigation" })).toBeVisible();
   await expect(page).toHaveScreenshot("workspace-home-navigation-390x844-light.png", screenshotOptions);
 });
 
 test("@visual phone light Default Files", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page, "visual-phone-files");
-  await page.locator(".mobile-nav").getByRole("link", { name: "Files" }).click();
+  await page.locator(".phone-bottom-nav").getByRole("link", { name: "Files" }).click();
   await expect(page.getByRole("heading", { name: "No files yet" })).toBeVisible();
   await clearFocus(page);
   await expect(page).toHaveScreenshot("workspace-files-390x844-light.png", screenshotOptions);

@@ -1,33 +1,35 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  BriefcaseBusiness, CheckCircle2, ChevronDown, CircleDashed, FileStack, FolderKanban, Home,
-  Image, Layers3, Menu, Moon, Plus, Printer, Sun, Upload, X,
+  BriefcaseBusiness,
+  CheckCircle2,
+  ChevronDown,
+  FileStack,
+  FolderKanban,
+  Home,
+  Menu as MenuIcon,
+  Plus,
+  ShieldCheck,
+  Upload,
 } from "lucide-react";
 import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
-import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiClient.ts";
-import { productFeatureState } from "./boundaries/featureFlags.ts";
-import { loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session.ts";
-import { UploadDialog } from "./components/UploadDialog.tsx";
-import { futureOutcomes, workspacePath, workspaceRoutes } from "./routes.ts";
-
-type Theme = "light" | "dark";
+import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiClient";
+import { loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session";
+import { type ThemePreference, useThemePreference } from "./boundaries/theme";
+import { Brand } from "./components/Brand";
+import { OutcomeGrid } from "./components/OutcomeGrid";
+import { UploadDialog } from "./components/UploadDialog";
+import { Button, Dialog, IconButton, Menu, Popover, StatePanel, TextInput } from "./design-system";
+import { workspacePath, workspaceRoutes } from "./routes";
 
 function AppLoading() {
-  return <main className="center-state" aria-busy="true"><span className="loading-mark" aria-hidden="true" /><p>Opening your workspace...</p></main>;
+  return <main className="app-center"><StatePanel kind="loading" title="Opening your workspace" message="Resolving your membership and recent work." /></main>;
 }
 
 function AppError({ error, retry }: { error: Error; retry: () => void }) {
   const denied = error instanceof ApiError && error.status === 403;
-  return (
-    <main className="center-state" role="alert">
-      <div className="state-icon"><X aria-hidden="true" /></div>
-      <h1>{denied ? "Workspace access denied" : "Workspace unavailable"}</h1>
-      <p>{error.message}</p>
-      <button className="button primary" onClick={retry}>Try again</button>
-    </main>
-  );
+  return <main className="app-center"><StatePanel kind="error" title={denied ? "Workspace access denied" : "Workspace unavailable"} message={error.message} action={{ label: "Try again", onClick: retry }} /></main>;
 }
 
 function useWorkspace() {
@@ -46,118 +48,104 @@ function useWorkspace() {
   return { context, error, retry: () => setAttempt((value) => value + 1) };
 }
 
-function ThemeButton({ theme, toggle }: { theme: Theme; toggle: () => void }) {
-  const Icon = theme === "light" ? Moon : Sun;
-  return (
-    <button className="icon-button" onClick={toggle} title={`Use ${theme === "light" ? "dark" : "light"} theme`}>
-      <Icon aria-hidden="true" /><span className="sr-only">Use {theme === "light" ? "dark" : "light"} theme</span>
-    </button>
-  );
+const navIcons = [Home, FolderKanban, FileStack];
+
+function ThemeMenu({ preference, setPreference }: { preference: ThemePreference; setPreference: (value: ThemePreference) => void }) {
+  return <Menu
+    label="Theme"
+    items={(["system", "light", "dark"] as const).map((value) => ({ id: value, label: value[0].toUpperCase() + value.slice(1), selected: value === preference }))}
+    onSelect={(value) => setPreference(value as ThemePreference)}
+  />;
 }
 
-function WorkspaceShell({ context, theme, toggleTheme }: {
-  context: WorkspaceContextResponse; theme: Theme; toggleTheme: () => void;
+function WorkspaceNavigation({ workspaceId, close }: { workspaceId: string; close?: () => void }) {
+  return <nav className="primary-nav" aria-label="Workspace navigation">{workspaceRoutes.map((route, index) => {
+    const Icon = navIcons[index];
+    return <NavLink aria-label={route.label} key={route.segment} end={!route.segment} to={workspacePath(workspaceId, route.segment)} onClick={close}>
+      <Icon aria-hidden="true" /><span>{route.label}</span>
+    </NavLink>;
+  })}</nav>;
+}
+
+function WorkspaceShell({ context, preference, setPreference }: {
+  context: WorkspaceContextResponse;
+  preference: ThemePreference;
+  setPreference: (value: ThemePreference) => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [fileRefresh, setFileRefresh] = useState(0);
   const [fileCount, setFileCount] = useState(0);
   const id = context.workspace.workspace_id;
-  const navIcons = [Home, FolderKanban, FileStack];
   useEffect(() => {
     let active = true;
     api.files(id).then((result) => { if (active) setFileCount(result.files.length); }, () => undefined);
     return () => { active = false; };
   }, [id, fileRefresh]);
-  return (
-    <div className="workspace-shell">
-      <aside className={mobileOpen ? "sidebar open" : "sidebar"}>
-        <div className="wordmark">
-          <span className="wordmark-symbol">V</span><span>Visual Workspace</span>
-          {mobileOpen && <button className="icon-button mobile-close" onClick={() => setMobileOpen(false)} title="Close navigation"><X aria-hidden="true" /></button>}
-        </div>
-        <nav className="primary-nav" aria-label="Workspace navigation">
-          {workspaceRoutes.map((route, index) => {
-            const Icon = navIcons[index];
-            return (
-              <NavLink aria-label={route.label} key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)} onClick={() => setMobileOpen(false)}>
-                <Icon aria-hidden="true" /><span>{route.label}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
-        <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; 0 jobs</span></div></div>
-      </aside>
-      {mobileOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-      <div className="workspace-main">
-        <header className="workspace-header">
-          <button className="icon-button menu-button" onClick={() => setMobileOpen(true)} title="Open navigation"><Menu aria-hidden="true" /></button>
-          <button className="workspace-switcher"><span>{context.workspace.name}</span><ChevronDown aria-hidden="true" /></button>
-          <div className="header-actions">
-            <ThemeButton theme={theme} toggle={toggleTheme} />
-            <span className="avatar" aria-label={`Signed in as ${context.actor.display_name}`}>{context.actor.display_name.slice(0, 1).toUpperCase()}</span>
-          </div>
-        </header>
-        <Routes>
-          <Route path="/w/:workspaceId" element={<WorkspaceHome context={context} onUpload={() => setUploadOpen(true)} />} />
-          <Route path="/w/:workspaceId/projects" element={<ProjectsPage />} />
-          <Route path="/w/:workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} />} />
-          <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
-        </Routes>
-      </div>
-      <nav className="mobile-nav" aria-label="Mobile workspace navigation">
-        {workspaceRoutes.map((route, index) => {
-          const Icon = navIcons[index];
-          return <NavLink aria-label={route.label} key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)}><Icon aria-hidden="true" /><span>{route.label}</span></NavLink>;
-        })}
-      </nav>
-      <UploadDialog
-        open={uploadOpen}
-        workspaceId={id}
-        onOpenChange={setUploadOpen}
-        onReady={() => setFileRefresh((value) => value + 1)}
-      />
-    </div>
-  );
-}
+  return <div className="app-shell">
+    <aside className="desktop-sidebar">
+      <Brand />
+      <Popover label="Choose workspace" align="start" trigger={<span className="workspace-switcher-content"><span className="workspace-avatar">{context.workspace.name.slice(0, 1).toUpperCase()}</span><span><strong>{context.workspace.name}</strong><small>Personal workspace</small></span><ChevronDown aria-hidden="true" /></span>}>
+        <div className="workspace-popover"><strong>{context.workspace.name}</strong><span>Your current workspace</span></div>
+      </Popover>
+      <WorkspaceNavigation workspaceId={id} />
+      <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; 0 jobs</span></div></div>
+    </aside>
 
-const outcomeIcons = [Image, Layers3, FileStack, Printer];
+    <div className="app-main">
+      <header className="app-header">
+        <IconButton className="phone-menu" label="Open navigation" onClick={() => setMobileOpen(true)}><MenuIcon aria-hidden="true" /></IconButton>
+        <span className="phone-brand"><Brand compact /></span>
+        <div className="header-workspace"><strong>{context.workspace.name}</strong><span>Workspace</span></div>
+        <div className="header-actions">
+          <ThemeMenu preference={preference} setPreference={setPreference} />
+          <button className="account-button" aria-label={`Signed in as ${context.actor.display_name}`}><span>{context.actor.display_name.slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{context.actor.display_name}</strong><small>{context.membership.role}</small></span></button>
+        </div>
+      </header>
+
+      <Routes>
+        <Route path=":workspaceId" element={<WorkspaceHome context={context} onUpload={() => setUploadOpen(true)} />} />
+        <Route path=":workspaceId/projects" element={<ProjectsPage />} />
+        <Route path=":workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} />} />
+        <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
+      </Routes>
+    </div>
+
+    <div className="phone-bottom-nav"><WorkspaceNavigation workspaceId={id} /></div>
+    <Dialog open={mobileOpen} title="Navigation" onClose={() => setMobileOpen(false)}>
+      <div className="mobile-sheet-body"><WorkspaceNavigation workspaceId={id} close={() => setMobileOpen(false)} /><div className="testing-status mobile-testing"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; 0 jobs</span></div></div></div>
+    </Dialog>
+    <UploadDialog open={uploadOpen} workspaceId={id} onOpenChange={setUploadOpen} onReady={() => setFileRefresh((value) => value + 1)} />
+  </div>;
+}
 
 function WorkspaceHome({ context, onUpload }: { context: WorkspaceContextResponse; onUpload: () => void }) {
   const navigate = useNavigate();
-  return (
-    <main className="page" data-testid="workspace-home">
-      <section className="page-heading home-heading">
-        <div><p className="eyebrow">Good afternoon, {context.actor.display_name.split(" ")[0]}</p><h1>What will you make today?</h1></div>
-        <div className="heading-actions"><button className="button" onClick={onUpload}><Upload aria-hidden="true" />Upload</button><button className="button primary" onClick={() => navigate(workspacePath(context.workspace.workspace_id, "projects"))}><Plus aria-hidden="true" />New project</button></div>
-      </section>
-      <section aria-labelledby="create-heading">
-        <div className="section-heading"><h2 id="create-heading">Start creating</h2></div>
-        <div className="outcome-grid">
-          {futureOutcomes.map((outcome, index) => {
-            const Icon = outcomeIcons[index];
-            const isActive = productFeatureState.enabled(outcome.feature);
-            return (
-              <div className="outcome-tile" data-feature-state={isActive ? "active" : "inactive"} key={outcome.feature}>
-                <span className={`outcome-icon outcome-${index + 1}`}><Icon aria-hidden="true" /></span>
-                <div className="outcome-copy">
-                  <h3>{outcome.label}</h3>
-                  <p>{outcome.description}</p>
-                  {!isActive && productFeatureState.showInactiveBuildIndicator && (
-                    <span className="build-indicator"><CircleDashed aria-hidden="true" />Not active in this build</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      <section className="activity-band" aria-labelledby="activity-heading">
-        <div><p className="eyebrow">Workspace activity</p><h2 id="activity-heading">Your foundation is ready</h2><p>Projects and Default Files are connected to your workspace.</p></div>
-        <div className="permission-fact"><span>Access</span><strong>{context.membership.role}</strong><small>{context.effective_permissions.filter((item) => item.allowed).length} effective permissions</small></div>
-      </section>
-    </main>
-  );
+  const [projects, setProjects] = useState<ProjectRecord[] | null>(null);
+  const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
+  const workspaceId = context.workspace.workspace_id;
+  useEffect(() => {
+    let active = true;
+    Promise.all([api.projects(workspaceId), api.files(workspaceId)]).then(([projectResult, fileResult]) => {
+      if (!active) return;
+      setProjects(projectResult.projects);
+      setFiles(fileResult.files);
+    }, () => { if (active) { setProjects([]); setFiles([]); } });
+    return () => { active = false; };
+  }, [workspaceId]);
+  const recent = [
+    ...(files ?? []).slice().reverse().map((file) => ({ id: file.file_id, name: file.display_name, kind: "File", target: "files" })),
+    ...(projects ?? []).slice().reverse().map((project) => ({ id: project.project_id, name: project.name, kind: project.parent_project_id ? "Subproject" : "Project", target: "projects" })),
+  ].slice(0, 4);
+  return <main className="page home-page" data-testid="workspace-home">
+    <section className="page-heading home-heading"><div><p className="eyebrow">Good to see you, {context.actor.display_name.split(" ")[0]}</p><h1>Continue your work</h1><p>Open something recent or begin with a file.</p></div><div className="heading-actions"><Button onClick={onUpload}><Upload aria-hidden="true" />Upload</Button><Button tone="primary" onClick={() => navigate(workspacePath(workspaceId, "projects"))}><Plus aria-hidden="true" />New project</Button></div></section>
+
+    <section className="home-section" aria-labelledby="recent-heading"><div className="section-heading"><div><h2 id="recent-heading">Recent work</h2><p>Projects and accepted files from this workspace.</p></div></div>
+      {projects === null || files === null ? <div className="recent-grid" aria-busy="true">{[1, 2].map((item) => <div className="recent-card loading" key={item} />)}</div> : recent.length === 0 ? <div className="compact-empty"><FileStack aria-hidden="true" /><div><strong>Start with your first file</strong><span>Your accepted source will stay connected to its history.</span></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></div> : <div className="recent-grid">{recent.map((item) => <button className="recent-card" key={item.id} onClick={() => navigate(workspacePath(workspaceId, item.target))}><span className="recent-icon">{item.kind === "File" ? <FileStack aria-hidden="true" /> : <BriefcaseBusiness aria-hidden="true" />}</span><span><strong>{item.name}</strong><small>{item.kind}</small></span></button>)}</div>}
+    </section>
+
+    <section className="home-section" aria-labelledby="outcomes-heading"><div className="section-heading"><div><h2 id="outcomes-heading">Choose an outcome</h2><p>Every path starts by protecting and understanding the source.</p></div></div><OutcomeGrid /></section>
+  </main>;
 }
 
 function ProjectsPage() {
@@ -167,11 +155,11 @@ function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const load = () => {
+  const load = useCallback(() => {
     setError(null);
     api.projects(workspaceId).then((result) => setProjects(result.projects), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Projects unavailable")));
-  };
-  useEffect(load, [workspaceId]);
+  }, [workspaceId]);
+  useEffect(load, [load]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -179,57 +167,48 @@ function ProjectsPage() {
     try {
       const created = await api.createProject(workspaceId, name.trim());
       setProjects((current) => [...(current ?? []), created]);
-      setName(""); setCreating(false);
+      setName("");
+      setCreating(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason : new Error("Project could not be created"));
     } finally { setSaving(false); }
   }
-  return (
-    <main className="page" data-testid="projects-page">
-      <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>Projects</h1><p>Organize files around each piece of work.</p></div><button className="button primary" onClick={() => setCreating(true)}><Plus aria-hidden="true" />New project</button></section>
-      {error && <div className="inline-error" role="alert"><span>{error.message}</span><button onClick={load}>Retry</button></div>}
-      {projects === null ? <div className="content-loading" aria-busy="true">Loading projects...</div> : projects.length === 0 ? (
-        <section className="empty-state"><span className="state-icon"><FolderKanban aria-hidden="true" /></span><h2>No projects yet</h2><p>Your first project will appear here.</p><button className="button primary" onClick={() => setCreating(true)}><Plus aria-hidden="true" />New project</button></section>
-      ) : (
-        <div className="project-grid">{projects.map((project) => <article className="project-card" key={project.project_id}><span className="project-icon"><BriefcaseBusiness aria-hidden="true" /></span><div><h2>{project.name}</h2><p>{project.parent_project_id ? "Subproject" : "Project"}</p></div><span className="status-dot">Active</span></article>)}</div>
-      )}
-      {creating && <div className="dialog-layer" role="presentation"><button className="dialog-scrim" aria-label="Close dialog" onClick={() => setCreating(false)} /><form className="dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title" onSubmit={submit}><div className="dialog-heading"><h2 id="new-project-title">New project</h2><button type="button" className="icon-button" onClick={() => setCreating(false)} title="Close"><X /></button></div><label>Project name<input autoFocus maxLength={200} value={name} onChange={(event) => setName(event.target.value)} /></label><div className="dialog-actions"><button type="button" className="button" onClick={() => setCreating(false)}>Cancel</button><button className="button primary" disabled={saving || !name.trim()}>{saving ? "Creating..." : "Create project"}</button></div></form></div>}
-    </main>
-  );
+  return <main className="page" data-testid="projects-page">
+    <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>Projects</h1><p>Organize files around each piece of work.</p></div><Button tone="primary" onClick={() => setCreating(true)}><Plus aria-hidden="true" />New project</Button></section>
+    {error && <div className="inline-error" role="alert"><span>{error.message}</span><Button tone="quiet" onClick={load}>Retry</Button></div>}
+    {projects === null ? <StatePanel kind="loading" title="Loading projects" message="Retrieving work you can access." /> : projects.length === 0 ? <StatePanel kind="empty" title="No projects yet" message="Create a project when you want files grouped around one piece of work." action={{ label: "New project", onClick: () => setCreating(true) }} /> : <div className="project-grid">{projects.map((project) => <article className="project-card" key={project.project_id}><span className="project-icon"><BriefcaseBusiness aria-hidden="true" /></span><div><h2>{project.name}</h2><p>{project.parent_project_id ? "Subproject" : "Project"}</p></div><span className="status-dot">Active</span></article>)}</div>}
+    <Dialog open={creating} title="New project" onClose={() => setCreating(false)}><form className="modal-form" onSubmit={submit}><TextInput autoFocus label="Project name" maxLength={200} value={name} onChange={(event) => setName(event.target.value)} /><div className="dialog-actions"><Button type="button" onClick={() => setCreating(false)}>Cancel</Button><Button tone="primary" disabled={saving || !name.trim()}>{saving ? "Creating..." : "Create project"}</Button></div></form></Dialog>
+  </main>;
 }
 
 function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: string; refresh: number; onUpload: () => void }) {
   const { workspaceId = "" } = useParams();
   const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  useEffect(() => { api.files(workspaceId).then((result) => setFiles(result.files), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable"))); }, [workspaceId, refresh]);
-  return (
-    <main className="page" data-testid="files-page">
-      <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files without a project live here.</p></div><button className="button primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</button></section>
-      {error && <div className="inline-error" role="alert">{error.message}</div>}
-      {files === null ? <div className="content-loading" aria-busy="true">Loading files...</div> : files.length === 0 ? (
-        <section className="empty-state"><span className="state-icon"><FileStack aria-hidden="true" /></span><h2>No files yet</h2><p>Files you upload, create or save without a project will appear here.</p><button className="button primary" onClick={onUpload}><Upload aria-hidden="true" />Upload a file</button></section>
-      ) : (
-        <div className="file-table" role="table" aria-label="Workspace files"><div className="file-row file-header" role="row"><span>Name</span><span>Location</span><span>Source</span></div>{files.map((file) => <div className="file-row" role="row" key={file.file_id}><span className="file-name"><FileStack aria-hidden="true" />{file.display_name}</span><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span><span>{file.current_source_version_id}</span></div>)}</div>
-      )}
-    </main>
-  );
+  useEffect(() => {
+    setError(null);
+    api.files(workspaceId).then((result) => setFiles(result.files), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable")));
+  }, [workspaceId, refresh]);
+  return <main className="page" data-testid="files-page">
+    <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files you have not placed in a project.</p></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></section>
+    {error && <div className="inline-error" role="alert">{error.message}</div>}
+    {files === null ? <StatePanel kind="loading" title="Loading files" message="Retrieving accepted workspace sources." /> : files.length === 0 ? <StatePanel kind="empty" title="No files yet" message="Files you upload, create or save without a project will appear here." action={{ label: "Upload a file", onClick: onUpload }} /> : <div className="file-list" role="list" aria-label="Workspace files">{files.map((file) => <article className="file-card" role="listitem" key={file.file_id}><span className="file-type-icon"><FileStack aria-hidden="true" /></span><div><strong>{file.display_name}</strong><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span></div><small title={file.current_source_version_id}>Source preserved</small></article>)}</div>}
+  </main>;
 }
 
-function RoutedApp() {
+function SignedInApplication() {
   const { context, error, retry } = useWorkspace();
-  const initialTheme = useMemo<Theme>(() => localStorage.getItem("ipw-theme") === "dark" ? "dark" : "light", []);
-  const [theme, setTheme] = useState<Theme>(initialTheme);
-  useEffect(() => { document.documentElement.dataset["theme"] = theme; }, [theme]);
+  const { preference, setPreference } = useThemePreference();
+  const location = useLocation();
   if (error) return <AppError error={error} retry={retry} />;
   if (!context) return <AppLoading />;
-  return <WorkspaceShell context={context} theme={theme} toggleTheme={() => setTheme((current) => {
-    const next = current === "light" ? "dark" : "light"; localStorage.setItem("ipw-theme", next); return next;
-  })} />;
+  if (location.pathname.startsWith("/app")) return <Navigate replace to={workspacePath(context.workspace.workspace_id)} />;
+  return <WorkspaceShell context={context} preference={preference} setPreference={setPreference} />;
 }
 
-function GuestUploadPage() {
+function GuestHome() {
   const navigate = useNavigate();
+  const { preference, setPreference } = useThemePreference();
   const [guest, setGuest] = useState<StoredGuestSession | null>(() => loadGuestSession());
   const [error, setError] = useState<Error | null>(null);
   const [savedWorkspace, setSavedWorkspace] = useState<string | null>(null);
@@ -238,57 +217,31 @@ function GuestUploadPage() {
     let active = true;
     api.createGuestSession().then((created) => {
       if (!active) return;
-      const session = {
-        token: created.token,
-        guestSessionId: created.guest_session.guest_session_id,
-        expiresAt: created.guest_session.expires_at,
-      };
+      const session = { token: created.token, guestSessionId: created.guest_session.guest_session_id, expiresAt: created.guest_session.expires_at };
       storeGuestSession(session);
       setGuest(session);
-    }, (reason: unknown) => {
-      if (active) setError(reason instanceof Error ? reason : new Error("Guest upload is unavailable"));
-    });
+    }, (reason: unknown) => { if (active) setError(reason instanceof Error ? reason : new Error("Guest intake is unavailable")); });
     return () => { active = false; };
   }, [guest]);
-
   if (error) return <AppError error={error} retry={() => { setError(null); setGuest(null); }} />;
-  if (!guest) return <AppLoading />;
-  return (
-    <div className="guest-shell">
-      <header className="guest-header"><span className="wordmark"><span className="wordmark-symbol">V</span><span>Visual Workspace</span></span></header>
-      <main className="guest-page" data-testid="guest-upload-page">
-        <section className="guest-heading">
-          <p className="eyebrow">Private upload</p>
-          <h1>Check files before you sign in</h1>
-          <p>Upload images and PDFs now, then sign in only when you are ready to save accepted files.</p>
-        </section>
-        <UploadDialog
-          open
-          embedded
-          guestSession={guest}
-          onOpenChange={() => undefined}
-          onReady={() => undefined}
-          onGuestSaved={setSavedWorkspace}
-        />
-        {savedWorkspace && (
-          <div className="guest-saved" role="status">
-            <CheckCircle2 aria-hidden="true" />
-            <span>Your original source was saved without changing its identity.</span>
-            <button className="button primary" onClick={() => navigate(workspacePath(savedWorkspace, "files"))}>Open Default Files</button>
-          </div>
-        )}
-      </main>
-    </div>
-  );
+  return <div className="public-shell">
+    <header className="public-header"><Brand /><div className="public-header-actions"><span className="free-testing"><CheckCircle2 aria-hidden="true" />Free during testing</span><ThemeMenu preference={preference} setPreference={setPreference} /></div></header>
+    <main className="public-main" data-testid="guest-home">
+      <section className="guest-intro"><p className="eyebrow">Images and PDFs, understood first</p><h1>Bring a source. See what is trustworthy.</h1><p>Upload an image or PDF for private safety checks and verified facts. Your original stays untouched.</p></section>
+      <section className="guest-intake" aria-labelledby="guest-intake-heading"><div className="guest-intake-heading"><div><h2 id="guest-intake-heading">Start with a file</h2><p>Choose one or several supported images or PDFs.</p></div><ShieldCheck aria-hidden="true" /></div>{guest ? <UploadDialog open embedded guestSession={guest} onOpenChange={() => undefined} onReady={() => undefined} onGuestSaved={setSavedWorkspace} /> : <StatePanel kind="loading" title="Preparing private intake" message="Creating a temporary session for your files." />}</section>
+      {savedWorkspace && <div className="guest-saved" role="status"><CheckCircle2 aria-hidden="true" /><span>Your original source was saved without changing its identity.</span><Button tone="primary" onClick={() => navigate(workspacePath(savedWorkspace, "files"))}>Open Default Files</Button></div>}
+      <section className="public-outcomes" aria-labelledby="public-outcomes-heading"><div className="section-heading"><div><h2 id="public-outcomes-heading">Four ways forward</h2><p>Upload first and the workspace will recommend only what the verified source supports.</p></div></div><OutcomeGrid publicView /></section>
+      <section className="trust-row" aria-label="Source safeguards"><span><ShieldCheck aria-hidden="true" />Original preserved</span><span><FileStack aria-hidden="true" />Verified facts before recommendations</span><span><CheckCircle2 aria-hidden="true" />No silent changes or AI</span></section>
+    </main>
+  </div>;
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/guest/upload" element={<GuestUploadPage />} />
-        <Route path="*" element={<RoutedApp />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  return <BrowserRouter><Routes>
+    <Route path="/" element={<GuestHome />} />
+    <Route path="/guest/upload" element={<GuestHome />} />
+    <Route path="/app/*" element={<SignedInApplication />} />
+    <Route path="/w/*" element={<SignedInApplication />} />
+    <Route path="*" element={<Navigate replace to="/" />} />
+  </Routes></BrowserRouter>;
 }
