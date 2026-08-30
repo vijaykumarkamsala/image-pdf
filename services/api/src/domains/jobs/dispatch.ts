@@ -1,6 +1,7 @@
 export interface JobDispatchMessage {
   dispatchId: string;
   jobId: string;
+  traceId: string;
   kind: "process_job";
 }
 
@@ -20,20 +21,22 @@ export class LocalJobDispatchQueue implements JobDispatchQueue {
   }
 }
 
-export interface CloudTasksClient {
+export interface CloudTasksProviderClient {
   createHttpTask(input: {
     taskName: string;
     endpoint: string;
     audience: string;
+    serviceAccountEmail: string;
     body: JobDispatchMessage;
   }): Promise<void>;
 }
 
 export class CloudTasksJobDispatchQueue implements JobDispatchQueue {
   constructor(
-    private readonly client: CloudTasksClient,
+    private readonly client: CloudTasksProviderClient,
     private readonly endpoint: string,
     private readonly audience: string,
+    private readonly serviceAccountEmail: string,
   ) {}
 
   enqueue(message: JobDispatchMessage): Promise<void> {
@@ -41,6 +44,7 @@ export class CloudTasksJobDispatchQueue implements JobDispatchQueue {
       taskName: message.dispatchId,
       endpoint: this.endpoint,
       audience: this.audience,
+      serviceAccountEmail: this.serviceAccountEmail,
       body: message,
     });
   }

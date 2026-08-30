@@ -23,6 +23,14 @@ export interface JobOutboxRecord {
   jobId: string;
   availableAt: string;
   deliveryAttempts: number;
+  traceId: string;
+  leaseOwner: string;
+}
+
+export interface StoredCheckpoint {
+  attempt: number;
+  key: string;
+  payload: Record<string, unknown>;
 }
 
 export interface AcceptedInspection {
@@ -51,8 +59,14 @@ export interface DurableJobRepository {
   findJobByActor(jobId: string, actorId: string): Promise<ProcessingJobRecord | null>;
   listEvents(jobId: string, owner: IntakeOwner, after: number, limit: number): Promise<JobEventRecord[]>;
   requestCancel(jobId: string, owner: IntakeOwner, now: string, traceId: string): Promise<ProcessingJobRecord>;
-  pendingOutbox(now: string, limit: number): Promise<JobOutboxRecord[]>;
-  markOutboxDispatched(outboxId: string, now: string): Promise<void>;
+  claimOutbox(workerId: string, now: string, leaseExpiresAt: string, limit: number): Promise<JobOutboxRecord[]>;
+  markOutboxDispatched(outboxId: string, workerId: string, now: string): Promise<void>;
+  releaseOutbox(
+    outboxId: string,
+    workerId: string,
+    availableAt: string,
+    errorCategory: string,
+  ): Promise<void>;
   claim(
     workerId: string,
     leaseToken: string,
@@ -70,6 +84,7 @@ export interface DurableJobRepository {
     payload: Record<string, unknown>,
     now: string,
   ): Promise<void>;
+  latestCheckpoint(jobId: string): Promise<StoredCheckpoint | null>;
   succeed(jobId: string, leaseTokenHash: string, now: string, traceId: string): Promise<ProcessingJobRecord>;
   completeAccepted(
     jobId: string,

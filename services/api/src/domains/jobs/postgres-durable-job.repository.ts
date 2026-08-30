@@ -13,6 +13,7 @@ import type {
   JobCreateResult,
   JobOutboxRecord,
   InspectionCompletion,
+  StoredCheckpoint,
 } from "./durable-job.types.js";
 
 function instant(value: Date | string | null): string | null {
@@ -132,9 +133,9 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       );
       await this.insertEvent(client, value, "job.queued", traceId);
       await client.query(
-        `INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,available_at,created_at)
-         VALUES ($1,$2,'process_job',$3,$4,$4)`,
-        [`outbox-${randomUUID()}`, value.job_id, { job_id: value.job_id }, value.created_at],
+        `INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
+         VALUES ($1,$2,'process_job',$3,$4,$5,$5)`,
+        [`outbox-${randomUUID()}`, value.job_id, { job_id: value.job_id }, traceId, value.created_at],
       );
       await client.query(
         `INSERT INTO intake_idempotency_records(owner_scope,idempotency_key,command_name,request_hash,response_body,created_at)
@@ -202,6 +203,10 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
         await client.query("COMMIT");
         return current;
       }
+      if (current.state === "cancel_requested") {
+        await client.query("COMMIT");
+        return current;
+      }
       const state = ["queued", "retry_wait"].includes(current.state) ? "cancelled" : "cancel_requested";
       const updatedResult = await client.query(
         "UPDATE processing_jobs SET state=$1,updated_at=$2 WHERE job_id=$3 RETURNING *",
@@ -225,26 +230,51 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
     }
   }
 
-  async pendingOutbox(now: string, limit: number): Promise<JobOutboxRecord[]> {
+  async claimOutbox(workerId: string, now: string, leaseExpiresAt: string, limit: number): Promise<JobOutboxRecord[]> {
     const result = await this.pool.query(
-      `SELECT * FROM job_outbox WHERE state='pending' AND available_at <= $1
-       ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT $2`,
-      [now, limit],
+      `WITH candidates AS (
+         SELECT outbox_id FROM job_outbox
+         WHERE (state='pending' OR (state='dispatching' AND lease_expires_at <= $2))
+           AND available_at <= $2
+         ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT $4
+       )
+       UPDATE job_outbox outbox SET state='dispatching',lease_owner=$1,lease_expires_at=$3,
+         delivery_attempts=delivery_attempts+1,last_error_category=NULL
+       FROM candidates WHERE outbox.outbox_id=candidates.outbox_id RETURNING outbox.*`,
+      [workerId, now, leaseExpiresAt, limit],
     );
     return result.rows.map((row) => ({
       outboxId: String(row["outbox_id"]),
       jobId: String(row["job_id"]),
       availableAt: instant(row["available_at"] as Date | string)!,
       deliveryAttempts: Number(row["delivery_attempts"]),
+      traceId: String(row["trace_id"]),
+      leaseOwner: String(row["lease_owner"]),
     }));
   }
 
-  async markOutboxDispatched(outboxId: string, now: string): Promise<void> {
-    await this.pool.query(
-      `UPDATE job_outbox SET state='dispatched',delivery_attempts=delivery_attempts+1,dispatched_at=$1
-       WHERE outbox_id=$2`,
-      [now, outboxId],
+  async markOutboxDispatched(outboxId: string, workerId: string, now: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE job_outbox SET state='dispatched',dispatched_at=$1,lease_owner=NULL,lease_expires_at=NULL
+       WHERE outbox_id=$2 AND state='dispatching' AND lease_owner=$3`,
+      [now, outboxId, workerId],
     );
+    if (!result.rowCount) throw new DomainError(409, "outbox-lease-invalid", "Outbox delivery lease is invalid");
+  }
+
+  async releaseOutbox(
+    outboxId: string,
+    workerId: string,
+    availableAt: string,
+    errorCategory: string,
+  ): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE job_outbox SET state='pending',available_at=$1,last_error_category=$2,
+       lease_owner=NULL,lease_expires_at=NULL
+       WHERE outbox_id=$3 AND state='dispatching' AND lease_owner=$4`,
+      [availableAt, errorCategory, outboxId, workerId],
+    );
+    if (!result.rowCount) throw new DomainError(409, "outbox-lease-invalid", "Outbox delivery lease is invalid");
   }
 
   async claim(
@@ -319,6 +349,20 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       "UPDATE processing_jobs SET progress_percent=GREATEST(progress_percent,50),updated_at=$1 WHERE job_id=$2",
       [now, jobId],
     );
+  }
+
+  async latestCheckpoint(jobId: string): Promise<StoredCheckpoint | null> {
+    const result = await this.pool.query(
+      `SELECT attempt,checkpoint_key,payload FROM job_checkpoints
+       WHERE job_id=$1 ORDER BY attempt DESC,created_at DESC LIMIT 1`,
+      [jobId],
+    );
+    const row = result.rows[0];
+    return row ? {
+      attempt: Number(row["attempt"]),
+      key: String(row["checkpoint_key"]),
+      payload: row["payload"] as Record<string, unknown>,
+    } : null;
   }
 
   async succeed(jobId: string, leaseTokenHash: string, now: string, traceId: string): Promise<ProcessingJobRecord> {
@@ -484,6 +528,22 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       );
       if (!found.rows[0]) throw new DomainError(409, "job-lease-invalid", "Job lease is invalid");
       const current = job(found.rows[0]);
+      if (current.state === "cancel_requested") {
+        const cancelledResult = await client.query(
+          `UPDATE processing_jobs SET state='cancelled',failure=NULL,lease_owner=NULL,lease_token_hash=NULL,
+           lease_expires_at=NULL,updated_at=$1 WHERE job_id=$2 RETURNING *`,
+          [now, jobId],
+        );
+        await client.query(
+          `UPDATE upload_sessions SET state='cancelled',updated_at=$1
+           WHERE upload_session_id=$2 AND state IN ('finalising','inspecting')`,
+          [now, current.upload_session_id],
+        );
+        const cancelled = job(cancelledResult.rows[0]);
+        await this.insertEvent(client, cancelled, "job.cancelled", traceId);
+        await client.query("COMMIT");
+        return cancelled;
+      }
       const retry = failure.retryable && current.attempt < current.max_attempts;
       const result = await client.query(
         `UPDATE processing_jobs SET state=$1,failure=$2,next_attempt_at=$3,lease_owner=NULL,
@@ -501,9 +561,9 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       await this.insertEvent(client, updated, retry ? "job.retry-scheduled" : "job.failed", traceId);
       if (retry) {
         await client.query(
-          `INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,available_at,created_at)
-           VALUES ($1,$2,'process_job',$3,$4,$5)`,
-          [`outbox-${randomUUID()}`, jobId, { job_id: jobId }, retryAt, now],
+          `INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
+           VALUES ($1,$2,'process_job',$3,$4,$5,$6)`,
+          [`outbox-${randomUUID()}`, jobId, { job_id: jobId }, traceId, retryAt, now],
         );
       }
       await client.query("COMMIT");

@@ -6,7 +6,8 @@ import { INTAKE_REPOSITORY, type IntakeRepository } from "../intake/intake.types
 import { KernelModule } from "../../kernel/kernel.module.js";
 import { MemoryProductKernelRepository } from "../../kernel/memory.repository.js";
 import { PRODUCT_REPOSITORY, type ProductKernelRepository } from "../../kernel/product.types.js";
-import { JOB_DISPATCH_QUEUE, LocalJobDispatchQueue } from "./dispatch.js";
+import { JOB_DISPATCH_QUEUE } from "./dispatch.js";
+import { createJobDispatchQueue } from "./cloud-tasks-client.js";
 import { DURABLE_JOB_REPOSITORY } from "./durable-job.types.js";
 import { JobsController } from "./jobs.controller.js";
 import { JobsService } from "./jobs.service.js";
@@ -21,6 +22,7 @@ import {
   RequiredScannerUnavailable,
 } from "../intake/inspection-adapter.js";
 import { LocalInspectionExecutor } from "./local-inspection-executor.js";
+import { LocalJobRuntime } from "./local-job-runtime.js";
 
 @Module({
   imports: [KernelModule, IntakeModule],
@@ -40,7 +42,7 @@ import { LocalInspectionExecutor } from "./local-inspection-executor.js";
       },
       inject: [INTAKE_REPOSITORY, PRODUCT_REPOSITORY],
     },
-    { provide: JOB_DISPATCH_QUEUE, useFactory: () => new LocalJobDispatchQueue() },
+    { provide: JOB_DISPATCH_QUEUE, useFactory: () => createJobDispatchQueue(process.env) },
     {
       provide: MALWARE_SCANNER,
       useFactory: () => process.env["NODE_ENV"] === "production"
@@ -50,6 +52,7 @@ import { LocalInspectionExecutor } from "./local-inspection-executor.js";
     { provide: INSPECTION_ADAPTER, useFactory: () => new HeaderFirstInspectionAdapter() },
     OutboxDispatcher,
     LocalInspectionExecutor,
+    LocalJobRuntime,
     JobsService,
   ],
   exports: [DURABLE_JOB_REPOSITORY, JOB_DISPATCH_QUEUE, JobsService, LocalInspectionExecutor, OutboxDispatcher],

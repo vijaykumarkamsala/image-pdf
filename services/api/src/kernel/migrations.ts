@@ -10,6 +10,8 @@ export const MIGRATION_VERSIONS = [
   "0002_recovery_2b_upload_sessions",
   "0003_recovery_2b_durable_jobs",
   "0004_recovery_2b_guest_handoffs",
+  "0005_recovery_2b_gcs_integrity",
+  "0006_recovery_2b_durable_dispatch",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {

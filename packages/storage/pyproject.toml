@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
   "ipw-contracts==0.1.0",
+  "google-cloud-storage==3.13.1",
 ]
 
 [tool.setuptools.packages.find]

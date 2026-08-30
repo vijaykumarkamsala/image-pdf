@@ -6,6 +6,7 @@ import { Test } from "@nestjs/testing";
 import { AppModule } from "../src/app.module.js";
 import { ProductErrorFilter } from "../src/common/product-error.filter.js";
 import { JOB_DISPATCH_QUEUE, LocalJobDispatchQueue } from "../src/domains/jobs/dispatch.js";
+import { OutboxDispatcher } from "../src/domains/jobs/outbox-dispatcher.js";
 
 async function api() {
   process.env["NODE_ENV"] = "test";
@@ -18,6 +19,7 @@ async function api() {
   return {
     close: () => app.close(),
     queue: app.get<LocalJobDispatchQueue>(JOB_DISPATCH_QUEUE),
+    dispatcher: app.get(OutboxDispatcher),
     request(path: string, options: RequestInit = {}, actor = "actor-jobs") {
       return fetch(`http://127.0.0.1:${server.address().port}/v1${path}`, {
         ...options,
@@ -68,8 +70,14 @@ test("finalisation atomically creates one durable job with reconnectable ordered
     assert.equal(finalised.upload_session.state, "finalising");
     assert.equal(finalised.job.state, "queued");
     assert.equal(finalised.job.attempt, 0);
+    assert.equal(server.queue.pending().length, 0);
+    const concurrentDispatch = await Promise.all([
+      server.dispatcher.dispatchOnce(),
+      server.dispatcher.dispatchOnce(),
+    ]);
+    assert.equal(concurrentDispatch.reduce((total, count) => total + count, 0), 1);
     assert.equal(server.queue.pending().length, 1);
-    assert.deepEqual(Object.keys(server.queue.pending()[0]).sort(), ["dispatchId", "jobId", "kind"]);
+    assert.deepEqual(Object.keys(server.queue.pending()[0]).sort(), ["dispatchId", "jobId", "kind", "traceId"]);
 
     const replay = await json(await server.request(
       `/upload-sessions/${created.upload_session.upload_session_id}/finalise`,

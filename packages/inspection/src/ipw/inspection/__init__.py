@@ -12,6 +12,7 @@ from ipw.inspection.malware import (
     MalwareScan,
     MalwareScanner,
     RequiredScannerUnavailableError,
+    production_malware_scanner,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "MalwareScanner",
     "RequiredScannerUnavailableError",
     "inspect_bytes",
+    "production_malware_scanner",
 ]

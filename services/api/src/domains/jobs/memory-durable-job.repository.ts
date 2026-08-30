@@ -13,6 +13,7 @@ import type {
   JobCreateResult,
   JobOutboxRecord,
   InspectionCompletion,
+  StoredCheckpoint,
 } from "./durable-job.types.js";
 
 interface CommandEntry {
@@ -24,7 +25,11 @@ interface CommandEntry {
 export class MemoryDurableJobRepository implements DurableJobRepository {
   private readonly jobs = new Map<string, ProcessingJobRecord>();
   private readonly events: JobEventRecord[] = [];
-  private readonly outbox = new Map<string, JobOutboxRecord & { dispatched: boolean }>();
+  private readonly outbox = new Map<string, JobOutboxRecord & {
+    state: "pending" | "dispatching" | "dispatched";
+    leaseExpiresAt?: string;
+  }>();
+  private readonly checkpoints = new Map<string, StoredCheckpoint>();
   private readonly commands = new Map<string, CommandEntry>();
   private readonly leaseHashes = new Map<string, string>();
   private cursor = 0;
@@ -60,7 +65,9 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
       jobId: job.job_id,
       availableAt: job.created_at,
       deliveryAttempts: 0,
-      dispatched: false,
+      traceId,
+      leaseOwner: "",
+      state: "pending",
     });
     return { job, upload: upload.record, replayed: false };
   }
@@ -91,15 +98,36 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     return updated;
   }
 
-  async pendingOutbox(now: string, limit: number): Promise<JobOutboxRecord[]> {
-    return [...this.outbox.values()]
-      .filter((entry) => !entry.dispatched && entry.availableAt <= now)
+  async claimOutbox(workerId: string, now: string, leaseExpiresAt: string, limit: number): Promise<JobOutboxRecord[]> {
+    const claimed = [...this.outbox.values()]
+      .filter((entry) => (entry.state === "pending" || (entry.state === "dispatching" && entry.leaseExpiresAt! <= now))
+        && entry.availableAt <= now)
       .slice(0, limit);
+    return claimed.map((entry) => {
+      const updated = {
+        ...entry,
+        state: "dispatching" as const,
+        leaseOwner: workerId,
+        leaseExpiresAt,
+        deliveryAttempts: entry.deliveryAttempts + 1,
+      };
+      this.outbox.set(entry.outboxId, updated);
+      return updated;
+    });
   }
 
-  async markOutboxDispatched(outboxId: string): Promise<void> {
+  async markOutboxDispatched(outboxId: string, workerId: string): Promise<void> {
     const entry = this.outbox.get(outboxId);
-    if (entry) this.outbox.set(outboxId, { ...entry, dispatched: true, deliveryAttempts: entry.deliveryAttempts + 1 });
+    if (entry?.state === "dispatching" && entry.leaseOwner === workerId) {
+      this.outbox.set(outboxId, { ...entry, state: "dispatched", leaseOwner: "", leaseExpiresAt: undefined });
+    }
+  }
+
+  async releaseOutbox(outboxId: string, workerId: string, availableAt: string): Promise<void> {
+    const entry = this.outbox.get(outboxId);
+    if (entry?.state === "dispatching" && entry.leaseOwner === workerId) {
+      this.outbox.set(outboxId, { ...entry, state: "pending", availableAt, leaseOwner: "", leaseExpiresAt: undefined });
+    }
   }
 
   async claim(
@@ -148,16 +176,27 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
   async checkpoint(
     jobId: string,
     leaseTokenHash: string,
-    _key: string,
-    _payload: Record<string, unknown>,
+    key: string,
+    payload: Record<string, unknown>,
     now: string,
   ): Promise<void> {
     const current = this.requireLease(jobId, leaseTokenHash);
+    this.checkpoints.set(jobId, { attempt: current.attempt, key, payload });
     this.jobs.set(jobId, { ...current, progress_percent: Math.max(current.progress_percent, 50), updated_at: now });
+  }
+
+  async latestCheckpoint(jobId: string): Promise<StoredCheckpoint | null> {
+    return this.checkpoints.get(jobId) ?? null;
   }
 
   async succeed(jobId: string, leaseTokenHash: string, now: string, traceId: string): Promise<ProcessingJobRecord> {
     const current = this.requireLease(jobId, leaseTokenHash);
+    if (current.state === "cancel_requested") {
+      const cancelled = { ...current, state: "cancelled" as const, updated_at: now };
+      this.jobs.set(jobId, cancelled);
+      this.event(cancelled, "job.cancelled", traceId);
+      return cancelled;
+    }
     if (current.state !== "running") throw new DomainError(409, "job-state-conflict", "Job is not running");
     const updated = { ...current, state: "succeeded" as const, progress_percent: 100, updated_at: now };
     this.jobs.set(jobId, updated);
@@ -234,6 +273,13 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     traceId: string,
   ): Promise<ProcessingJobRecord> {
     const current = this.requireLease(jobId, leaseTokenHash);
+    if (current.state === "cancel_requested") {
+      const cancelled = { ...current, state: "cancelled" as const, failure: null, updated_at: now };
+      this.jobs.set(jobId, cancelled);
+      await this.intake.cancelUpload(current.upload_session_id, this.owner(current), now);
+      this.event(cancelled, "job.cancelled", traceId);
+      return cancelled;
+    }
     const retry = failure.retryable && current.attempt < current.max_attempts;
     const updated: ProcessingJobRecord = {
       ...current,
@@ -248,7 +294,15 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     this.event(updated, retry ? "job.retry-scheduled" : "job.failed", traceId);
     if (retry) {
       const id = `outbox-${jobId}-${current.attempt + 1}`;
-      this.outbox.set(id, { outboxId: id, jobId, availableAt: retryAt, deliveryAttempts: 0, dispatched: false });
+      this.outbox.set(id, {
+        outboxId: id,
+        jobId,
+        availableAt: retryAt,
+        deliveryAttempts: 0,
+        traceId,
+        leaseOwner: "",
+        state: "pending",
+      });
     }
     return updated;
   }
@@ -286,5 +340,11 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     return owner.ownerKind === "actor"
       ? job.owner_kind === "actor" && job.workspace_id === owner.workspaceId && job.actor_id === owner.actorId
       : job.owner_kind === "guest" && job.guest_session_id === owner.guestSessionId;
+  }
+
+  private owner(job: ProcessingJobRecord): IntakeOwner {
+    return job.owner_kind === "actor"
+      ? { ownerKind: "actor", ownerScope: job.workspace_id!, workspaceId: job.workspace_id!, actorId: job.actor_id! }
+      : { ownerKind: "guest", ownerScope: job.guest_session_id!, guestSessionId: job.guest_session_id! };
   }
 }

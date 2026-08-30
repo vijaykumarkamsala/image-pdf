@@ -60,6 +60,8 @@ ignore = [
 # uploads straight to the bucket - so it cannot be content-addressed. The
 # determinism rule protects measurements; this is a filename.
 "services/workspace-api/src/ipw/workspace_api/storage.py" = ["TID251"]
+"services/processing-worker/src/ipw/processing_worker/repository.py" = ["TID251", "E501"]
+"services/processing-worker/src/ipw/processing_worker/task_server.py" = ["S104"]
 "**/tests/*" = ["TID251", "S108"]
 "tests/*" = ["TID251", "S108"]
 "conftest.py" = ["TID251"]
@@ -130,6 +132,16 @@ ignore_missing_imports = true
 # declared in the same module, so the untyped surface is one import wide.
 module = ["pg8000.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["google.auth.*", "google.cloud.*", "google.oauth2.*"]
+ignore_missing_imports = true
+disallow_any_unimported = false
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = ["ipw.processing_worker.task_server"]
+disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
 # NumPy ships stubs written in 3.12+ syntax (PEP 695 `type` statements). This

@@ -1,7 +1,6 @@
 """Production storage boundary.
 
-The package defines the shape of storage access without connecting to a real
-object store. Provider implementations arrive in a later recovery stage.
+The package defines private storage boundaries and executable local/GCS worker adapters.
 """
 
 from __future__ import annotations
@@ -16,14 +15,24 @@ from ipw.storage.boundary import (
     StoredObject,
     UploadWriteResult,
 )
+from ipw.storage.private import (
+    GcsWorkerPrivateObjectStore,
+    LocalWorkerPrivateObjectStore,
+    PrivateObjectSnapshot,
+    WorkerPrivateObjectStore,
+)
 
 __all__ = [
+    "GcsWorkerPrivateObjectStore",
     "ImmutableOriginalStore",
+    "LocalWorkerPrivateObjectStore",
     "ObjectReader",
     "ObjectWriter",
     "ObjectZone",
     "PrivateObjectRef",
+    "PrivateObjectSnapshot",
     "QuarantineStore",
     "StoredObject",
     "UploadWriteResult",
+    "WorkerPrivateObjectStore",
 ]

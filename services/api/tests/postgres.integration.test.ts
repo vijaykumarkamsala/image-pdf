@@ -312,7 +312,12 @@ test(
       assert.equal((await durableJobs.createForUpload(
         "upload-job-pg", jobOwner, jobRecord, jobCommand, "trace-postgres-job"
       )).replayed, true);
-      assert.equal((await durableJobs.pendingOutbox("2026-08-30T00:06:00.000Z", 10)).length, 1);
+      assert.equal((await durableJobs.claimOutbox(
+        "relay-pg",
+        "2026-08-30T00:06:00.000Z",
+        "2026-08-30T00:07:00.000Z",
+        10,
+      )).length, 1);
       const claim = await durableJobs.claim(
         "worker-pg",
         "lease-token-pg",
@@ -354,10 +359,31 @@ test(
         "job-pg", jobOwner, "2026-08-30T00:10:10.000Z", "trace-postgres-job"
       );
       assert.equal(cancelRequested.state, "cancel_requested");
+      const repeatedCancel = await durableJobs.requestCancel(
+        "job-pg", jobOwner, "2026-08-30T00:10:11.000Z", "trace-postgres-job"
+      );
+      assert.equal(repeatedCancel.state, "cancel_requested");
+      const cancellationWon = await durableJobs.fail(
+        "job-pg",
+        "4".repeat(64),
+        { schema_version: "1.9.0", code: "late-worker-error", message: "late", retryable: true },
+        "2026-08-30T00:10:12.000Z",
+        "2026-08-30T00:11:00.000Z",
+        "trace-postgres-job",
+      );
+      assert.equal(cancellationWon.state, "cancelled");
       const jobEvents = await durableJobs.listEvents("job-pg", jobOwner, 0, 20);
       assert.deepEqual(
         jobEvents.map((event) => event.event_kind),
-        ["job.queued", "job.leased", "job.started", "job.retry-scheduled", "job.leased", "job.cancel-requested"],
+        [
+          "job.queued",
+          "job.leased",
+          "job.started",
+          "job.retry-scheduled",
+          "job.leased",
+          "job.cancel-requested",
+          "job.cancelled",
+        ],
       );
 
       const acceptedUpload = {

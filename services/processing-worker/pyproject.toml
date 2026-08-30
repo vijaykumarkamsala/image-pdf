@@ -14,7 +14,12 @@ dependencies = [
   "ipw-storage==0.1.0",
   "ipw-inspection==0.1.0",
   "ipw-licence-registry==0.1.0",
+  "google-auth==2.57.0",
+  "pg8000==1.31.5",
 ]
+
+[project.scripts]
+ipw-processing-worker = "ipw.processing_worker.task_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

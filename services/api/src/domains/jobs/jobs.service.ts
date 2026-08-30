@@ -14,8 +14,6 @@ import {
 } from "../../kernel/product.types.js";
 import { requestDigest, type RuntimeValues } from "../../kernel/runtime.js";
 import { DURABLE_JOB_REPOSITORY, type DurableJobRepository } from "./durable-job.types.js";
-import { OutboxDispatcher } from "./outbox-dispatcher.js";
-import { LocalInspectionExecutor } from "./local-inspection-executor.js";
 
 type Headers = Record<string, string | string[] | undefined>;
 
@@ -27,8 +25,6 @@ export class JobsService implements OnApplicationShutdown {
     @Inject(RUNTIME_VALUES) private readonly runtime: RuntimeValues,
     private readonly intake: IntakeService,
     private readonly identity: IdentityBoundary,
-    private readonly dispatcher: OutboxDispatcher,
-    private readonly localExecutor: LocalInspectionExecutor,
   ) {}
 
   async finalise(headers: Headers, uploadSessionId: string) {
@@ -71,10 +67,6 @@ export class JobsService implements OnApplicationShutdown {
     );
     if (!created.replayed && owner.ownerKind === "actor") {
       await this.product.recordExternalMutation(context, owner.workspaceId!, "upload.finalised", "processing_job", created.job.job_id);
-    }
-    await this.dispatcher.dispatchOnce();
-    if (process.env["NODE_ENV"] !== "production" && process.env["NODE_ENV"] !== "test") {
-      await this.localExecutor.runAvailable();
     }
     const command: IdempotentCommandResult = {
       schema_version: PRODUCT_SCHEMA_VERSION,
