@@ -72,6 +72,16 @@ in light and dark themes with zero allowed changed pixels. The same suite checks
 the real API journey, loading/error/access-denied/empty states, phone navigation
 and axe accessibility scans.
 
+The product-owner visual correction refreshes the six Home baselines only for
+the non-monetary testing summary, customer-facing product-area descriptions,
+quiet development-only inactive indicators and the resulting card height. Four
+reviewed journey baselines were added for tablet Projects, phone navigation,
+phone Default Files and desktop Projects with one created project. A second
+zero-tolerance comparison passed for all ten baselines. Focus pixels are covered
+separately by computed-style assertions: the visible brand focus token is not
+the warning/error token in either theme. Collapsed tablet navigation also
+retains explicit accessible names.
+
 ## Explicitly deferred
 
 Image/PDF editing, processing, AI/models, fonts, cloud connectors, e-sign,

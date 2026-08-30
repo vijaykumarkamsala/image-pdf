@@ -1,12 +1,13 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import {
-  BriefcaseBusiness, CheckCircle2, ChevronDown, FileStack, FolderKanban, Home,
+  BriefcaseBusiness, CheckCircle2, ChevronDown, CircleDashed, FileStack, FolderKanban, Home,
   Image, Layers3, Menu, Moon, Plus, Printer, Sun, X,
 } from "lucide-react";
 import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
 import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiClient.ts";
+import { productFeatureState } from "./boundaries/featureFlags.ts";
 import { futureOutcomes, workspacePath, workspaceRoutes } from "./routes.ts";
 
 type Theme = "light" | "dark";
@@ -69,13 +70,13 @@ function WorkspaceShell({ context, theme, toggleTheme }: {
           {workspaceRoutes.map((route, index) => {
             const Icon = navIcons[index];
             return (
-              <NavLink key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)} onClick={() => setMobileOpen(false)}>
+              <NavLink aria-label={route.label} key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)} onClick={() => setMobileOpen(false)}>
                 <Icon aria-hidden="true" /><span>{route.label}</span>
               </NavLink>
             );
           })}
         </nav>
-        <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>$0.00</strong><span>Testing usage</span></div></div>
+        <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>0 files &middot; 0 jobs</span></div></div>
       </aside>
       {mobileOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
       <div className="workspace-main">
@@ -97,7 +98,7 @@ function WorkspaceShell({ context, theme, toggleTheme }: {
       <nav className="mobile-nav" aria-label="Workspace navigation">
         {workspaceRoutes.map((route, index) => {
           const Icon = navIcons[index];
-          return <NavLink key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)}><Icon aria-hidden="true" /><span>{route.label}</span></NavLink>;
+          return <NavLink aria-label={route.label} key={route.segment} end={!route.segment} to={workspacePath(id, route.segment)}><Icon aria-hidden="true" /><span>{route.label}</span></NavLink>;
         })}
       </nav>
     </div>
@@ -119,10 +120,17 @@ function WorkspaceHome({ context }: { context: WorkspaceContextResponse }) {
         <div className="outcome-grid">
           {futureOutcomes.map((outcome, index) => {
             const Icon = outcomeIcons[index];
+            const isActive = productFeatureState.enabled(outcome.feature);
             return (
-              <div className="outcome-tile" key={outcome}>
+              <div className="outcome-tile" data-feature-state={isActive ? "active" : "inactive"} key={outcome.feature}>
                 <span className={`outcome-icon outcome-${index + 1}`}><Icon aria-hidden="true" /></span>
-                <div><h3>{outcome}</h3><span>Available in a later recovery</span></div>
+                <div className="outcome-copy">
+                  <h3>{outcome.label}</h3>
+                  <p>{outcome.description}</p>
+                  {!isActive && productFeatureState.showInactiveBuildIndicator && (
+                    <span className="build-indicator"><CircleDashed aria-hidden="true" />Not active in this build</span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -184,7 +192,7 @@ function FilesPage({ defaultFilesName }: { defaultFilesName: string }) {
       <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files without a project live here.</p></div></section>
       {error && <div className="inline-error" role="alert">{error.message}</div>}
       {files === null ? <div className="content-loading" aria-busy="true">Loading files...</div> : files.length === 0 ? (
-        <section className="empty-state"><span className="state-icon"><FileStack aria-hidden="true" /></span><h2>No files yet</h2><p>Registered sources will appear in Default Files.</p></section>
+        <section className="empty-state"><span className="state-icon"><FileStack aria-hidden="true" /></span><h2>No files yet</h2><p>Files you upload, create or save without a project will appear here.</p></section>
       ) : (
         <div className="file-table" role="table" aria-label="Workspace files"><div className="file-row file-header" role="row"><span>Name</span><span>Location</span><span>Source</span></div>{files.map((file) => <div className="file-row" role="row" key={file.file_id}><span className="file-name"><FileStack aria-hidden="true" />{file.display_name}</span><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span><span>{file.current_source_version_id}</span></div>)}</div>
       )}

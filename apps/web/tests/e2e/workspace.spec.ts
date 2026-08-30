@@ -16,6 +16,17 @@ async function openWorkspace(page: Page, suffix: string, theme: "light" | "dark"
   await expect(page.getByTestId("workspace-home")).toBeVisible();
 }
 
+async function clearFocus(page: Page) {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+}
+
+const screenshotOptions = {
+  animations: "disabled",
+  caret: "hide",
+  scale: "css",
+  maxDiffPixelRatio: 0,
+} as const;
+
 test("real API onboarding, project creation, and Default Files journey", async ({ page }) => {
   await openWorkspace(page, "journey");
   await page.getByRole("link", { name: "Projects" }).first().click();
@@ -27,6 +38,31 @@ test("real API onboarding, project creation, and Default Files journey", async (
   await page.getByRole("link", { name: "Files" }).first().click();
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "No files yet" })).toBeVisible();
+  await expect(page.getByText("Files you upload, create or save without a project will appear here.")).toBeVisible();
+});
+
+test("customer copy discloses testing and inactive product areas without internal or monetary language", async ({ page }) => {
+  await openWorkspace(page, "customer-copy");
+  const testingStatus = page.locator(".testing-status");
+  await expect(testingStatus).toContainText("Free during testing");
+  await expect(testingStatus).toContainText(/0 files.*0 jobs/);
+  await expect(testingStatus).not.toContainText(/\$|price|credit/i);
+
+  const expectedOutcomes = [
+    ["Image & Graphic Studio", "Enhance, design and prepare visuals"],
+    ["Create PDF", "Build PDFs from pages, images and rich content"],
+    ["Edit & Manage PDF", "Edit, organize, protect and convert PDFs"],
+    ["Print & Production", "Check quality and prepare production outputs"],
+  ] as const;
+  const tiles = page.locator(".outcome-tile");
+  await expect(tiles).toHaveCount(4);
+  for (const [label, description] of expectedOutcomes) {
+    const tile = tiles.filter({ hasText: label });
+    await expect(tile).toContainText(description);
+    await expect(tile).toContainText("Not active in this build");
+  }
+  await expect(page.getByText("Available in a later recovery")).toHaveCount(0);
+  await expect(tiles.locator("a, button")).toHaveCount(0);
 });
 
 test("loading, access-denied, and API error states are customer-safe", async ({ page }) => {
@@ -57,6 +93,17 @@ for (const route of ["home", "projects", "files"] as const) {
   });
 }
 
+test("collapsed tablet navigation retains accessible names", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await openWorkspace(page, "axe-tablet-navigation");
+  const primaryNavigation = page.getByRole("navigation", { name: "Workspace navigation" }).first();
+  for (const name of ["Home", "Projects", "Files"]) {
+    await expect(primaryNavigation.getByRole("link", { name })).toBeVisible();
+  }
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
 test("phone navigation remains operable without page overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page, "phone-nav");
@@ -67,6 +114,34 @@ test("phone navigation remains operable without page overflow", async ({ page })
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`${theme} keyboard focus uses the accessible brand token`, async ({ page }) => {
+    await openWorkspace(page, `focus-${theme}`, theme);
+    await page.keyboard.press("Tab");
+    const focus = page.locator(":focus");
+    await expect(focus).toBeVisible();
+    const styles = await focus.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      const root = getComputedStyle(document.documentElement);
+      return {
+        outlineColor: computed.outlineColor,
+        outlineStyle: computed.outlineStyle,
+        outlineWidth: computed.outlineWidth,
+        focusToken: root.getPropertyValue("--focus-ring").trim(),
+        errorToken: root.getPropertyValue("--error").trim(),
+      };
+    });
+    expect(styles).toEqual({
+      outlineColor: theme === "light" ? "rgb(0, 138, 126)" : "rgb(112, 210, 198)",
+      outlineStyle: "solid",
+      outlineWidth: "3px",
+      focusToken: theme === "light" ? "#008a7e" : "#70d2c6",
+      errorToken: theme === "light" ? "#a43e26" : "#ff9a7a",
+    });
+    expect(styles.focusToken).not.toBe(styles.errorToken);
+  });
+}
 
 const visualCases = [
   { name: "desktop", width: 1440, height: 900 },
@@ -79,12 +154,45 @@ for (const viewport of visualCases) {
     test(`@visual ${viewport.name} ${theme} workspace home`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await openWorkspace(page, `visual-${viewport.name}-${theme}`, theme);
-      await expect(page).toHaveScreenshot(`workspace-home-${viewport.width}x${viewport.height}-${theme}.png`, {
-        animations: "disabled",
-        caret: "hide",
-        scale: "css",
-        maxDiffPixelRatio: 0,
-      });
+      await expect(page).toHaveScreenshot(`workspace-home-${viewport.width}x${viewport.height}-${theme}.png`, screenshotOptions);
     });
   }
 }
+
+test("@visual tablet light Projects", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await openWorkspace(page, "visual-tablet-projects");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await expect(page.getByRole("heading", { name: "No projects yet" })).toBeVisible();
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-projects-768x1024-light.png", screenshotOptions);
+});
+
+test("@visual phone light Home with navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWorkspace(page, "visual-phone-navigation");
+  await page.getByTitle("Open navigation").click();
+  await expect(page.locator(".sidebar.open")).toBeVisible();
+  await expect(page).toHaveScreenshot("workspace-home-navigation-390x844-light.png", screenshotOptions);
+});
+
+test("@visual phone light Default Files", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWorkspace(page, "visual-phone-files");
+  await page.locator(".mobile-nav").getByRole("link", { name: "Files" }).click();
+  await expect(page.getByRole("heading", { name: "No files yet" })).toBeVisible();
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-files-390x844-light.png", screenshotOptions);
+});
+
+test("@visual desktop light Projects with one created project", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "visual-created-project");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await page.getByRole("button", { name: "New project" }).first().click();
+  await page.getByLabel("Project name").fill("Retail launch");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await expect(page.getByRole("heading", { name: "Retail launch" })).toBeVisible();
+  await clearFocus(page);
+  await expect(page).toHaveScreenshot("workspace-projects-created-1440x900-light.png", screenshotOptions);
+});

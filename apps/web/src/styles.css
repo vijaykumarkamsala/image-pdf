@@ -9,7 +9,8 @@
   --accent: #08746b;
   --accent-strong: #075b55;
   --accent-soft: #dcefeb;
-  --focus: #b84924;
+  --focus-ring: #008a7e;
+  --error: #a43e26;
   --danger-soft: #fbe8e2;
   --shadow: 0 12px 30px rgba(20, 31, 28, 0.1);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -27,7 +28,8 @@
   --accent: #58c7bb;
   --accent-strong: #83dacf;
   --accent-soft: #1d3e39;
-  --focus: #f29a73;
+  --focus-ring: #70d2c6;
+  --error: #ff9a7a;
   --danger-soft: #4a2b25;
   --shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
 }
@@ -38,7 +40,7 @@ body { margin: 0; background: var(--canvas); color: var(--ink); }
 button, input { font: inherit; letter-spacing: 0; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .workspace-shell { min-height: 100vh; display: grid; grid-template-columns: 244px minmax(0, 1fr); }
@@ -86,7 +88,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .section-heading h2 { margin: 0; font-size: 17px; }
 
 .outcome-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.outcome-tile { display: flex; flex-direction: column; justify-content: space-between; min-height: 174px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.outcome-tile { display: flex; flex-direction: column; justify-content: space-between; min-height: 204px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .outcome-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 7px; }
 .outcome-icon svg { width: 21px; }
 .outcome-1 { color: #086c65; background: #dcefeb; }
@@ -97,8 +99,11 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 :root[data-theme="dark"] .outcome-2 { color: #f2c56e; background: #40331f; }
 :root[data-theme="dark"] .outcome-3 { color: #ef9a82; background: #422a24; }
 :root[data-theme="dark"] .outcome-4 { color: #9fbce4; background: #24344a; }
-.outcome-tile h3 { margin: 18px 0 5px; font-size: 15px; line-height: 1.35; }
-.outcome-tile div span { color: var(--muted); font-size: 12px; }
+.outcome-copy { display: grid; gap: 5px; }
+.outcome-tile h3 { margin: 18px 0 0; font-size: 15px; line-height: 1.35; }
+.outcome-copy p { min-height: 34px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.build-indicator { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.build-indicator svg { width: 13px; height: 13px; }
 .activity-band { display: grid; grid-template-columns: 1fr 220px; gap: 30px; margin-top: 32px; padding: 28px 30px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); }
 .activity-band h2 { margin: 5px 0 8px; font-size: 22px; }
 .activity-band p { margin: 0; color: var(--muted); }
@@ -113,7 +118,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .state-icon svg { width: 24px; }
 .content-loading { padding: 50px 0; color: var(--muted); text-align: center; }
 .inline-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; border: 1px solid #d38a75; border-radius: 7px; background: var(--danger-soft); }
-.inline-error button { border: 0; color: var(--focus); background: transparent; font-weight: 700; cursor: pointer; }
+.inline-error button { border: 0; color: var(--error); background: transparent; font-weight: 700; cursor: pointer; }
 
 .project-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .project-card { position: relative; display: flex; align-items: center; gap: 14px; min-height: 100px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -153,7 +158,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .primary-nav a { justify-content: center; padding: 0; }
   .testing-status { justify-content: center; padding: 12px 0; }
   .outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .outcome-tile { min-height: 148px; }
+  .outcome-tile { min-height: 186px; }
   .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -178,8 +183,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .home-heading { display: grid; }
   .home-heading .button { width: 100%; }
   .outcome-grid { grid-template-columns: 1fr; }
-  .outcome-tile { min-height: 112px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 15px; }
+  .outcome-tile { min-height: 142px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 15px; }
   .outcome-tile h3 { margin-top: 0; }
+  .outcome-copy p { min-height: 0; }
   .activity-band { grid-template-columns: 1fr; padding: 22px; }
   .permission-fact { padding: 18px 0 0; border-top: 1px solid var(--line); border-left: 0; }
   .project-grid { grid-template-columns: 1fr; }
