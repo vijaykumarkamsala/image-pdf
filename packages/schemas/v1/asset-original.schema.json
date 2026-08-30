@@ -1,0 +1,129 @@
+{
+  "$defs": {
+    "StorageObjectRef": {
+      "additionalProperties": false,
+      "description": "Reference to immutable bytes held outside the relational database.",
+      "properties": {
+        "byte_size": {
+          "minimum": 0,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "media_type": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "object_name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Object Name",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "storage_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Storage Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "storage_id",
+        "object_name",
+        "sha256",
+        "media_type",
+        "byte_size"
+      ],
+      "title": "StorageObjectRef",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/asset-original.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An immutable uploaded/source asset.",
+  "properties": {
+    "asset_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "detected_media_type": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Detected Media Type",
+      "type": "string"
+    },
+    "filename": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Filename",
+      "type": "string"
+    },
+    "original": {
+      "$ref": "#/$defs/StorageObjectRef"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "default": "1.6.0",
+      "description": "Contract version. Unsupported versions must be rejected before work starts.",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sensitive_metadata_removed_by_default": {
+      "default": true,
+      "title": "Sensitive Metadata Removed By Default",
+      "type": "boolean"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "asset_id",
+    "workspace_id",
+    "original",
+    "filename",
+    "detected_media_type"
+  ],
+  "title": "AssetOriginal",
+  "type": "object"
+}

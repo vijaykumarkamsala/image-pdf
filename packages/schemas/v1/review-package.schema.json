@@ -167,7 +167,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.5.0",
+      "default": "1.6.0",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "title": "Schema Version",
       "type": "string"

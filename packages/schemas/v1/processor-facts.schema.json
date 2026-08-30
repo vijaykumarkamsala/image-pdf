@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "Disposition": {
+      "description": "Commercial standing of one component.\n\n``UNKNOWN`` is the default and is deliberately *not* a synonym for \"probably\nfine\": it permits research but blocks every commercial purpose.",
+      "enum": [
+        "approved",
+        "review_required",
+        "non_commercial",
+        "unknown",
+        "blocked"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "OperationKind": {
+      "enum": [
+        "noop",
+        "inspect_only",
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "adjust",
+        "sharpen",
+        "denoise",
+        "document_clean",
+        "enlarge",
+        "straighten_page",
+        "print_ready",
+        "convert",
+        "super_resolution",
+        "ai_denoise",
+        "jpeg_artifact_repair",
+        "face_restore",
+        "damage_repair",
+        "colourise",
+        "background_remove",
+        "background_replace"
+      ],
+      "title": "OperationKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/processor-facts.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Worker-reported processor facts for routing, provenance and support.",
+  "properties": {
+    "commercial_disposition": {
+      "$ref": "#/$defs/Disposition",
+      "default": "unknown"
+    },
+    "deterministic": {
+      "default": true,
+      "title": "Deterministic",
+      "type": "boolean"
+    },
+    "processor_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Processor Id",
+      "type": "string"
+    },
+    "requires_gpu": {
+      "default": false,
+      "title": "Requires Gpu",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.6.0",
+      "description": "Contract version. Unsupported versions must be rejected before work starts.",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "supports_operations": {
+      "items": {
+        "$ref": "#/$defs/OperationKind"
+      },
+      "title": "Supports Operations",
+      "type": "array"
+    },
+    "version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "processor_id",
+    "version",
+    "supports_operations"
+  ],
+  "title": "ProcessorFacts",
+  "type": "object"
+}

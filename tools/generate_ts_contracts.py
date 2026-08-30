@@ -58,6 +58,20 @@ ROOTS = (
     "process-outcome",
     "benchmark-report",
     "licence-disposition",
+    "workspace-reference",
+    "project",
+    "asset-original",
+    "source-version",
+    "document-version",
+    "processing-job",
+    "export-request",
+    "export-result",
+    "storage-object-ref",
+    "product-error",
+    "trace-context",
+    "provenance-record",
+    "processor-facts",
+    "licence-release-gate",
 )
 
 

@@ -1,0 +1,213 @@
+{
+  "$defs": {
+    "Disposition": {
+      "description": "Commercial standing of one component.\n\n``UNKNOWN`` is the default and is deliberately *not* a synonym for \"probably\nfine\": it permits research but blocks every commercial purpose.",
+      "enum": [
+        "approved",
+        "review_required",
+        "non_commercial",
+        "unknown",
+        "blocked"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "FailureCategory": {
+      "description": "The ten normalised categories from USER_FLOWS_AND_EDGE_CASES.md section 18.",
+      "enum": [
+        "invalid_input",
+        "unsupported_format",
+        "unsupported_feature",
+        "safety_limit",
+        "entitlement_required",
+        "queue_capacity",
+        "processor_unavailable",
+        "processor_quality_failure",
+        "temporary_infrastructure",
+        "permanent_processing",
+        "cancelled"
+      ],
+      "title": "FailureCategory",
+      "type": "string"
+    },
+    "NextAction": {
+      "description": "What the caller (ultimately, the customer) can do about a failure.",
+      "enum": [
+        "change_settings",
+        "retry",
+        "alternate_route",
+        "wait",
+        "purchase_capacity",
+        "contact_support",
+        "none"
+      ],
+      "title": "NextAction",
+      "type": "string"
+    },
+    "ProductError": {
+      "additionalProperties": false,
+      "description": "Structured customer-safe error envelope.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FailureCategory"
+        },
+        "code": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "next_action": {
+          "$ref": "#/$defs/NextAction"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "error"
+        },
+        "trace": {
+          "$ref": "#/$defs/TraceContext"
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "message",
+        "next_action",
+        "trace"
+      ],
+      "title": "ProductError",
+      "type": "object"
+    },
+    "RunPurpose": {
+      "description": "What a run is for. This is the axis the gate turns on (D-038).",
+      "enum": [
+        "local_research",
+        "internal_benchmark",
+        "public_demo",
+        "staging",
+        "production"
+      ],
+      "title": "RunPurpose",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "error",
+        "warning"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "TraceContext": {
+      "additionalProperties": false,
+      "description": "Trace context propagated across browser, API, queue, worker and notification paths.",
+      "properties": {
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "trace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_id"
+      ],
+      "title": "TraceContext",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/licence-release-gate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Release eligibility decision for a component, processor, model, font or provider.",
+  "properties": {
+    "blockers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProductError"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "component_ids": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "title": "Component Ids",
+      "type": "array"
+    },
+    "effective_disposition": {
+      "$ref": "#/$defs/Disposition"
+    },
+    "gate_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Gate Id",
+      "type": "string"
+    },
+    "permitted": {
+      "title": "Permitted",
+      "type": "boolean"
+    },
+    "purpose": {
+      "$ref": "#/$defs/RunPurpose"
+    },
+    "schema_version": {
+      "default": "1.6.0",
+      "description": "Contract version. Unsupported versions must be rejected before work starts.",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "gate_id",
+    "purpose",
+    "component_ids",
+    "permitted",
+    "effective_disposition"
+  ],
+  "title": "LicenceReleaseGate",
+  "type": "object"
+}

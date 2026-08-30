@@ -14,7 +14,7 @@
 // --------------------------------------------------------------- version --
 
 /** The contract version. Mirrors ipw.contracts.version.SCHEMA_VERSION. */
-export const SCHEMA_VERSION = "1.5.0";
+export const SCHEMA_VERSION = "1.6.0";
 
 
 // ---------------------------------------------------------------- shared --
@@ -250,6 +250,10 @@ export interface EnvironmentRecord {
   python_version?: string;
 }
 
+/** Export result state. */
+export type ExportState = "requested" | "rendered" | "failed" | "cancelled";
+export const ExportStateValues: readonly ExportState[] = ["requested", "rendered", "failed", "cancelled"] as const;
+
 /**
  * Reference to an asset held outside Git in protected storage.
  *
@@ -339,6 +343,24 @@ export interface HardwareRecord {
 export interface InspectOnlySettings {
   kind?: "inspect_only";
 }
+
+/** Checkpoint interface used by retry and cancellation-aware workers. */
+export interface JobCheckpoint {
+  checkpoint_id: string;
+  completed_item_ids?: string[];
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  sequence: number;
+  state_ref?: StorageObjectRef | null;
+}
+
+/** Durable background job type. */
+export type JobKind = "inspect" | "process" | "export" | "ocr" | "pdf";
+export const JobKindValues: readonly JobKind[] = ["inspect", "process", "export", "ocr", "pdf"] as const;
+
+/** Durable job state. */
+export type JobState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export const JobStateValues: readonly JobState[] = ["queued", "running", "succeeded", "failed", "cancelled"] as const;
 
 /**
  * Learned JPEG compression-artifact reduction.
@@ -582,6 +604,22 @@ export interface ProcessorIdentityDigest {
   weights_sha256?: string | null;
 }
 
+/** Structured customer-safe error envelope. */
+export interface ProductError {
+  category: FailureCategory;
+  code: string;
+  message: string;
+  next_action: NextAction;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  severity?: Severity;
+  trace: TraceContext;
+}
+
+/** Project hierarchy node type. */
+export type ProjectNodeKind = "project" | "collection" | "subproject";
+export const ProjectNodeKindValues: readonly ProjectNodeKind[] = ["project", "collection", "subproject"] as const;
+
 /**
  * Where an asset came from and what may lawfully be done with it.
  *
@@ -603,6 +641,19 @@ export interface Provenance {
   public_demo_permitted: boolean;
   /** Where the asset came from, e.g. 'generated-in-repo'. */
   source: string;
+}
+
+/** Lineage for a derivative, export, processor result or document version. */
+export interface ProvenanceRecord {
+  ai_region_map_ref?: StorageObjectRef | null;
+  input_refs: string[];
+  model_weight_sha256?: string | null;
+  processor_id?: string | null;
+  processor_version?: string | null;
+  provenance_id: string;
+  recipe_name: string;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
 }
 
 /** Fully deterministic report content, derived from validated metadata only. */
@@ -752,6 +803,19 @@ export interface SharpenSettings {
   radius_x100?: number;
 }
 
+/** Reference to immutable bytes held outside the relational database. */
+export interface StorageObjectRef {
+  byte_size: number;
+  media_type: string;
+  object_name: string;
+  region?: string | null;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  sha256: string;
+  storage_id: string;
+}
+
 /**
  * Flatten a page photographed at an angle into a rectangle.
  *
@@ -815,6 +879,15 @@ export interface Timing {
   total_ns?: number;
 }
 
+/** Trace context propagated across browser, API, queue, worker and notification paths. */
+export interface TraceContext {
+  idempotency_key?: string | null;
+  request_id?: string | null;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  trace_id: string;
+}
+
 /**
  * Serialisation format of a weight file.
  *
@@ -861,6 +934,19 @@ export interface AssetManifest {
   schema_version?: string;
 }
 
+/** An immutable uploaded/source asset. */
+export interface AssetOriginal {
+  asset_id: string;
+  detected_media_type: string;
+  filename: string;
+  original: StorageObjectRef;
+  project_id?: string | null;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  sensitive_metadata_removed_by_default?: boolean;
+  workspace_id: string;
+}
+
 /** The document written by ``bench report``. */
 export interface BenchmarkReport {
   default_purpose?: RunPurpose;
@@ -895,6 +981,19 @@ export interface BenchmarkRun {
   summary?: RunSummary;
 }
 
+/** Editable native project/document version. */
+export interface DocumentVersion {
+  approval_state?: string;
+  document_version_id: string;
+  package_ref: StorageObjectRef;
+  parent_document_version_id?: string | null;
+  project_id: string;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  source_version_ids?: string[];
+  workspace_id: string;
+}
+
 /** Result of ``Processor.estimate`` - a prediction, not an observation. */
 export interface Estimate {
   confidence?: string;
@@ -903,6 +1002,31 @@ export interface Estimate {
   estimated_output_bytes?: number | null;
   estimated_peak_memory_bytes: number;
   notes?: string | null;
+}
+
+/** Request to render one or more outputs from the editable master. */
+export interface ExportRequest {
+  document_version_id: string;
+  export_request_id: string;
+  idempotency_key: string;
+  profile_id: string;
+  requested_formats: string[];
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  trace: TraceContext;
+  workspace_id: string;
+}
+
+/** Rendered export or failed export outcome. */
+export interface ExportResult {
+  error?: ProductError | null;
+  export_result_id: string;
+  outputs?: StorageObjectRef[];
+  provenance?: ProvenanceRecord | null;
+  request_id: string;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  state: ExportState;
 }
 
 /**
@@ -981,6 +1105,18 @@ export interface LicenceDisposition {
   weights_sha256?: string | null;
 }
 
+/** Release eligibility decision for a component, processor, model, font or provider. */
+export interface LicenceReleaseGate {
+  blockers?: ProductError[];
+  component_ids: string[];
+  effective_disposition: Disposition;
+  gate_id: string;
+  permitted: boolean;
+  purpose: RunPurpose;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+}
+
 /** The result of one ``process`` call. Success and failure are both normal. */
 export interface ProcessOutcome {
   failure?: NormalizedFailure | null;
@@ -989,4 +1125,66 @@ export interface ProcessOutcome {
   notes?: string | null;
   output?: OutputArtifact | null;
   succeeded: boolean;
+}
+
+/** Versioned queue message for processing/export work. */
+export interface ProcessingJob {
+  attempt?: number;
+  checkpoint?: JobCheckpoint | null;
+  idempotency_key: string;
+  job_id: string;
+  kind: JobKind;
+  operation?: OperationKind | null;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  source_refs: string[];
+  state?: JobState;
+  trace: TraceContext;
+  workspace_id: string;
+}
+
+/** Worker-reported processor facts for routing, provenance and support. */
+export interface ProcessorFacts {
+  commercial_disposition?: Disposition;
+  deterministic?: boolean;
+  processor_id: string;
+  requires_gpu?: boolean;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  supports_operations: OperationKind[];
+  version: string;
+}
+
+/** Project, collection or subproject metadata. */
+export interface Project {
+  archived?: boolean;
+  kind?: ProjectNodeKind;
+  name: string;
+  parent_id?: string | null;
+  project_id: string;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  workspace_id: string;
+}
+
+/** A source version created from an original, cloud-linked update or imported file. */
+export interface SourceVersion {
+  asset_id: string;
+  external_source_id?: string | null;
+  frozen?: boolean;
+  previous_source_version_id?: string | null;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  source: StorageObjectRef;
+  source_version_id: string;
+}
+
+/** Stable reference to a workspace without classifying it as individual or business. */
+export interface WorkspaceReference {
+  default_project_id?: string | null;
+  /** Workspace home region where storage/processing should stay when supported. */
+  home_region?: string | null;
+  /** Contract version. Unsupported versions must be rejected before work starts. */
+  schema_version?: string;
+  workspace_id: string;
 }

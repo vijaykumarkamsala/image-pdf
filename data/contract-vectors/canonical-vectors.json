@@ -1,10 +1,10 @@
 {
   "identities": [
     {
-      "id": "run_ye3gn2wggzulz7u6sky4biiiifhtlzdt",
+      "id": "run_lgcfwr7mgkomke24rh4bhr4fnsbrr2wq",
       "identity_document": {
         "_id_kind": "run",
-        "_schema_version": "1.5.0",
+        "_schema_version": "1.6.0",
         "identity": {
           "example": "value",
           "n": 7
@@ -19,10 +19,10 @@
       }
     },
     {
-      "id": "res_jw2kitk7fnvzylofnqj6p44p6dkabtgc",
+      "id": "res_drmwsmgmilgtnqkqn3tpk6xrlnhvyqpt",
       "identity_document": {
         "_id_kind": "result",
-        "_schema_version": "1.5.0",
+        "_schema_version": "1.6.0",
         "identity": {
           "example": "value",
           "n": 7
@@ -37,10 +37,10 @@
       }
     },
     {
-      "id": "rep_xolfnrsjjkq4rhu46ztzbbldxll277fo",
+      "id": "rep_rfh7xvhebv7rujpvuoojdkhsd362fvmp",
       "identity_document": {
         "_id_kind": "report",
-        "_schema_version": "1.5.0",
+        "_schema_version": "1.6.0",
         "identity": {
           "example": "value",
           "n": 7
@@ -55,10 +55,10 @@
       }
     },
     {
-      "id": "mfst_snjztdshv5x3hadoqnzuajr56xmbt3px",
+      "id": "mfst_sdvudzlotdgvf5y32em7arfrr2n7hm7a",
       "identity_document": {
         "_id_kind": "manifest",
-        "_schema_version": "1.5.0",
+        "_schema_version": "1.6.0",
         "identity": {
           "example": "value",
           "n": 7
@@ -125,7 +125,7 @@
       "why": "an empty key is not addressable"
     }
   ],
-  "schema_version": "1.5.0",
+  "schema_version": "1.6.0",
   "valid": [
     {
       "canonical_byte_length": 2,

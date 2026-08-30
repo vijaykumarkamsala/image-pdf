@@ -1,0 +1,296 @@
+{
+  "$defs": {
+    "JobCheckpoint": {
+      "additionalProperties": false,
+      "description": "Checkpoint interface used by retry and cancellation-aware workers.",
+      "properties": {
+        "checkpoint_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Checkpoint Id",
+          "type": "string"
+        },
+        "completed_item_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+            "type": "string"
+          },
+          "title": "Completed Item Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sequence": {
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "state_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StorageObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "checkpoint_id",
+        "sequence"
+      ],
+      "title": "JobCheckpoint",
+      "type": "object"
+    },
+    "JobKind": {
+      "description": "Durable background job type.",
+      "enum": [
+        "inspect",
+        "process",
+        "export",
+        "ocr",
+        "pdf"
+      ],
+      "title": "JobKind",
+      "type": "string"
+    },
+    "JobState": {
+      "description": "Durable job state.",
+      "enum": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "JobState",
+      "type": "string"
+    },
+    "OperationKind": {
+      "enum": [
+        "noop",
+        "inspect_only",
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "adjust",
+        "sharpen",
+        "denoise",
+        "document_clean",
+        "enlarge",
+        "straighten_page",
+        "print_ready",
+        "convert",
+        "super_resolution",
+        "ai_denoise",
+        "jpeg_artifact_repair",
+        "face_restore",
+        "damage_repair",
+        "colourise",
+        "background_remove",
+        "background_replace"
+      ],
+      "title": "OperationKind",
+      "type": "string"
+    },
+    "StorageObjectRef": {
+      "additionalProperties": false,
+      "description": "Reference to immutable bytes held outside the relational database.",
+      "properties": {
+        "byte_size": {
+          "minimum": 0,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "media_type": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "object_name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Object Name",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "storage_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Storage Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "storage_id",
+        "object_name",
+        "sha256",
+        "media_type",
+        "byte_size"
+      ],
+      "title": "StorageObjectRef",
+      "type": "object"
+    },
+    "TraceContext": {
+      "additionalProperties": false,
+      "description": "Trace context propagated across browser, API, queue, worker and notification paths.",
+      "properties": {
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "trace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_id"
+      ],
+      "title": "TraceContext",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/processing-job.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Versioned queue message for processing/export work.",
+  "properties": {
+    "attempt": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "checkpoint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/JobCheckpoint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "idempotency_key": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/JobKind"
+    },
+    "operation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "default": "1.6.0",
+      "description": "Contract version. Unsupported versions must be rejected before work starts.",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_refs": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "title": "Source Refs",
+      "type": "array"
+    },
+    "state": {
+      "$ref": "#/$defs/JobState",
+      "default": "queued"
+    },
+    "trace": {
+      "$ref": "#/$defs/TraceContext"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "workspace_id",
+    "kind",
+    "trace",
+    "idempotency_key",
+    "source_refs"
+  ],
+  "title": "ProcessingJob",
+  "type": "object"
+}

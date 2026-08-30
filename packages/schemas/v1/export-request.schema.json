@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "TraceContext": {
+      "additionalProperties": false,
+      "description": "Trace context propagated across browser, API, queue, worker and notification paths.",
+      "properties": {
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "default": "1.6.0",
+          "description": "Contract version. Unsupported versions must be rejected before work starts.",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "trace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_id"
+      ],
+      "title": "TraceContext",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/v1/export-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Request to render one or more outputs from the editable master.",
+  "properties": {
+    "document_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Version Id",
+      "type": "string"
+    },
+    "export_request_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Export Request Id",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "profile_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "requested_formats": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Requested Formats",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.6.0",
+      "description": "Contract version. Unsupported versions must be rejected before work starts.",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "trace": {
+      "$ref": "#/$defs/TraceContext"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "export_request_id",
+    "workspace_id",
+    "document_version_id",
+    "trace",
+    "profile_id",
+    "requested_formats",
+    "idempotency_key"
+  ],
+  "title": "ExportRequest",
+  "type": "object"
+}

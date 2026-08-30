@@ -27,6 +27,22 @@ from ipw.contracts.manifest import AssetManifest
 from ipw.contracts.measurement import Estimate, Measurement
 from ipw.contracts.operation import Operation
 from ipw.contracts.processor import ProcessorIdentity, ProcessOutcome
+from ipw.contracts.product import (
+    AssetOriginal,
+    DocumentVersion,
+    ExportRequest,
+    ExportResult,
+    LicenceReleaseGate,
+    ProcessingJob,
+    ProcessorFacts,
+    ProductError,
+    Project,
+    ProvenanceRecord,
+    SourceVersion,
+    StorageObjectRef,
+    TraceContext,
+    WorkspaceReference,
+)
 from ipw.contracts.report import BenchmarkReport
 from ipw.contracts.result import AssetResult
 from ipw.contracts.review import (
@@ -67,6 +83,22 @@ SCHEMA_EXPORTS: dict[str, type[BaseModel]] = {
     "sealed-key": SealedKey,
     "review-score": ReviewScore,
     "review-summary": ReviewSummary,
+    # Product V2 foundation contracts (Recovery 1). These are exported through
+    # the existing path so every language sees the same source of truth.
+    "workspace-reference": WorkspaceReference,
+    "project": Project,
+    "asset-original": AssetOriginal,
+    "source-version": SourceVersion,
+    "document-version": DocumentVersion,
+    "processing-job": ProcessingJob,
+    "export-request": ExportRequest,
+    "export-result": ExportResult,
+    "storage-object-ref": StorageObjectRef,
+    "product-error": ProductError,
+    "trace-context": TraceContext,
+    "provenance-record": ProvenanceRecord,
+    "processor-facts": ProcessorFacts,
+    "licence-release-gate": LicenceReleaseGate,
 }
 
 

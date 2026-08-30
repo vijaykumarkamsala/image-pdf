@@ -16,7 +16,7 @@ produced under different contract versions must not silently compare equal.
 
 from __future__ import annotations
 
-SCHEMA_VERSION = "1.5.0"
+SCHEMA_VERSION = "1.6.0"
 """Version of the benchmark contract defined in :mod:`ipw.contracts`.
 
 History
@@ -58,6 +58,11 @@ History
           rather than the identity because it depends on the image, and a
           per-image value in the identity would give one processor several
           identities.
+``1.6.0`` Recovery 1, additive: Product V2 foundation contracts for
+          workspaces, projects, storage object references, immutable originals,
+          source versions, editable document versions, processing jobs, export
+          requests/results, trace context, provenance, processor facts and
+          licence release gates.
 """
 
 SCHEMA_MAJOR = "v1"
