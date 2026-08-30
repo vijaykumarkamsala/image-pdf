@@ -17,6 +17,7 @@
     "@types/react-dom": "19.2.5"
   },
   "scripts": {
+    "dev": "vite",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.ts",
     "build": "tsc --noEmit && vite build"

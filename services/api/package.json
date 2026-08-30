@@ -20,6 +20,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "test": "npm run build --silent && node --test dist/tests/*.test.js"
+    "test": "npm run build --silent && node --test dist/tests/*.test.js",
+    "start": "node dist/src/main.js"
   }
 }
