@@ -12,7 +12,7 @@
 #
 # Stages:
 #   poc         validated before architecture approval; not production code
-#   shared      language-neutral generated artifacts; safe for any consumer
+#   shared      reviewed reusable artifacts; safe for poc and production consumers
 #   production  post-architecture-approval application code (none yet)
 #   tooling     developer tooling; never shipped
 
@@ -27,9 +27,9 @@ default_python = ">=3.11"
 path = "packages/contracts"
 name = "ipw-contracts"
 language = "python"
-stage = "poc"
+stage = "shared"
 task = "POC-001"
-role = "Source of truth for the benchmark contract. Depends on nothing in this repo."
+role = "Source of truth for benchmark and Product V2 contracts. Depends on nothing in this repo."
 
 [[workspace]]
 path = "packages/processors"
@@ -52,9 +52,9 @@ role = "JSON Schema generated from ipw-contracts. Language-neutral; do not hand-
 path = "packages/contracts-ts"
 name = "ipw-contracts-ts"
 language = "typescript"
-stage = "poc"
+stage = "shared"
 task = "POC-005"
-role = "TypeScript view of the contract: generated types plus hand-written canonicalisation and digest code, verified against the same vectors as the Python implementation."
+role = "Shared TypeScript view of the contract: generated types plus hand-written canonicalisation and digest code, verified against the same vectors as the Python implementation."
 depends_on = ["ipw-schemas"]
 
 [[workspace]]

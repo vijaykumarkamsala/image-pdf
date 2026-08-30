@@ -29,6 +29,10 @@ MODULE_OWNER = {
     "ipw.contracts": "ipw-contracts",
     "ipw.processors": "ipw-processors",
     "ipw.benchmark_runner": "ipw-benchmark-runner",
+    "ipw.storage": "ipw-storage",
+    "ipw.jobs": "ipw-jobs",
+    "ipw.licence_registry": "ipw-licence-registry",
+    "ipw.processing_worker": "ipw-processing-worker",
 }
 
 # Permitted internal dependency edges. Anything else is a layering violation.
@@ -38,7 +42,19 @@ ALLOWED_EDGES = {
     ("ipw-processors", "ipw-processors"),
     ("ipw-benchmark-runner", "ipw-contracts"),
     ("ipw-benchmark-runner", "ipw-processors"),
+    ("ipw-benchmark-runner", "ipw-licence-registry"),
     ("ipw-benchmark-runner", "ipw-benchmark-runner"),
+    ("ipw-storage", "ipw-contracts"),
+    ("ipw-storage", "ipw-storage"),
+    ("ipw-jobs", "ipw-contracts"),
+    ("ipw-jobs", "ipw-jobs"),
+    ("ipw-licence-registry", "ipw-contracts"),
+    ("ipw-licence-registry", "ipw-licence-registry"),
+    ("ipw-processing-worker", "ipw-contracts"),
+    ("ipw-processing-worker", "ipw-jobs"),
+    ("ipw-processing-worker", "ipw-storage"),
+    ("ipw-processing-worker", "ipw-licence-registry"),
+    ("ipw-processing-worker", "ipw-processing-worker"),
     # The application service sits above everything and is depended on by
     # nothing. Admitted deliberately: an edge list that grew by itself would
     # stop being a constraint.
@@ -219,17 +235,20 @@ class TestStageSeparation:
             "between workspaces, reviewed as such:\n" + "\n".join(violations)
         )
 
-    def test_no_production_workspace_exists_yet(self, workspaces: list[dict[str, Any]]) -> None:
-        """A tripwire, not a preference.
-
-        If this fails, production code has entered the repository. That requires
-        approved architecture (delivery step 3 in the blueprint), so the failure
-        should prompt a review rather than an edit to this test.
-        """
-        production = [w["name"] for w in workspaces if w["stage"] == "production"]
-        assert production == [], (
-            f"production workspaces declared: {production}. Architecture approval is a "
-            "prerequisite (MASTER_PRODUCT_BLUEPRINT.md section 29)."
+    def test_production_workspaces_are_recovery_scoped(
+        self, workspaces: list[dict[str, Any]]
+    ) -> None:
+        """Production code is allowed only after V2 recovery approval."""
+        production = [w for w in workspaces if w["stage"] == "production"]
+        assert production, "Recovery 1 should declare the approved production foundation."
+        offenders = [
+            f"{w['name']} ({w['task']})"
+            for w in production
+            if not str(w["task"]).startswith("RECOVERY-")
+        ]
+        assert offenders == [], (
+            "production workspaces must stay tied to an approved recovery task: "
+            + ", ".join(offenders)
         )
 
 
