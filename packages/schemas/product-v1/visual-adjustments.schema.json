@@ -1,0 +1,63 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/visual-adjustments.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "brightness": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": -100,
+      "title": "Brightness",
+      "type": "number"
+    },
+    "contrast": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": -100,
+      "title": "Contrast",
+      "type": "number"
+    },
+    "exposure": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": -100,
+      "title": "Exposure",
+      "type": "number"
+    },
+    "saturation": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": -100,
+      "title": "Saturation",
+      "type": "number"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sharpness": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Sharpness",
+      "type": "number"
+    },
+    "temperature": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": -100,
+      "title": "Temperature",
+      "type": "number"
+    },
+    "tint": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": -100,
+      "title": "Tint",
+      "type": "number"
+    }
+  },
+  "title": "VisualAdjustments",
+  "type": "object"
+}

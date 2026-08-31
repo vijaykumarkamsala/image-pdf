@@ -1,0 +1,40 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/document-variant-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "active": {
+      "default": false,
+      "title": "Active",
+      "type": "boolean"
+    },
+    "based_on_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Based On Version Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "variant_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Variant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "variant_id",
+    "name",
+    "based_on_version_id"
+  ],
+  "title": "DocumentVariantRecord",
+  "type": "object"
+}

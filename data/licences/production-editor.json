@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "name": "production-editor-licence-register",
+  "description": "Recovery 2D browser renderer dependency evidence.",
+  "components": [
+    {
+      "component_id": "fabric-js",
+      "display_name": "Fabric.js",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "official_source": "https://github.com/fabricjs/fabric.js",
+      "pinned_version": "7.4.0",
+      "weight_format": "not_applicable",
+      "required_notices": [
+        "Retain the MIT copyright and licence notice in distributed copies."
+      ],
+      "reviewed_by": "Recovery-2D",
+      "reviewed_on": "2026-08-31",
+      "evidence": "Reviewed the official Fabric.js repository licence, 7.4.0 release, current first-party architecture/serialization documentation, installed package metadata and shipped MIT licence.",
+      "notes": "Browser rendering and pointer-interaction adapter only. Fabric serialization is not the Product V2 native document format."
+    }
+  ],
+  "approved_fallback": {
+    "browser-editor-renderer": "fabric-js"
+  }
+}

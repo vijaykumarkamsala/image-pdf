@@ -1,0 +1,89 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/layer-transform.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "flip_x": {
+      "default": false,
+      "title": "Flip X",
+      "type": "boolean"
+    },
+    "flip_y": {
+      "default": false,
+      "title": "Flip Y",
+      "type": "boolean"
+    },
+    "height": {
+      "exclusiveMinimum": 0,
+      "maximum": 1000000,
+      "title": "Height",
+      "type": "number"
+    },
+    "rotation_degrees": {
+      "default": 0,
+      "maximum": 360,
+      "minimum": -360,
+      "title": "Rotation Degrees",
+      "type": "number"
+    },
+    "scale_x": {
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "maximum": 1000,
+      "title": "Scale X",
+      "type": "number"
+    },
+    "scale_y": {
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "maximum": 1000,
+      "title": "Scale Y",
+      "type": "number"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "skew_x_degrees": {
+      "default": 0,
+      "maximum": 89,
+      "minimum": -89,
+      "title": "Skew X Degrees",
+      "type": "number"
+    },
+    "skew_y_degrees": {
+      "default": 0,
+      "maximum": 89,
+      "minimum": -89,
+      "title": "Skew Y Degrees",
+      "type": "number"
+    },
+    "width": {
+      "exclusiveMinimum": 0,
+      "maximum": 1000000,
+      "title": "Width",
+      "type": "number"
+    },
+    "x": {
+      "maximum": 1000000,
+      "minimum": -1000000,
+      "title": "X",
+      "type": "number"
+    },
+    "y": {
+      "maximum": 1000000,
+      "minimum": -1000000,
+      "title": "Y",
+      "type": "number"
+    }
+  },
+  "required": [
+    "x",
+    "y",
+    "width",
+    "height"
+  ],
+  "title": "LayerTransform",
+  "type": "object"
+}

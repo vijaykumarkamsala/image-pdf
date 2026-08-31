@@ -13,6 +13,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
+from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
 
 
@@ -684,7 +685,7 @@ class FeatureStateList(ProductKernelContractModel):
     features: tuple[FeatureStateRecord, ...]
 
 
-PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
+PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
     "actor": Actor,
     "application-session": ApplicationSession,
     "identity-reference": IdentityReference,
@@ -740,3 +741,5 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "feature-state-record": FeatureStateRecord,
     "feature-state-list": FeatureStateList,
 }
+
+PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)

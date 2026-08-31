@@ -7,13 +7,41 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.12.0";
+export const PRODUCT_SCHEMA_VERSION = "1.13.0";
 
 export interface Actor {
   schema_version?: string;
   actor_id: string;
   display_name: string;
 }
+
+export interface ArtboardBackground {
+  schema_version?: string;
+  kind?: "transparent" | "solid";
+  color?: string | null;
+}
+
+export type ArtboardOrientation = "portrait" | "landscape" | "square";
+export const ArtboardOrientationValues: readonly ArtboardOrientation[] = ["portrait", "landscape", "square"] as const;
+
+export interface ArtboardRecord {
+  schema_version?: string;
+  artboard_id: string;
+  name: string;
+  order: number;
+  width: number;
+  height: number;
+  unit?: ArtboardUnit;
+  orientation: ArtboardOrientation;
+  background: ArtboardBackground;
+  intended_use: IntendedUseMetadata;
+}
+
+export type ArtboardUnit = "px" | "mm" | "in" | "pt";
+export const ArtboardUnitValues: readonly ArtboardUnit[] = ["px", "mm", "in", "pt"] as const;
+
+export type AssetInstanceMode = "linked" | "independent";
+export const AssetInstanceModeValues: readonly AssetInstanceMode[] = ["linked", "independent"] as const;
 
 export interface AttentionItem {
   schema_version?: string;
@@ -47,6 +75,14 @@ export interface Collection {
   name: string;
 }
 
+export interface CropRegion {
+  schema_version?: string;
+  left?: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+}
+
 export interface CustomerUsageActivity {
   schema_version?: string;
   event_kind: string;
@@ -59,6 +95,127 @@ export interface DefaultFilesLocation {
   workspace_id: string;
   name?: "Default Files";
 }
+
+export interface DocumentVariantRecord {
+  schema_version?: string;
+  variant_id: string;
+  name: string;
+  based_on_version_id: string;
+  active?: boolean;
+}
+
+export type DocumentVersionKind = "initial" | "autosave_checkpoint" | "named" | "restore" | "save_as";
+export const DocumentVersionKindValues: readonly DocumentVersionKind[] = ["initial", "autosave_checkpoint", "named", "restore", "save_as"] as const;
+
+export interface DocumentVersionRecord {
+  schema_version?: string;
+  document_version_id: string;
+  document_id: string;
+  sequence: number;
+  revision: number;
+  kind: DocumentVersionKind;
+  name?: string | null;
+  based_on_version_id?: string | null;
+  restored_from_version_id?: string | null;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  snapshot_sha256: string;
+  created_by_actor_id: string;
+  created_at: string;
+}
+
+export interface EditableMaskRecord {
+  schema_version?: string;
+  mask_id: string;
+  artboard_id: string;
+  name: string;
+  kind: MaskKind;
+  enabled?: boolean;
+  inverted?: boolean;
+  feather?: number;
+  path_data?: string | null;
+  object_reference_id?: string | null;
+}
+
+export type EditorDocumentKind = "graphic" | "pdf";
+export const EditorDocumentKindValues: readonly EditorDocumentKind[] = ["graphic", "pdf"] as const;
+
+export interface EditorDocumentLocation {
+  schema_version?: string;
+  kind: EditorLocationKind;
+  default_files_id?: string | null;
+  project_id?: string | null;
+}
+
+export interface EditorDocumentRecord {
+  schema_version?: string;
+  document_id: string;
+  workspace_id: string;
+  project_id?: string | null;
+  location: EditorDocumentLocation;
+  kind: EditorDocumentKind;
+  name: string;
+  source_file_id?: string | null;
+  source_asset_original_id?: string | null;
+  source_version_id?: string | null;
+  current_version_id: string;
+  current_revision: number;
+  created_by_actor_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EditorDocumentSnapshot {
+  schema_version?: string;
+  document_id: string;
+  revision: number;
+  artboards: ArtboardRecord[];
+  layers?: LayerRecord[];
+  masks?: EditableMaskRecord[];
+  shared_assets?: SharedAssetRecord[];
+  shared_styles?: SharedStyleRecord[];
+  variants?: DocumentVariantRecord[];
+}
+
+export interface EditorLeaseGrant {
+  schema_version?: string;
+  lease: EditorLeaseRecord;
+  lease_token: string;
+  takeover_warning?: string | null;
+}
+
+export interface EditorLeaseRecord {
+  schema_version?: string;
+  lease_id: string;
+  document_id: string;
+  actor_id: string;
+  actor_display_name: string;
+  state: EditorLeaseState;
+  acquired_at: string;
+  heartbeat_at: string;
+  expires_at: string;
+  grace_expires_at: string;
+}
+
+export type EditorLeaseState = "active" | "grace" | "released" | "expired";
+export const EditorLeaseStateValues: readonly EditorLeaseState[] = ["active", "grace", "released", "expired"] as const;
+
+export type EditorLocationKind = "default_files" | "project";
+export const EditorLocationKindValues: readonly EditorLocationKind[] = ["default_files", "project"] as const;
+
+export interface EditorMutation {
+  schema_version?: string;
+  kind: EditorOperationKind;
+  target_id?: string | null;
+  layer?: LayerRecord | null;
+  artboard?: ArtboardRecord | null;
+  mask?: EditableMaskRecord | null;
+  transform?: LayerTransform | null;
+  adjustments?: VisualAdjustments | null;
+  properties?: Partial<Record<string, string | number | boolean | null>>;
+}
+
+export type EditorOperationKind = "layer.add" | "layer.update" | "layer.remove" | "layer.reorder" | "artboard.add" | "artboard.update" | "artboard.remove" | "mask.update" | "document.rename";
+export const EditorOperationKindValues: readonly EditorOperationKind[] = ["layer.add", "layer.update", "layer.remove", "layer.reorder", "artboard.add", "artboard.update", "artboard.remove", "mask.update", "document.rename"] as const;
 
 export interface EffectivePermission {
   schema_version?: string;
@@ -96,6 +253,11 @@ export interface FileLocationRef {
 export type FileReferenceOwnerKind = "project" | "document";
 export const FileReferenceOwnerKindValues: readonly FileReferenceOwnerKind[] = ["project", "document"] as const;
 
+export interface GroupLayerData {
+  schema_version?: string;
+  collapsed?: boolean;
+}
+
 export interface GuestSessionRecord {
   schema_version?: string;
   guest_session_id: string;
@@ -112,6 +274,12 @@ export interface IdempotentCommandResult {
 
 export type IdentityProviderKind = "local_test" | "oidc";
 export const IdentityProviderKindValues: readonly IdentityProviderKind[] = ["local_test", "oidc"] as const;
+
+export type ImportCompatibilityState = "compatible" | "limited" | "unsupported";
+export const ImportCompatibilityStateValues: readonly ImportCompatibilityState[] = ["compatible", "limited", "unsupported"] as const;
+
+export type ImportSourceKind = "raster" | "svg" | "psd" | "ai_compatible";
+export const ImportSourceKindValues: readonly ImportSourceKind[] = ["raster", "svg", "psd", "ai_compatible"] as const;
 
 export interface IntakeClassificationRecord {
   schema_version?: string;
@@ -148,6 +316,16 @@ export interface IntakeRiskDimension {
 export type IntakeSourceCategory = "photograph" | "graphic" | "document" | "scan" | "animation" | "other" | "unsure";
 export const IntakeSourceCategoryValues: readonly IntakeSourceCategory[] = ["photograph", "graphic", "document", "scan", "animation", "other", "unsure"] as const;
 
+export type IntendedUseKind = "source" | "digital" | "print" | "custom";
+export const IntendedUseKindValues: readonly IntendedUseKind[] = ["source", "digital", "print", "custom"] as const;
+
+export interface IntendedUseMetadata {
+  schema_version?: string;
+  kind: IntendedUseKind;
+  label: string;
+  attributes?: Partial<Record<string, string | number | boolean | null>>;
+}
+
 export interface JobEventRecord {
   schema_version?: string;
   job_event_id: string;
@@ -160,8 +338,54 @@ export interface JobEventRecord {
   trace_id: string;
 }
 
+export interface LayerRecord {
+  schema_version?: string;
+  layer_id: string;
+  artboard_id: string;
+  parent_layer_id?: string | null;
+  layer_type: LayerType;
+  name: string;
+  order: number;
+  visible?: boolean;
+  locked?: boolean;
+  opacity?: number;
+  blend_mode?: string;
+  transform: LayerTransform;
+  shared_style_ids?: string[];
+  raster?: RasterLayerData | null;
+  vector?: VectorLayerData | null;
+  rich_text?: RichTextLayerData | null;
+  shape?: ShapeLayerData | null;
+  group?: GroupLayerData | null;
+  extension_payload?: Partial<Record<string, string | number | boolean | null>>;
+}
+
+export interface LayerTransform {
+  schema_version?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation_degrees?: number;
+  scale_x?: number;
+  scale_y?: number;
+  skew_x_degrees?: number;
+  skew_y_degrees?: number;
+  flip_x?: boolean;
+  flip_y?: boolean;
+}
+
+export type LayerType = "raster_image" | "vector_svg" | "rich_text" | "shape" | "group" | "table" | "section" | "layout" | "mask" | "adjustment" | "pdf_object" | "interactive_field";
+export const LayerTypeValues: readonly LayerType[] = ["raster_image", "vector_svg", "rich_text", "shape", "group", "table", "section", "layout", "mask", "adjustment", "pdf_object", "interactive_field"] as const;
+
+export type LeaseTakeoverStatus = "requested" | "acquired";
+export const LeaseTakeoverStatusValues: readonly LeaseTakeoverStatus[] = ["requested", "acquired"] as const;
+
 export type MalwareScanState = "pending" | "clean" | "malicious" | "unavailable" | "timeout" | "error";
 export const MalwareScanStateValues: readonly MalwareScanState[] = ["pending", "clean", "malicious", "unavailable", "timeout", "error"] as const;
+
+export type MaskKind = "vector" | "raster" | "shape";
+export const MaskKindValues: readonly MaskKind[] = ["vector", "raster", "shape"] as const;
 
 export interface Membership {
   schema_version?: string;
@@ -233,6 +457,15 @@ export interface ProjectRecord {
   archived?: boolean;
 }
 
+export interface RasterLayerData {
+  schema_version?: string;
+  shared_asset_id: string;
+  instance_mode?: AssetInstanceMode;
+  crop?: CropRegion;
+  adjustments?: VisualAdjustments;
+  mask_ids?: string[];
+}
+
 export interface RecentWorkItem {
   schema_version?: string;
   kind: RecentWorkKind;
@@ -246,11 +479,67 @@ export interface RecentWorkItem {
 export type RecentWorkKind = "project" | "file";
 export const RecentWorkKindValues: readonly RecentWorkKind[] = ["project", "file"] as const;
 
+export interface RichTextLayerData {
+  schema_version?: string;
+  text: string;
+  runs?: RichTextRun[];
+  font_family?: string;
+  font_size?: number;
+  color?: string;
+  text_align?: "left" | "center" | "right" | "justify";
+}
+
+export interface RichTextRun {
+  schema_version?: string;
+  start: number;
+  end: number;
+  style?: Partial<Record<string, string | number | boolean | null>>;
+}
+
 export type RolePreset = "owner" | "admin" | "member" | "viewer";
 export const RolePresetValues: readonly RolePreset[] = ["owner", "admin", "member", "viewer"] as const;
 
 export type SearchResultKind = "project" | "file" | "job";
 export const SearchResultKindValues: readonly SearchResultKind[] = ["project", "file", "job"] as const;
+
+export type ShapeKind = "rectangle" | "ellipse" | "line" | "polygon";
+export const ShapeKindValues: readonly ShapeKind[] = ["rectangle", "ellipse", "line", "polygon"] as const;
+
+export interface ShapeLayerData {
+  schema_version?: string;
+  shape: ShapeKind;
+  fill?: string | null;
+  stroke?: string | null;
+  stroke_width?: number;
+  corner_radius?: number;
+}
+
+export type SharedAssetKind = "raster" | "vector" | "brand";
+export const SharedAssetKindValues: readonly SharedAssetKind[] = ["raster", "vector", "brand"] as const;
+
+export interface SharedAssetRecord {
+  schema_version?: string;
+  shared_asset_id: string;
+  workspace_id: string;
+  kind: SharedAssetKind;
+  name: string;
+  asset_original_id?: string | null;
+  source_version_id?: string | null;
+  object_reference_id?: string | null;
+  preview_object_reference_id?: string | null;
+  linked_by_default?: boolean;
+}
+
+export type SharedStyleKind = "fill" | "stroke" | "text" | "effect" | "brand";
+export const SharedStyleKindValues: readonly SharedStyleKind[] = ["fill", "stroke", "text", "effect", "brand"] as const;
+
+export interface SharedStyleRecord {
+  schema_version?: string;
+  shared_style_id: string;
+  name: string;
+  kind: SharedStyleKind;
+  properties?: Partial<Record<string, string | number | boolean | null>>;
+}
 
 export interface SourceFacts {
   schema_version?: string;
@@ -341,6 +630,29 @@ export interface UsageSummary {
   activities?: CustomerUsageActivity[];
 }
 
+export interface VectorLayerData {
+  schema_version?: string;
+  shared_asset_id?: string | null;
+  sanitised_svg_object_reference_id?: string | null;
+  compatibility_report_id?: string | null;
+  path_data?: string | null;
+  fill?: string | null;
+  stroke?: string | null;
+  stroke_width?: number;
+  mask_ids?: string[];
+}
+
+export interface VisualAdjustments {
+  schema_version?: string;
+  exposure?: number;
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+  temperature?: number;
+  tint?: number;
+  sharpness?: number;
+}
+
 export interface Workspace {
   schema_version?: string;
   workspace_id: string;
@@ -403,6 +715,26 @@ export interface CollectionProjectRelation {
   project_id: string;
 }
 
+export interface DocumentReadModel {
+  schema_version?: string;
+  document: EditorDocumentRecord;
+  snapshot: EditorDocumentSnapshot;
+  versions: DocumentVersionRecord[];
+}
+
+export interface EditorOperationRecord {
+  schema_version?: string;
+  operation_id: string;
+  document_id: string;
+  base_revision: number;
+  resulting_revision: number;
+  mutation: EditorMutation;
+  actor_id: string;
+  idempotency_key: string;
+  trace_id: string;
+  occurred_at: string;
+}
+
 export interface ErrorEnvelope {
   schema_version?: string;
   error: ErrorDetail;
@@ -429,6 +761,21 @@ export interface IdentityReference {
   actor_id: string;
   provider: IdentityProviderKind;
   provider_subject: string;
+}
+
+export interface ImportCompatibilityReport {
+  schema_version?: string;
+  compatibility_report_id: string;
+  source_file_id: string;
+  source_version_id: string;
+  source_kind: ImportSourceKind;
+  state: ImportCompatibilityState;
+  source_preserved?: true;
+  sanitisation_required?: boolean;
+  preserved_structures?: string[];
+  unsupported_structures?: string[];
+  warnings?: string[];
+  created_at: string;
 }
 
 export interface IntelligentIntakePresentation {
@@ -458,6 +805,13 @@ export interface JobList {
   next_cursor?: string | null;
 }
 
+export interface LeaseTakeoverResult {
+  schema_version?: string;
+  status: LeaseTakeoverStatus;
+  current_editor?: EditorLeaseRecord | null;
+  grant?: EditorLeaseGrant | null;
+}
+
 export interface NotificationList {
   schema_version?: string;
   notifications: NotificationRecord[];
@@ -483,6 +837,21 @@ export interface PermissionGrant {
   actor_id: string;
   permission: Permission;
   allowed: boolean;
+}
+
+export interface PreviewProvenance {
+  schema_version?: string;
+  preview_id: string;
+  document_id: string;
+  document_version_id: string;
+  renderer_name: string;
+  renderer_version: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  snapshot_sha256: string;
+  width: number;
+  height: number;
+  authoritative?: false;
+  created_at: string;
 }
 
 export interface ProjectList {

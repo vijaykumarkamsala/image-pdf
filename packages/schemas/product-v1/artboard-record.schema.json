@@ -1,0 +1,177 @@
+{
+  "$defs": {
+    "ArtboardBackground": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "#ffffff",
+          "title": "Color"
+        },
+        "kind": {
+          "default": "solid",
+          "enum": [
+            "transparent",
+            "solid"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "ArtboardBackground",
+      "type": "object"
+    },
+    "ArtboardOrientation": {
+      "enum": [
+        "portrait",
+        "landscape",
+        "square"
+      ],
+      "title": "ArtboardOrientation",
+      "type": "string"
+    },
+    "ArtboardUnit": {
+      "enum": [
+        "px",
+        "mm",
+        "in",
+        "pt"
+      ],
+      "title": "ArtboardUnit",
+      "type": "string"
+    },
+    "IntendedUseKind": {
+      "enum": [
+        "source",
+        "digital",
+        "print",
+        "custom"
+      ],
+      "title": "IntendedUseKind",
+      "type": "string"
+    },
+    "IntendedUseMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/$defs/IntendedUseKind"
+        },
+        "label": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "label"
+      ],
+      "title": "IntendedUseMetadata",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/artboard-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artboard_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Artboard Id",
+      "type": "string"
+    },
+    "background": {
+      "$ref": "#/$defs/ArtboardBackground"
+    },
+    "height": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Height",
+      "type": "number"
+    },
+    "intended_use": {
+      "$ref": "#/$defs/IntendedUseMetadata"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "order": {
+      "minimum": 0,
+      "title": "Order",
+      "type": "integer"
+    },
+    "orientation": {
+      "$ref": "#/$defs/ArtboardOrientation"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unit": {
+      "$ref": "#/$defs/ArtboardUnit",
+      "default": "px"
+    },
+    "width": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Width",
+      "type": "number"
+    }
+  },
+  "required": [
+    "artboard_id",
+    "name",
+    "order",
+    "width",
+    "height",
+    "orientation",
+    "background",
+    "intended_use"
+  ],
+  "title": "ArtboardRecord",
+  "type": "object"
+}

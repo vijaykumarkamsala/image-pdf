@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "ImportCompatibilityState": {
+      "enum": [
+        "compatible",
+        "limited",
+        "unsupported"
+      ],
+      "title": "ImportCompatibilityState",
+      "type": "string"
+    },
+    "ImportSourceKind": {
+      "enum": [
+        "raster",
+        "svg",
+        "psd",
+        "ai_compatible"
+      ],
+      "title": "ImportSourceKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/import-compatibility-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "compatibility_report_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Compatibility Report Id",
+      "type": "string"
+    },
+    "created_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "preserved_structures": {
+      "default": [],
+      "items": {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Preserved Structures",
+      "type": "array"
+    },
+    "sanitisation_required": {
+      "default": false,
+      "title": "Sanitisation Required",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_file_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Source File Id",
+      "type": "string"
+    },
+    "source_kind": {
+      "$ref": "#/$defs/ImportSourceKind"
+    },
+    "source_preserved": {
+      "const": true,
+      "default": true,
+      "title": "Source Preserved",
+      "type": "boolean"
+    },
+    "source_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Source Version Id",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/ImportCompatibilityState"
+    },
+    "unsupported_structures": {
+      "default": [],
+      "items": {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Unsupported Structures",
+      "type": "array"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "compatibility_report_id",
+    "source_file_id",
+    "source_version_id",
+    "source_kind",
+    "state",
+    "created_at"
+  ],
+  "title": "ImportCompatibilityReport",
+  "type": "object"
+}

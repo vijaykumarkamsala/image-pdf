@@ -1,0 +1,80 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/preview-provenance.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authoritative": {
+      "const": false,
+      "default": false,
+      "title": "Authoritative",
+      "type": "boolean"
+    },
+    "created_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "document_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Id",
+      "type": "string"
+    },
+    "document_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Version Id",
+      "type": "string"
+    },
+    "height": {
+      "minimum": 1,
+      "title": "Height",
+      "type": "integer"
+    },
+    "preview_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Preview Id",
+      "type": "string"
+    },
+    "renderer_name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Renderer Name",
+      "type": "string"
+    },
+    "renderer_version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Renderer Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "snapshot_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Snapshot Sha256",
+      "type": "string"
+    },
+    "width": {
+      "minimum": 1,
+      "title": "Width",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "preview_id",
+    "document_id",
+    "document_version_id",
+    "renderer_name",
+    "renderer_version",
+    "snapshot_sha256",
+    "width",
+    "height",
+    "created_at"
+  ],
+  "title": "PreviewProvenance",
+  "type": "object"
+}

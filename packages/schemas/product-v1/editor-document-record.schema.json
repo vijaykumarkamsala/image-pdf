@@ -1,0 +1,189 @@
+{
+  "$defs": {
+    "EditorDocumentKind": {
+      "enum": [
+        "graphic",
+        "pdf"
+      ],
+      "title": "EditorDocumentKind",
+      "type": "string"
+    },
+    "EditorDocumentLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "default_files_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Files Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/EditorLocationKind"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "EditorDocumentLocation",
+      "type": "object"
+    },
+    "EditorLocationKind": {
+      "enum": [
+        "default_files",
+        "project"
+      ],
+      "title": "EditorLocationKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/editor-document-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "created_by_actor_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Created By Actor Id",
+      "type": "string"
+    },
+    "current_revision": {
+      "minimum": 0,
+      "title": "Current Revision",
+      "type": "integer"
+    },
+    "current_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Current Version Id",
+      "type": "string"
+    },
+    "document_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/EditorDocumentKind"
+    },
+    "location": {
+      "$ref": "#/$defs/EditorDocumentLocation"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_asset_original_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Asset Original Id"
+    },
+    "source_file_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source File Id"
+    },
+    "source_version_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Version Id"
+    },
+    "updated_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Updated At",
+      "type": "string"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_id",
+    "workspace_id",
+    "location",
+    "kind",
+    "name",
+    "current_version_id",
+    "current_revision",
+    "created_by_actor_id",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "EditorDocumentRecord",
+  "type": "object"
+}

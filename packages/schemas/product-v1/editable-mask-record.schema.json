@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "MaskKind": {
+      "enum": [
+        "vector",
+        "raster",
+        "shape"
+      ],
+      "title": "MaskKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/editable-mask-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artboard_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Artboard Id",
+      "type": "string"
+    },
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "feather": {
+      "default": 0,
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Feather",
+      "type": "number"
+    },
+    "inverted": {
+      "default": false,
+      "title": "Inverted",
+      "type": "boolean"
+    },
+    "kind": {
+      "$ref": "#/$defs/MaskKind"
+    },
+    "mask_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Mask Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "object_reference_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Object Reference Id"
+    },
+    "path_data": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path Data"
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mask_id",
+    "artboard_id",
+    "name",
+    "kind"
+  ],
+  "title": "EditableMaskRecord",
+  "type": "object"
+}

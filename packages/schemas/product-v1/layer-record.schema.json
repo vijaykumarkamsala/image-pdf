@@ -1,0 +1,722 @@
+{
+  "$defs": {
+    "AssetInstanceMode": {
+      "enum": [
+        "linked",
+        "independent"
+      ],
+      "title": "AssetInstanceMode",
+      "type": "string"
+    },
+    "CropRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "bottom": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Bottom",
+          "type": "number"
+        },
+        "left": {
+          "default": 0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Left",
+          "type": "number"
+        },
+        "right": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Right",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "top": {
+          "default": 0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Top",
+          "type": "number"
+        }
+      },
+      "title": "CropRegion",
+      "type": "object"
+    },
+    "GroupLayerData": {
+      "additionalProperties": false,
+      "properties": {
+        "collapsed": {
+          "default": false,
+          "title": "Collapsed",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "GroupLayerData",
+      "type": "object"
+    },
+    "LayerTransform": {
+      "additionalProperties": false,
+      "properties": {
+        "flip_x": {
+          "default": false,
+          "title": "Flip X",
+          "type": "boolean"
+        },
+        "flip_y": {
+          "default": false,
+          "title": "Flip Y",
+          "type": "boolean"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "title": "Height",
+          "type": "number"
+        },
+        "rotation_degrees": {
+          "default": 0,
+          "maximum": 360,
+          "minimum": -360,
+          "title": "Rotation Degrees",
+          "type": "number"
+        },
+        "scale_x": {
+          "default": 1,
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Scale X",
+          "type": "number"
+        },
+        "scale_y": {
+          "default": 1,
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Scale Y",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "skew_x_degrees": {
+          "default": 0,
+          "maximum": 89,
+          "minimum": -89,
+          "title": "Skew X Degrees",
+          "type": "number"
+        },
+        "skew_y_degrees": {
+          "default": 0,
+          "maximum": 89,
+          "minimum": -89,
+          "title": "Skew Y Degrees",
+          "type": "number"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "title": "Width",
+          "type": "number"
+        },
+        "x": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "title": "LayerTransform",
+      "type": "object"
+    },
+    "LayerType": {
+      "enum": [
+        "raster_image",
+        "vector_svg",
+        "rich_text",
+        "shape",
+        "group",
+        "table",
+        "section",
+        "layout",
+        "mask",
+        "adjustment",
+        "pdf_object",
+        "interactive_field"
+      ],
+      "title": "LayerType",
+      "type": "string"
+    },
+    "RasterLayerData": {
+      "additionalProperties": false,
+      "properties": {
+        "adjustments": {
+          "$ref": "#/$defs/VisualAdjustments"
+        },
+        "crop": {
+          "$ref": "#/$defs/CropRegion"
+        },
+        "instance_mode": {
+          "$ref": "#/$defs/AssetInstanceMode",
+          "default": "linked"
+        },
+        "mask_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+            "type": "string"
+          },
+          "title": "Mask Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "shared_asset_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Shared Asset Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "shared_asset_id"
+      ],
+      "title": "RasterLayerData",
+      "type": "object"
+    },
+    "RichTextLayerData": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "default": "#162033",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Color",
+          "type": "string"
+        },
+        "font_family": {
+          "default": "system-ui",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Font Family",
+          "type": "string"
+        },
+        "font_size": {
+          "default": 32,
+          "exclusiveMinimum": 0,
+          "maximum": 2000,
+          "title": "Font Size",
+          "type": "number"
+        },
+        "runs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RichTextRun"
+          },
+          "title": "Runs",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "text_align": {
+          "default": "left",
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "justify"
+          ],
+          "title": "Text Align",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "RichTextLayerData",
+      "type": "object"
+    },
+    "RichTextRun": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "minimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "style": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Style",
+          "type": "object"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "RichTextRun",
+      "type": "object"
+    },
+    "ShapeKind": {
+      "enum": [
+        "rectangle",
+        "ellipse",
+        "line",
+        "polygon"
+      ],
+      "title": "ShapeKind",
+      "type": "string"
+    },
+    "ShapeLayerData": {
+      "additionalProperties": false,
+      "properties": {
+        "corner_radius": {
+          "default": 0,
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "Corner Radius",
+          "type": "number"
+        },
+        "fill": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "#3559e0",
+          "title": "Fill"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "shape": {
+          "$ref": "#/$defs/ShapeKind"
+        },
+        "stroke": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stroke"
+        },
+        "stroke_width": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Stroke Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "shape"
+      ],
+      "title": "ShapeLayerData",
+      "type": "object"
+    },
+    "VectorLayerData": {
+      "additionalProperties": false,
+      "properties": {
+        "compatibility_report_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compatibility Report Id"
+        },
+        "fill": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "#3559e0",
+          "title": "Fill"
+        },
+        "mask_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+            "type": "string"
+          },
+          "title": "Mask Ids",
+          "type": "array"
+        },
+        "path_data": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Data"
+        },
+        "sanitised_svg_object_reference_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sanitised Svg Object Reference Id"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "shared_asset_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shared Asset Id"
+        },
+        "stroke": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stroke"
+        },
+        "stroke_width": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Stroke Width",
+          "type": "number"
+        }
+      },
+      "title": "VectorLayerData",
+      "type": "object"
+    },
+    "VisualAdjustments": {
+      "additionalProperties": false,
+      "properties": {
+        "brightness": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Brightness",
+          "type": "number"
+        },
+        "contrast": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Contrast",
+          "type": "number"
+        },
+        "exposure": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Exposure",
+          "type": "number"
+        },
+        "saturation": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.13.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sharpness": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Sharpness",
+          "type": "number"
+        },
+        "temperature": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "tint": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Tint",
+          "type": "number"
+        }
+      },
+      "title": "VisualAdjustments",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/layer-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artboard_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Artboard Id",
+      "type": "string"
+    },
+    "blend_mode": {
+      "default": "normal",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Blend Mode",
+      "type": "string"
+    },
+    "extension_payload": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Extension Payload",
+      "type": "object"
+    },
+    "group": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GroupLayerData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "layer_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Layer Id",
+      "type": "string"
+    },
+    "layer_type": {
+      "$ref": "#/$defs/LayerType"
+    },
+    "locked": {
+      "default": false,
+      "title": "Locked",
+      "type": "boolean"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "opacity": {
+      "default": 1,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Opacity",
+      "type": "number"
+    },
+    "order": {
+      "minimum": 0,
+      "title": "Order",
+      "type": "integer"
+    },
+    "parent_layer_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Layer Id"
+    },
+    "raster": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RasterLayerData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rich_text": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RichTextLayerData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "default": "1.13.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "shape": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ShapeLayerData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "shared_style_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "title": "Shared Style Ids",
+      "type": "array"
+    },
+    "transform": {
+      "$ref": "#/$defs/LayerTransform"
+    },
+    "vector": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VectorLayerData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "visible": {
+      "default": true,
+      "title": "Visible",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "layer_id",
+    "artboard_id",
+    "layer_type",
+    "name",
+    "order",
+    "transform"
+  ],
+  "title": "LayerRecord",
+  "type": "object"
+}
