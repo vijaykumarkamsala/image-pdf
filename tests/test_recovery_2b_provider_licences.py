@@ -32,12 +32,15 @@ NODE_PROVIDER_COMPONENTS = {
 }
 
 APPROVED_NODE_LICENCES = {
+    "(BSD-2-Clause OR MIT OR Apache-2.0)",
+    "(MIT OR WTFPL)",
     "0BSD",
     "Apache-2.0",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
     "MIT",
+    "MIT-0",
     "MPL-2.0",
 }
 

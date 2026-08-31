@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 from pydantic import ValidationError
 
@@ -7,6 +9,7 @@ from ipw.contracts.editor import (
     ArtboardBackground,
     ArtboardOrientation,
     ArtboardRecord,
+    ArtboardUnit,
     EditorDocumentSnapshot,
     IntendedUseKind,
     IntendedUseMetadata,
@@ -26,7 +29,7 @@ def artboard() -> ArtboardRecord:
         order=0,
         width=1200,
         height=800,
-        unit="px",
+        unit=ArtboardUnit.PIXELS,
         orientation=ArtboardOrientation.LANDSCAPE,
         background=ArtboardBackground(kind="solid", color="#ffffff"),
         intended_use=IntendedUseMetadata(kind=IntendedUseKind.DIGITAL, label="Digital graphic"),
@@ -94,6 +97,6 @@ def test_preview_contract_cannot_become_authoritative() -> None:
             snapshot_sha256="a" * 64,
             width=600,
             height=400,
-            authoritative=True,
+            authoritative=cast(Any, True),
             created_at="2026-08-31T00:00:00.000Z",
         )

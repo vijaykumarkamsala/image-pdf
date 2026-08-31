@@ -19,6 +19,55 @@
       "reviewed_on": "2026-08-31",
       "evidence": "Reviewed the official Fabric.js repository licence, 7.4.0 release, current first-party architecture/serialization documentation, installed package metadata and shipped MIT licence.",
       "notes": "Browser rendering and pointer-interaction adapter only. Fabric serialization is not the Product V2 native document format."
+    },
+    {
+      "component_id": "csstools-color-helpers",
+      "display_name": "CSSTools Color Helpers",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT-0",
+      "official_source": "https://github.com/csstools/postcss-plugins/tree/main/packages/color-helpers",
+      "pinned_version": "5.1.0",
+      "weight_format": "not_applicable",
+      "required_notices": [],
+      "reviewed_by": "Recovery-2D",
+      "reviewed_on": "2026-08-31",
+      "evidence": "The exact npm lock entry pins 5.1.0 by registry URL, integrity digest and MIT-0 licence metadata. MIT-0 is already reviewed and approved in the repository licence register.",
+      "notes": "Optional transitive CSS colour helper reached through Fabric's browser dependency closure."
+    },
+    {
+      "component_id": "expand-template",
+      "display_name": "expand-template",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "(MIT OR WTFPL)",
+      "official_source": "https://github.com/segmentio/expand-template",
+      "pinned_version": "2.0.3",
+      "weight_format": "not_applicable",
+      "required_notices": [
+        "Distribute under the MIT option and retain its copyright and licence notice."
+      ],
+      "reviewed_by": "Recovery-2D",
+      "reviewed_on": "2026-08-31",
+      "evidence": "The exact optional npm lock entry pins 2.0.3 by registry URL and integrity digest and offers MIT OR WTFPL; the approved distribution choice is MIT.",
+      "notes": "Optional transitive package reached through Fabric's Node-only canvas closure; it is not imported by the browser renderer."
+    },
+    {
+      "component_id": "rc-node",
+      "display_name": "rc",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "(BSD-2-Clause OR MIT OR Apache-2.0)",
+      "official_source": "https://github.com/dominictarr/rc",
+      "pinned_version": "1.2.8",
+      "weight_format": "not_applicable",
+      "required_notices": [
+        "Distribute under the MIT option and retain its copyright and licence notice."
+      ],
+      "reviewed_by": "Recovery-2D",
+      "reviewed_on": "2026-08-31",
+      "evidence": "The exact optional npm lock entry pins 1.2.8 by registry URL and integrity digest and offers three already approved permissive choices; the approved distribution choice is MIT.",
+      "notes": "Optional transitive package reached through Fabric's Node-only canvas closure; it is not imported by the browser renderer."
     }
   ],
   "approved_fallback": {
