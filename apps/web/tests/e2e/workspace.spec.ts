@@ -27,6 +27,20 @@ async function openWorkspace(page: Page, suffix: string, theme: "light" | "dark"
   await expect(page.getByTestId("workspace-home")).toBeVisible();
 }
 
+async function routeDeterministicOidcSignIn(page: Page, code: string) {
+  await page.route("**/v1/auth/login**", async (route) => {
+    const response = await route.fetch({ maxRedirects: 0 });
+    const authorizationUrl = response.headers()["location"];
+    const state = authorizationUrl ? new URL(authorizationUrl).searchParams.get("state") : null;
+    await route.fulfill({
+      status: 302,
+      headers: {
+        location: `http://127.0.0.1:4173/v1/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state ?? "")}`,
+      },
+    });
+  });
+}
+
 async function clearFocus(page: Page) {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 }
@@ -111,7 +125,8 @@ test("workspace selector lists permitted workspaces and uses canonical URLs", as
   const currentContext = await page.request.get(`/v1/workspaces/${currentId}/context`).then((response) => response.json()) as Record<string, any>;
   const currentHome = await page.request.get(`/v1/workspaces/${currentId}/home`).then((response) => response.json()) as Record<string, unknown>;
   const secondId = "workspace-permitted-second";
-  const second = { ...current, workspace_id: secondId, name: "Production team", personal_for_actor_id: null };
+  const secondName = "Production team with a complete workspace name";
+  const second = { ...current, workspace_id: secondId, name: secondName, personal_for_actor_id: null };
   const secondContext = {
     ...currentContext,
     workspace: second,
@@ -125,12 +140,14 @@ test("workspace selector lists permitted workspaces and uses canonical URLs", as
   await page.route(`**/v1/workspaces/${secondId}/home`, (route) => route.fulfill({ json: secondHome }));
 
   await page.goto(`/w/${currentId}`);
-  await page.getByRole("button", { name: "Choose workspace" }).click();
-  await expect(page.getByRole("group", { name: "Available workspaces" }).getByText("Production team")).toBeVisible();
+  await page.getByRole("button", { name: /Choose workspace/ }).click();
+  await expect(page.getByRole("group", { name: "Available workspaces" }).getByText(secondName)).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.getByRole("button", { name: /Production team/ }).click();
+  await page.getByRole("button", { name: new RegExp(secondName) }).click();
   await expect(page).toHaveURL(new RegExp(`/w/${secondId}$`));
-  await expect(page.locator(".header-workspace strong")).toHaveText("Production team");
+  await expect(page.locator(".header-workspace strong")).toHaveText(secondName);
+  await expect(page.locator(".header-workspace strong")).toHaveAttribute("title", secondName);
+  await expect(page.locator(".workspace-switcher-content strong")).toHaveAttribute("title", secondName);
 });
 
 test("real API secure upload becomes a preserved Default Files source", async ({ page }) => {
@@ -141,8 +158,13 @@ test("real API secure upload becomes a preserved Default Files source", async ({
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
   await page.getByRole("button", { name: "Upload 1" }).click();
   await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("PNG image")).toBeVisible();
+  await expect(page.getByText("Passed safety checks", { exact: true })).toBeVisible();
+  await expect(page.getByText("<0.01 MP")).toBeVisible();
+  await expect(page.getByText("SHA-256")).not.toBeVisible();
+  await page.getByText("Advanced details").click();
+  await expect(page.getByText("SHA-256")).toBeVisible();
   await expect(page.getByText("Likely", { exact: true })).toBeVisible();
   await expect(page.getByText("No visual quality assessment was performed during intake.")).toBeVisible();
   await expect(page.getByText(/Not assessed by intake/)).toBeVisible();
@@ -166,9 +188,16 @@ test("real workspace search, notifications, and durable Jobs use server state", 
   await page.getByRole("button", { name: "Create project" }).click();
 
   await page.keyboard.press("Control+K");
-  await page.getByLabel("Search projects, files and jobs").fill("Searchable");
-  await expect(page.getByRole("button", { name: /Searchable campaign/ })).toBeVisible();
-  await page.getByRole("button", { name: /Searchable campaign/ }).click();
+  const searchInput = page.getByLabel("Search projects, files and jobs");
+  await searchInput.fill("Searchable");
+  const searchResult = page.getByRole("button", { name: /Searchable campaign/ });
+  await expect(searchResult).toBeVisible();
+  await expect(searchResult.locator(".ds-badge")).toHaveText("Project");
+  await expect(searchResult.locator("small")).toHaveCount(0);
+  await searchInput.press("Tab");
+  await expect(searchResult).toBeFocused();
+  expect(await searchResult.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  await searchResult.press("Enter");
   await expect(page.getByTestId("projects-page")).toBeVisible();
 
   await page.getByRole("link", { name: "Home" }).first().click();
@@ -298,17 +327,7 @@ test("an interrupted transfer resumes the same file after browser refresh", asyn
 });
 
 test("guest upload signs in to save the exact accepted source", async ({ page, context }) => {
-  await page.route("**/v1/auth/login**", async (route) => {
-    const response = await route.fetch({ maxRedirects: 0 });
-    const authorizationUrl = response.headers()["location"];
-    const state = authorizationUrl ? new URL(authorizationUrl).searchParams.get("state") : null;
-    await route.fulfill({
-      status: 302,
-      headers: {
-        location: `http://127.0.0.1:4173/v1/auth/callback?code=code-guest-customer&state=${encodeURIComponent(state ?? "")}`,
-      },
-    });
-  });
+  await routeDeterministicOidcSignIn(page, "code-guest-customer");
   await page.goto("/guest/upload");
   await expect(page.getByTestId("guest-home")).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.cookie)).toContain("ipw-csrf=");
@@ -392,6 +411,31 @@ test("guest upload has no detectable accessibility violations", async ({ page })
   expect(results.violations).toEqual([]);
 });
 
+test("returning guests can sign in through the existing BFF journey", async ({ page }) => {
+  await routeDeterministicOidcSignIn(page, "code-returning-customer");
+  await page.goto("/guest/upload");
+  const signIn = page.getByRole("button", { name: "Sign in", exact: true });
+  await expect(signIn).toBeVisible();
+  await signIn.click();
+  await expect(page.getByTestId("workspace-home")).toBeVisible();
+  await expect(page).toHaveURL(/\/w\/[^/]+$/);
+});
+
+test("guest upload shows one clear action only after file selection", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Upload \d+ files?$/ })).toHaveCount(0);
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  const upload = page.getByRole("button", { name: "Upload 1 file", exact: true });
+  await expect(upload).toBeEnabled();
+  expect((await upload.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await expect(page.getByRole("button", { name: "Upload files", exact: true })).toHaveCount(0);
+  const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
+});
+
 test("customer copy discloses testing and inactive product areas without internal or monetary language", async ({ page }) => {
   await openWorkspace(page, "customer-copy");
   const testingStatus = page.locator(".testing-status");
@@ -411,11 +455,13 @@ test("customer copy discloses testing and inactive product areas without interna
     const tile = tiles.filter({ hasText: label });
     await expect(tile).toContainText(description);
     await expect(tile).toHaveAttribute("data-feature-state", "inactive");
+    await expect(tile).toHaveAttribute("aria-disabled", "true");
     await expect(tile).not.toContainText("Not active in this build");
   }
   await expect(page.getByText("Available in a later recovery")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/recovery/i);
   await expect(tiles.locator("a, button")).toHaveCount(0);
+  expect(await tiles.evaluateAll((elements) => elements.every((element) => (element as HTMLElement).tabIndex === -1))).toBe(true);
 });
 
 test("loading, access-denied, and API error states are customer-safe", async ({ page }) => {
@@ -491,9 +537,16 @@ test("offline status is truthful and accessible", async ({ page }) => {
   await openWorkspace(page, "offline-status");
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
   const status = page.getByRole("status").filter({ hasText: "You are offline" });
+  await expect(status).toContainText("New uploads and online processing require a connection");
   await expect(status).toContainText("Interrupted uploads can resume when you reconnect");
   await expect(status).toContainText("work already accepted by the server remains durable");
   await expect(status).not.toContainText(/processing continues|upload continues/i);
+  await page.getByRole("button", { name: "Collapse offline message" }).click();
+  const indicator = page.getByRole("status").filter({ hasText: "Offline" });
+  await expect(indicator).toBeVisible();
+  await expect(page.getByRole("button", { name: "Show offline details" })).toBeVisible();
+  await page.getByRole("button", { name: "Show offline details" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "You are offline" })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -677,6 +730,15 @@ test("@visual desktop light Guest Home", async ({ page }) => {
   await expect(page).toHaveScreenshot("guest-home-1440x900-light.png", screenshotOptions);
 });
 
+test("@visual phone light Guest Home", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  await expect(page.locator("label.ds-dropzone")).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("guest-home-390x844-light.png", screenshotOptions);
+});
+
 test("@visual tablet dark Guest intake result", async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.addInitScript(() => localStorage.setItem("ipw-theme", "dark"));
@@ -780,6 +842,16 @@ test("@visual intermediate dark offline state", async ({ page }) => {
   await expect(page.getByRole("status").filter({ hasText: "You are offline" })).toBeVisible();
   await prepareVisualScreenshot(page);
   await expect(page).toHaveScreenshot("workspace-offline-638x768-dark.png", screenshotOptions);
+});
+
+test("@visual intermediate dark collapsed offline state", async ({ page }) => {
+  await page.setViewportSize({ width: 638, height: 768 });
+  await openWorkspace(page, "visual-collapsed-offline-state", "dark");
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+  await page.getByRole("button", { name: "Collapse offline message" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Offline" })).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-offline-collapsed-638x768-dark.png", screenshotOptions);
 });
 
 test("@visual phone light account menu", async ({ page }) => {
@@ -918,7 +990,7 @@ test("@visual desktop dark verified intelligent intake", async ({ page }) => {
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await page.getByRole("button", { name: "Upload 1" }).click();
   await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible({ timeout: 15_000 });
   await clearFocus(page);
   await expect(page).toHaveScreenshot("workspace-intake-ready-1440x900-dark.png", screenshotOptions);
 });

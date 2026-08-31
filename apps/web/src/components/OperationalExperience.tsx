@@ -52,6 +52,12 @@ function stateTone(state: ProcessingJobRecord["state"]): "neutral" | "success" |
   return "neutral";
 }
 
+const SEARCH_RESULT_KIND_LABELS: Record<WorkspaceSearchResult["kind"], string> = {
+  project: "Project",
+  file: "File",
+  job: "Job",
+};
+
 function SearchCommand({ workspaceId }: { workspaceId: string }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -127,7 +133,11 @@ function SearchCommand({ workspaceId }: { workspaceId: string }) {
         {query.trim().length < 2 ? <StatePanel kind="empty" title="Find current work" message="Enter at least two characters." />
           : loading && results.length === 0 ? <StatePanel kind="loading" title="Searching" message="Checking work you can access." />
             : results.length === 0 ? <StatePanel kind="empty" title="No matching work" message="Try a project name, filename or job reference." />
-              : <div className="search-results" role="list" aria-label="Search results">{results.map((result) => <div role="listitem" key={`${result.kind}-${result.resource_id}`}><button type="button" onClick={() => openResult(result)}><span className="search-result-icon">{result.kind === "project" ? <BriefcaseBusiness aria-hidden="true" /> : result.kind === "file" ? <FileStack aria-hidden="true" /> : <History aria-hidden="true" />}</span><span><strong>{result.title}</strong><small>{result.description}</small></span><Badge>{result.kind}</Badge></button></div>)}</div>}
+              : <div className="search-results" role="list" aria-label="Search results">{results.map((result) => {
+                const kindLabel = SEARCH_RESULT_KIND_LABELS[result.kind];
+                const description = result.description.trim().toLocaleLowerCase() === kindLabel.toLocaleLowerCase() ? null : result.description;
+                return <div role="listitem" key={`${result.kind}-${result.resource_id}`}><button type="button" onClick={() => openResult(result)}><span className="search-result-icon">{result.kind === "project" ? <BriefcaseBusiness aria-hidden="true" /> : result.kind === "file" ? <FileStack aria-hidden="true" /> : <History aria-hidden="true" />}</span><span><strong>{result.title}</strong>{description && <small>{description}</small>}</span><Badge>{kindLabel}</Badge></button></div>;
+              })}</div>}
         {cursor && <Button disabled={loading} onClick={() => void more()}>{loading ? "Loading" : "Load more"}</Button>}
       </div>
     </Dialog>

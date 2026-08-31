@@ -34,6 +34,7 @@ test("service worker caches only shell assets and bypasses protected customer tr
 test("offline fallback makes no claim that unaccepted cloud work continues", () => {
   const offlineFallback = renderProductTemplate(offlineTemplate, "Configured Product");
   assert.match(offlineFallback, /Configured Product/);
+  assert.match(offlineFallback, /New uploads and online processing require a connection/);
   assert.match(offlineFallback, /Work already accepted by the server remains durable/);
   assert.doesNotMatch(offlineFallback, /processing continues|upload continues/i);
   assert.doesNotMatch(offlineFallback, /<style|onclick=/i);

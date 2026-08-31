@@ -391,8 +391,9 @@ export function UploadDialog({
 
   const busy = items.some((item) => ["authorising", "uploading", "queued", "inspecting"].includes(item.phase));
   const eligible = items.filter((item) => item.file && (
-    item.phase === "selecting" || (item.phase === "error" && item.retryEligible)
+    item.phase === "selecting" || (item.phase === "error" && item.retryEligible && !item.job)
   ));
+  const uploadLabel = eligible.length === 1 ? "Upload 1 file" : `Upload ${eligible.length} files`;
   const content = (
     <section
       className={embedded ? "upload-workspace" : "dialog upload-dialog upload-dialog-multi"}
@@ -438,7 +439,7 @@ export function UploadDialog({
                 </div>
                 <div className="upload-item-actions">
                   {active && <IconButton label={`Cancel ${item.displayName}`} onClick={() => void cancel(item)}><X aria-hidden="true" /></IconButton>}
-                  {item.phase === "error" && item.retryEligible && !item.needsFile && (
+                  {item.phase === "error" && item.retryEligible && !item.needsFile && item.job && (
                     <Button size="compact" onClick={() => item.job ? void monitor(item.id, {
                       uploadSessionId: item.upload!.upload_session_id,
                       jobId: item.job.job_id,
@@ -473,13 +474,13 @@ export function UploadDialog({
         {items.length > 0 && items.every((item) => terminalPhases.has(item.phase)) && !busy && (
           <Button onClick={reset}>Clear</Button>
         )}
-        <Button
+        {busy && <Button tone="primary" disabled><LoaderCircle aria-hidden="true" />Upload in progress</Button>}
+        {!busy && eligible.length > 0 && <Button
           tone="primary"
-          disabled={!eligible.length || busy}
           onClick={() => void Promise.allSettled(eligible.map((item) => processItem(item.id)))}
         >
-          <Upload aria-hidden="true" />Upload {eligible.length || "files"}
-        </Button>
+          <Upload aria-hidden="true" />{uploadLabel}
+        </Button>}
       </div>
     </section>
   );

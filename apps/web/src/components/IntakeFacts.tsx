@@ -61,6 +61,11 @@ function verifiedType(mediaType: string): string {
   return labels[mediaType] ?? mediaType;
 }
 
+function formatMegapixels(megapixelsMilli: number, width?: number | null, height?: number | null): string {
+  if (megapixelsMilli < 10 && (megapixelsMilli > 0 || (width && height))) return "<0.01 MP";
+  return `${(megapixelsMilli / 1000).toFixed(2)} MP`;
+}
+
 export function IntakeFacts({
   upload,
   traceId,
@@ -103,12 +108,14 @@ export function IntakeFacts({
   const evidenceLabel = classification.evidence_label ?? "unknown";
   const effectiveCategory = classification.customer_category ?? classification.inferred_category ?? "";
   const isPdf = facts.detected_media_type === "application/pdf";
-  const technicalFacts = [
+  const structuralFacts = [
     facts.width && facts.height ? ["Dimensions", `${facts.width} x ${facts.height} px`] : null,
     facts.megapixels_milli !== null && facts.megapixels_milli !== undefined
-      ? ["Megapixels", `${(facts.megapixels_milli / 1000).toFixed(2)} MP`] : null,
+      ? ["Megapixels", formatMegapixels(facts.megapixels_milli, facts.width, facts.height)] : null,
     facts.page_count ? ["Pages", String(facts.page_count)] : null,
     facts.frame_count ? ["Frames", String(facts.frame_count)] : null,
+  ].filter((fact): fact is string[] => fact !== null);
+  const advancedFacts = [
     facts.orientation ? ["Orientation", `EXIF ${facts.orientation}`] : null,
     facts.bit_depth ? ["Bit depth", `${facts.bit_depth}-bit`] : null,
     facts.has_alpha !== null && facts.has_alpha !== undefined ? ["Alpha", facts.has_alpha ? "Present" : "Not present"] : null,
@@ -119,17 +126,24 @@ export function IntakeFacts({
   return <section className="intake-facts" aria-label={`Verified facts for ${presentation.filename}`}>
     <div className="intake-facts-title">
       <span className="intake-file-representation">{isPdf ? <FileText aria-hidden="true" /> : <FileImage aria-hidden="true" />}</span>
-      <div><span>Verified source</span><h3>{presentation.filename}</h3><Badge tone="success"><CheckCircle2 aria-hidden="true" />Accepted safely</Badge></div>
+      <div><span>Verified source</span><h3>{presentation.filename}</h3><Badge tone="success"><CheckCircle2 aria-hidden="true" />Passed safety checks</Badge></div>
     </div>
 
     <div className="intake-fact-groups">
       <section><h4>Identity</h4><dl className="fact-list">
         <div><dt>Verified type</dt><dd>{verifiedType(facts.detected_media_type)}</dd></div>
         <div><dt>File size</dt><dd>{formatBytes(facts.byte_size)}</dd></div>
-        <div className="fact-identity"><dt><Fingerprint aria-hidden="true" />SHA-256</dt><dd><code>{facts.sha256}</code></dd></div>
       </dl></section>
-      <section><h4>Structural facts</h4>{technicalFacts.length ? <dl className="fact-list">{technicalFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="muted-copy">No additional structural facts are available from the supported file reader.</p>}</section>
+      <section><h4>Structural facts</h4>{structuralFacts.length ? <dl className="fact-list">{structuralFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="muted-copy">No additional structural facts are available from the supported file reader.</p>}</section>
     </div>
+
+    <details className="intake-advanced">
+      <summary>Advanced details</summary>
+      <div className="intake-advanced-content">
+        <section><h4>File integrity</h4><dl className="fact-list"><div className="fact-identity"><dt><Fingerprint aria-hidden="true" />SHA-256</dt><dd><code>{facts.sha256}</code></dd></div></dl></section>
+        {advancedFacts.length > 0 && <section><h4>Technical source details</h4><dl className="fact-list">{advancedFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>}
+      </div>
+    </details>
 
     <section className="intake-dimensions"><div className="intake-section-heading"><h4>Intake checks</h4><span>Safety and structure only</span></div><div className="risk-grid">{presentation.risk_dimensions.map((risk) => <article className={`risk-item risk-${risk.state}`} key={risk.dimension}>{risk.state === "clear" ? <ShieldCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}<div><strong>{risk.dimension}</strong><p>{risk.summary}</p></div></article>)}</div></section>
 

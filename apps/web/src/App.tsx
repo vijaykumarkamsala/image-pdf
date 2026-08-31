@@ -8,6 +8,7 @@ import {
   FolderKanban,
   History,
   Home,
+  LogIn,
   LogOut,
   Menu as MenuIcon,
   Plus,
@@ -89,13 +90,14 @@ function WorkspaceSwitcher({ current, workspaces }: {
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const identity = <span className="workspace-switcher-content"><span className="workspace-avatar">{current.name.slice(0, 1).toUpperCase()}</span><span><strong>{current.name}</strong><small>Workspace</small></span>{workspaces.length > 1 && <ChevronDown aria-hidden="true" />}</span>;
-  if (workspaces.length <= 1) return <div className="workspace-switcher-static">{identity}</div>;
+  const identity = <span className="workspace-switcher-content" title={current.name}><span className="workspace-avatar">{current.name.slice(0, 1).toUpperCase()}</span><span><strong title={current.name}>{current.name}</strong><small>Workspace</small></span>{workspaces.length > 1 && <ChevronDown aria-hidden="true" />}</span>;
+  if (workspaces.length <= 1) return <div className="workspace-switcher-static" aria-label={`Current workspace: ${current.name}`}>{identity}</div>;
   const suffix = location.pathname.replace(/^\/w\/[^/]+/, "") || "";
-  return <Popover label="Choose workspace" align="start" trigger={identity}>
+  return <Popover label={`Choose workspace. Current workspace: ${current.name}`} align="start" trigger={identity}>
     <div className="workspace-popover" role="group" aria-label="Available workspaces">{workspaces.map((workspace) => <Button
       key={workspace.workspace_id}
       tone={workspace.workspace_id === current.workspace_id ? "quiet" : "secondary"}
+      title={workspace.name}
       onClick={() => navigate(`/w/${encodeURIComponent(workspace.workspace_id)}${suffix}${location.search}`)}
     ><span className="workspace-avatar">{workspace.name.slice(0, 1).toUpperCase()}</span><span>{workspace.name}</span></Button>)}</div>
   </Popover>;
@@ -150,7 +152,7 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
       <header className="app-header">
         <IconButton className="phone-menu" label="Open navigation" onClick={() => setMobileOpen(true)}><MenuIcon aria-hidden="true" /></IconButton>
         <span className="phone-brand"><Brand compact /></span>
-        <div className="header-workspace"><strong>{context.workspace.name}</strong><span>Workspace</span></div>
+        <div className="header-workspace"><strong title={context.workspace.name} aria-label={`Current workspace: ${context.workspace.name}`}>{context.workspace.name}</strong><span>Workspace</span></div>
         <div className="header-actions">
           <HeaderOperations workspaceId={id} refresh={fileRefresh} />
           <ThemeMenu preference={preference} setPreference={setPreference} />
@@ -255,9 +257,12 @@ function GuestHome() {
     }, (reason: unknown) => { if (active) setError(reason instanceof Error ? reason : new Error("Guest intake is unavailable")); });
     return () => { active = false; };
   }, []);
+  function signIn(): void {
+    window.location.assign(api.loginUrl("/app"));
+  }
   if (error) return <AppError error={error} retry={() => window.location.reload()} />;
   return <div className="public-shell">
-    <header className="public-header"><Brand /><div className="public-header-actions"><span className="free-testing"><CheckCircle2 aria-hidden="true" />Free during testing</span><ThemeMenu preference={preference} setPreference={setPreference} /></div></header>
+    <header className="public-header"><Brand /><div className="public-header-actions"><span className="free-testing"><CheckCircle2 aria-hidden="true" />Free during testing</span><Button className="public-sign-in" tone="quiet" size="compact" onClick={signIn}><LogIn aria-hidden="true" />Sign in</Button><ThemeMenu preference={preference} setPreference={setPreference} /></div></header>
     <main className="public-main" data-testid="guest-home">
       <section className="guest-intro"><p className="eyebrow">Images and PDFs, understood first</p><h1>Bring a source. See what is trustworthy.</h1><p>Upload an image or PDF for private safety checks and verified facts. Your original stays untouched.</p></section>
       <section className="guest-intake" aria-labelledby="guest-intake-heading"><div className="guest-intake-heading"><div><h2 id="guest-intake-heading">Start with a file</h2><p>Choose one or several supported images or PDFs.</p></div><ShieldCheck aria-hidden="true" /></div>{guest ? <UploadDialog open embedded guestSession={guest} onOpenChange={() => undefined} onReady={() => undefined} /> : <StatePanel kind="loading" title="Preparing private intake" message="Creating a temporary session for your files." />}</section>
