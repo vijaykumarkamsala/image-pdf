@@ -161,6 +161,10 @@ export class DocumentsService implements OnApplicationShutdown {
     const id = requireId(documentId, "document id");
     const name = requireText(body["name"], "document name", 200);
     const projectId = optionalId(body["project_id"], "project id");
+    if (projectId) {
+      const projects = await this.product.listProjects(access.principal.actorId, access.workspaceId);
+      if (!projects.projects.some((item) => item.project_id === projectId)) throw new DomainError(404, "project-not-found", "Project was not found");
+    }
     const context = this.command(headers, access.principal, "document.save-as", { workspaceId: access.workspaceId, documentId: id, name, projectId });
     const result = await this.documents.saveAs(context, access.workspaceId, id, name, projectId, access.defaultFilesId);
     if (!result.replayed) await this.audit(context, access.workspaceId, "document.saved-as", result.value.document.document_id);

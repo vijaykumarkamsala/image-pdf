@@ -125,6 +125,32 @@ test("verified raster becomes an immutable-source native document with lease, au
     assert.equal(compatibility.reports[0].state, "compatible");
     assert.equal(compatibility.reports[0].source_preserved, true);
 
+    const project = await json(await server.request(`/workspaces/${workspaceId}/projects`, {
+      method: "POST", headers: { "idempotency-key": "editor-project" }, body: JSON.stringify({ name: "Campaign" }),
+    }));
+    await server.request(`/workspaces/${workspaceId}/files/${sourceFileId}/location`, {
+      method: "PATCH", headers: { "idempotency-key": "editor-source-move" }, body: JSON.stringify({ kind: "project", project_id: project.project.project_id }),
+    });
+    const afterMove = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}`));
+    assert.equal(afterMove.editor.document.source_asset_original_id, created.editor.document.source_asset_original_id);
+    assert.equal(afterMove.editor.document.source_version_id, created.editor.document.source_version_id);
+
+    const saveAsOptions = {
+      method: "POST",
+      headers: { "idempotency-key": "editor-save-as" },
+      body: JSON.stringify({ name: "Campaign copy", project_id: project.project.project_id }),
+    };
+    const savedAs = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}/save-as`, saveAsOptions));
+    const savedAsReplay = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}/save-as`, saveAsOptions));
+    assert.notEqual(savedAs.editor.document.document_id, documentId);
+    assert.equal(savedAs.editor.document.location.kind, "project");
+    assert.equal(savedAs.editor.document.location.project_id, project.project.project_id);
+    assert.equal(savedAs.editor.document.source_asset_original_id, created.editor.document.source_asset_original_id);
+    assert.equal(savedAs.editor.document.source_version_id, created.editor.document.source_version_id);
+    assert.equal(savedAs.editor.snapshot.document_id, savedAs.editor.document.document_id);
+    assert.equal(savedAsReplay.replayed, true);
+    assert.equal(savedAsReplay.editor.document.document_id, savedAs.editor.document.document_id);
+
     const source = await server.request(`/workspaces/${workspaceId}/documents/${documentId}/source`, { headers: { "content-type": "" } });
     assert.equal(source.status, 200);
     assert.match(source.headers.get("cache-control") ?? "", /no-store/);

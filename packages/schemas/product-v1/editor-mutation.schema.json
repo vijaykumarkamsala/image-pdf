@@ -1021,6 +1021,17 @@
       ],
       "default": null
     },
+    "crop": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CropRegion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "kind": {
       "$ref": "#/$defs/EditorOperationKind"
     },

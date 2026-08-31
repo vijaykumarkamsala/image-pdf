@@ -182,7 +182,17 @@ export function applyMutation(current: EditorDocumentSnapshot, mutation: EditorM
       if (layer.locked && mutation.properties?.["locked"] !== false) {
         throw new DomainError(409, "layer-locked", "Unlock the layer before editing it");
       }
+      if (mutation.layer) {
+        if (mutation.layer.layer_id !== layer.layer_id || mutation.layer.artboard_id !== layer.artboard_id || mutation.layer.layer_type !== layer.layer_type) {
+          invalidMutation("Layer identity, artboard and type cannot change during an update");
+        }
+        Object.assign(layer, clone(mutation.layer));
+      }
       if (mutation.transform) layer.transform = clone(mutation.transform);
+      if (mutation.crop) {
+        if (!layer.raster) invalidMutation("Cropping applies only to raster layers");
+        layer.raster.crop = clone(mutation.crop);
+      }
       if (mutation.adjustments) {
         if (!layer.raster) invalidMutation("Adjustments apply only to raster layers");
         layer.raster.adjustments = clone(mutation.adjustments);
@@ -227,6 +237,16 @@ export function applyMutation(current: EditorDocumentSnapshot, mutation: EditorM
       const index = next.masks.findIndex((item) => item.mask_id === mutation.mask!.mask_id);
       if (index >= 0) next.masks[index] = clone(mutation.mask);
       else next.masks.push(clone(mutation.mask));
+      if (mutation.target_id) {
+        const layer = requireLayer(next, mutation.target_id);
+        const maskIds = layer.raster
+          ? (layer.raster.mask_ids ??= [])
+          : layer.vector
+            ? (layer.vector.mask_ids ??= [])
+            : null;
+        if (!maskIds) invalidMutation("Masks can be attached only to raster or vector layers");
+        if (!maskIds.includes(mutation.mask.mask_id)) maskIds.push(mutation.mask.mask_id);
+      }
       break;
     }
     case "document.rename":
@@ -284,15 +304,100 @@ function requireArtboard(snapshot: EditorDocumentSnapshot, id: string | null | u
 }
 
 function validateSnapshot(snapshot: EditorDocumentSnapshot) {
+  if (snapshot.artboards.length === 0) invalidMutation("A document must keep at least one artboard");
   const artboards = new Set(snapshot.artboards.map((item) => item.artboard_id));
   const snapshotLayers = snapshot.layers ?? [];
   const layers = new Set(snapshotLayers.map((item) => item.layer_id));
   if (artboards.size !== snapshot.artboards.length || layers.size !== snapshotLayers.length) invalidMutation("Document identifiers must be unique");
+  for (const artboard of snapshot.artboards) {
+    finiteRange(artboard.width, 0, 100_000, "Artboard width", false);
+    finiteRange(artboard.height, 0, 100_000, "Artboard height", false);
+  }
   for (const layer of snapshotLayers) {
     if (!artboards.has(layer.artboard_id)) invalidMutation("Every layer must belong to an artboard");
     if (layer.parent_layer_id && (!layers.has(layer.parent_layer_id) || layer.parent_layer_id === layer.layer_id)) {
       invalidMutation("Layer nesting is invalid");
     }
+    if (typeof layer.name !== "string" || !layer.name.trim()) invalidMutation("Every layer must have a name");
+    finiteRange(layer.opacity, 0, 1, "Layer opacity");
+    validateTransform(layer.transform);
+    validateLayerContent(layer);
+    const visited = new Set([layer.layer_id]);
+    let parentId = layer.parent_layer_id;
+    while (parentId) {
+      if (visited.has(parentId)) invalidMutation("Layer nesting cannot contain a cycle");
+      visited.add(parentId);
+      parentId = snapshotLayers.find((item) => item.layer_id === parentId)?.parent_layer_id ?? null;
+    }
+  }
+  const masks = new Set<string>();
+  for (const mask of snapshot.masks ?? []) {
+    if (masks.has(mask.mask_id)) invalidMutation("Mask identifiers must be unique");
+    masks.add(mask.mask_id);
+    if (!artboards.has(mask.artboard_id)) invalidMutation("Every mask must belong to an artboard");
+    finiteRange(mask.feather, 0, 1_000, "Mask feather");
+  }
+}
+
+function validateTransform(value: LayerRecord["transform"]) {
+  if (!value || typeof value !== "object") invalidMutation("Every layer must have a transform");
+  finiteRange(value.x, -1_000_000, 1_000_000, "Layer x position");
+  finiteRange(value.y, -1_000_000, 1_000_000, "Layer y position");
+  finiteRange(value.width, 0, 1_000_000, "Layer width", false);
+  finiteRange(value.height, 0, 1_000_000, "Layer height", false);
+  finiteRange(value.rotation_degrees, -360, 360, "Layer rotation");
+  finiteRange(value.scale_x, 0, 1_000, "Layer horizontal scale", false);
+  finiteRange(value.scale_y, 0, 1_000, "Layer vertical scale", false);
+  finiteRange(value.skew_x_degrees, -89, 89, "Layer horizontal skew");
+  finiteRange(value.skew_y_degrees, -89, 89, "Layer vertical skew");
+}
+
+function validateLayerContent(layer: LayerRecord) {
+  const payloads = [layer.raster, layer.vector, layer.rich_text, layer.shape, layer.group]
+    .filter((value) => value !== null && value !== undefined);
+  if (payloads.length > 1) invalidMutation("A layer can carry only one built-in content payload");
+  const expected = layer.layer_type === "raster_image" ? layer.raster
+    : layer.layer_type === "vector_svg" ? layer.vector
+      : layer.layer_type === "rich_text" ? layer.rich_text
+        : layer.layer_type === "shape" ? layer.shape
+          : layer.layer_type === "group" ? layer.group
+            : undefined;
+  if (["raster_image", "vector_svg", "rich_text", "shape", "group"].includes(layer.layer_type) && !expected) {
+    invalidMutation("Layer content must match its type");
+  }
+  if (layer.raster) {
+    const crop = layer.raster.crop;
+    if (!crop || typeof crop !== "object") invalidMutation("Raster layers require a crop region");
+    const { left, top, right, bottom } = crop;
+    finiteRange(left, 0, 1, "Crop left");
+    finiteRange(top, 0, 1, "Crop top");
+    finiteRange(right, 0, 1, "Crop right");
+    finiteRange(bottom, 0, 1, "Crop bottom");
+    if (right <= left || bottom <= top) invalidMutation("Crop region must have positive area");
+    if (!layer.raster.adjustments || typeof layer.raster.adjustments !== "object") invalidMutation("Raster layers require adjustment values");
+    for (const [name, value] of Object.entries(layer.raster.adjustments)) {
+      if (name === "schema_version") continue;
+      finiteRange(value, name === "sharpness" ? 0 : -100, 100, `Adjustment ${name}`);
+    }
+  }
+  if (layer.rich_text) {
+    if (typeof layer.rich_text.text !== "string") invalidMutation("Rich-text layers require text");
+    finiteRange(layer.rich_text.font_size, 0, 2_000, "Text size", false);
+    for (const run of layer.rich_text.runs ?? []) {
+      if (!Number.isSafeInteger(run.start) || !Number.isSafeInteger(run.end) || run.start < 0 || run.end < run.start || run.end > layer.rich_text.text.length) {
+        invalidMutation("Rich-text ranges must stay within their text");
+      }
+    }
+  }
+  if (layer.shape) {
+    finiteRange(layer.shape.stroke_width, 0, 10_000, "Shape stroke width");
+    finiteRange(layer.shape.corner_radius, 0, 100_000, "Shape corner radius");
+  }
+}
+
+function finiteRange(value: unknown, minimum: number, maximum: number, name: string, includeMinimum = true): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value > maximum || (includeMinimum ? value < minimum : value <= minimum)) {
+    invalidMutation(`${name} is outside the supported range`);
   }
 }
 

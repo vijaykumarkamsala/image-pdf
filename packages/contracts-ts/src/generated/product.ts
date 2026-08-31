@@ -210,6 +210,7 @@ export interface EditorMutation {
   artboard?: ArtboardRecord | null;
   mask?: EditableMaskRecord | null;
   transform?: LayerTransform | null;
+  crop?: CropRegion | null;
   adjustments?: VisualAdjustments | null;
   properties?: Partial<Record<string, string | number | boolean | null>>;
 }

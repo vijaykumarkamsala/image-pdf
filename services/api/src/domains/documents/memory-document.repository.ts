@@ -224,11 +224,11 @@ export class MemoryDocumentRepository implements DocumentRepository {
     });
   }
 
-  async acquireLease(context: CommandContext, workspaceId: string, documentId: string): Promise<EditorLeaseGrant> {
+  async acquireLease(context: CommandContext, workspaceId: string, documentId: string, allowTakeover = false): Promise<EditorLeaseGrant> {
     this.requireDocument(workspaceId, documentId);
     const existing = this.leases.get(documentId);
     const now = this.runtime.now();
-    if (existing && existing.record.actor_id !== context.principal.actorId && new Date(now) <= new Date(existing.record.grace_expires_at)) {
+    if (!allowTakeover && existing && existing.record.actor_id !== context.principal.actorId && new Date(now) <= new Date(existing.record.grace_expires_at)) {
       throw new DomainError(409, "document-lease-held", `${existing.record.actor_display_name} is currently editing this document`);
     }
     const rawToken = randomBytes(32).toString("hex");
@@ -262,7 +262,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
     const existing = this.leases.get(documentId);
     const now = this.runtime.now();
     if (!existing || new Date(now) > new Date(existing.record.grace_expires_at) || force) {
-      const grant = await this.acquireLease(context, workspaceId, documentId);
+      const grant = await this.acquireLease(context, workspaceId, documentId, force);
       return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired", current_editor: null, grant };
     }
     existing.takeoverRequestedBy = context.principal.actorId;

@@ -392,6 +392,7 @@ class EditorMutation(EditorContractModel):
     artboard: ArtboardRecord | None = None
     mask: EditableMaskRecord | None = None
     transform: LayerTransform | None = None
+    crop: CropRegion | None = None
     adjustments: VisualAdjustments | None = None
     properties: dict[str, ScalarValue] = Field(default_factory=dict)
 

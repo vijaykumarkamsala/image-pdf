@@ -104,16 +104,22 @@ export class PostgresDocumentRepository implements DocumentRepository {
          VALUES($1,$2,$3,$4,$5,$6,$7)`,
         [this.runtime.id("history"), input.documentId, position, operationId, before, after, now],
       );
-      await client.query(
-        `DELETE FROM document_history_entries WHERE history_entry_id IN (
-           SELECT history_entry_id FROM document_history_entries WHERE document_id=$1
-           ORDER BY history_position DESC OFFSET $2
-         )`,
-        [input.documentId, DOCUMENT_HISTORY_LIMIT],
-      );
+      let nextCursor = position;
+      if (position > DOCUMENT_HISTORY_LIMIT) {
+        const trimmed = position - DOCUMENT_HISTORY_LIMIT;
+        await client.query(
+          "DELETE FROM document_history_entries WHERE document_id=$1 AND history_position<=$2",
+          [input.documentId, trimmed],
+        );
+        await client.query(
+          "UPDATE document_history_entries SET history_position=history_position-$2 WHERE document_id=$1",
+          [input.documentId, trimmed],
+        );
+        nextCursor = DOCUMENT_HISTORY_LIMIT;
+      }
       await client.query(
         "UPDATE editor_documents SET current_revision=$1,current_snapshot=$2,history_cursor=$3,updated_at=$4 WHERE document_id=$5",
-        [after.revision, after, position, now, input.documentId],
+        [after.revision, after, nextCursor, now, input.documentId],
       );
       const checkpoint = after.revision % DOCUMENT_CHECKPOINT_INTERVAL === 0
         ? await this.appendVersion(client, input.documentId, after, "autosave_checkpoint", `Autosave ${after.revision}`, context.principal.actorId, now)
@@ -211,7 +217,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
     });
   }
 
-  async acquireLease(context: CommandContext, workspaceId: string, documentId: string): Promise<EditorLeaseGrant> {
+  async acquireLease(context: CommandContext, workspaceId: string, documentId: string, allowTakeover = false): Promise<EditorLeaseGrant> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -219,7 +225,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       const existing = await client.query("SELECT * FROM document_leases WHERE document_id=$1 FOR UPDATE", [documentId]);
       const now = this.runtime.now();
       const row = existing.rows[0];
-      if (row && String(row["actor_id"]) !== context.principal.actorId && new Date(now) <= new Date(row["grace_expires_at"] as Date)) {
+      if (!allowTakeover && row && String(row["actor_id"]) !== context.principal.actorId && new Date(now) <= new Date(row["grace_expires_at"] as Date)) {
         throw new DomainError(409, "document-lease-held", `${String(row["actor_display_name"])} is currently editing this document`);
       }
       const token = randomBytes(32).toString("hex");
@@ -281,7 +287,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
     const existing = await this.pool.query("SELECT * FROM document_leases WHERE document_id=$1", [documentId]);
     const row = existing.rows[0];
     if (!row || new Date(this.runtime.now()) > new Date(row["grace_expires_at"] as Date) || force) {
-      const grant = await this.acquireLease(context, workspaceId, documentId);
+      const grant = await this.acquireLease(context, workspaceId, documentId, force);
       return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired", current_editor: null, grant };
     }
     await this.pool.query(
