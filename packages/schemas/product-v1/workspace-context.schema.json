@@ -164,7 +164,12 @@
         "job.retry",
         "notification.read",
         "notification.update",
-        "search.read"
+        "search.read",
+        "document.create",
+        "document.read",
+        "document.edit",
+        "document.version",
+        "document.lease.takeover"
       ],
       "title": "Permission",
       "type": "string"

@@ -95,6 +95,11 @@ class Permission(StrEnum):
     NOTIFICATION_READ = "notification.read"
     NOTIFICATION_UPDATE = "notification.update"
     SEARCH_READ = "search.read"
+    DOCUMENT_CREATE = "document.create"
+    DOCUMENT_READ = "document.read"
+    DOCUMENT_EDIT = "document.edit"
+    DOCUMENT_VERSION = "document.version"
+    DOCUMENT_LEASE_TAKEOVER = "document.lease.takeover"
 
 
 class PermissionOrigin(StrEnum):

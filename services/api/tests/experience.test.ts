@@ -142,7 +142,9 @@ test("Home, notifications, search and feature state are derived from real worksp
 
     const features = await json(await server.request(`/workspaces/${workspaceId}/features`));
     assert.equal(features.features.length, 4);
-    assert.ok(features.features.every((feature: any) => feature.active === false && feature.customer_visible === true));
+    assert.equal(features.features.find((feature: any) => feature.feature === "image-graphic-studio").active, true);
+    assert.ok(features.features.filter((feature: any) => feature.feature !== "image-graphic-studio")
+      .every((feature: any) => feature.active === false && feature.customer_visible === true));
 
     await bootstrap(server, "actor-other-experience", "bootstrap-other-experience");
     assert.equal((await server.request(`/workspaces/${workspaceId}/search?q=retail`, {}, "actor-other-experience")).status, 404);

@@ -19,6 +19,7 @@ export const MIGRATION_VERSIONS = [
   "0011_recovery_2c_auth_sessions",
   "0012_recovery_2c_transactional_notifications",
   "0013_recovery_2c_truthful_intake",
+  "0014_recovery_2d_native_documents",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {

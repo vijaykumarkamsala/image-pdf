@@ -117,7 +117,7 @@ export class ExperienceService implements OnApplicationShutdown {
       features: ["image-graphic-studio", "create-pdf", "edit-manage-pdf", "print-production"].map((feature) => ({
         schema_version: PRODUCT_SCHEMA_VERSION,
         feature,
-        active: false,
+        active: feature === "image-graphic-studio",
         customer_visible: true,
       })),
     };

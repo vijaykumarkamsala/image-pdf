@@ -10,6 +10,7 @@ import { PostgresIntakeRepository } from "../src/domains/intake/postgres-intake.
 import { PostgresGuestHandoffRepository } from "../src/domains/intake/guest-handoff.repository.js";
 import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
 import { PostgresExperienceRepository } from "../src/domains/experience/postgres-experience.repository.js";
+import { PostgresDocumentRepository } from "../src/domains/documents/postgres-document.repository.js";
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
@@ -852,6 +853,87 @@ test(
       assert.deepEqual(handoffNotifications.rows, [{ kind: "guest_handoff_completed", resource_id: handedOff.fileId }]);
     } finally {
       await repository.close();
+    }
+  },
+);
+
+test(
+  "PostgreSQL 17 persists native documents, optimistic revisions, leases and forward-only restore",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    const pool = new Pool({ connectionString });
+    const runtime = new DeterministicRuntimeValues("2026-08-31T08:00:00.000Z");
+    for (let index = 0; index < 1000; index += 1) runtime.id("test-seed");
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    try {
+      await runMigrations(pool);
+      const bootstrap = await product.bootstrap(context("actor-editor-pg", "editor-bootstrap-pg", "session.bootstrap", {}));
+      const workspaceId = bootstrap.workspace.workspace_id;
+      const createContext = context("actor-editor-pg", "editor-create-pg", "document.create", { name: "PostgreSQL canvas" });
+      const created = await documents.create(createContext, {
+        workspaceId,
+        defaultFilesId: bootstrap.defaultFiles.default_files_id,
+        name: "PostgreSQL canvas",
+        intendedUse: "digital",
+        intendedUseLabel: "Digital design",
+        width: 800,
+        height: 600,
+      });
+      const replay = await documents.create(createContext, {
+        workspaceId,
+        defaultFilesId: bootstrap.defaultFiles.default_files_id,
+        name: "PostgreSQL canvas",
+        intendedUse: "digital",
+        intendedUseLabel: "Digital design",
+        width: 800,
+        height: 600,
+      });
+      assert.equal(replay.replayed, true);
+      assert.equal(replay.value.document.document_id, created.value.document.document_id);
+
+      const documentId = created.value.document.document_id;
+      const leaseContext = context("actor-editor-pg", "editor-lease-pg", "document.lease.acquire", { documentId });
+      const lease = await documents.acquireLease(leaseContext, workspaceId, documentId);
+      const tokenHash = (await import("../src/domains/documents/document-model.js")).sha256(lease.lease_token);
+      const mutation = {
+        kind: "layer.add" as const,
+        layer: {
+          layer_id: "layer-pg-shape", artboard_id: created.value.snapshot.artboards[0].artboard_id,
+          parent_layer_id: null, layer_type: "shape" as const, name: "PostgreSQL rectangle", order: 0,
+          visible: true, locked: false, opacity: 1, blend_mode: "normal",
+          transform: { x: 10, y: 20, width: 100, height: 80, rotation_degrees: 0, scale_x: 1, scale_y: 1, skew_x_degrees: 0, skew_y_degrees: 0, flip_x: false, flip_y: false },
+          shared_style_ids: [], raster: null, vector: null, rich_text: null,
+          shape: { shape: "rectangle" as const, fill: "#3559e0", stroke: null, stroke_width: 0, corner_radius: 4 },
+          group: null, extension_payload: {},
+        },
+        properties: {},
+      };
+      const mutationContext = context("actor-editor-pg", "editor-mutate-pg", "document.mutate", { documentId, mutation });
+      const changed = await documents.mutate(mutationContext, { workspaceId, documentId, baseRevision: 0, mutation, leaseTokenHash: tokenHash });
+      assert.equal(changed.snapshot.revision, 1);
+
+      const named = await documents.createVersion(
+        context("actor-editor-pg", "editor-version-pg", "document.version", { documentId }),
+        workspaceId, documentId, "PostgreSQL checkpoint",
+      );
+      const restored = await documents.restoreVersion(
+        context("actor-editor-pg", "editor-restore-pg", "document.restore", { documentId }),
+        workspaceId, documentId, created.value.document.current_version_id, tokenHash,
+      );
+      assert.equal(restored.value.snapshot.layers?.length, 0);
+      assert.ok(restored.value.snapshot.revision > changed.snapshot.revision);
+      const versions = (await documents.get("actor-editor-pg", workspaceId, documentId))!.versions;
+      assert.ok(versions.some((item) => item.document_version_id === named.value.document_version_id));
+      assert.ok(versions.some((item) => item.kind === "restore"));
+
+      const persisted = new PostgresDocumentRepository(pool, runtime);
+      assert.equal((await persisted.get("actor-editor-pg", workspaceId, documentId))!.snapshot.revision, restored.value.snapshot.revision);
+      const applied = await pool.query("SELECT version FROM schema_migrations WHERE version='0014_recovery_2d_native_documents'");
+      assert.equal(applied.rowCount, 1);
+    } finally {
+      await pool.end();
     }
   },
 );

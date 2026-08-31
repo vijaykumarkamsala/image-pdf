@@ -19,6 +19,11 @@ const ALL_PERMISSIONS: Permission[] = [
   "notification.read",
   "notification.update",
   "search.read",
+  "document.create",
+  "document.read",
+  "document.edit",
+  "document.version",
+  "document.lease.takeover",
 ];
 
 const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
@@ -40,8 +45,12 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
     "notification.read",
     "notification.update",
     "search.read",
+    "document.create",
+    "document.read",
+    "document.edit",
+    "document.version",
   ]),
-  viewer: new Set(["workspace.read", "project.read", "file.read", "search.read"]),
+  viewer: new Set(["workspace.read", "project.read", "file.read", "search.read", "document.read"]),
 };
 
 export function permissionsForRole(role: RolePreset): EffectivePermission[] {
