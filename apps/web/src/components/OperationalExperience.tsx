@@ -267,6 +267,7 @@ export function SignedWorkspaceHome({ workspaceId, actorName, onUpload, refresh 
 }
 
 const JOB_TABS = [
+  ["all", "All"],
   ["active", "Active"],
   ["completed", "Completed"],
   ["failed", "Failed"],

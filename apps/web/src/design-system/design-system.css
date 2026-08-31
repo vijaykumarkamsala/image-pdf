@@ -166,8 +166,8 @@
 .ds-modal-layer { position: fixed; inset: 0; z-index: var(--layer-overlay); display: grid; place-items: center; padding: var(--space-5); }
 .ds-modal-scrim { position: absolute; inset: 0; width: 100%; border: 0; background: var(--color-overlay); }
 .ds-modal { position: relative; width: min(520px, 100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-lg); }
-.ds-modal > header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 10px var(--space-5); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
-.ds-modal > header h2 { margin: 0; font-size: var(--text-xl); }
+.ds-modal-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 10px var(--space-5); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.ds-modal-heading h2 { margin: 0; font-size: var(--text-xl); }
 .ds-modal-drawer { justify-self: end; width: min(420px, 100%); height: calc(100vh - 40px); border-radius: var(--radius-lg); }
 
 .ds-popover-root { position: relative; }

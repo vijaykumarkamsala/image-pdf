@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { DEFAULT_PRODUCT_NAME, renderProductTemplate } from "../src/config/product.ts";
 import { createProductManifest } from "../src/pwa/manifest.ts";
+import { PRODUCTION_CONTENT_SECURITY_POLICY, PRODUCTION_SECURITY_HEADERS } from "../src/pwa/security.ts";
 
 const serviceWorker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
 const offlineTemplate = readFileSync(new URL("../offline.template.html", import.meta.url), "utf8");
@@ -18,7 +19,7 @@ test("web manifest uses provisional configurable branding and installable icon p
 });
 
 test("service worker caches only shell assets and bypasses protected customer traffic", () => {
-  assert.match(serviceWorker, /ipw-shell-2c-v1/);
+  assert.match(serviceWorker, /ipw-shell-2c-v2/);
   assert.match(serviceWorker, /request\.headers\.has\("authorization"\)/);
   assert.match(serviceWorker, /url\.pathname\.startsWith\("\/v1\/"\)/);
   assert.match(serviceWorker, /signature\|credential\|token\|x-goog/i);
@@ -26,6 +27,8 @@ test("service worker caches only shell assets and bypasses protected customer tr
   assert.match(serviceWorker, /CLEAR_PRIVATE_CACHES/);
   assert.match(serviceWorker, /SKIP_WAITING/);
   assert.match(serviceWorker, /offline\.html/);
+  assert.match(serviceWorker, /offline\.css/);
+  assert.match(serviceWorker, /name\.startsWith\(PRIVATE_CACHE_PREFIX\)/);
 });
 
 test("offline fallback makes no claim that unaccepted cloud work continues", () => {
@@ -33,6 +36,17 @@ test("offline fallback makes no claim that unaccepted cloud work continues", () 
   assert.match(offlineFallback, /Configured Product/);
   assert.match(offlineFallback, /Work already accepted by the server remains durable/);
   assert.doesNotMatch(offlineFallback, /processing continues|upload continues/i);
+  assert.doesNotMatch(offlineFallback, /<style|onclick=/i);
+  assert.match(offlineFallback, /href="\/offline\.css"/);
+  assert.match(offlineFallback, /href="\/"/);
+});
+
+test("production CSP permits required assets without inline or eval allowances", () => {
+  assert.equal(PRODUCTION_SECURITY_HEADERS["Content-Security-Policy"], PRODUCTION_CONTENT_SECURITY_POLICY);
+  assert.match(PRODUCTION_CONTENT_SECURITY_POLICY, /default-src 'self'/);
+  assert.match(PRODUCTION_CONTENT_SECURITY_POLICY, /object-src 'none'/);
+  assert.match(PRODUCTION_CONTENT_SECURITY_POLICY, /frame-ancestors 'none'/);
+  assert.doesNotMatch(PRODUCTION_CONTENT_SECURITY_POLICY, /unsafe-inline|unsafe-eval/);
 });
 
 test("one provisional product name configures runtime, metadata, offline and manifest output", () => {

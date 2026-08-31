@@ -93,7 +93,7 @@ function WorkspaceSwitcher({ current, workspaces }: {
   if (workspaces.length <= 1) return <div className="workspace-switcher-static">{identity}</div>;
   const suffix = location.pathname.replace(/^\/w\/[^/]+/, "") || "";
   return <Popover label="Choose workspace" align="start" trigger={identity}>
-    <div className="workspace-popover" role="list" aria-label="Available workspaces">{workspaces.map((workspace) => <Button
+    <div className="workspace-popover" role="group" aria-label="Available workspaces">{workspaces.map((workspace) => <Button
       key={workspace.workspace_id}
       tone={workspace.workspace_id === current.workspace_id ? "quiet" : "secondary"}
       onClick={() => navigate(`/w/${encodeURIComponent(workspace.workspace_id)}${suffix}${location.search}`)}

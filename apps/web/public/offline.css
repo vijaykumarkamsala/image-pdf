@@ -1,0 +1,8 @@
+* { box-sizing: border-box; }
+body { min-height: 100vh; display: grid; place-items: center; margin: 0; padding: 24px; color: #192231; background: #f7f8fa; font: 16px/1.5 system-ui, sans-serif; }
+main { width: min(520px, 100%); padding-block: 32px; border-block: 1px solid #cfd5de; text-align: center; }
+.product-name { margin: 0 0 12px; color: #2757cf; font-size: 0.875rem; font-weight: 700; }
+h1 { margin: 0 0 8px; font-size: 1.75rem; }
+p { margin: 0; color: #586577; }
+a { display: inline-flex; min-height: 44px; align-items: center; margin-top: 22px; padding: 0 18px; border: 1px solid #1f63d8; border-radius: 6px; color: white; background: #1f63d8; font-weight: 700; text-decoration: none; }
+a:focus-visible { outline: 3px solid #1263d6; outline-offset: 3px; }

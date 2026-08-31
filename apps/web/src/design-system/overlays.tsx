@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
 import { IconButton } from "./components";
 
@@ -34,7 +35,7 @@ export function Modal({ open, title, onClose, children, variant = "dialog" }: {
     return () => { document.removeEventListener("keydown", keydown); returnFocus.current?.focus(); };
   }, [open, onClose]);
   if (!open) return null;
-  return <div className="ds-modal-layer"><button className="ds-modal-scrim" aria-label={`Close ${title}`} onClick={onClose} /><div ref={panel} className={`ds-modal ds-modal-${variant}`} role="dialog" aria-modal="true" aria-labelledby={titleId}><header><h2 id={titleId}>{title}</h2><IconButton label="Close" onClick={onClose}><X aria-hidden="true" /></IconButton></header>{children}</div></div>;
+  return createPortal(<div className="ds-modal-layer"><button className="ds-modal-scrim" aria-label={`Close ${title}`} onClick={onClose} /><div ref={panel} className={`ds-modal ds-modal-${variant}`} role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="ds-modal-heading"><h2 id={titleId}>{title}</h2><IconButton label="Close" onClick={onClose}><X aria-hidden="true" /></IconButton></div>{children}</div></div>, document.body);
 }
 
 export function Dialog(props: Omit<Parameters<typeof Modal>[0], "variant">) { return <Modal {...props} variant="dialog" />; }

@@ -23,6 +23,9 @@ test("health and readiness endpoints return v1 envelopes with trace propagation"
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-trace-id"), "trace-test");
+    assert.equal(response.headers.get("cache-control"), "no-store, max-age=0");
+    assert.equal(response.headers.get("pragma"), "no-cache");
+    assert.equal(response.headers.get("vary"), "Cookie, Authorization");
     assert.deepEqual(body, {
       ok: true,
       service: "ipw-api",

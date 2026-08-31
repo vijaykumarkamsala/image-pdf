@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Visual Workspace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#1f63d8"/>
   <path fill="#ffffff" d="M136 146h240v58H136zm0 81h240v58H136zm0 81h240v58H136z"/>
   <path fill="#9bd3c7" d="M166 175h66v162h-66z"/>

@@ -1,6 +1,6 @@
-const SHELL_CACHE = "ipw-shell-2c-v1";
+const SHELL_CACHE = "ipw-shell-2c-v2";
 const PRIVATE_CACHE_PREFIX = "ipw-private-";
-const SHELL_FILES = ["/", "/offline.html", "/manifest.webmanifest", "/icons/app-icon.svg", "/icons/app-icon-maskable.svg"];
+const SHELL_FILES = ["/", "/offline.html", "/offline.css", "/manifest.webmanifest", "/icons/app-icon.svg", "/icons/app-icon-maskable.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_FILES)));
@@ -8,7 +8,9 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(caches.keys().then((names) => Promise.all(
-    names.filter((name) => name.startsWith("ipw-shell-") && name !== SHELL_CACHE).map((name) => caches.delete(name)),
+    names.filter((name) => (
+      (name.startsWith("ipw-shell-") && name !== SHELL_CACHE) || name.startsWith(PRIVATE_CACHE_PREFIX)
+    )).map((name) => caches.delete(name)),
   )).then(() => self.clients.claim()));
 });
 
@@ -21,7 +23,7 @@ function isProtected(request, url) {
 function isStaticAsset(url) {
   return url.origin === self.location.origin && (
     url.pathname.startsWith("/assets/") || url.pathname.startsWith("/icons/")
-    || url.pathname === "/manifest.webmanifest" || url.pathname === "/favicon.svg"
+    || url.pathname === "/manifest.webmanifest" || url.pathname === "/favicon.svg" || url.pathname === "/offline.css"
   );
 }
 

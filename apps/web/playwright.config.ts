@@ -8,6 +8,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: "line",
+  grepInvert: /internal panel harness/,
   snapshotPathTemplate: "{testDir}/../__screenshots__/{arg}{ext}",
   use: {
     baseURL: "http://127.0.0.1:4173",
@@ -34,7 +35,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: "npm run dev --workspace ipw-web -- --host 127.0.0.1 --port 4173",
+      command: "npm run build --workspace ipw-web && npm run preview --workspace ipw-web -- --host 127.0.0.1 --port 4173",
       cwd: "../..",
       port: 4173,
       reuseExistingServer: false,

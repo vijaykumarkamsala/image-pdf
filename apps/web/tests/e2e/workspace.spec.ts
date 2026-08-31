@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
+import { PRODUCT_SCHEMA_VERSION, type ProcessingJobRecord } from "ipw-contracts-ts/product";
 
 async function identify(page: Page, suffix: string, theme: "light" | "dark" = "light") {
   const id = `actor-${suffix}`;
@@ -38,6 +38,17 @@ const screenshotOptions = {
   maxDiffPixelRatio: 0,
 } as const;
 
+async function prepareVisualScreenshot(page: Page) {
+  await expect(page.locator("body")).not.toContainText(/recovery/i);
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    document: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await clearFocus(page);
+}
+
 test("real API onboarding, project creation, and Default Files journey", async ({ page }) => {
   await openWorkspace(page, "journey");
   await expect(page.getByRole("button", { name: "Choose workspace" })).toHaveCount(0);
@@ -69,6 +80,29 @@ test("canonical workspace URLs survive refresh and reject another tenant", async
   expect(page.url()).toBe(ownerUrl);
 });
 
+test("every customer route hard-refreshes through the production preview", async ({ page }) => {
+  await openWorkspace(page, "route-refresh");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  const routes = [
+    [`/w/${workspaceId}`, "workspace-home"],
+    [`/w/${workspaceId}/projects`, "projects-page"],
+    [`/w/${workspaceId}/files`, "files-page"],
+    [`/w/${workspaceId}/jobs`, "jobs-page"],
+  ] as const;
+  for (const [route, testId] of routes) {
+    await page.goto(route);
+    await page.reload();
+    await expect(page.getByTestId(testId)).toBeVisible();
+    expect(page.url()).toContain(route);
+  }
+  await page.goto("/app");
+  await page.reload();
+  await expect(page.getByTestId("workspace-home")).toBeVisible();
+  await page.goto("/guest/upload");
+  await page.reload();
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+});
+
 test("workspace selector lists permitted workspaces and uses canonical URLs", async ({ page }) => {
   await identify(page, "workspace-selector");
   const listed = await page.request.get("/v1/me/workspaces").then((response) => response.json()) as { schema_version: string; workspaces: Array<Record<string, unknown>> };
@@ -92,7 +126,8 @@ test("workspace selector lists permitted workspaces and uses canonical URLs", as
 
   await page.goto(`/w/${currentId}`);
   await page.getByRole("button", { name: "Choose workspace" }).click();
-  await expect(page.getByRole("list", { name: "Available workspaces" }).getByText("Production team")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Available workspaces" }).getByText("Production team")).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: /Production team/ }).click();
   await expect(page).toHaveURL(new RegExp(`/w/${secondId}$`));
   await expect(page.locator(".header-workspace strong")).toHaveText("Production team");
@@ -339,12 +374,15 @@ test("account logout revokes the session and clears private browser state", asyn
   await expect(page.getByTestId("guest-home")).toBeVisible();
   await expect(otherTab.getByTestId("guest-home")).toBeVisible();
   expect(await page.request.get("/v1/auth/session").then((response) => response.json())).toEqual({ authenticated: false });
-  expect(await page.evaluate(async () => ({
+  const cleared = await page.evaluate(async () => ({
     session: sessionStorage.getItem("ipw-private-test"),
     local: localStorage.getItem("ipw-private-test"),
     theme: localStorage.getItem("ipw-theme"),
     caches: "caches" in window ? await caches.keys() : [],
-  }))).toEqual({ session: null, local: null, theme: "light", caches: [] });
+  }));
+  expect(cleared).toMatchObject({ session: null, local: null, theme: "light" });
+  expect(cleared.caches).toEqual(["ipw-shell-2c-v2"]);
+  expect(cleared.caches.some((name) => name.startsWith("ipw-private-"))).toBe(false);
 });
 
 test("guest upload has no detectable accessibility violations", async ({ page }) => {
@@ -540,9 +578,24 @@ test("internal panel harness restores, constrains, persists and resets layout", 
 });
 
 test("service worker upgrades shell state, avoids API caching, clears private caches and serves offline fallback", async ({ page, context }) => {
-  await page.goto("/");
+  await page.goto("/offline.html");
   await page.evaluate(async () => {
     await caches.open("ipw-shell-obsolete");
+    await caches.open("ipw-private-pre-activation");
+  });
+  const documentResponse = await page.goto("/");
+  const csp = documentResponse?.headers()["content-security-policy"] ?? "";
+  expect(csp).toContain("default-src 'self'");
+  expect(csp).toContain("object-src 'none'");
+  expect(csp).not.toMatch(/unsafe-inline|unsafe-eval/);
+  const manifestResponse = await page.request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBe(true);
+  expect(manifestResponse.headers()["content-type"]).toContain("application/manifest+json");
+  const manifest = await manifestResponse.json() as { name: string; start_url: string; scope: string; display: string; icons: Array<{ src: string; purpose: string }> };
+  expect(manifest).toMatchObject({ name: "Visual Workspace", start_url: "/", scope: "/", display: "standalone" });
+  expect(manifest.icons.map((icon) => icon.purpose)).toEqual(["any", "maskable"]);
+  for (const icon of manifest.icons) expect((await page.request.get(icon.src)).ok()).toBe(true);
+  await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) await new Promise<void>((resolve) => navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true }));
@@ -555,8 +608,9 @@ test("service worker upgrades shell state, avoids API caching, clears private ca
     channel.port1.onmessage = (event) => resolve(event.data.version);
     navigator.serviceWorker.controller!.postMessage({ type: "GET_VERSION" }, [channel.port2]);
   }));
-  expect(version).toBe("ipw-shell-2c-v1");
-  await page.request.get("/v1/health");
+  expect(version).toBe("ipw-shell-2c-v2");
+  const apiResponse = await page.request.get("/v1/health");
+  expect(apiResponse.headers()["cache-control"]).toBe("no-store, max-age=0");
   await page.evaluate(async () => {
     await caches.open("ipw-private-logout-proof");
     navigator.serviceWorker.controller!.postMessage({ type: "CLEAR_PRIVATE_CACHES" });
@@ -567,11 +621,14 @@ test("service worker upgrades shell state, avoids API caching, clears private ca
     requests: (await Promise.all((await caches.keys()).map(async (name) => (await caches.open(name)).keys()))).flat().map((request) => request.url),
   }));
   expect(cacheEvidence.names).not.toContain("ipw-shell-obsolete");
+  expect(cacheEvidence.names).not.toContain("ipw-private-pre-activation");
   expect(cacheEvidence.requests.some((url) => new URL(url).pathname.startsWith("/v1/"))).toBe(false);
 
   await context.setOffline(true);
   await page.goto("/offline-proof");
   await expect(page.getByRole("heading", { name: "You are offline" })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(/recovery/i);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await context.setOffline(false);
 });
 
@@ -609,6 +666,144 @@ const visualCases = [
   { name: "intermediate", width: 638, height: 768 },
   { name: "phone", width: 390, height: 844 },
 ] as const;
+
+test("@visual desktop light Guest Home", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  await expect(page.locator("label.ds-dropzone")).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("guest-home-1440x900-light.png", screenshotOptions);
+});
+
+test("@visual tablet dark Guest intake result", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.addInitScript(() => localStorage.setItem("ipw-theme", "dark"));
+  await page.goto("/guest/upload");
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Likely", { exact: true })).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("guest-intake-ready-768x1024-dark.png", screenshotOptions);
+});
+
+test("@visual desktop light populated signed-in Home", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "visual-populated-home");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await page.getByRole("button", { name: "New project" }).first().click();
+  await page.getByLabel("Project name").fill("Retail launch");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("link", { name: "Home" }).first().click();
+  await expect(page.getByText("Retail launch")).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-home-populated-1440x900-light.png", screenshotOptions);
+});
+
+test("@visual tablet dark mixed-state Jobs", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await openWorkspace(page, "visual-mixed-jobs", "dark");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  const listed = await page.request.get(`/v1/workspaces/${workspaceId}/jobs?view=all&limit=25`).then((response) => response.json()) as { jobs: ProcessingJobRecord[] };
+  const completed = listed.jobs[0]!;
+  const jobs: ProcessingJobRecord[] = [
+    { ...completed, job_id: "job-visual-running", state: "running", progress_percent: 42, failure: null },
+    { ...completed, job_id: "job-visual-failed", state: "failed", progress_percent: 64, failure: { schema_version: PRODUCT_SCHEMA_VERSION, code: "inspection-timeout", message: "The file check timed out and can be tried again.", retryable: true } },
+    { ...completed, job_id: "job-visual-cancelled", state: "cancelled", progress_percent: 25, failure: null },
+    completed,
+  ];
+  await page.route(`**/v1/workspaces/${workspaceId}/jobs?**`, (route) => route.fulfill({ json: { schema_version: PRODUCT_SCHEMA_VERSION, jobs, next_cursor: null } }));
+  await page.goto(`/w/${workspaceId}/jobs?view=all`);
+  await expect(page.locator(".job-card")).toHaveCount(4);
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-jobs-mixed-768x1024-dark.png", screenshotOptions);
+});
+
+test("@visual intermediate light open Search", async ({ page }) => {
+  await page.setViewportSize({ width: 638, height: 768 });
+  await openWorkspace(page, "visual-open-search");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await page.getByRole("button", { name: "New project" }).first().click();
+  await page.getByLabel("Project name").fill("Searchable campaign");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.keyboard.press("Control+K");
+  await page.getByLabel("Search projects, files and jobs").fill("Searchable");
+  await expect(page.getByRole("button", { name: /Searchable campaign/ })).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-search-open-638x768-light.png", screenshotOptions);
+});
+
+test("@visual phone dark Notifications with pagination", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await identify(page, "visual-paginated-notifications", "dark");
+  const listed = await page.request.get("/v1/me/workspaces").then((response) => response.json()) as { workspaces: Array<{ workspace_id: string }> };
+  const workspaceId = listed.workspaces[0]!.workspace_id;
+  const notification = (index: number) => ({
+    schema_version: PRODUCT_SCHEMA_VERSION,
+    notification_id: `visual-notification-${index}`,
+    workspace_id: workspaceId,
+    kind: "upload_accepted",
+    title: `File accepted ${index}`,
+    message: `campaign-source-${index}.png`,
+    resource_kind: "upload_session",
+    resource_id: `visual-upload-${index}`,
+    occurred_at: `2026-08-30T00:${String(59 - index).padStart(2, "0")}:00.000Z`,
+    read_at: null,
+  });
+  await page.route(`**/v1/workspaces/${workspaceId}/notifications?**`, (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    return route.fulfill({ json: cursor
+      ? { schema_version: PRODUCT_SCHEMA_VERSION, notifications: [notification(4)], next_cursor: null, unread_count: 4 }
+      : { schema_version: PRODUCT_SCHEMA_VERSION, notifications: Array.from({ length: 3 }, (_, index) => notification(index + 1)), next_cursor: "older-page", unread_count: 4 } });
+  });
+  await page.goto(`/w/${workspaceId}`);
+  await page.getByRole("button", { name: "4 unread notifications" }).click();
+  await page.getByRole("button", { name: "Load more" }).click();
+  await expect(page.getByRole("status")).toHaveText("1 older notification loaded.");
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-notifications-paginated-390x844-dark.png", screenshotOptions);
+});
+
+test("@visual intermediate dark offline state", async ({ page }) => {
+  await page.setViewportSize({ width: 638, height: 768 });
+  await openWorkspace(page, "visual-offline-state", "dark");
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+  await expect(page.getByRole("status").filter({ hasText: "You are offline" })).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-offline-638x768-dark.png", screenshotOptions);
+});
+
+test("@visual phone light account menu", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWorkspace(page, "visual-account-menu");
+  await page.getByRole("button", { name: "Account for Alex Morgan" }).click();
+  await expect(page.getByText("Session active")).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-account-menu-390x844-light.png", screenshotOptions);
+});
+
+test("@visual tablet light multiple-workspace selector", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await identify(page, "visual-workspace-selector");
+  const listed = await page.request.get("/v1/me/workspaces").then((response) => response.json()) as { schema_version: string; workspaces: Array<Record<string, unknown>> };
+  const current = listed.workspaces[0]!;
+  const currentId = String(current["workspace_id"]);
+  const second = { ...current, workspace_id: "workspace-visual-team", name: "Production team", personal_for_actor_id: null };
+  await page.route("**/v1/me/workspaces", (route) => route.fulfill({ json: { ...listed, workspaces: [current, second] } }));
+  await page.goto(`/w/${currentId}`);
+  await page.getByRole("button", { name: "Choose workspace" }).click();
+  await expect(page.getByRole("group", { name: "Available workspaces" }).getByText("Production team")).toBeVisible();
+  await prepareVisualScreenshot(page);
+  await expect(page).toHaveScreenshot("workspace-selector-768x1024-light.png", screenshotOptions);
+});
 
 for (const viewport of visualCases) {
   for (const theme of ["light", "dark"] as const) {

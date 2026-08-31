@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { renderProductTemplate, resolveProductName } from "./src/config/product.ts";
 import { createProductManifest } from "./src/pwa/manifest.ts";
+import { PRODUCTION_SECURITY_HEADERS } from "./src/pwa/security.ts";
 
 function productManifestPlugin(): Plugin {
   const productName = resolveProductName(process.env["VITE_PRODUCT_NAME"]);
@@ -42,6 +43,7 @@ export default defineConfig({
     },
   },
   preview: {
+    headers: PRODUCTION_SECURITY_HEADERS,
     proxy: {
       "/v1": "http://127.0.0.1:8780",
     },

@@ -5,19 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1f63d8" />
     <meta name="application-name" content="{{PRODUCT_NAME}}" />
+    <link rel="stylesheet" href="/offline.css" />
     <title>Offline | {{PRODUCT_NAME}}</title>
-    <style>
-      * { box-sizing: border-box; }
-      body { min-height: 100vh; display: grid; place-items: center; margin: 0; padding: 24px; color: #192231; background: #f7f8fa; font: 16px/1.5 system-ui, sans-serif; }
-      main { width: min(520px, 100%); padding-block: 32px; border-block: 1px solid #cfd5de; text-align: center; }
-      .product-name { margin: 0 0 12px; color: #2757cf; font-size: 0.875rem; font-weight: 700; }
-      h1 { margin: 0 0 8px; font-size: 1.75rem; }
-      p { margin: 0; color: #586577; }
-      button { min-height: 44px; margin-top: 22px; padding: 0 18px; border: 1px solid #1f63d8; border-radius: 6px; color: white; background: #1f63d8; font: inherit; font-weight: 700; cursor: pointer; }
-      button:focus-visible { outline: 3px solid #1263d6; outline-offset: 3px; }
-    </style>
   </head>
   <body>
-    <main><p class="product-name">{{PRODUCT_NAME}}</p><h1>You are offline</h1><p>Reconnect to upload or begin cloud work. Work already accepted by the server remains durable.</p><button type="button" onclick="location.reload()">Try again</button></main>
+    <main><p class="product-name">{{PRODUCT_NAME}}</p><h1>You are offline</h1><p>Reconnect to upload or begin cloud work. Work already accepted by the server remains durable.</p><a href="/">Try again</a></main>
   </body>
 </html>
