@@ -29,8 +29,8 @@ async function api(): Promise<TestApi> {
         ...options,
         headers: {
           "content-type": "application/json",
-          "x-ipw-actor-id": actor,
-          "x-ipw-actor-name": actor === "actor-alex" ? "Alex Morgan" : "Other actor",
+          "x-ipw-test-actor-id": actor,
+          "x-ipw-test-actor-name": actor === "actor-alex" ? "Alex Morgan" : "Other actor",
           "x-trace-id": "trace-api-test",
           ...options.headers,
         },

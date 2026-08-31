@@ -58,11 +58,9 @@ function verifiedType(mediaType: string): string {
 export function IntakeFacts({
   upload,
   traceId,
-  guestToken,
 }: {
   upload: UploadSessionRecord;
   traceId: string;
-  guestToken?: string;
 }) {
   const [presentation, setPresentation] = useState<IntelligentIntakePresentation | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,18 +68,18 @@ export function IntakeFacts({
 
   useEffect(() => {
     let active = true;
-    api.intakePresentation(upload.upload_session_id, traceId, guestToken).then(
+    api.intakePresentation(upload.upload_session_id, traceId).then(
       (response) => { if (active) setPresentation(response.presentation); },
       () => { if (active) setError("Verified facts could not be displayed. The accepted source remains unchanged."); },
     );
     return () => { active = false; };
-  }, [guestToken, traceId, upload.upload_session_id]);
+  }, [traceId, upload.upload_session_id]);
 
   async function correct(category: IntakeSourceCategory) {
     setSaving(true);
     setError(null);
     try {
-      const response = await api.correctIntakeClassification(upload.upload_session_id, category, traceId, guestToken);
+      const response = await api.correctIntakeClassification(upload.upload_session_id, category, traceId);
       setPresentation(response.presentation);
     } catch {
       setError("The source category could not be saved. No file content was changed.");

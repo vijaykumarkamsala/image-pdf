@@ -46,6 +46,7 @@ export interface CleanupCandidate {
 export interface IntakeRepository {
   createGuest(record: GuestSessionRecord, tokenHash: string, createdAt: string): Promise<void>;
   findGuest(tokenHash: string, now: string): Promise<GuestSessionRecord | null>;
+  revokeGuest(guestSessionId: string, now: string): Promise<void>;
   createUpload(
     stored: StoredUploadSession,
     command: IntakeCommand,

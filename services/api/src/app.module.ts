@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 
 import { TraceMiddleware } from "./common/trace.middleware.js";
+import { CsrfMiddleware } from "./common/csrf.middleware.js";
 import { HealthController } from "./health.controller.js";
 import { AuditModule } from "./domains/audit/audit.module.js";
 import { FilesModule } from "./domains/files/files.module.js";
@@ -30,6 +31,6 @@ import { KernelModule } from "./kernel/kernel.module.js";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TraceMiddleware).forRoutes("*");
+    consumer.apply(TraceMiddleware, CsrfMiddleware).forRoutes("*");
   }
 }

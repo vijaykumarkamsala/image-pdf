@@ -32,7 +32,7 @@ export class JobsService implements OnApplicationShutdown {
     const stored = await this.intake.reconcileForFinalise(headers, uploadSessionId);
     const owner = this.intake.ownerFor(stored.record);
     const now = this.runtime.now();
-    const context = this.command(headers, owner, "upload.finalise", { uploadSessionId: stored.record.upload_session_id });
+    const context = await this.command(headers, owner, "upload.finalise", { uploadSessionId: stored.record.upload_session_id });
     const job: ProcessingJobRecord = {
       schema_version: PRODUCT_SCHEMA_VERSION,
       job_id: this.runtime.id("job"),
@@ -85,7 +85,7 @@ export class JobsService implements OnApplicationShutdown {
   }
 
   async list(headers: Headers, workspaceId: string, view: JobView, cursor: string | undefined, limit: number) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     const context = await this.product.workspaceContext(principal.actorId, id);
     if (!context?.effectivePermissions.some((item) => item.permission === "job.read" && item.allowed)) {
@@ -111,7 +111,7 @@ export class JobsService implements OnApplicationShutdown {
     if (["succeeded", "failed", "cancelled", "cancel_requested"].includes(current.state)) {
       return { schema_version: PRODUCT_SCHEMA_VERSION, job: current };
     }
-    const context = this.command(headers, owner, "job.cancel", { jobId: id });
+    const context = await this.command(headers, owner, "job.cancel", { jobId: id });
     const job = await this.repository.requestCancel(id, owner, this.runtime.now(), context.traceId);
     if (owner.ownerKind === "actor") {
       await this.product.recordExternalMutation(context, owner.workspaceId!, "job.cancellation-requested", "processing_job", id);
@@ -125,7 +125,7 @@ export class JobsService implements OnApplicationShutdown {
   async retry(headers: Headers, jobId: string) {
     const id = requireId(jobId, "job id");
     const { owner } = await this.requireAccessible(headers, id, "job.retry");
-    const context = this.command(headers, owner, "job.retry", { jobId: id });
+    const context = await this.command(headers, owner, "job.retry", { jobId: id });
     const result = await this.repository.retry(id, owner, {
       ownerScope: owner.ownerScope,
       idempotencyKey: context.idempotencyKey,
@@ -160,7 +160,7 @@ export class JobsService implements OnApplicationShutdown {
       if (!job) throw new DomainError(404, "job-not-found", "Job was not found");
       return { job, owner };
     }
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const job = await this.repository.findWorkspaceJob(jobId);
     if (!job?.workspace_id || !job.actor_id) throw new DomainError(404, "job-not-found", "Job was not found");
     const context = await this.product.workspaceContext(principal.actorId, job.workspace_id);
@@ -173,12 +173,12 @@ export class JobsService implements OnApplicationShutdown {
     };
   }
 
-  private command(headers: Headers, owner: IntakeOwner, name: string, payload: unknown): CommandContext {
+  private async command(headers: Headers, owner: IntakeOwner, name: string, payload: unknown): Promise<CommandContext> {
     const idempotencyKey = requireId(this.header(headers, "idempotency-key"), "Idempotency-Key");
     const traceId = requireId(this.header(headers, "x-trace-id"), "trace id");
     return {
       principal: {
-        actorId: owner.ownerKind === "actor" ? this.identity.resolve(headers).actorId : owner.guestSessionId!,
+        actorId: owner.ownerKind === "actor" ? (await this.identity.resolve(headers)).actorId : owner.guestSessionId!,
         displayName: owner.ownerKind,
       },
       idempotencyKey,

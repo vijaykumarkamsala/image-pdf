@@ -1,5 +1,5 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   BriefcaseBusiness,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   FolderKanban,
   History,
   Home,
+  LogOut,
   Menu as MenuIcon,
   Plus,
   ShieldCheck,
@@ -15,8 +16,8 @@ import {
 } from "lucide-react";
 import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
-import { ApiError, api, type WorkspaceContextResponse } from "./boundaries/apiClient";
-import { loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session";
+import { ApiError, api, createTraceId, type WorkspaceContextResponse } from "./boundaries/apiClient";
+import { clearGuestBrowserState, clearPrivateBrowserState, loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session";
 import { type ThemePreference, useThemePreference } from "./boundaries/theme";
 import { Brand } from "./components/Brand";
 import { HeaderOperations, JobsPage, SignedWorkspaceHome } from "./components/OperationalExperience";
@@ -25,6 +26,7 @@ import { UploadDialog } from "./components/UploadDialog";
 import { Button, Dialog, IconButton, Menu, Popover, StatePanel, TextInput } from "./design-system";
 import { InternalPanelHarness } from "./panels/PanelFramework";
 import { OfflineStatus } from "./pwa/OfflineStatus";
+import { clearPrivateCachesOnLogout } from "./pwa/serviceWorker";
 import { workspacePath, workspaceRoutes } from "./routes";
 
 const developmentBuild = (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV ?? false;
@@ -93,6 +95,12 @@ function WorkspaceShell({ context, preference, setPreference }: {
     }, () => undefined);
     return () => { active = false; };
   }, [id, fileRefresh]);
+  async function logout() {
+    await api.logout();
+    clearPrivateBrowserState();
+    await clearPrivateCachesOnLogout();
+    window.location.replace("/");
+  }
   return <div className="app-shell">
     <aside className="desktop-sidebar">
       <Brand />
@@ -111,7 +119,9 @@ function WorkspaceShell({ context, preference, setPreference }: {
         <div className="header-actions">
           <HeaderOperations workspaceId={id} refresh={fileRefresh} />
           <ThemeMenu preference={preference} setPreference={setPreference} />
-          <button className="account-button" aria-label={`Signed in as ${context.actor.display_name}`}><span>{context.actor.display_name.slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{context.actor.display_name}</strong><small>{context.membership.role}</small></span></button>
+          <Popover label={`Account for ${context.actor.display_name}`} trigger={<span className="account-button"><span>{context.actor.display_name.slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{context.actor.display_name}</strong><small>{context.membership.role}</small></span></span>}>
+            <div className="account-popover"><div><strong>{context.actor.display_name}</strong><span>{context.workspace.name}</span></div><Button tone="quiet" onClick={() => void logout()}><LogOut aria-hidden="true" />Sign out</Button></div>
+          </Popover>
         </div>
       </header>
 
@@ -191,17 +201,15 @@ function SignedInApplication() {
 }
 
 function GuestHome() {
-  const navigate = useNavigate();
   const { preference, setPreference } = useThemePreference();
   const [guest, setGuest] = useState<StoredGuestSession | null>(() => loadGuestSession());
   const [error, setError] = useState<Error | null>(null);
-  const [savedWorkspace, setSavedWorkspace] = useState<string | null>(null);
   useEffect(() => {
     if (guest) return;
     let active = true;
     api.createGuestSession().then((created) => {
       if (!active) return;
-      const session = { token: created.token, guestSessionId: created.guest_session.guest_session_id, expiresAt: created.guest_session.expires_at };
+      const session = { guestSessionId: created.guest_session.guest_session_id, expiresAt: created.guest_session.expires_at };
       storeGuestSession(session);
       setGuest(session);
     }, (reason: unknown) => { if (active) setError(reason instanceof Error ? reason : new Error("Guest intake is unavailable")); });
@@ -212,18 +220,53 @@ function GuestHome() {
     <header className="public-header"><Brand /><div className="public-header-actions"><span className="free-testing"><CheckCircle2 aria-hidden="true" />Free during testing</span><ThemeMenu preference={preference} setPreference={setPreference} /></div></header>
     <main className="public-main" data-testid="guest-home">
       <section className="guest-intro"><p className="eyebrow">Images and PDFs, understood first</p><h1>Bring a source. See what is trustworthy.</h1><p>Upload an image or PDF for private safety checks and verified facts. Your original stays untouched.</p></section>
-      <section className="guest-intake" aria-labelledby="guest-intake-heading"><div className="guest-intake-heading"><div><h2 id="guest-intake-heading">Start with a file</h2><p>Choose one or several supported images or PDFs.</p></div><ShieldCheck aria-hidden="true" /></div>{guest ? <UploadDialog open embedded guestSession={guest} onOpenChange={() => undefined} onReady={() => undefined} onGuestSaved={setSavedWorkspace} /> : <StatePanel kind="loading" title="Preparing private intake" message="Creating a temporary session for your files." />}</section>
-      {savedWorkspace && <div className="guest-saved" role="status"><CheckCircle2 aria-hidden="true" /><span>Your original source was saved without changing its identity.</span><Button tone="primary" onClick={() => navigate(workspacePath(savedWorkspace, "files"))}>Open Default Files</Button></div>}
+      <section className="guest-intake" aria-labelledby="guest-intake-heading"><div className="guest-intake-heading"><div><h2 id="guest-intake-heading">Start with a file</h2><p>Choose one or several supported images or PDFs.</p></div><ShieldCheck aria-hidden="true" /></div>{guest ? <UploadDialog open embedded guestSession={guest} onOpenChange={() => undefined} onReady={() => undefined} /> : <StatePanel kind="loading" title="Preparing private intake" message="Creating a temporary session for your files." />}</section>
       <section className="public-outcomes" aria-labelledby="public-outcomes-heading"><div className="section-heading"><div><h2 id="public-outcomes-heading">Four ways forward</h2><p>Upload first and the workspace will recommend only what the verified source supports.</p></div></div><OutcomeGrid publicView /></section>
       <section className="trust-row" aria-label="Source safeguards"><span><ShieldCheck aria-hidden="true" />Original preserved</span><span><FileStack aria-hidden="true" />Verified facts before recommendations</span><span><CheckCircle2 aria-hidden="true" />No silent changes or AI</span></section>
     </main>
   </div>;
 }
 
+function AuthComplete() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
+  const completion = useRef<Promise<string> | null>(null);
+  useEffect(() => {
+    let active = true;
+    const uploadSessionId = params.get("handoff");
+    if (!uploadSessionId) {
+      navigate("/app", { replace: true });
+      return;
+    }
+    const keyName = `ipw-handoff-key-${uploadSessionId}`;
+    const idempotencyKey = sessionStorage.getItem(keyName) ?? `guest-handoff-${crypto.randomUUID()}`;
+    sessionStorage.setItem(keyName, idempotencyKey);
+    completion.current ??= (async () => {
+      const authenticated = await api.authSession();
+      if (!authenticated.authenticated) throw new Error("Your sign-in session was not established.");
+      const context = await api.bootstrap();
+      await api.handoffGuest(uploadSessionId, context.workspace.workspace_id, createTraceId(), idempotencyKey);
+      clearGuestBrowserState();
+      return workspacePath(context.workspace.workspace_id, "files");
+    })();
+    void completion.current.then(
+      (path) => { if (active) navigate(path, { replace: true }); },
+      (reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : "Temporary work could not be saved.");
+      },
+    );
+    return () => { active = false; };
+  }, [navigate, params]);
+  if (error) return <main className="app-center"><StatePanel kind="error" title="Your file was not saved yet" message={error} action={{ label: "Return to temporary work", onClick: () => navigate("/guest/upload", { replace: true }) }} /></main>;
+  return <main className="app-center"><StatePanel kind="loading" title="Saving your original source" message="Verifying your session and preserving the accepted source." /></main>;
+}
+
 export default function App() {
   return <><OfflineStatus /><BrowserRouter><Routes>
     <Route path="/" element={<GuestHome />} />
     <Route path="/guest/upload" element={<GuestHome />} />
+    <Route path="/auth/complete" element={<AuthComplete />} />
     <Route path="/app/*" element={<SignedInApplication />} />
     <Route path="/w/*" element={<SignedInApplication />} />
     <Route path="/internal/panels" element={developmentBuild ? <InternalPanelHarness /> : <Navigate replace to="/" />} />

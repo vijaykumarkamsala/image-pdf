@@ -22,8 +22,8 @@ async function api() {
         ...options,
         headers: {
           "content-type": "application/json",
-          "x-ipw-actor-id": actor,
-          "x-ipw-actor-name": actor,
+          "x-ipw-test-actor-id": actor,
+          "x-ipw-test-actor-name": actor,
           "x-trace-id": "trace-intake-test",
           ...options.headers,
         },

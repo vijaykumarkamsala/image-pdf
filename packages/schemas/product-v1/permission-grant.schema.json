@@ -46,7 +46,7 @@
       "$ref": "#/$defs/Permission"
     },
     "schema_version": {
-      "default": "1.10.0",
+      "default": "1.11.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -81,6 +81,7 @@ export class MemoryGuestHandoffRepository implements GuestHandoffRepository {
       "file",
       input.fileId,
     );
+    await this.intake.revokeGuest(input.guestSessionId, input.now);
     this.results.set(key, { requestHash: input.command.requestHash, fileId: input.fileId });
     return { fileId: input.fileId, replayed: false };
   }
@@ -197,6 +198,10 @@ export class PostgresGuestHandoffRepository implements GuestHandoffRepository {
          VALUES ($1,$2,'guest-source.handoff',$3,$4,$5)`,
         [input.guestSessionId, input.command.idempotencyKey, input.command.requestHash,
           { file_id: input.fileId }, input.now],
+      );
+      await client.query(
+        "UPDATE guest_sessions SET revoked_at=$2 WHERE guest_session_id=$1 AND revoked_at IS NULL",
+        [input.guestSessionId, input.now],
       );
       await client.query("COMMIT");
       return { fileId: input.fileId, replayed: false };

@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req } from "@nestjs/common";
-import type { Request } from "express";
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
+import type { Request, Response } from "express";
 
 import { DomainError } from "../../kernel/errors.js";
 import { IntakeService } from "./intake.service.js";
+import { CSRF_COOKIE, expiredCookie, GUEST_COOKIE, secureCookie } from "../identity/cookies.js";
 
 type RequestHeaders = Record<string, string | string[] | undefined>;
 
@@ -11,8 +12,15 @@ export class IntakeController {
   constructor(private readonly intake: IntakeService) {}
 
   @Post("guest-sessions")
-  createGuest() {
-    return this.intake.createGuestSession();
+  async createGuest(@Res({ passthrough: true }) response: Response) {
+    const created = await this.intake.createGuestSession();
+    const maxAge = Math.max(0, Math.floor((new Date(created.authorization.guest_session.expires_at).getTime() - Date.now()) / 1000));
+    response.appendHeader("Set-Cookie", secureCookie(GUEST_COOKIE, created.token, maxAge));
+    response.appendHeader("Set-Cookie", secureCookie(CSRF_COOKIE, created.csrfToken, maxAge, false));
+    response.setHeader("Cache-Control", "no-store");
+    return process.env["NODE_ENV"] === "test"
+      ? { ...created.authorization, token: created.token }
+      : created.authorization;
   }
 
   @Post("workspaces/:workspaceId/upload-sessions")
@@ -59,12 +67,16 @@ export class IntakeController {
   }
 
   @Post("upload-sessions/:uploadSessionId/handoff")
-  handoff(
+  async handoff(
     @Headers() headers: RequestHeaders,
     @Param("uploadSessionId") uploadSessionId: string,
     @Body() body: Record<string, unknown>,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.intake.handoffGuest(headers, uploadSessionId, body);
+    const result = await this.intake.handoffGuest(headers, uploadSessionId, body);
+    response.appendHeader("Set-Cookie", expiredCookie(GUEST_COOKIE));
+    response.setHeader("Cache-Control", "no-store");
+    return result;
   }
 
   @Put("uploads/:uploadSessionId/content")

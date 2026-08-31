@@ -6,7 +6,6 @@ export interface SessionBoundary {
 export const loadingSession: SessionBoundary = { status: "loading" };
 
 export interface StoredGuestSession {
-  token: string;
   guestSessionId: string;
   expiresAt: string;
 }
@@ -19,8 +18,7 @@ export function loadGuestSession(now = Date.now()): StoredGuestSession | null {
   try {
     const candidate = JSON.parse(value) as Partial<StoredGuestSession>;
     if (
-      typeof candidate.token === "string"
-      && typeof candidate.guestSessionId === "string"
+      typeof candidate.guestSessionId === "string"
       && typeof candidate.expiresAt === "string"
       && new Date(candidate.expiresAt).getTime() > now
     ) return candidate as StoredGuestSession;
@@ -33,4 +31,19 @@ export function loadGuestSession(now = Date.now()): StoredGuestSession | null {
 
 export function storeGuestSession(session: StoredGuestSession): void {
   sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearGuestBrowserState(): void {
+  for (const key of Object.keys(sessionStorage)) {
+    if (key === GUEST_SESSION_KEY || key.startsWith("ipw-active-uploads-") || key.startsWith("ipw-handoff-key-")) {
+      sessionStorage.removeItem(key);
+    }
+  }
+}
+
+export function clearPrivateBrowserState(): void {
+  sessionStorage.clear();
+  for (const key of Object.keys(localStorage)) {
+    if (key !== "ipw-theme") localStorage.removeItem(key);
+  }
 }

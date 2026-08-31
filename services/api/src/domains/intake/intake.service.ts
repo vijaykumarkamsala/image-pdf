@@ -37,6 +37,8 @@ import {
   GUEST_HANDOFF_REPOSITORY,
   type GuestHandoffRepository,
 } from "./guest-handoff.repository.js";
+import { cookieValue, GUEST_COOKIE } from "../identity/cookies.js";
+import { AUTH_REPOSITORY, type AuthRepository } from "../identity/auth.types.js";
 
 type Headers = Record<string, string | string[] | undefined>;
 
@@ -76,10 +78,11 @@ export class IntakeService implements OnApplicationShutdown {
     @Inject(PRODUCT_REPOSITORY) private readonly product: ProductKernelRepository,
     @Inject(RUNTIME_VALUES) private readonly runtime: RuntimeValues,
     @Inject(GUEST_HANDOFF_REPOSITORY) private readonly handoffs: GuestHandoffRepository,
+    @Inject(AUTH_REPOSITORY) private readonly authAudits: AuthRepository,
     private readonly identity: IdentityBoundary,
   ) {}
 
-  async createGuestSession(): Promise<GuestSessionAuthorization> {
+  async createGuestSession(): Promise<{ authorization: GuestSessionAuthorization; token: string; csrfToken: string }> {
     const now = this.runtime.now();
     const token = this.token();
     const guestSession: GuestSessionRecord = {
@@ -88,7 +91,11 @@ export class IntakeService implements OnApplicationShutdown {
       expires_at: this.after(now, 24 * 60 * 60),
     };
     await this.repository.createGuest(guestSession, this.hash(token), now);
-    return { schema_version: PRODUCT_SCHEMA_VERSION, guest_session: guestSession, token };
+    return {
+      authorization: { schema_version: PRODUCT_SCHEMA_VERSION, guest_session: guestSession },
+      token,
+      csrfToken: this.token(),
+    };
   }
 
   async createForWorkspace(
@@ -96,7 +103,7 @@ export class IntakeService implements OnApplicationShutdown {
     workspaceId: string,
     body: Record<string, unknown>,
   ): Promise<UploadSessionCreated> {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     const context = await this.product.workspaceContext(principal.actorId, id);
     if (!context || !context.effectivePermissions.some((item) => item.permission === "upload.create" && item.allowed)) {
@@ -340,68 +347,47 @@ export class IntakeService implements OnApplicationShutdown {
 
   async handoffGuest(headers: Headers, uploadSessionId: string, body: Record<string, unknown>) {
     const guest = await this.requireGuest(headers);
-    const principal = this.identity.resolve(headers);
-    const workspaceId = requireId(body["workspace_id"], "workspace id");
-    const context = await this.product.workspaceContext(principal.actorId, workspaceId);
-    if (!context || !context.effectivePermissions.some((item) => item.permission === "file.create" && item.allowed)) {
-      throw new DomainError(403, "access-denied", "You do not have permission to save this source");
+    let actorId: string | null = null;
+    try {
+      const principal = await this.identity.resolve(headers);
+      actorId = principal.actorId;
+      const workspaceId = requireId(body["workspace_id"], "workspace id");
+      const context = await this.product.workspaceContext(principal.actorId, workspaceId);
+      if (!context || !context.effectivePermissions.some((item) => item.permission === "file.create" && item.allowed)) {
+        throw new DomainError(403, "access-denied", "You do not have permission to save this source");
+      }
+      const id = requireId(uploadSessionId, "upload session id");
+      const owner: IntakeOwner = { ownerKind: "guest", ownerScope: guest.guest_session_id, guestSessionId: guest.guest_session_id };
+      const stored = await this.repository.findUpload(id, owner);
+      if (!stored || stored.record.state !== "ready" || !stored.record.source_facts
+        || !stored.record.asset_original_id || !stored.record.source_version_id) {
+        throw new DomainError(409, "upload-not-ready", "Guest upload is not ready to save");
+      }
+      const command = this.commandContext(headers, { ownerKind: "actor", ownerScope: workspaceId, workspaceId, actorId: principal.actorId }, "guest-source.handoff", { uploadSessionId: id, workspaceId });
+      const target = await this.objects.rehome(stored.quarantineRef, workspaceId, stored.record.source_facts.sha256);
+      const result = await this.handoffs.handoff({
+        uploadSessionId: id, guestSessionId: guest.guest_session_id, workspaceId, actorId: principal.actorId,
+        objectReferenceId: this.runtime.id("object"), assetOriginalId: stored.record.asset_original_id,
+        sourceVersionId: stored.record.source_version_id, fileId: this.runtime.id("file"),
+        displayName: stored.record.display_name, immutableObjectKey: target.objectKey,
+        sha256: stored.record.source_facts.sha256, mediaType: stored.record.source_facts.detected_media_type,
+        byteSize: stored.record.source_facts.byte_size, command, now: this.runtime.now(),
+      });
+      const file = (await this.product.listFiles(principal.actorId, workspaceId)).find((candidate) => candidate.file_id === result.fileId);
+      if (!file) throw new Error("handed-off file is unavailable");
+      return {
+        schema_version: PRODUCT_SCHEMA_VERSION, file,
+        asset_original_id: stored.record.asset_original_id, source_version_id: stored.record.source_version_id,
+        command: { schema_version: PRODUCT_SCHEMA_VERSION, idempotency_key: command.idempotencyKey, replayed: result.replayed, resource_kind: "file", resource_id: result.fileId },
+      };
+    } catch (error) {
+      await this.authAudits.recordAudit({
+        actorId, action: "guest-source.handoff", outcome: "failed",
+        subjectReference: guest.guest_session_id, occurredAt: this.runtime.now(),
+        traceId: this.header(headers, "x-trace-id") ?? this.runtime.id("trace"),
+      });
+      throw error;
     }
-    const id = requireId(uploadSessionId, "upload session id");
-    const owner: IntakeOwner = {
-      ownerKind: "guest",
-      ownerScope: guest.guest_session_id,
-      guestSessionId: guest.guest_session_id,
-    };
-    const stored = await this.repository.findUpload(id, owner);
-    if (!stored || stored.record.state !== "ready" || !stored.record.source_facts
-      || !stored.record.asset_original_id || !stored.record.source_version_id) {
-      throw new DomainError(409, "upload-not-ready", "Guest upload is not ready to save");
-    }
-    const command = this.commandContext(headers, {
-      ownerKind: "actor",
-      ownerScope: workspaceId,
-      workspaceId,
-      actorId: principal.actorId,
-    }, "guest-source.handoff", { uploadSessionId: id, workspaceId });
-    const target = await this.objects.rehome(
-      stored.quarantineRef,
-      workspaceId,
-      stored.record.source_facts.sha256,
-    );
-    const fileId = this.runtime.id("file");
-    const result = await this.handoffs.handoff({
-      uploadSessionId: id,
-      guestSessionId: guest.guest_session_id,
-      workspaceId,
-      actorId: principal.actorId,
-      objectReferenceId: this.runtime.id("object"),
-      assetOriginalId: stored.record.asset_original_id,
-      sourceVersionId: stored.record.source_version_id,
-      fileId,
-      displayName: stored.record.display_name,
-      immutableObjectKey: target.objectKey,
-      sha256: stored.record.source_facts.sha256,
-      mediaType: stored.record.source_facts.detected_media_type,
-      byteSize: stored.record.source_facts.byte_size,
-      command,
-      now: this.runtime.now(),
-    });
-    const file = (await this.product.listFiles(principal.actorId, workspaceId))
-      .find((candidate) => candidate.file_id === result.fileId);
-    if (!file) throw new Error("handed-off file is unavailable");
-    return {
-      schema_version: PRODUCT_SCHEMA_VERSION,
-      file,
-      asset_original_id: stored.record.asset_original_id,
-      source_version_id: stored.record.source_version_id,
-      command: {
-        schema_version: PRODUCT_SCHEMA_VERSION,
-        idempotency_key: command.idempotencyKey,
-        replayed: result.replayed,
-        resource_kind: "file",
-        resource_id: result.fileId,
-      },
-    };
   }
 
   requireForInternal(headers: Headers, uploadSessionId: string): Promise<StoredUploadSession> {
@@ -413,7 +399,7 @@ export class IntakeService implements OnApplicationShutdown {
   }
 
   hasGuestToken(headers: Headers): boolean {
-    return Boolean(this.header(headers, "x-ipw-guest-token"));
+    return Boolean(this.guestToken(headers));
   }
 
   async guestOwner(headers: Headers): Promise<IntakeOwner> {
@@ -545,7 +531,7 @@ export class IntakeService implements OnApplicationShutdown {
   }
 
   private async requireAccessible(headers: Headers, uploadSessionId: string, permission = "upload.read") {
-    const guestToken = this.header(headers, "x-ipw-guest-token");
+    const guestToken = this.guestToken(headers);
     if (guestToken) {
       const guest = await this.repository.findGuest(this.hash(guestToken), this.runtime.now());
       if (!guest) throw new DomainError(401, "guest-session-invalid", "Guest session is invalid or expired");
@@ -557,7 +543,7 @@ export class IntakeService implements OnApplicationShutdown {
       if (!stored) throw new DomainError(404, "upload-not-found", "Upload session was not found");
       return stored;
     }
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const stored = await this.repository.findUploadByActor(uploadSessionId, principal.actorId);
     if (!stored?.record.workspace_id) throw new DomainError(404, "upload-not-found", "Upload session was not found");
     const context = await this.product.workspaceContext(principal.actorId, stored.record.workspace_id);
@@ -568,7 +554,7 @@ export class IntakeService implements OnApplicationShutdown {
   }
 
   private async requireGuest(headers: Headers): Promise<GuestSessionRecord> {
-    const token = this.header(headers, "x-ipw-guest-token");
+    const token = this.guestToken(headers);
     if (!token) throw new DomainError(401, "guest-session-required", "Start a guest session to continue");
     const guest = await this.repository.findGuest(this.hash(token), this.runtime.now());
     if (!guest) throw new DomainError(401, "guest-session-invalid", "Guest session is invalid or expired");
@@ -736,6 +722,12 @@ export class IntakeService implements OnApplicationShutdown {
   private header(headers: Headers, name: string): string | undefined {
     const value = headers[name];
     return (Array.isArray(value) ? value[0] : value)?.trim();
+  }
+
+  private guestToken(headers: Headers): string | undefined {
+    const cookie = cookieValue(headers, GUEST_COOKIE);
+    if (cookie) return cookie;
+    return process.env["NODE_ENV"] === "test" ? this.header(headers, "x-ipw-guest-token") : undefined;
   }
 
   private token(): string {

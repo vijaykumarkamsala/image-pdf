@@ -25,6 +25,7 @@ export default defineConfig({
       env: {
         ...process.env,
         NODE_ENV: "development",
+        IPW_DEV_IDENTITY_ENABLED: "1",
         IPW_API_PORT: "8780",
         IPW_LOCAL_STORAGE_ROOT: resolve("test-results/private-storage"),
       },

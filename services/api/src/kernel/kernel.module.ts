@@ -6,6 +6,8 @@ import { PRODUCT_REPOSITORY, RUNTIME_VALUES } from "./product.types.js";
 import { DeterministicRuntimeValues, SystemRuntimeValues } from "./runtime.js";
 import { ProductKernelService } from "./kernel.service.js";
 import { IdentityBoundary } from "../domains/identity/identity.service.js";
+import { AUTH_REPOSITORY } from "../domains/identity/auth.types.js";
+import { MemoryAuthRepository, PostgresAuthRepository } from "../domains/identity/auth.repository.js";
 
 @Global()
 @Module({
@@ -36,9 +38,18 @@ import { IdentityBoundary } from "../domains/identity/identity.service.js";
       },
       inject: [RUNTIME_VALUES],
     },
+    {
+      provide: AUTH_REPOSITORY,
+      async useFactory() {
+        const connectionString = process.env["IPW_DATABASE_URL"];
+        if (connectionString) return PostgresAuthRepository.connect(connectionString, process.env["IPW_DATABASE_MIGRATE"] === "1");
+        if (process.env["NODE_ENV"] === "production") throw new Error("IPW_DATABASE_URL is required in production");
+        return new MemoryAuthRepository();
+      },
+    },
     IdentityBoundary,
     ProductKernelService,
   ],
-  exports: [PRODUCT_REPOSITORY, RUNTIME_VALUES, IdentityBoundary, ProductKernelService],
+  exports: [PRODUCT_REPOSITORY, RUNTIME_VALUES, AUTH_REPOSITORY, IdentityBoundary, ProductKernelService],
 })
 export class KernelModule {}

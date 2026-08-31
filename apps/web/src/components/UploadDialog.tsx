@@ -30,7 +30,6 @@ interface UploadDialogProps {
   embedded?: boolean;
   onOpenChange: (open: boolean) => void;
   onReady: () => void;
-  onGuestSaved?: (workspaceId: string) => void;
 }
 
 interface UploadItem {
@@ -83,7 +82,6 @@ export function UploadDialog({
   embedded = false,
   onOpenChange,
   onReady,
-  onGuestSaved,
 }: UploadDialogProps) {
   const ownerScope = guestSession?.guestSessionId ?? workspaceId ?? "unavailable";
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -132,9 +130,9 @@ export function UploadDialog({
     while (monitors.current.get(id) === version) {
       try {
         const [uploadResult, jobResult, eventsResult] = await Promise.all([
-          api.uploadStatus(reference.uploadSessionId, reference.traceId, guestSession?.token),
-          api.jobStatus(reference.jobId, reference.traceId, guestSession?.token),
-          api.jobEvents(reference.jobId, cursor, reference.traceId, guestSession?.token),
+          api.uploadStatus(reference.uploadSessionId, reference.traceId),
+          api.jobStatus(reference.jobId, reference.traceId),
+          api.jobEvents(reference.jobId, cursor, reference.traceId),
         ]);
         if (monitors.current.get(id) !== version) return;
         temporaryFailures = 0;
@@ -192,12 +190,12 @@ export function UploadDialog({
       let upload = selected.upload;
       let authorization;
       if (upload && !selected.job) {
-        const resumed = await api.resumeUploadSession(upload.upload_session_id, traceId, guestSession?.token);
+        const resumed = await api.resumeUploadSession(upload.upload_session_id, traceId);
         upload = resumed.upload_session;
         authorization = resumed.authorization;
       } else {
         const created = guestSession
-          ? await api.createGuestUploadSession(guestSession.token, selected.file, mediaType, traceId)
+          ? await api.createGuestUploadSession(selected.file, mediaType, traceId)
           : await api.createUploadSession(workspaceId!, selected.file, mediaType, traceId);
         upload = created.upload_session;
         authorization = created.authorization;
@@ -228,7 +226,7 @@ export function UploadDialog({
         },
         phase: "queued",
       });
-      const finalised = await api.finaliseUpload(upload.upload_session_id, traceId, guestSession?.token);
+      const finalised = await api.finaliseUpload(upload.upload_session_id, traceId);
       const reference: ActiveUploadReference = {
         uploadSessionId: upload.upload_session_id,
         jobId: finalised.job.job_id,
@@ -254,9 +252,9 @@ export function UploadDialog({
     stop(item.id);
     try {
       if (item.job?.job_id) {
-        await api.cancelJob(item.job.job_id, item.traceId, guestSession?.token);
+        await api.cancelJob(item.job.job_id, item.traceId);
       } else if (item.upload?.upload_session_id) {
-        await api.cancelUpload(item.upload.upload_session_id, item.traceId, guestSession?.token);
+        await api.cancelUpload(item.upload.upload_session_id, item.traceId);
       }
       if (item.upload?.upload_session_id) forget(item.upload.upload_session_id);
       patchItem(item.id, { phase: "cancelled", progress: 0, errorMessage: undefined, retryEligible: false });
@@ -265,23 +263,9 @@ export function UploadDialog({
     }
   }
 
-  async function saveGuest(item: UploadItem): Promise<void> {
+  function saveGuest(item: UploadItem): void {
     if (!guestSession || !item.upload?.upload_session_id) return;
-    patchItem(item.id, { phase: "authorising", errorMessage: undefined });
-    try {
-      const context = await api.bootstrap();
-      await api.handoffGuest(
-        item.upload.upload_session_id,
-        guestSession.token,
-        context.workspace.workspace_id,
-        item.traceId,
-      );
-      forget(item.upload.upload_session_id);
-      patchItem(item.id, { phase: "ready", saved: true });
-      onGuestSaved?.(context.workspace.workspace_id);
-    } catch (error) {
-      patchItem(item.id, { phase: "ready", errorMessage: customerError(error) });
-    }
+    window.location.assign(api.loginUrl(window.location.pathname + window.location.search, item.upload.upload_session_id));
   }
 
   function selectFiles(selected: File[]): void {
@@ -446,7 +430,7 @@ export function UploadDialog({
                   )}
                 </div>
                 {item.phase === "ready" && item.upload?.source_facts && (
-                  <IntakeFacts upload={item.upload} traceId={item.traceId} guestToken={guestSession?.token} />
+                  <IntakeFacts upload={item.upload} traceId={item.traceId} />
                 )}
               </li>
             );

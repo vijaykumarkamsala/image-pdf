@@ -35,8 +35,8 @@ async function api() {
         ...options,
         headers: {
           "content-type": "application/json",
-          "x-ipw-actor-id": actor,
-          "x-ipw-actor-name": actor,
+          "x-ipw-test-actor-id": actor,
+          "x-ipw-test-actor-name": actor,
           "x-trace-id": "trace-inspection-test",
           ...options.headers,
         },
@@ -224,14 +224,13 @@ test("guest handoff preserves inspected source identity and requires explicit wo
       `/upload-sessions/${created.upload_session.upload_session_id}/handoff`,
       handoffOptions,
     ));
-    const replay = await json(await server.request(
+    const consumed = await server.request(
       `/upload-sessions/${created.upload_session.upload_session_id}/handoff`,
       handoffOptions,
-    ));
+    );
     assert.equal(handedOff.asset_original_id, ready.upload_session.asset_original_id);
     assert.equal(handedOff.source_version_id, ready.upload_session.source_version_id);
-    assert.equal(replay.command.replayed, true);
-    assert.equal(replay.file.file_id, handedOff.file.file_id);
+    assert.equal(consumed.status, 401);
     const files = await json(await server.request(`/workspaces/${workspaceId}/files`));
     assert.equal(files.files.length, 1);
     assert.equal(files.files[0].asset_original_id, ready.upload_session.asset_original_id);

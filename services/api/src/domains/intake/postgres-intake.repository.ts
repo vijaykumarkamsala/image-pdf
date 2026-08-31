@@ -104,6 +104,13 @@ export class PostgresIntakeRepository implements IntakeRepository {
     } : null;
   }
 
+  async revokeGuest(guestSessionId: string, now: string): Promise<void> {
+    await this.pool.query(
+      "UPDATE guest_sessions SET revoked_at=$2 WHERE guest_session_id=$1 AND revoked_at IS NULL",
+      [guestSessionId, now],
+    );
+  }
+
   async createUpload(
     value: StoredUploadSession,
     command: IntakeCommand,

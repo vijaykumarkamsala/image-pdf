@@ -4,6 +4,7 @@ import test from "node:test";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 import { IdentityBoundary } from "../src/domains/identity/identity.service.js";
+import { MemoryAuthRepository } from "../src/domains/identity/auth.repository.js";
 import type { GuestHandoffRepository } from "../src/domains/intake/guest-handoff.repository.js";
 import { IntakeService } from "../src/domains/intake/intake.service.js";
 import { MemoryIntakeRepository } from "../src/domains/intake/memory-intake.repository.js";
@@ -86,7 +87,8 @@ test("independent cleanup expires, removes, audits, and does not repeat an actor
     product,
     runtime,
     handoffs,
-    new IdentityBoundary(),
+    new MemoryAuthRepository(),
+    new IdentityBoundary(new MemoryAuthRepository()),
   );
 
   assert.deepEqual(await service.cleanupExpired(), { cleaned: 1, failed: 0 });

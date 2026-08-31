@@ -128,7 +128,7 @@ export class ExperienceService implements OnApplicationShutdown {
   }
 
   private async access(headers: Headers, workspaceId: string, required: Permission) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     const context = await this.product.workspaceContext(principal.actorId, id);
     if (!context) throw new DomainError(404, "workspace-not-found", "Workspace was not found");

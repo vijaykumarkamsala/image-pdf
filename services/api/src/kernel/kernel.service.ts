@@ -33,7 +33,7 @@ export class ProductKernelService implements OnApplicationShutdown {
   ) {}
 
   async bootstrap(headers: Headers) {
-    const context = this.commandContext(headers, "session.bootstrap", {});
+    const context = await this.commandContext(headers, "session.bootstrap", {});
     const result = await this.repository.bootstrap(context);
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -53,12 +53,12 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async listWorkspaces(headers: Headers) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     return { schema_version: PRODUCT_SCHEMA_VERSION, workspaces: await this.repository.listWorkspaces(principal.actorId) };
   }
 
   async context(headers: Headers, workspaceId: string) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const context = await this.requireContext(principal.actorId, requireId(workspaceId, "workspace id"));
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -72,7 +72,7 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async listProjects(headers: Headers, workspaceId: string) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "project.read");
     const result = await this.repository.listProjects(principal.actorId, id);
@@ -80,14 +80,14 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async createProject(headers: Headers, workspaceId: string, body: Record<string, unknown>) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "project.create");
     const input = {
       name: requireText(body["name"], "name"),
       parentProjectId: body["parent_project_id"] ? requireId(body["parent_project_id"], "parent project id") : undefined,
     };
-    const context = this.commandContext(headers, "project.create", { workspaceId: id, ...input });
+    const context = await this.commandContext(headers, "project.create", { workspaceId: id, ...input });
     const result = await this.repository.createProject(context, id, input);
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -97,14 +97,14 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async listFiles(headers: Headers, workspaceId: string) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "file.read");
     return { schema_version: PRODUCT_SCHEMA_VERSION, files: await this.repository.listFiles(principal.actorId, id) };
   }
 
   async registerFile(headers: Headers, workspaceId: string, body: Record<string, unknown>) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "file.create");
     const input: RegisterFileInput = {
@@ -115,7 +115,7 @@ export class ProductKernelService implements OnApplicationShutdown {
       byteSize: requireByteSize(body["byte_size"]),
       projectId: body["project_id"] ? requireId(body["project_id"], "project id") : undefined,
     };
-    const context = this.commandContext(headers, "file.register", { workspaceId: id, ...input });
+    const context = await this.commandContext(headers, "file.register", { workspaceId: id, ...input });
     const result = await this.repository.registerFile(context, id, input);
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -128,7 +128,7 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async registerSource(headers: Headers, workspaceId: string, fileId: string, body: Record<string, unknown>) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "file.create");
     const input: RegisterSourceInput = {
@@ -138,7 +138,7 @@ export class ProductKernelService implements OnApplicationShutdown {
       byteSize: requireByteSize(body["byte_size"]),
     };
     const target = requireId(fileId, "file id");
-    const context = this.commandContext(headers, "file.source.register", { workspaceId: id, fileId: target, ...input });
+    const context = await this.commandContext(headers, "file.source.register", { workspaceId: id, fileId: target, ...input });
     const result = await this.repository.registerSourceVersion(context, id, target, input);
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -150,7 +150,7 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async moveFile(headers: Headers, workspaceId: string, fileId: string, body: Record<string, unknown>) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "file.move");
     if (body["kind"] !== "default_files" && body["kind"] !== "project") {
@@ -164,7 +164,7 @@ export class ProductKernelService implements OnApplicationShutdown {
       throw new DomainError(400, "invalid-input", "project_id is required for a project location");
     }
     const target = requireId(fileId, "file id");
-    const context = this.commandContext(headers, "file.move", { workspaceId: id, fileId: target, ...input });
+    const context = await this.commandContext(headers, "file.move", { workspaceId: id, fileId: target, ...input });
     const result = await this.repository.moveFile(context, id, target, input);
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -174,7 +174,7 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async addReference(headers: Headers, workspaceId: string, fileId: string, body: Record<string, unknown>) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "file.create");
     if (body["owner_kind"] !== "project" && body["owner_kind"] !== "document") {
@@ -186,7 +186,7 @@ export class ProductKernelService implements OnApplicationShutdown {
       purpose: requireText(body["purpose"], "purpose"),
     };
     const target = requireId(fileId, "file id");
-    const context = this.commandContext(headers, "file.reference.add", { workspaceId: id, fileId: target, ...input });
+    const context = await this.commandContext(headers, "file.reference.add", { workspaceId: id, fileId: target, ...input });
     const result = await this.repository.addFileReference(context, id, target, input);
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
@@ -196,7 +196,7 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async listReferences(headers: Headers, workspaceId: string, fileId: string) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "file.read");
     return {
@@ -206,14 +206,14 @@ export class ProductKernelService implements OnApplicationShutdown {
   }
 
   async audit(headers: Headers, workspaceId: string) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "audit.read");
     return { schema_version: PRODUCT_SCHEMA_VERSION, events: await this.repository.listAuditEvents(principal.actorId, id) };
   }
 
   async usage(headers: Headers, workspaceId: string) {
-    const principal = this.identity.resolve(headers);
+    const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
     await this.authorize(principal.actorId, id, "usage.read");
     return this.repository.customerUsageSummary(principal.actorId, id);
@@ -223,8 +223,8 @@ export class ProductKernelService implements OnApplicationShutdown {
     await this.repository.close();
   }
 
-  private commandContext(headers: Headers, command: string, payload: unknown): CommandContext {
-    const principal = this.identity.resolve(headers);
+  private async commandContext(headers: Headers, command: string, payload: unknown): Promise<CommandContext> {
+    const principal = await this.identity.resolve(headers);
     const rawKey = headers["idempotency-key"];
     const rawTrace = headers["x-trace-id"];
     const idempotencyKey = requireId(Array.isArray(rawKey) ? rawKey[0] : rawKey, "Idempotency-Key");

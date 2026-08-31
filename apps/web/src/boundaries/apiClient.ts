@@ -103,14 +103,15 @@ export interface NotificationListResponse extends NotificationList {}
 
 export interface SearchResponse extends WorkspaceSearchPage {}
 
+export type AuthSessionResponse = { authenticated: false } | {
+  authenticated: true;
+  actor: Actor;
+  expires_at: string;
+};
+
 interface RequestOptions {
   traceId?: string;
-  guestToken?: string;
-  includeActor?: boolean;
 }
-
-const actorId = localStorage.getItem("ipw-actor-id") ?? "actor-local";
-const actorName = localStorage.getItem("ipw-actor-name") ?? "Alex Morgan";
 
 function commandKey(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -123,15 +124,16 @@ export function createTraceId(): string {
 async function request<T>(path: string, init: RequestInit = {}, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
-  if (options.includeActor !== false) {
-    headers.set("x-ipw-actor-id", actorId);
-    headers.set("x-ipw-actor-name", actorName);
+  const method = (init.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const csrf = csrfToken();
+    if (csrf) headers.set("x-csrf-token", csrf);
   }
-  if (options.guestToken) headers.set("x-ipw-guest-token", options.guestToken);
   headers.set("x-trace-id", options.traceId ?? createTraceId());
   const response = await fetch(`/v1${path}`, {
     ...init,
     headers,
+    credentials: "same-origin",
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorBody;
@@ -142,6 +144,16 @@ async function request<T>(path: string, init: RequestInit = {}, options: Request
     );
   }
   return (await response.json()) as T;
+}
+
+function csrfToken(): string | null {
+  for (const part of document.cookie.split(";")) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (rawName === "ipw-csrf" || rawName === "__Host-ipw-csrf") {
+      try { return decodeURIComponent(rawValue.join("=")); } catch { return null; }
+    }
+  }
+  return null;
 }
 
 function xhrError(xhr: XMLHttpRequest): ApiError {
@@ -174,6 +186,11 @@ function uploadChunk(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(authorization.method ?? "PUT", authorization.upload_url);
+    const uploadOrigin = new URL(authorization.upload_url, window.location.href).origin;
+    if (uploadOrigin === window.location.origin) {
+      const csrf = csrfToken();
+      if (csrf) xhr.setRequestHeader("x-csrf-token", csrf);
+    }
     const protocol = authorization.protocol ?? "ipw_offset_json";
     for (const [name, value] of Object.entries(authorization.required_headers ?? {})) {
       const normalized = name.toLowerCase();
@@ -276,6 +293,17 @@ async function transferFile(
 }
 
 export const api = {
+  authSession(): Promise<AuthSessionResponse> {
+    return request("/auth/session");
+  },
+  logout(): Promise<{ authenticated: false }> {
+    return request("/auth/logout", { method: "POST" });
+  },
+  loginUrl(returnTo: string, handoffUploadSessionId?: string): string {
+    const query = new URLSearchParams({ return_to: returnTo });
+    if (handoffUploadSessionId) query.set("handoff", handoffUploadSessionId);
+    return `/v1/auth/login?${query}`;
+  },
   bootstrap(): Promise<WorkspaceContextResponse> {
     const key = sessionStorage.getItem("ipw-bootstrap-key") ?? commandKey("bootstrap");
     sessionStorage.setItem("ipw-bootstrap-key", key);
@@ -306,10 +334,9 @@ export const api = {
     }, { traceId });
   },
   createGuestSession(): Promise<GuestSessionAuthorization> {
-    return request("/guest-sessions", { method: "POST" }, { includeActor: false });
+    return request("/guest-sessions", { method: "POST" });
   },
   createGuestUploadSession(
-    guestToken: string,
     file: File,
     mediaType: string,
     traceId: string,
@@ -318,74 +345,70 @@ export const api = {
       method: "POST",
       headers: { "idempotency-key": commandKey("guest-upload") },
       body: JSON.stringify({ display_name: file.name, media_type: mediaType, byte_size: file.size }),
-    }, { traceId, guestToken, includeActor: false });
+    }, { traceId });
   },
   transferFile,
   resumeUploadSession(
     uploadSessionId: string,
     traceId: string,
-    guestToken?: string,
   ): Promise<UploadResumeResponse> {
     return request(
       `/upload-sessions/${uploadSessionId}/resume`,
       { method: "POST" },
-      { traceId, guestToken },
+      { traceId },
     );
   },
   finaliseUpload(
     uploadSessionId: string,
     traceId: string,
-    guestToken?: string,
   ): Promise<UploadFinaliseResponse> {
     return request(`/upload-sessions/${uploadSessionId}/finalise`, {
       method: "POST",
       headers: { "idempotency-key": commandKey("finalise") },
-    }, { traceId, guestToken });
+    }, { traceId });
   },
-  uploadStatus(uploadSessionId: string, traceId: string, guestToken?: string): Promise<UploadStatusResponse> {
-    return request(`/upload-sessions/${uploadSessionId}`, {}, { traceId, guestToken });
+  uploadStatus(uploadSessionId: string, traceId: string): Promise<UploadStatusResponse> {
+    return request(`/upload-sessions/${uploadSessionId}`, {}, { traceId });
   },
   intakePresentation(
     uploadSessionId: string,
     traceId: string,
-    guestToken?: string,
   ): Promise<IntakePresentationResponse> {
-    return request(`/upload-sessions/${uploadSessionId}/intake-presentation`, {}, { traceId, guestToken });
+    return request(`/upload-sessions/${uploadSessionId}/intake-presentation`, {}, { traceId });
   },
   correctIntakeClassification(
     uploadSessionId: string,
     category: IntakeSourceCategory,
     traceId: string,
-    guestToken?: string,
   ): Promise<ClassificationCorrectionResponse> {
     return request(`/upload-sessions/${uploadSessionId}/classification`, {
       method: "PUT",
       headers: { "idempotency-key": commandKey("classification") },
       body: JSON.stringify({ category }),
-    }, { traceId, guestToken });
+    }, { traceId });
   },
-  jobStatus(jobId: string, traceId: string, guestToken?: string): Promise<JobStatusResponse> {
-    return request(`/jobs/${jobId}`, {}, { traceId, guestToken });
+  jobStatus(jobId: string, traceId: string): Promise<JobStatusResponse> {
+    return request(`/jobs/${jobId}`, {}, { traceId });
   },
   jobs(workspaceId: string, view = "all", cursor?: string, limit = 25): Promise<JobListResponse> {
     const query = new URLSearchParams({ view, limit: String(limit) });
     if (cursor) query.set("cursor", cursor);
     return request(`/workspaces/${workspaceId}/jobs?${query}`);
   },
-  jobEvents(jobId: string, after: number, traceId: string, guestToken?: string): Promise<JobEventList> {
-    return request(`/jobs/${jobId}/events?after=${after}&limit=100`, {}, { traceId, guestToken });
+  jobEvents(jobId: string, after: number, traceId: string): Promise<JobEventList> {
+    return request(`/jobs/${jobId}/events?after=${after}&limit=100`, {}, { traceId });
   },
-  cancelUpload(uploadSessionId: string, traceId: string, guestToken?: string): Promise<UploadStatusResponse> {
+  cancelUpload(uploadSessionId: string, traceId: string): Promise<UploadStatusResponse> {
     return request(`/upload-sessions/${uploadSessionId}`, {
       method: "DELETE",
       headers: { "idempotency-key": commandKey("upload-cancel") },
-    }, { traceId, guestToken });
+    }, { traceId });
   },
-  cancelJob(jobId: string, traceId: string, guestToken?: string): Promise<JobStatusResponse> {
+  cancelJob(jobId: string, traceId: string): Promise<JobStatusResponse> {
     return request(`/jobs/${jobId}/cancel`, {
       method: "POST",
       headers: { "idempotency-key": commandKey("job-cancel") },
-    }, { traceId, guestToken });
+    }, { traceId });
   },
   retryJob(jobId: string, traceId: string): Promise<JobStatusResponse & { command: { replayed: boolean } }> {
     return request(`/jobs/${jobId}/retry`, {
@@ -423,14 +446,14 @@ export const api = {
   },
   handoffGuest(
     uploadSessionId: string,
-    guestToken: string,
     workspaceId: string,
     traceId: string,
+    idempotencyKey = commandKey("guest-handoff"),
   ): Promise<{ file: WorkspaceFile; asset_original_id: string; source_version_id: string }> {
     return request(`/upload-sessions/${uploadSessionId}/handoff`, {
       method: "POST",
-      headers: { "idempotency-key": commandKey("guest-handoff") },
+      headers: { "idempotency-key": idempotencyKey },
       body: JSON.stringify({ workspace_id: workspaceId }),
-    }, { traceId, guestToken });
+    }, { traceId });
   },
 };

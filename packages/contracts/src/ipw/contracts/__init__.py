@@ -102,6 +102,7 @@ from ipw.contracts.product import (
 )
 from ipw.contracts.product_kernel import (
     Actor,
+    ApplicationSession,
     AssetOriginalRecord,
     AttentionItem,
     AttentionKind,
@@ -223,6 +224,7 @@ __all__ = [
     "SCHEMA_MAJOR",
     "SCHEMA_VERSION",
     "Actor",
+    "ApplicationSession",
     "AnySettings",
     "AssetCategory",
     "AssetInventory",

@@ -5,12 +5,15 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 async function identify(page: Page, suffix: string, theme: "light" | "dark" = "light") {
-  await page.addInitScript(({ id, selectedTheme }) => {
-    localStorage.setItem("ipw-actor-id", id);
-    localStorage.setItem("ipw-actor-name", "Alex Morgan");
+  const id = `actor-${suffix}`;
+  await page.addInitScript(({ actorId, selectedTheme }) => {
     localStorage.setItem("ipw-theme", selectedTheme);
-    sessionStorage.setItem("ipw-bootstrap-key", `bootstrap-${id}`);
-  }, { id: `actor-${suffix}`, selectedTheme: theme });
+    sessionStorage.setItem("ipw-bootstrap-key", `bootstrap-${actorId}`);
+  }, { actorId: id, selectedTheme: theme });
+  const response = await page.request.post("/v1/auth/developer-session", {
+    data: { actor_id: id, display_name: "Alex Morgan" },
+  });
+  expect(response.ok()).toBe(true);
 }
 
 async function openWorkspace(page: Page, suffix: string, theme: "light" | "dark" = "light") {
@@ -171,8 +174,20 @@ test("an interrupted transfer resumes the same file after browser refresh", asyn
 });
 
 test("guest upload signs in to save the exact accepted source", async ({ page }) => {
+  await page.route("**/v1/auth/login**", async (route) => {
+    const response = await route.fetch({ maxRedirects: 0 });
+    const authorizationUrl = response.headers()["location"];
+    const state = authorizationUrl ? new URL(authorizationUrl).searchParams.get("state") : null;
+    await route.fulfill({
+      status: 302,
+      headers: {
+        location: `http://127.0.0.1:4173/v1/auth/callback?code=code-guest-customer&state=${encodeURIComponent(state ?? "")}`,
+      },
+    });
+  });
   await page.goto("/guest/upload");
   await expect(page.getByTestId("guest-home")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.cookie)).toContain("ipw-csrf=");
   const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await page.getByRole("button", { name: "Upload 1" }).click();
@@ -180,11 +195,30 @@ test("guest upload signs in to save the exact accepted source", async ({ page })
   await expect(page.getByText(/expire after 24 hours/)).toBeVisible();
   const guestState = await page.evaluate(() => sessionStorage.getItem("ipw-guest-session"));
   expect(guestState).toContain("guestSessionId");
-  expect(await page.locator("body").innerText()).not.toContain(JSON.parse(guestState!).token);
+  expect(guestState).not.toContain("token");
   await page.getByRole("button", { name: "Sign in to save" }).click();
-  await expect(page.getByText("Your original source was saved without changing its identity.")).toBeVisible();
-  await page.getByRole("button", { name: "Open Default Files" }).click();
+  await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
+});
+
+test("account logout revokes the session and clears private browser state", async ({ page }) => {
+  await openWorkspace(page, "logout");
+  await page.evaluate(async () => {
+    sessionStorage.setItem("ipw-private-test", "private");
+    localStorage.setItem("ipw-private-test", "private");
+    const cache = await caches.open("ipw-private-test");
+    await cache.put("/private-test", new Response("private"));
+  });
+  await page.getByRole("button", { name: "Account for Alex Morgan" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  expect(await page.request.get("/v1/auth/session").then((response) => response.json())).toEqual({ authenticated: false });
+  expect(await page.evaluate(async () => ({
+    session: sessionStorage.getItem("ipw-private-test"),
+    local: localStorage.getItem("ipw-private-test"),
+    theme: localStorage.getItem("ipw-theme"),
+    caches: "caches" in window ? await caches.keys() : [],
+  }))).toEqual({ session: null, local: null, theme: "light", caches: [] });
 });
 
 test("guest upload has no detectable accessibility violations", async ({ page }) => {

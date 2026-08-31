@@ -37,6 +37,12 @@ class Actor(ProductKernelContractModel):
     display_name: NonEmptyStr
 
 
+class ApplicationSession(ProductKernelContractModel):
+    authenticated: Literal[True] = True
+    actor: Actor
+    expires_at: NonEmptyStr
+
+
 class IdentityProviderKind(StrEnum):
     LOCAL_TEST = "local_test"
     OIDC = "oidc"
@@ -370,7 +376,6 @@ class GuestSessionRecord(ProductKernelContractModel):
 
 class GuestSessionAuthorization(ProductKernelContractModel):
     guest_session: GuestSessionRecord
-    token: NonEmptyStr
 
 
 class SourceFacts(ProductKernelContractModel):
@@ -655,6 +660,7 @@ class FeatureStateList(ProductKernelContractModel):
 
 PRODUCT_SCHEMA_EXPORTS: dict[str, type[ProductKernelContractModel]] = {
     "actor": Actor,
+    "application-session": ApplicationSession,
     "identity-reference": IdentityReference,
     "workspace": Workspace,
     "membership": Membership,

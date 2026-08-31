@@ -46,6 +46,11 @@ export class MemoryIntakeRepository implements IntakeRepository {
     return entry && !entry.revokedAt && entry.record.expires_at > now ? entry.record : null;
   }
 
+  async revokeGuest(guestSessionId: string, _now: string): Promise<void> {
+    const guest = this.guests.get(guestSessionId);
+    if (guest) guest.revokedAt = new Date().toISOString();
+  }
+
   async createUpload(
     stored: StoredUploadSession,
     command: IntakeCommand,

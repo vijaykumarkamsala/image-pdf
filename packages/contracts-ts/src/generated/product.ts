@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.10.0";
+export const PRODUCT_SCHEMA_VERSION = "1.11.0";
 
 export interface Actor {
   schema_version?: string;
@@ -371,6 +371,13 @@ export interface WorkspaceSearchResult {
   updated_at: string;
 }
 
+export interface ApplicationSession {
+  schema_version?: string;
+  authenticated?: true;
+  actor: Actor;
+  expires_at: string;
+}
+
 export interface AssetOriginalRecord {
   schema_version?: string;
   asset_original_id: string;
@@ -409,7 +416,6 @@ export interface FileList {
 export interface GuestSessionAuthorization {
   schema_version?: string;
   guest_session: GuestSessionRecord;
-  token: string;
 }
 
 export interface IdentityReference {
