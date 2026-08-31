@@ -410,7 +410,8 @@ test("customer copy discloses testing and inactive product areas without interna
   for (const [label, description] of expectedOutcomes) {
     const tile = tiles.filter({ hasText: label });
     await expect(tile).toContainText(description);
-    await expect(tile).toContainText("Not active in this build");
+    await expect(tile).toHaveAttribute("data-feature-state", "inactive");
+    await expect(tile).not.toContainText("Not active in this build");
   }
   await expect(page.getByText("Available in a later recovery")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/recovery/i);

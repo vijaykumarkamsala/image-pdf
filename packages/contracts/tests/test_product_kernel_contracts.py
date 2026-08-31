@@ -9,6 +9,7 @@ from ipw.contracts.product_kernel import (
     FileLocationRef,
     GuestSessionRecord,
     IntakeClassificationRecord,
+    IntakeEvidenceLabel,
     IntakeSourceCategory,
     MalwareScanState,
     SourceFacts,
@@ -173,20 +174,42 @@ def test_source_facts_are_server_derived_and_nonempty() -> None:
     assert facts.byte_size == 67
 
 
-def test_intake_classification_confidence_requires_evidence_based_inference() -> None:
+def test_intake_classification_requires_explained_evidence_labels() -> None:
     classification = IntakeClassificationRecord(
         upload_session_id="upload-001",
         inferred_category=IntakeSourceCategory.GRAPHIC,
-        confidence_percent=78,
-        evidence=("Verified alpha channel supports a graphic classification.",),
+        evidence_label=IntakeEvidenceLabel.LIKELY,
+        evidence=("Likely because a verified alpha channel is present.",),
         updated_at="2026-08-30T00:00:00.000Z",
     )
     assert classification.customer_category is None
+    assert classification.confidence_percent is None
 
-    with pytest.raises(ValidationError, match="confidence requires"):
+    with pytest.raises(ValidationError, match="Input should be None"):
+        IntakeClassificationRecord.model_validate(
+            {
+                "upload_session_id": "upload-002",
+                "confidence_percent": 78,
+                "updated_at": "2026-08-30T00:00:00.000Z",
+            }
+        )
+    with pytest.raises(ValidationError, match="evidence label requires"):
         IntakeClassificationRecord(
-            upload_session_id="upload-002",
-            confidence_percent=50,
+            upload_session_id="upload-003",
+            evidence_label=IntakeEvidenceLabel.LIKELY,
+            updated_at="2026-08-30T00:00:00.000Z",
+        )
+    with pytest.raises(ValidationError, match="requires a verified or likely"):
+        IntakeClassificationRecord(
+            upload_session_id="upload-004",
+            inferred_category=IntakeSourceCategory.GRAPHIC,
+            updated_at="2026-08-30T00:00:00.000Z",
+        )
+    with pytest.raises(ValidationError, match="must explain its evidence"):
+        IntakeClassificationRecord(
+            upload_session_id="upload-005",
+            inferred_category=IntakeSourceCategory.GRAPHIC,
+            evidence_label=IntakeEvidenceLabel.VERIFIED,
             updated_at="2026-08-30T00:00:00.000Z",
         )
 

@@ -1,219 +1,288 @@
 # Recovery 2C: Production Web Foundation and Intelligent Intake
 
-**Status:** Implemented locally; verification recorded below
+**Status:** Corrective implementation verified locally; product-owner review and
+temporary-directory cleanup remain open
 **Branch:** `recovery/2c-production-web-intake`
-**Baseline:** `800d7f5a9cd74a7d819e63a280e8d62ec7e5d1c8`
-**Authority:** Sequence C of `docs/product-v2/PRODUCT_V2_CONSOLIDATED_IMPLEMENTATION_AUTHORITY.md` and the approved Recovery 2C task dated 31 August 2026
+**Recovery 2C foundation:** `800d7f5a9cd74a7d819e63a280e8d62ec7e5d1c8`
+**Corrective audit baseline:** `1bfdaeeb17a9724b559cf88067f5ac7ba1374666`
+**Authority:** The approved Recovery 2C corrective prompt dated 31 August 2026,
+under the Product V2 Consolidated Implementation Authority
 
 ## Customer outcome
 
-Guests now land on the real public product home, can upload images or PDFs,
-observe the durable intake job and verified source facts, and sign in to preserve
-the same immutable accepted source in Default Files. Signed-in customers receive
-a responsive Home built from real projects, accepted files, attention states,
-jobs, notifications and zero-charge usage. The only signed-in destinations are
-Home, Projects, Files and Jobs.
+Recovery 2C now provides a responsive customer web foundation in which a guest
+can upload an image or PDF, observe durable intake, review truthful structural
+facts, authenticate, and preserve the same immutable source in Default Files.
+Signed-in customers have canonical Home, Projects, Files and Jobs routes backed
+by real APIs, with durable search, notifications, job timelines and zero-charge
+usage.
 
-No image/PDF editor, rendering operation, OCR, AI/model integration, connector,
-collaboration, e-sign, charging, native application or deployment was added.
+No editor, rendering feature, OCR, AI/model integration, connector, e-sign,
+payment, native application or deployment was added.
 
-## Authority and reconciliation
+## Corrective architecture and evidence
 
-- Product V2 authority and the approved Recovery 2C prompt supersede older POC
-  and legacy UI behavior.
-- The V2 visual references remain documentation evidence only. Production React
-  does not import or copy their HTML.
-- Product contract `1.10.0` remains additive under the `product-v1` compatibility
-  line. Benchmark contracts and benchmark/legacy evidence remain untouched.
-- ADR-0013 is corrected to reflect the delivered narrow migrations rather than
-  describing them as one migration.
+### OIDC, BFF sessions and logout
 
-## Delivered foundation
+- `services/api/src/domains/identity/oidc.provider.ts` implements provider-neutral
+  discovery, authorization-code exchange, JWKS verification, issuer/audience/
+  nonce checks and a deterministic provider used only by tests.
+- `AuthService`, `PostgresAuthRepository` and migration `0011` persist one-time
+  hashed state/nonce, issuer-plus-subject identity mappings, hashed opaque
+  application sessions, expiry, rotation, revocation and identity audit events.
+- `IdentityController` exposes `/v1/auth/login`, `/v1/auth/callback`,
+  `/v1/auth/session` and CSRF-protected `/v1/auth/logout`.
+- Production uses Secure, HttpOnly, SameSite `__Host-` cookies and fails closed
+  without valid OIDC/session configuration. Customer actor headers are rejected.
+  The developer identity route is impossible to select in production.
+- `apps/web/src/App.tsx` invokes real session/logout APIs, clears private browser
+  state, informs other tabs and returns to Guest Home. Public shell and theme
+  state may remain; private caches cannot.
 
-### Design and responsive shell
+`services/api/tests/auth.test.ts` is deterministic OIDC evidence. It is not a
+claim that a live commercial identity provider has passed compatibility checks.
 
-- Semantic light/dark/system tokens, visible brand focus, typography, spacing,
-  controls, overlays, status surfaces and truthful loading/error/offline states.
-- Configurable provisional product naming through `VITE_PRODUCT_NAME`.
-- Desktop sidebar, tablet rail, phone header/sheet and four-item bottom navigation
-  with no horizontal overflow at 1440x900, 768x1024, 638x768 or 390x844.
-- Four equal parent outcomes are server-authoritative and inactive. No editor is
-  presented as available.
+### Guest handoff and cross-tab coordination
 
-### Intelligent intake
+- Guest authority is an HttpOnly cookie plus server state; no bearer credential
+  is stored in browser storage or the public contract.
+- The callback preserves a bounded return route and handoff reference. The
+  authenticated handoff verifies guest ownership, consumes authorization once,
+  writes transactionally, keeps AssetOriginal/SourceVersion identity unchanged,
+  creates one Default Files location and revokes guest authorization.
+- `apps/web/src/boundaries/crossTab.ts` uses `BroadcastChannel` with a storage-
+  event fallback. Events contain only opaque IDs. Web Locks coordinate upload
+  leadership, with a lease fallback where Web Locks are unavailable.
+- Refresh, duplicate tabs and tab closure recover from server-owned upload state;
+  stable finalisation idempotency prevents inconsistent duplicate completion.
 
-- Server-derived source identity, dimensions/pages, media facts, risk dimensions,
-  explainable classification and recommendation presentation.
-- Customer correction changes classification only, is idempotent and audited,
-  and never mutates verified facts or immutable source identity.
-- Preview is safety-gated. PDFs use a generic representation because production
-  PDF rendering remains quarantined.
+Evidence is in `inspection-intake.test.ts`, `crossTab.test.ts` and the Playwright
+guest handoff, duplicate-tab, interrupted-transfer and logout journeys.
 
-### Home, Jobs, notifications and search
+### Workspace authority, jobs, notifications and search
 
-- Home aggregates real recent work, attention, active/recent jobs, notifications
-  and zero-charge usage.
-- Jobs supports active, completed, failed, cancelled and retryable views, opaque
-  keyset pagination, ordered timelines, reconnect polling, cancellation and
-  guarded manual retry of the same preserved source.
-- Notifications are durably materialized from upload, job, retry, guest-handoff
-  and expiry facts. Read state is actor scoped, idempotent and audited.
-- Debounced app-wide search covers only projects, files and jobs permitted in the
-  requested workspace. Results are server-filtered and keyset paginated.
+- `/w/:workspaceId` is canonical. `useWorkspace` resolves that URL through
+  membership-scoped context and workspace APIs before rendering any child route.
+  `/app` redirects to a permitted canonical workspace.
+- The selector appears only with multiple permitted workspaces and navigates to
+  the selected canonical URL. Direct URLs, hard refresh, removed membership and
+  cross-tenant IDs fail closed.
+- `JobsPage` supports All, Active, Completed, Failed, Cancelled and Retryable
+  views. A permitted `?job=<id>` immediately fetches the job and ordered events,
+  preserves the view query and reports missing/wrong-workspace jobs safely.
+- Migration `0012` projects notifications inside the authoritative PostgreSQL
+  transaction for upload, job, retry, handoff and expiry transitions. Stable
+  source keys plus conflict handling make projection idempotent. Reads never
+  fabricate notifications.
+- Notification reads are actor-scoped; API/UI pagination uses opaque cursors,
+  deduplicates polling and announces appended records through `aria-live`.
+- Search remains workspace-, membership- and permission-scoped on the server;
+  unauthorized resources cannot enter results.
 
-## Contracts, schema and APIs
+Primary evidence is `postgres-experience.repository.ts`,
+`0012_recovery_2c_transactional_notifications.sql`, `OperationalExperience.tsx`,
+`experience.test.ts`, `postgres.integration.test.ts` and `workspace.spec.ts`.
 
-Product contracts add JobList, NotificationRecord/List, WorkspaceSearchResult/
-Page, RecentWorkItem, AttentionItem, WorkspaceHome and FeatureStateRecord/List,
-plus explicit job-retry, notification and search permissions. Fifty-three JSON
-schemas and the generated TypeScript view match the Python source of truth.
+### Truthful intake, customer language and design system
 
-| Migration | Purpose |
+- Product contract `1.12.0` adds `verified`, `likely` and `unknown` evidence
+  labels. The retained compatibility field `confidence_percent` accepts only
+  `null`; migration `0013` removes old numeric values and enforces that rule in
+  PostgreSQL.
+- A Likely classification includes explicit structural evidence and its limit.
+  Safety, structure, quality observations, intended-use requirements and
+  production readiness are separate. High resolution alone cannot imply visual
+  quality, print suitability or production readiness.
+- Customer correction changes classification only. It cannot mutate verified
+  source facts, AssetOriginal or SourceVersion identity.
+- Customer pages contain no delivery-recovery terminology, prices, credits or
+  currency. The account menu reports the real session/workspace/role and signs
+  out. Inactive outcome cards have no dead controls; only non-production builds
+  may show `Not active in this build`.
+- Shared buttons/dropzones are the sizing source. Phone interaction targets are
+  at least 44 by 44 px. Shared modal semantics use a body portal, focus trap,
+  Escape, focus return and viewport-bounded geometry. The panel harness retains
+  pointer plus keyboard drag/resize coverage.
+- One configurable provisional product-name source drives React, document
+  metadata, accessible naming, manifest and offline output.
+
+The source of truth remains Python contracts; 54 JSON schemas and generated
+TypeScript match it. Contract, API, high-resolution, design-system, accessibility
+and browser tests cover these behaviors.
+
+### PWA, cache and CSP
+
+- `PRODUCTION_CONTENT_SECURITY_POLICY` allows required first-party assets and
+  the approved GCS upload origin without `unsafe-inline` or `unsafe-eval`.
+  Vite built preview serves the CSP plus permissions, referrer, MIME and frame
+  headers. Development HMR does not pretend to be the production CSP surface.
+- `PrivateCacheMiddleware` applies `Cache-Control: no-store, max-age=0`,
+  `Pragma: no-cache` and cookie/authorization variation across API responses.
+- Worker cache `ipw-shell-2c-v2` contains public shell assets only. API, upload,
+  authorization and signed-query traffic is bypassed. Activation deletes stale
+  shell and private namespaces; logout removes private caches while retaining the
+  public shell.
+- The generated offline document has external CSS and no inline script/style.
+  Offline/reconnection copy distinguishes interrupted local transfer from work
+  already accepted by the server.
+- Playwright builds React and runs `vite preview`. Manifest, start URL, scope,
+  display mode, regular/maskable icons, worker control, update, stale-shell
+  removal, offline fallback and deep-route refresh are executable checks.
+
+## Contracts, migrations and routes
+
+Product schema version: `1.12.0`. Generated product schema count: 54.
+
+| Migration | Corrective purpose |
 | --- | --- |
-| `0008_recovery_2c_intake_classification.sql` | Persist immutable-fact-linked classification and correction history |
-| `0009_recovery_2c_experience.sql` | Durable notifications/read state, experience idempotency and projection indexes |
-| `0010_recovery_2c_manual_retry.sql` | Narrow rejected-to-finalising retry transition with immutable-field defense |
+| `0008` | Intake classifications and customer correction history |
+| `0009` | Durable experience records, notifications and indexes |
+| `0010` | Guarded retry of the same preserved source |
+| `0011` | OIDC transactions, identities, application sessions and identity audit |
+| `0012` | Transactional, idempotent notification projection and backfill |
+| `0013` | Evidence labels and database rejection of numeric confidence |
 
-| Method and route | Behavior |
-| --- | --- |
-| `GET /v1/workspaces/:workspaceId/home` | Permission-scoped real Home aggregation |
-| `GET /v1/workspaces/:workspaceId/jobs` | Filtered, keyset-paginated workspace jobs |
-| `GET /v1/jobs/:jobId/events` | Ordered, permission-scoped timeline |
-| `POST /v1/jobs/:jobId/retry` | Idempotent same-job/same-source guarded retry |
-| `GET /v1/workspaces/:workspaceId/notifications` | Ordered actor-aware notifications |
-| `POST .../notifications/:id/read` | Idempotent audited read mutation |
-| `POST .../notifications/read-all` | Idempotent audited bulk read mutation |
-| `GET /v1/workspaces/:workspaceId/search` | Tenant- and permission-filtered search |
-| `GET /v1/workspaces/:workspaceId/features` | Server-authoritative visible feature state |
-| `GET /v1/upload-sessions/:id/intake-presentation` | Verified facts and current classification |
-| `PUT /v1/upload-sessions/:id/classification` | Idempotent correction without source mutation |
+Customer API surfaces added or reconciled by Recovery 2C include identity,
+workspace listing/context, guest and authenticated upload sessions, resumable
+status/finalisation/handoff, intake presentation/correction, Home, Jobs/events/
+cancel/retry, notifications/read state, search and feature-state routes. Their
+controller decorators are the route source of truth; all state-changing browser
+requests require CSRF and applicable idempotency/permission checks.
 
-PostgreSQL remains authoritative for production. Memory repositories remain
-deterministic local/test adapters and production composition fails closed when
-the PostgreSQL boundary is absent. Workspace job access checks membership and
-permission before returning data; mutation still targets the original job owner
-while audit records the acting member.
+## Visual and accessibility evidence
 
-## Panel framework and PWA
+All screenshots compare at `maxDiffPixelRatio: 0` against reviewed baselines.
+The inventory now contains 33 states:
 
-The panel framework is available only at the non-production internal harness
-`/internal/panels`. It supports left/right/bottom docking, floating detach,
-pointer and keyboard movement/resizing, pin, collapse, permitted close, focus
-return, reset, versioned local persistence, corruption recovery and viewport
-clamping. Tablet uses overlay/sheet geometry and phone uses one full-screen
-focused panel. Reserved contract slots exist for future tools and conversation;
-no editor controls or document model exist.
+- Home and selected-upload at 1440x900, 768x1024, 638x768 and 390x844 in light
+  and dark.
+- Guest Home, Guest intake result, populated signed-in Home, mixed-state Jobs,
+  open Search, paginated Notifications, offline state, account menu and the
+  multiple-workspace selector.
+- Projects at tablet and 638x768, phone Home/navigation, phone Default Files,
+  a created project, verified intake, completed Jobs and notification center.
 
-The web build emits a configurable manifest, regular/maskable icons, a versioned
-service worker and an offline document. The worker caches only public shell
-assets, uses controlled activation and stale-shell eviction, and bypasses API,
-authorization, upload, signed-query and customer-file traffic. Logout cache
-clearing is an explicit exported boundary. Offline copy distinguishes resumable
-local transfer state from work already accepted by the server.
+Accepted existing-baseline changes are explained by production-preview feature
+state (development-only inactive indicators disappear), truthful intake labels
+and sections, consolidated upload controls, the All Jobs view and viewport-
+correct modal placement. The nine explicitly missing states are new baselines.
+No accepted image contains internal terminology or horizontal overflow.
 
-## Security, privacy and charging
+Axe runs on Search, notifications/pagination, account/logout, workspace
+selection, guest intake, offline state and core routes. All passed. The separate
+development-only panel harness passed pointer, keyboard, focus, persistence,
+clamping and reduced-motion checks; it is not exposed by a production build.
 
-- Existing immutable-original, malware, checksum, byte-count, retention and
-  quarantine gates remain unchanged.
-- New reads are workspace and permission scoped. Mutations require independent
-  permissions, idempotency keys and trace IDs and create audit records.
-- Cursors contain only ordering keys. Advanced UI details expose opaque IDs and
-  sanitized trace references, never tokens, signed URLs or storage paths.
-- No private API response or customer bytes enter the service-worker cache.
-- Customer usage remains zero-charge and non-monetary. The UI exposes no prices,
-  credits or currency.
+## Verification record
 
-## Visual review
+Executed on 31 August 2026 without live provider calls:
 
-Reviewed zero-tolerance baselines cover Home and selected upload at all four
-approved viewports in light and dark themes. Additional baselines cover verified
-intake, completed Jobs, phone notifications, Projects, Default Files and phone
-navigation.
+- `.venv\Scripts\python.exe tools/check.py`: all 18 gates passed.
+- Python gate: full suite passed at the repository's required 90% coverage.
+- TypeScript typecheck/tests: passed for all npm workspaces.
+- Production-preview Playwright: 60 passed, including 33 zero-tolerance visual
+  comparisons. Development-only panel Playwright: 1 passed.
+- PostgreSQL integration: 37 passed, 0 skipped against a fresh local PostgreSQL
+  `17.11` database. Migrations `0001` through `0013` were listed after execution;
+  migrations and repository journey were run twice where idempotency is required.
+  pg-mem was not used as PostgreSQL evidence.
+- Product contract generator: 54 schemas and generated TypeScript match.
+- `git diff --check`: passed before this record; it is repeated before commit.
+- `npm audit --omit=dev`: exits nonzero with two Moderate transitive advisories.
+  `gaxios 6.4.0-6.7.1` depends on `uuid <11.1.1`
+  (`GHSA-w5hq-g745-h8pq`). No forced override or audit fix was applied.
 
-Accepted pixel changes are limited to:
+Sanitized PostgreSQL procedure:
 
-- Search and notification controls in the header.
-- Jobs as the fourth desktop/tablet/phone navigation destination.
-- Real Home attention, Jobs and notification sections below the outcome area.
-- Data-backed file/job counts in the testing summary.
-- The intentionally added intake, Jobs and notification state baselines.
-- A phone notification anchor correction that constrains the popover to 8 px
-  viewport insets.
+1. Resolve `.tmp/postgres-2c-final` beneath the repository and verify port 55434
+   is unused.
+2. Initialize with installed PostgreSQL 17 binaries and trust auth on loopback.
+3. Create synthetic database `ipw_recovery2c_final`.
+4. Set `IPW_TEST_DATABASE_URL` for only the test process and run the API suite.
+5. Query server version and `schema_migrations`; stop with `pg_ctl -D` against the
+   exact data directory.
 
-No baseline tolerance is used: `maxDiffPixelRatio` remains `0`.
+No credentials, `.env`, customer uploads or personal files were read.
 
-## Verification evidence
+## Temporary database cleanup
 
-- Product contract drift: 53 schemas match generated TypeScript.
-- Focused Product contracts: 13 passed.
-- React unit tests: 17 passed.
-- NestJS deterministic tests: 29 passed, 1 PostgreSQL test separately gated.
-- Playwright nonvisual journeys: 21 passed with axe zero violations.
-- Playwright visual comparisons: 24 passed with zero pixel tolerance.
-- PostgreSQL 17: all migrations and the Recovery 2C repository journey passed
-  against a fresh local PostgreSQL 17 database; pg-mem was not used as evidence.
-- Production React build emits the app, manifest, service worker, offline page
-  and icons successfully.
-- Built-preview browser smoke: `/`, `/guest/upload` and `/app` returned 200,
-  survived hard refresh and rendered expected customer headings; `/app` resolved
-  through the local API bootstrap to its generated workspace route.
-- `git diff --check`: passed.
-- Complete `tools/check.py`: all 18 gates passed, including Python coverage,
-  TypeScript checks, deterministic Playwright comparisons and repository guards.
+The exact authorized `.tmp/postgres-2c` target, and corrective/final synthetic
+clusters created for this task, were resolved beneath the repository `.tmp`
+directory. Each contains `PG_VERSION=17`, is neither repository nor `.tmp` root,
+has only synthetic test provenance and was confirmed stopped with `pg_ctl`.
 
-`npm audit --omit=dev` reports the two accepted moderate transitive advisories:
-`gaxios` depends on an affected `uuid <11.1.1`. The command exits nonzero. No
-unsafe dependency override or forced audit fix was applied.
+Two exact native PowerShell `Remove-Item -LiteralPath ... -Recurse -Force`
+attempts were rejected by the execution environment before process creation.
+No alternate shell or deletion bypass was used. Therefore these stopped ignored
+directories remain:
 
-## Known limitations and release gates
+- `.tmp/postgres-2c`
+- `.tmp/postgres-2c-corrective`
+- `.tmp/postgres-2c-final`
 
-- Live GCS, Cloud Tasks and ClamAV provider compatibility checks remain required
-  before release; no cloud service was called in Recovery 2C.
-- The two moderate `gaxios`/`uuid` advisories remain a documented release gate.
-- Jobs and notifications use ordered polling; provider-independent event
-  contracts allow a later transport without changing domain truth.
-- The hidden panel framework has no editor content. The custom PDF engine and all
-  model weights remain quarantined under their existing approval gates.
-- PWA install prompts and SVG icon presentation depend on browser/platform
-  support. No native-mobile package was created.
+This is an explicit incomplete operational cleanup item, not a hidden production
+runtime or customer-data gap.
+
+## Remaining release gates
+
+- Run compatibility checks against configured live OIDC, GCS, Cloud Tasks and
+  ClamAV providers in the release environment. Deterministic official-client
+  tests are not live-provider evidence.
+- Resolve or formally accept the two Moderate transitive advisories without an
+  unsafe dependency override.
+- Confirm PWA icon/install presentation on target browser/platform combinations.
+- Keep the custom PDF engine quarantined until its full compatibility,
+  differential, security and performance benchmark passes.
+- Keep installed model weights commercially blocked until licence and quality
+  approval. No model was downloaded or integrated here.
+- Complete the exact stopped test-directory removal in an environment that
+  permits the already validated native PowerShell operation.
+
+No Critical or High approved-scope product/runtime gap remains in deterministic
+verification. Recovery 2C is not pushed, merged or deployed.
+
+## Requirement-by-requirement self-audit
+
+| Corrective requirement | Executable evidence | Result |
+| --- | --- | --- |
+| 1. Remove spoofable identity | OIDC provider/auth service/repository, `0011`, auth tests | Delivered; live OIDC is a release gate |
+| 2. Real guest handoff | callback state, handoff repository/service, API and browser journeys | Delivered |
+| 3. Logout/private state | revoked session, CSRF, cross-tab event, cache/browser clearing test | Delivered |
+| 4. Cross-tab coordination | secure guest cookie, BroadcastChannel fallback, Web Locks/lease tests | Delivered |
+| 5. Transactional notifications | `0012`, PostgreSQL triggers, stable keys, pagination/read tests | Delivered |
+| 6. Canonical workspace | URL membership resolution, real selector, direct/refresh/tenant tests | Delivered |
+| 7. Job deep links | immediate job/events fetch, workspace check, route-refresh tests | Delivered |
+| 8. Truthful intake | contract `1.12.0`, `0013`, high-resolution and UI tests | Delivered |
+| 9. Customer language/controls | account/workspace controls and customer-copy test | Delivered |
+| 10. Design system | shared controls, 44 px scan, portal/focus and pointer tests | Delivered |
+| 11. Brand configuration | one product config across runtime/build/offline/manifest | Delivered |
+| 12. PWA/cache/CSP | preview headers, no-store middleware, worker lifecycle/install checks | Delivered |
+| 13. Visual/accessibility | 33 reviewed baselines and required Axe states | Delivered |
+| 14. Verification accuracy | production preview, deterministic OIDC, PostgreSQL 17.11, 18 gates | Delivered |
+| 15. Safe temp cleanup | validation and stop passed; deletion blocked before execution | Partially delivered |
+| 16. Documentation correction | This evidence-linked record | Delivered in final corrective commit |
 
 ## Rollback
 
-1. Stop local web/API processes and any local PostgreSQL test instance.
-2. Revert the six Recovery 2C commits in reverse order on a new rollback branch.
-3. Roll application code back before removing database objects. Migrations are
-   additive; leave `0008`-`0010` data in place unless a separately reviewed data
-   rollback explicitly confirms no retained notification/classification evidence
-   is required.
-4. Clear the `ipw-shell-2c-v1` service-worker cache or unregister the worker when
-   validating the rolled-back web build.
-5. Re-run Recovery 2B verification and PostgreSQL migration checks.
+1. Create a dedicated rollback branch and stop local API/web/PostgreSQL processes.
+2. Revert the six corrective commits in reverse order, beginning with the commit
+   containing this record, then `44dfe28`, `298f1ce`, `d9b27e3`, `ea2b2ff` and
+   `ad3a688`. Do not rewrite published history.
+3. Roll application code back before any separately approved data rollback.
+   Migrations `0011`-`0013` are additive/evidence-bearing and should remain until
+   retention and identity-audit impact is reviewed.
+4. Clear `ipw-shell-2c-v2` when validating the rolled-back web build.
+5. Re-run Recovery 2B gates, full repository verification and PostgreSQL
+   migrations before preserving a rollback branch.
 
-## Acceptance mapping
+## Corrective commit sequence
 
-| Approved Recovery 2C requirement | Evidence | Result |
-| --- | --- | --- |
-| Production design system | Semantic tokens/components, theme/focus/axe tests | Delivered |
-| Public guest Home and handoff | `/`, real upload/job/facts/sign-in-save Playwright journey | Delivered |
-| Signed-in shell and real Home | `/w/:workspaceId`, Home API and aggregation tests | Delivered |
-| Intelligent intake presentation | `IntakeFacts`, `0008`, correction API/tests | Delivered |
-| Jobs and notifications | Durable APIs, `0009`-`0010`, UI and retry/read tests | Delivered |
-| Permission-aware search | Typed search API/UI, debounce/keyset and isolation tests | Delivered |
-| Editor panel framework only | Hidden internal harness and layout tests | Delivered |
-| PWA and offline truthfulness | Manifest/SW/offline/cache lifecycle tests | Delivered |
-| API/data support only as required | No speculative editor/collaboration/billing tables | Delivered |
-| Responsive web, no native workspace | Four viewport baselines and overflow tests | Delivered |
-| Security, audit, idempotency, zero charge | API/PostgreSQL tests and cache allowlist | Delivered |
-| Excluded Recovery 2D+ work | No editor, AI, connector, e-sign, payment or deployment | Preserved |
+1. `ad3a688` - secure Recovery 2C identity and guest handoff.
+2. `ea2b2ff` - coordinate workspace recovery across tabs.
+3. `d9b27e3` - project durable workspace notifications.
+4. `298f1ce` - make intake evidence and customer UI truthful.
+5. `44dfe28` - harden production web delivery and visual evidence.
+6. The commit containing this final verification record.
 
-## Commit sequence
-
-1. `d6be9af` - establish Recovery 2C web design system.
-2. `17b6a52` - build guest and signed-in workspace shells.
-3. `cfd8421` - present verified intelligent intake facts.
-4. `18e8e46` - add durable workspace operations.
-5. `57bfc09` - add panel framework and safe PWA shell.
-6. Final verification commit - baselines, evidence and this recovery record.
-
-Remain paused after Recovery 2C. Do not begin Recovery 2D, merge, push or deploy
+Remain paused after Recovery 2C. Do not push, merge, deploy or begin Recovery 2D
 without explicit product-owner approval.

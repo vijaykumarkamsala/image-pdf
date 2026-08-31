@@ -429,7 +429,10 @@ class IntakeClassificationRecord(ProductKernelContractModel):
     evidence_label: IntakeEvidenceLabel = IntakeEvidenceLabel.UNKNOWN
     confidence_percent: None = Field(
         default=None,
-        description="Compatibility field. Numeric confidence is unavailable until a calibrated method is approved.",
+        description=(
+            "Compatibility field. Numeric confidence is unavailable until a calibrated method "
+            "is approved."
+        ),
     )
     evidence: tuple[NonEmptyStr, ...] = ()
     customer_category: IntakeSourceCategory | None = None
@@ -437,9 +440,15 @@ class IntakeClassificationRecord(ProductKernelContractModel):
 
     @model_validator(mode="after")
     def _evidence_matches_inference(self) -> IntakeClassificationRecord:
-        if self.inferred_category is None and self.evidence_label is not IntakeEvidenceLabel.UNKNOWN:
+        if (
+            self.inferred_category is None
+            and self.evidence_label is not IntakeEvidenceLabel.UNKNOWN
+        ):
             raise ValueError("a classification evidence label requires an inferred category")
-        if self.inferred_category is not None and self.evidence_label is IntakeEvidenceLabel.UNKNOWN:
+        if (
+            self.inferred_category is not None
+            and self.evidence_label is IntakeEvidenceLabel.UNKNOWN
+        ):
             raise ValueError("an inferred category requires a verified or likely evidence label")
         if self.inferred_category is not None and not self.evidence:
             raise ValueError("an inferred category must explain its evidence")
