@@ -471,6 +471,7 @@ test("customer copy discloses testing and inactive product areas without interna
 });
 
 test("Image & Graphic Studio uses real native document APIs and deterministic renderer interaction", async ({ page }) => {
+  test.slow();
   await page.setViewportSize({ width: 1440, height: 900 });
   await openWorkspace(page, "studio-journey");
   await page.getByRole("link", { name: /Image & Graphic Studio/ }).click();
@@ -486,6 +487,23 @@ test("Image & Graphic Studio uses real native document APIs and deterministic re
   await page.getByRole("button", { name: "Text", exact: true }).click();
   await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toBeVisible();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" })).toBeVisible();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.keyboard.press("Control+z");
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toHaveCount(0);
+  await page.keyboard.press("Control+y");
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Artboard", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Artboards" }).click();
+  const artboards = page.getByRole("list", { name: "Artboards" }).getByRole("listitem");
+  await expect(artboards).toHaveCount(2);
+  await artboards.nth(1).getByRole("button").click();
+  await page.getByRole("tab", { name: "Layers" }).click();
   const originalDocumentUrl = page.url();
   await page.getByRole("button", { name: "Save as", exact: true }).click();
   const saveAsDialog = page.getByRole("dialog", { name: "Save a copy" });
@@ -530,10 +548,10 @@ test("Image & Graphic Studio uses real native document APIs and deterministic re
     const parts = location.pathname.split("/");
     const response = await fetch(`/v1/workspaces/${parts[2]}/documents/${parts[4]}`);
     const model = await response.json() as { editor: { snapshot: { artboards: Array<{ width: number; height: number }> } } };
-    const artboard = model.editor.snapshot.artboards[0]!;
+    const artboards = model.editor.snapshot.artboards;
     return {
       painted: paintedColumns / paintedRows,
-      declared: artboard.width / artboard.height,
+      declared: artboards.reduce((total, artboard) => total + artboard.width, 0) / Math.max(...artboards.map((artboard) => artboard.height)),
     };
   });
   expect(aspectEvidence).not.toBeNull();
@@ -550,6 +568,100 @@ test("Image & Graphic Studio uses real native document APIs and deterministic re
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("Studio pointer selection, move, resize and rotation persist as native transforms", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "studio-pointer");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  const upperCanvas = page.locator(".upper-canvas");
+  const bounds = await upperCanvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  const lowerCanvas = page.locator(".lower-canvas");
+  const paintedShape = async () => {
+    const painted = await lowerCanvas.evaluate((element: HTMLCanvasElement) => {
+      const context = element.getContext("2d")!;
+      const pixels = context.getImageData(0, 0, element.width, element.height).data;
+      let left = element.width;
+      let top = element.height;
+      let right = 0;
+      let bottom = 0;
+      for (let y = 0; y < element.height; y += 1) for (let x = 0; x < element.width; x += 1) {
+        const offset = (y * element.width + x) * 4;
+        if (pixels[offset]! < 90 && pixels[offset + 1]! < 120 && pixels[offset + 2]! > 180 && pixels[offset + 3]! > 240) {
+          left = Math.min(left, x);
+          top = Math.min(top, y);
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
+      }
+      return { left, top, right, bottom };
+    });
+    const canvas = await lowerCanvas.boundingBox();
+    return { left: canvas!.x + painted.left, top: canvas!.y + painted.top, right: canvas!.x + painted.right, bottom: canvas!.y + painted.bottom };
+  };
+  const shapeBounds = await paintedShape();
+  await page.mouse.click((shapeBounds.left + shapeBounds.right) / 2, (shapeBounds.top + shapeBounds.bottom) / 2);
+  await expect(page.locator(".layer-row.is-selected")).toContainText("Rectangle");
+  await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2, (shapeBounds.top + shapeBounds.bottom) / 2);
+  await page.mouse.down();
+  await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2 + 40, (shapeBounds.top + shapeBounds.bottom) / 2 + 30, { steps: 6 });
+  await page.mouse.up();
+  const controls = await lowerCanvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext("2d")!;
+    const pixels = context.getImageData(0, 0, element.width, element.height).data;
+    const painted = (offset: number) => pixels[offset]! < 100 && pixels[offset + 1]! < 140 && pixels[offset + 2]! > 170 && pixels[offset + 3]! > 220;
+    let right = 0;
+    let bottom = 0;
+    for (let y = 0; y < element.height; y += 1) for (let x = 0; x < element.width; x += 1) {
+      const offset = (y * element.width + x) * 4;
+      if (painted(offset)) {
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    let totalX = 0;
+    let totalY = 0;
+    let count = 0;
+    for (let y = Math.max(0, bottom - 20); y <= bottom; y += 1) for (let x = Math.max(0, right - 20); x <= right; x += 1) {
+      if (painted((y * element.width + x) * 4)) {
+        totalX += x;
+        totalY += y;
+        count += 1;
+      }
+    }
+    return { x: totalX / count, y: totalY / count, count };
+  });
+  expect(controls.count).toBeGreaterThan(20);
+  const lowerBounds = await lowerCanvas.boundingBox();
+  const resizeX = lowerBounds!.x + controls.x;
+  const resizeY = lowerBounds!.y + controls.y;
+  await page.mouse.move(resizeX, resizeY);
+  await page.mouse.down();
+  await page.mouse.move(resizeX + 40, resizeY + 25, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "All Tools" }).click();
+  await page.getByRole("button", { name: /Rotate selected layer/ }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  const documentId = new URL(page.url()).pathname.split("/")[4]!;
+  const model = await page.evaluate(async ({ workspaceId: id, documentId: document }) => {
+    const response = await fetch(`/v1/workspaces/${id}/documents/${document}`);
+    return response.json() as Promise<{ editor: { snapshot: { layers: Array<{ layer_type: string; transform: { x: number; y: number; width: number; height: number; scale_x: number; scale_y: number; rotation_degrees: number } }> } } }>;
+  }, { workspaceId, documentId });
+  const shape = model.editor.snapshot.layers.find((layer) => layer.layer_type === "shape")!;
+  expect(shape.transform.x).toBeGreaterThan(216);
+  expect(shape.transform.y).toBeGreaterThan(388.8);
+  expect(shape.transform.width * shape.transform.scale_x).toBeGreaterThan(320);
+  expect(shape.transform.height * shape.transform.scale_y).toBeGreaterThan(220);
+  expect(shape.transform.rotation_degrees).toBe(90);
 });
 
 test("verified raster import remains linked while crop and adjustments autosave non-destructively", async ({ page }) => {

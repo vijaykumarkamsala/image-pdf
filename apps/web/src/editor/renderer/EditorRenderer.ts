@@ -19,5 +19,6 @@ export interface EditorRenderer {
   select(layerId: string | null): void;
   zoomBy(factor: number): void;
   fit(): void;
+  fitArtboard(artboardId: string): void;
   dispose(): void;
 }

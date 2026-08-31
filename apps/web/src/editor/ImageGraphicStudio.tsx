@@ -141,6 +141,7 @@ export function ImageGraphicStudio() {
   const [viewport, setViewport] = useState<RendererViewport>({ zoom: 1, panX: 0, panY: 0 });
   const [leftTab, setLeftTab] = useState("layers");
   const [rightTab, setRightTab] = useState("properties");
+  const [activeArtboardId, setActiveArtboardId] = useState("");
   const [versionName, setVersionName] = useState("");
   const [compatibility, setCompatibility] = useState<ImportCompatibilityReport[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
@@ -164,6 +165,7 @@ export function ImageGraphicStudio() {
         if (!active) return;
         leaseRef.current = leaseResponse.grant.lease_token;
         updateEditor(documentResponse.editor);
+        setActiveArtboardId(documentResponse.editor.snapshot.artboards[0]?.artboard_id ?? "");
         setCompatibility(compatibilityResponse.reports);
         setSaveState("saved");
       },
@@ -399,16 +401,54 @@ export function ImageGraphicStudio() {
     }
   }
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target?.matches("input, textarea, select, [contenteditable='true']") ?? false;
+      if (editingText && event.key !== "Escape") return;
+      const command = event.ctrlKey || event.metaKey;
+      if (command && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        void history(event.shiftKey ? "redo" : "undo");
+      } else if (command && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        void history("redo");
+      } else if (command && event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        openSaveAs();
+      } else if (event.key === "0") {
+        event.preventDefault();
+        rendererRef.current?.fit();
+      } else if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        rendererRef.current?.zoomBy(1.25);
+      } else if (event.key === "-") {
+        event.preventDefault();
+        rendererRef.current?.zoomBy(0.8);
+      } else if (event.key === "Escape") {
+        selectedRef.current = null;
+        setSelectedId(null);
+        rendererRef.current?.select(null);
+      } else if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
+        event.preventDefault();
+        commit({ kind: "layer.remove", target_id: selectedId, properties: {} });
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [commit, selectedId]);
+
   if (!editor) return <main className="studio-loading">{message ? <StatePanel kind="error" title="Studio unavailable" message={message} action={{ label: "Back to Home", onClick: () => navigate(workspacePath(workspaceId)) }} /> : <StatePanel kind="loading" title="Opening Studio" message="Loading the native document and editor lease." />}</main>;
 
   const leftPanel = <Tabs label="Document panels" selected={leftTab} onSelect={setLeftTab} items={[
+    { id: "artboards", label: "Artboards", panel: <ArtboardsPanel snapshot={editor.snapshot} activeId={activeArtboardId} select={(id) => { setActiveArtboardId(id); rendererRef.current?.fitArtboard(id); }} add={addArtboard} /> },
     { id: "layers", label: "Layers", panel: <LayersPanel snapshot={editor.snapshot} selectedId={selectedId} select={(id) => { selectedRef.current = id; setSelectedId(id); rendererRef.current?.select(id); }} mutate={commit} /> },
     { id: "assets", label: "Assets", panel: <AssetsPanel editor={editor} compatibility={compatibility} /> },
     { id: "history", label: "History", panel: <HistoryPanel editor={editor} versionName={versionName} setVersionName={setVersionName} save={() => void nameVersion()} restore={(id) => void restore(id)} /> },
   ]} />;
   const rightPanel = <Tabs label="Tool panels" selected={rightTab} onSelect={setRightTab} items={[
     { id: "properties", label: "Properties", panel: <PropertiesPanel layer={selected} update={updateLayer} mutate={commit} /> },
-    { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} saveAs={openSaveAs} selected={selected} update={updateLayer} /> },
+    { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} saveAs={openSaveAs} fit={() => rendererRef.current?.fit()} focusCanvas={() => surfaceRef.current?.querySelector<HTMLElement>(".upper-canvas")?.focus()} selected={selected} update={updateLayer} /> },
   ]} />;
 
   return <main className="studio" data-testid="image-graphic-studio">
@@ -449,6 +489,16 @@ function CanvasSurface({ canvasRef, surfaceRef, editor }: {
   </div>;
 }
 
+function ArtboardsPanel({ snapshot, activeId, select, add }: {
+  snapshot: EditorDocumentSnapshot;
+  activeId: string;
+  select: (id: string) => void;
+  add: () => void;
+}) {
+  const artboards = [...snapshot.artboards].sort((left, right) => left.order - right.order);
+  return <div className="studio-panel-body"><div className="artboard-list" role="list" aria-label="Artboards">{artboards.map((artboard) => <div role="listitem" key={artboard.artboard_id}><button type="button" aria-pressed={activeId === artboard.artboard_id} onClick={() => select(artboard.artboard_id)}><span className="artboard-thumbnail" style={{ aspectRatio: `${artboard.width} / ${artboard.height}` }} /><span><strong>{artboard.name}</strong><small>{formatDimension(artboard.width)} x {formatDimension(artboard.height)} {artboard.unit} | {artboard.intended_use.label}</small></span></button></div>)}</div><Button size="compact" onClick={add}><Plus aria-hidden="true" />Add artboard</Button></div>;
+}
+
 function LayersPanel({ snapshot, selectedId, select, mutate }: {
   snapshot: EditorDocumentSnapshot;
   selectedId: string | null;
@@ -476,7 +526,7 @@ function HistoryPanel({ editor, versionName, setVersionName, save, restore }: {
   save: () => void;
   restore: (id: string) => void;
 }) {
-  return <div className="studio-panel-body history-panel"><div className="version-create"><TextInput label="Version name" maxLength={100} value={versionName} onChange={(event) => setVersionName(event.target.value)} /><Button size="compact" disabled={!versionName.trim()} onClick={save}>Save version</Button></div><div className="version-list">{editor.versions.map((version) => <article key={version.document_version_id}><span><strong>{version.name || version.kind.replaceAll("_", " ")}</strong><small>Revision {version.revision} · {version.kind.replaceAll("_", " ")}</small></span>{version.document_version_id !== editor.document.current_version_id && <Button tone="quiet" size="compact" onClick={() => restore(version.document_version_id)}>Restore</Button>}</article>)}</div></div>;
+  return <div className="studio-panel-body history-panel"><div className="version-create"><TextInput label="Version name" maxLength={100} value={versionName} onChange={(event) => setVersionName(event.target.value)} /><Button size="compact" disabled={!versionName.trim()} onClick={save}>Save version</Button></div><div className="version-list">{editor.versions.map((version) => <article key={version.document_version_id}><span><strong>{version.name || version.kind.replaceAll("_", " ")}</strong><small>Revision {version.revision} | {version.kind.replaceAll("_", " ")}</small></span>{version.document_version_id !== editor.document.current_version_id && <Button tone="quiet" size="compact" onClick={() => restore(version.document_version_id)}>Restore</Button>}</article>)}</div></div>;
 }
 
 function PropertiesPanel({ layer, update, mutate }: {
@@ -492,7 +542,7 @@ function PropertiesPanel({ layer, update, mutate }: {
   return <div className="studio-panel-body properties-panel"><div className="property-heading"><LayerIcon layer={layer} /><span><strong>{layer.name}</strong><small>{layerTypeLabel(layer)}</small></span></div>
     <fieldset><legend>Transform</legend><div className="property-grid">{(["x", "y", "width", "height", "rotation_degrees"] as const).map((key) => <NumberProperty key={key} label={key === "rotation_degrees" ? "Rotate" : key.toUpperCase()} value={key === "rotation_degrees" ? rotation : transform[key]} onCommit={(value) => update({}, { ...transform, [key]: key === "width" || key === "height" ? Math.max(1, value) : value })} />)}</div><div className="property-actions"><IconButton label="Flip horizontally" onClick={() => update({}, { ...transform, flip_x: !(transform.flip_x ?? false) })}><FlipHorizontal2 aria-hidden="true" /></IconButton><IconButton label="Flip vertically" onClick={() => update({}, { ...transform, flip_y: !(transform.flip_y ?? false) })}><FlipVertical2 aria-hidden="true" /></IconButton><IconButton label="Rotate 90 degrees" onClick={() => update({}, { ...transform, rotation_degrees: rotation + 90 > 360 ? rotation - 270 : rotation + 90 })}><RotateCw aria-hidden="true" /></IconButton></div></fieldset>
     <fieldset><legend>Layer</legend><label>Opacity <span>{Math.round(opacity * 100)}%</span><input type="range" min="0" max="100" value={Math.round(opacity * 100)} onChange={(event) => update({ opacity: Number(event.target.value) / 100 })} /></label><label>Blend mode<select value={layer.blend_mode ?? "normal"} onChange={(event) => update({ blend_mode: event.target.value })}><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select></label></fieldset>
-    {layer.raster && crop && <><fieldset><legend>Crop</legend><div className="property-grid">{(["left", "top", "right", "bottom"] as const).map((key) => <NumberProperty key={key} label={key} step={0.01} value={crop[key]} onCommit={(value) => mutate({ kind: "layer.update", target_id: layer.layer_id, crop: { ...crop, [key]: Math.min(1, Math.max(0, value)) }, properties: {} })} />)}</div></fieldset><AdjustmentControls value={normalizedAdjustments(layer.raster.adjustments)} update={(adjustments) => update({}, undefined, adjustments)} /></>}
+    {layer.raster && crop && <><fieldset><legend>Crop</legend><div className="property-grid">{(["left", "top", "right", "bottom"] as const).map((key) => <NumberProperty key={key} label={key} step={0.01} value={crop[key]} onCommit={(value) => mutate({ kind: "layer.update", target_id: layer.layer_id, crop: { ...crop, [key]: Math.min(1, Math.max(0, value)) }, properties: {} })} />)}</div></fieldset><fieldset><legend>Quick correction</legend><label>Light <span>{layer.raster.adjustments?.brightness ?? 0}</span><input type="range" min="-100" max="100" value={layer.raster.adjustments?.brightness ?? 0} onChange={(event) => update({}, undefined, { ...normalizedAdjustments(layer.raster!.adjustments), brightness: Number(event.target.value) })} /></label></fieldset><details className="advanced-controls"><summary>Advanced adjustments</summary><AdjustmentControls value={normalizedAdjustments(layer.raster.adjustments)} update={(adjustments) => update({}, undefined, adjustments)} /></details></>}
     {layer.rich_text && <fieldset><legend>Text</legend><label className="property-textarea">Content<textarea defaultValue={layer.rich_text.text} onBlur={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, text: event.target.value } }, properties: {} })} /></label></fieldset>}
     {layer.shape && <fieldset><legend>Shape</legend><label>Fill<input type="color" value={layer.shape.fill ?? "#3559e0"} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, shape: { ...layer.shape!, fill: event.target.value } }, properties: {} })} /></label></fieldset>}
     {layer.raster && <fieldset><legend>Asset instance</legend><label>Mode<select aria-label="Asset instance mode" value={layer.raster.instance_mode ?? "linked"} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, raster: { ...layer.raster!, instance_mode: event.target.value as "linked" | "independent" } }, properties: {} })}><option value="linked">Linked</option><option value="independent">Independent</option></select></label></fieldset>}
@@ -511,13 +561,13 @@ function AdjustmentControls({ value, update }: { value: VisualAdjustments; updat
   return <fieldset><legend>Adjustments</legend>{controls.map(([key, label, min, max]) => <label key={key}>{label}<span>{value[key] ?? 0}</span><input type="range" min={min} max={max} value={(value[key] as number | undefined) ?? 0} onChange={(event) => update({ ...value, [key]: Number(event.target.value) })} /></label>)}</fieldset>;
 }
 
-function AllTools({ addShape, addText, addArtboard, groupSelected, saveAs, selected, update }: {
-  addShape: () => void; addText: () => void; addArtboard: () => void; groupSelected: () => void; saveAs: () => void; selected: LayerRecord | null;
+function AllTools({ addShape, addText, addArtboard, groupSelected, saveAs, fit, focusCanvas, selected, update }: {
+  addShape: () => void; addText: () => void; addArtboard: () => void; groupSelected: () => void; saveAs: () => void; fit: () => void; focusCanvas: () => void; selected: LayerRecord | null;
   update: (properties: EditorMutation["properties"], transform?: LayerTransform, adjustments?: VisualAdjustments) => void;
 }) {
   const [query, setQuery] = useState("");
   const tools = [
-    { label: "Select & move", description: "Position, resize and rotate layers", icon: MousePointer2, action: () => undefined },
+    { label: "Select & move", description: "Position, resize and rotate layers", icon: MousePointer2, action: focusCanvas },
     { label: "Rich text", description: "Add editable type", icon: Type, action: addText },
     { label: "Shape", description: "Add a vector shape", icon: Shapes, action: addShape },
     { label: "Artboard", description: "Add another canvas", icon: BoxSelect, action: addArtboard },
@@ -525,7 +575,7 @@ function AllTools({ addShape, addText, addArtboard, groupSelected, saveAs, selec
     { label: "Group", description: "Nest the selected layer in a group", icon: Layers3, action: groupSelected },
     { label: "Rotate", description: "Rotate selected layer 90 degrees", icon: RotateCw, action: () => selected && update({}, { ...selected.transform, rotation_degrees: (selected.transform.rotation_degrees ?? 0) + 90 }) },
     { label: "Flip horizontal", description: "Mirror selected layer", icon: FlipHorizontal2, action: () => selected && update({}, { ...selected.transform, flip_x: !selected.transform.flip_x }) },
-    { label: "Fit view", description: "Use the command bar fit control", icon: Focus, action: () => undefined },
+    { label: "Fit view", description: "Frame every artboard", icon: Focus, action: fit },
   ];
   const visible = tools.filter((tool) => `${tool.label} ${tool.description}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="studio-panel-body all-tools"><label className="tool-search"><span className="sr-only">Search tools</span><input type="search" placeholder="Search tools" value={query} onChange={(event) => setQuery(event.target.value)} /></label><div>{visible.map(({ label, description, icon: Icon, action }) => <button type="button" key={label} onClick={action} disabled={(label === "Rotate" || label === "Flip horizontal" || label === "Group") && !selected}><Icon aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span></button>)}</div></div>;
@@ -545,6 +595,7 @@ function LayerIcon({ layer }: { layer: LayerRecord }) {
 }
 
 function layerTypeLabel(layer: LayerRecord) { return layer.layer_type.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
+function formatDimension(value: number) { return Math.round(value * 100) / 100; }
 function saveLabel(state: SaveState) { return { saved: "Saved", saving: "Saving...", offline: "Offline - changes not saved", conflict: "Save conflict", failed: "Save failed", "read-only": "View only" }[state]; }
 function baseTransform(x: number, y: number, width: number, height: number): LayerTransform { return { x, y, width, height, rotation_degrees: 0, scale_x: 1, scale_y: 1, skew_x_degrees: 0, skew_y_degrees: 0, flip_x: false, flip_y: false }; }
 function normalizedAdjustments(value: VisualAdjustments | undefined): VisualAdjustments { return { exposure: value?.exposure ?? 0, brightness: value?.brightness ?? 0, contrast: value?.contrast ?? 0, saturation: value?.saturation ?? 0, temperature: value?.temperature ?? 0, tint: value?.tint ?? 0, sharpness: value?.sharpness ?? 0 }; }

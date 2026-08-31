@@ -137,8 +137,23 @@ export class FabricEditorRenderer implements EditorRenderer {
   }
 
   fit(): void {
+    this.fitBounds(this.documentBounds());
+  }
+
+  fitArtboard(artboardId: string): void {
+    const artboard = this.snapshot?.artboards.find((item) => item.artboard_id === artboardId);
+    if (!artboard) return;
+    const offset = this.artboardOffset(artboardId);
+    this.fitBounds({
+      left: offset.x - 32,
+      top: offset.y - 32,
+      width: artboard.width + 64,
+      height: artboard.height + 64,
+    });
+  }
+
+  private fitBounds(bounds: { left: number; top: number; width: number; height: number }): void {
     const canvas = this.requireCanvas();
-    const bounds = this.documentBounds();
     const zoom = Math.min(2, Math.max(0.05, Math.min((canvas.width - 64) / bounds.width, (canvas.height - 64) / bounds.height)));
     this.viewport = {
       zoom,
