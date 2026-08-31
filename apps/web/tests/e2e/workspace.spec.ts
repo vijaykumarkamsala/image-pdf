@@ -451,18 +451,181 @@ test("customer copy discloses testing and inactive product areas without interna
   ] as const;
   const tiles = page.locator(".outcome-card");
   await expect(tiles).toHaveCount(4);
-  for (const [label, description] of expectedOutcomes) {
+  for (const [index, [label, description]] of expectedOutcomes.entries()) {
     const tile = tiles.filter({ hasText: label });
     await expect(tile).toContainText(description);
-    await expect(tile).toHaveAttribute("data-feature-state", "inactive");
-    await expect(tile).toHaveAttribute("aria-disabled", "true");
+    await expect(tile).toHaveAttribute("data-feature-state", index === 0 ? "active" : "inactive");
+    if (index === 0) {
+      await expect(tile).toHaveAttribute("href", /studio\/new/);
+      await expect(tile).not.toHaveAttribute("aria-disabled", "true");
+    } else {
+      await expect(tile).toHaveAttribute("aria-disabled", "true");
+    }
     await expect(tile).not.toContainText("Not active in this build");
   }
   await expect(page.getByText("Available in a later recovery")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/recovery/i);
-  await expect(tiles.locator("a, button")).toHaveCount(0);
-  expect(await tiles.evaluateAll((elements) => elements.every((element) => (element as HTMLElement).tabIndex === -1))).toBe(true);
+  await expect(tiles.locator("button")).toHaveCount(0);
+  await expect(tiles.locator("a")).toHaveCount(0);
+  expect(await tiles.evaluateAll((elements) => elements.slice(1).every((element) => (element as HTMLElement).tabIndex === -1))).toBe(true);
 });
+
+test("Image & Graphic Studio uses real native document APIs and deterministic renderer interaction", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "studio-journey");
+  await page.getByRole("link", { name: /Image & Graphic Studio/ }).click();
+  await expect(page.getByTestId("studio-start")).toBeVisible();
+  await page.getByLabel("Graphic name").fill("Retail social graphic");
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" })).toBeVisible();
+  await expect(page.getByText("Saving...", { exact: true })).toBeVisible().catch(() => undefined);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const originalDocumentUrl = page.url();
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const saveAsDialog = page.getByRole("dialog", { name: "Save a copy" });
+  await expect(saveAsDialog).toBeVisible();
+  await saveAsDialog.getByLabel("Graphic name").fill("Retail social graphic variant");
+  await saveAsDialog.getByRole("button", { name: "Save copy" }).click();
+  await expect(page).not.toHaveURL(originalDocumentUrl);
+  await expect(page.getByRole("heading", { name: "Retail social graphic variant" })).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  const canvas = page.locator(".lower-canvas");
+  await expect(canvas).toBeVisible();
+  const canvasGeometry = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      cssWidth: bounds.width,
+      cssHeight: bounds.height,
+      backingWidth: element.width,
+      backingHeight: element.height,
+      pixelRatio: window.devicePixelRatio,
+    };
+  });
+  expect(Math.abs(canvasGeometry.backingWidth / canvasGeometry.cssWidth - canvasGeometry.pixelRatio)).toBeLessThan(0.05);
+  expect(Math.abs(canvasGeometry.backingHeight / canvasGeometry.cssHeight - canvasGeometry.pixelRatio)).toBeLessThan(0.05);
+  const aspectEvidence = await canvas.evaluate(async (element: HTMLCanvasElement) => {
+    const context = element.getContext("2d");
+    if (!context) return null;
+    const data = context.getImageData(0, 0, element.width, element.height).data;
+    const rows = new Array<number>(element.height).fill(0);
+    const columns = new Array<number>(element.width).fill(0);
+    for (let y = 0; y < element.height; y += 1) {
+      for (let x = 0; x < element.width; x += 1) {
+        const offset = (y * element.width + x) * 4;
+        if (data[offset]! > 248 && data[offset + 1]! > 248 && data[offset + 2]! > 248 && data[offset + 3]! > 248) {
+          rows[y] += 1;
+          columns[x] += 1;
+        }
+      }
+    }
+    const paintedRows = rows.filter((count) => count > 50).length;
+    const paintedColumns = columns.filter((count) => count > 50).length;
+    const parts = location.pathname.split("/");
+    const response = await fetch(`/v1/workspaces/${parts[2]}/documents/${parts[4]}`);
+    const model = await response.json() as { editor: { snapshot: { artboards: Array<{ width: number; height: number }> } } };
+    const artboard = model.editor.snapshot.artboards[0]!;
+    return {
+      painted: paintedColumns / paintedRows,
+      declared: artboard.width / artboard.height,
+    };
+  });
+  expect(aspectEvidence).not.toBeNull();
+  expect(Math.abs(aspectEvidence!.painted - aspectEvidence!.declared), JSON.stringify(aspectEvidence)).toBeLessThan(0.08);
+  const pixels = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext("2d");
+    if (!context) return 0;
+    const data = context.getImageData(0, 0, element.width, element.height).data;
+    let nonBlank = 0;
+    for (let index = 0; index < data.length; index += 16) if (data[index] || data[index + 1] || data[index + 2] || data[index + 3]) nonBlank += 1;
+    return nonBlank;
+  });
+  expect(pixels).toBeGreaterThan(100);
+  const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("verified raster import remains linked while crop and adjustments autosave non-destructively", async ({ page }) => {
+  test.slow();
+  await openWorkspace(page, "studio-raster");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("link", { name: "Files" }).first().click();
+  await page.getByRole("button", { name: "Create in Studio" }).click();
+  await expect(page.getByRole("radio", { name: /synthetic-alpha-32.png/ })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await page.getByRole("tab", { name: "Assets" }).click();
+  await expect(page.getByText("Linked immutable source")).toBeVisible();
+  await page.getByRole("tab", { name: "Layers" }).click();
+  await page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "synthetic-alpha-32.png" }).click();
+  await page.getByRole("tab", { name: "Properties" }).click();
+  await page.getByText("Crop", { exact: true }).scrollIntoViewIfNeeded();
+  const leftCrop = page.locator(".properties-panel fieldset").filter({ hasText: "Crop" }).getByLabel("left");
+  await leftCrop.fill("0.1");
+  await leftCrop.blur();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByLabel("Asset instance mode").selectOption("independent");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Assets" }).click();
+  await expect(page.getByText("Original source preserved.")).toBeVisible();
+});
+
+test("Studio tablet and phone layouts remain operable without horizontal overflow", async ({ page }) => {
+  await openWorkspace(page, "studio-responsive");
+  await page.goto(`${page.url()}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 638, height: 768 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+    expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
+    const undersized = await page.locator('[data-testid="image-graphic-studio"] button:not([disabled]), [data-testid="image-graphic-studio"] [role="tab"]').evaluateAll((elements) => elements.filter((element) => {
+      const style = getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && bounds.width > 0 && bounds.height > 0 && (bounds.width < 44 || bounds.height < 44);
+    }).map((element) => ({ label: element.getAttribute("aria-label") ?? element.textContent, bounds: element.getBoundingClientRect().toJSON() })));
+    expect(undersized).toEqual([]);
+  }
+});
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 768, height: 1024 },
+  { width: 638, height: 768 },
+  { width: 390, height: 844 },
+] as const) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`@studio-visual Image Studio ${viewport.width}x${viewport.height} ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await openWorkspace(page, `studio-visual-${viewport.width}-${theme}`, theme);
+      const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+      await page.goto(`/w/${workspaceId}/studio/new`);
+      await page.getByLabel("Graphic name").fill("Campaign artboard");
+      await page.getByRole("button", { name: "Create graphic" }).click();
+      await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+      await page.getByRole("button", { name: "Shape", exact: true }).click();
+      await page.getByRole("button", { name: "Text", exact: true }).click();
+      await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+      await page.setViewportSize(viewport);
+      const canvasFocus = page.getByRole("button", { name: "Canvas", exact: true });
+      if (await canvasFocus.isVisible()) await canvasFocus.click();
+      await expect(page.locator(".lower-canvas")).toBeVisible();
+      await prepareVisualScreenshot(page);
+      await expect(page).toHaveScreenshot(`studio-${viewport.width}x${viewport.height}-${theme}.png`, screenshotOptions);
+    });
+  }
+}
 
 test("loading, access-denied, and API error states are customer-safe", async ({ page }) => {
   let release: (() => void) | undefined;

@@ -33,7 +33,11 @@ const POSITIONS: Array<{ id: PanelDock; label: string }> = [
 
 function viewport() { return { width: window.innerWidth, height: window.innerHeight }; }
 
-export function PanelFramework({ panels }: { panels: PanelDefinition[] }) {
+export function PanelFramework({ panels, center, mode = "harness" }: {
+  panels: PanelDefinition[];
+  center?: ReactNode;
+  mode?: "harness" | "editor";
+}) {
   const [layout, setLayout] = useState<PanelLayout>(() => readPanelLayout(localStorage, viewport()));
   const [active, setActive] = useState(panels[0]?.id ?? "");
   const launchers = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -73,16 +77,16 @@ export function PanelFramework({ panels }: { panels: PanelDefinition[] }) {
     setActive(panels[0]?.id ?? "");
   }
 
-  return <main className="panel-framework" aria-label="Internal panel layout harness">
-    <header className="panel-harness-header"><div><p className="eyebrow">Internal harness</p><h1>Panel framework</h1><p>Geometry, docking and persistence validation only.</p></div><Button onClick={reset}><RotateCcw aria-hidden="true" />Reset layout</Button></header>
+  return <div className={`panel-framework panel-framework-${mode}`} role={mode === "harness" ? "main" : undefined} aria-label={mode === "editor" ? "Editor panels" : "Internal panel layout harness"}>
+    {mode === "harness" && <header className="panel-harness-header"><div><p className="eyebrow">Internal harness</p><h1>Panel framework</h1><p>Geometry, docking and persistence validation only.</p></div><Button onClick={reset}><RotateCcw aria-hidden="true" />Reset layout</Button></header>}
     <div className="panel-launchers" role="group" aria-label="Closed panels">{panels.map((panel) => layout.panels[panel.id]?.closed && <button type="button" className="ds-button ds-button-secondary ds-button-normal" key={panel.id} ref={(node) => { launchers.current[panel.id] = node; }} onClick={() => update(panel.id, { closed: false })}>Open {panel.title}</button>)}</div>
-    <div className="panel-focus-switcher" role="group" aria-label="Focused panel">{panels.map((panel) => !layout.panels[panel.id]?.closed && <button type="button" aria-pressed={active === panel.id} key={panel.id} onClick={() => setActive(panel.id)}>{panel.title}</button>)}</div>
+    <div className="panel-focus-switcher" role="group" aria-label="Focused panel">{mode === "editor" && <button type="button" aria-pressed={active === "__canvas"} onClick={() => setActive("__canvas")}>Canvas</button>}{panels.map((panel) => !layout.panels[panel.id]?.closed && <button type="button" aria-pressed={active === panel.id} key={panel.id} onClick={() => setActive(panel.id)}>{panel.title}</button>)}</div>
     <div className="panel-workbench" data-active-panel={active}>{panels.map((panel) => {
       const placement = layout.panels[panel.id];
       if (!placement || placement.closed) return null;
       return <PanelWindow key={panel.id} definition={panel} placement={placement} active={active === panel.id} update={(change) => update(panel.id, change)} close={() => close(panel.id)} />;
-    })}<div className="panel-workbench-center"><LayoutPanelLeft aria-hidden="true" /><strong>Reserved editor surface</strong><span>No editor or document model is active.</span></div></div>
-  </main>;
+    })}<div className="panel-workbench-center">{center ?? <><LayoutPanelLeft aria-hidden="true" /><strong>Reserved editor surface</strong><span>No editor or document model is active.</span></>}</div></div>
+  </div>;
 }
 
 function PanelWindow({ definition, placement, active, update, close }: {

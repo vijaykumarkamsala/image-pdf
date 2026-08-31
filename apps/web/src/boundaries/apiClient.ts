@@ -21,6 +21,13 @@ import type {
   WorkspaceSearchPage,
   NotificationList,
   FeatureStateList,
+  DocumentReadModel,
+  EditorDocumentRecord,
+  EditorLeaseGrant,
+  EditorMutation,
+  EditorDocumentSnapshot,
+  DocumentVersionRecord,
+  ImportCompatibilityReport,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -107,6 +114,19 @@ export interface JobListResponse extends JobList {}
 export interface NotificationListResponse extends NotificationList {}
 
 export interface SearchResponse extends WorkspaceSearchPage {}
+
+export interface DocumentListResponse { schema_version: string; documents: EditorDocumentRecord[] }
+export interface DocumentResponse { schema_version: string; editor: DocumentReadModel; replayed?: boolean }
+export interface DocumentMutationResponse {
+  schema_version: string;
+  mutation: {
+    document: EditorDocumentRecord;
+    snapshot: EditorDocumentSnapshot;
+    operationId: string;
+    checkpoint: DocumentVersionRecord | null;
+    replayed: boolean;
+  };
+}
 
 export type AuthSessionResponse = { authenticated: false } | {
   authenticated: true;
@@ -451,6 +471,81 @@ export const api = {
   },
   features(workspaceId: string): Promise<FeatureStateList> {
     return request(`/workspaces/${workspaceId}/features`);
+  },
+  documents(workspaceId: string): Promise<DocumentListResponse> {
+    return request(`/workspaces/${workspaceId}/documents`);
+  },
+  createDocument(workspaceId: string, input: {
+    name: string;
+    source_file_id?: string;
+    project_id?: string;
+    intended_use: "source" | "digital" | "print" | "custom";
+    intended_use_label?: string;
+    width?: number;
+    height?: number;
+  }): Promise<DocumentResponse> {
+    return request(`/workspaces/${workspaceId}/documents`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("document") },
+      body: JSON.stringify(input),
+    });
+  },
+  document(workspaceId: string, documentId: string): Promise<DocumentResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}`);
+  },
+  acquireDocumentLease(workspaceId: string, documentId: string): Promise<{ grant: EditorLeaseGrant }> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/lease`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-lease") },
+    });
+  },
+  heartbeatDocumentLease(workspaceId: string, documentId: string, leaseToken: string) {
+    return request<{ grant: EditorLeaseGrant }>(`/workspaces/${workspaceId}/documents/${documentId}/lease/heartbeat`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-heartbeat"), "x-editor-lease": leaseToken },
+    });
+  },
+  releaseDocumentLease(workspaceId: string, documentId: string, leaseToken: string) {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/lease/release`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-release"), "x-editor-lease": leaseToken },
+    });
+  },
+  takeoverDocumentLease(workspaceId: string, documentId: string, force = false): Promise<{ takeover: { status: "requested" | "acquired"; grant?: EditorLeaseGrant | null } }> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/lease/takeover`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-takeover") }, body: JSON.stringify({ force }),
+    });
+  },
+  mutateDocument(workspaceId: string, documentId: string, leaseToken: string, baseRevision: number, mutation: EditorMutation): Promise<DocumentMutationResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}`, {
+      method: "PATCH", headers: { "idempotency-key": commandKey("editor-mutation"), "x-editor-lease": leaseToken },
+      body: JSON.stringify({ base_revision: baseRevision, mutation }),
+    });
+  },
+  documentHistory(workspaceId: string, documentId: string, leaseToken: string, direction: "undo" | "redo") {
+    return request<{ history: { document: EditorDocumentRecord; snapshot: EditorDocumentSnapshot; canUndo: boolean; canRedo: boolean } }>(`/workspaces/${workspaceId}/documents/${documentId}/${direction}`, {
+      method: "POST", headers: { "idempotency-key": commandKey(`editor-${direction}`), "x-editor-lease": leaseToken },
+    });
+  },
+  createDocumentVersion(workspaceId: string, documentId: string, name: string): Promise<{ version: DocumentVersionRecord }> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/versions`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-version") }, body: JSON.stringify({ name }),
+    });
+  },
+  restoreDocumentVersion(workspaceId: string, documentId: string, versionId: string, leaseToken: string): Promise<DocumentResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/versions/${versionId}/restore`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-restore"), "x-editor-lease": leaseToken },
+    });
+  },
+  saveAsDocument(workspaceId: string, documentId: string, name: string, projectId?: string): Promise<DocumentResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/save-as`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("editor-save-as") },
+      body: JSON.stringify({ name, project_id: projectId || undefined }),
+    });
+  },
+  documentCompatibility(workspaceId: string, documentId: string): Promise<{ reports: ImportCompatibilityReport[] }> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/compatibility-reports`);
+  },
+  documentSourceUrl(workspaceId: string, documentId: string): string {
+    return `/v1/workspaces/${encodeURIComponent(workspaceId)}/documents/${encodeURIComponent(documentId)}/source`;
   },
   handoffGuest(
     uploadSessionId: string,

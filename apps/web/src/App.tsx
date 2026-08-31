@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   BriefcaseBusiness,
@@ -30,6 +30,9 @@ import { InternalPanelHarness } from "./panels/PanelFramework";
 import { OfflineStatus } from "./pwa/OfflineStatus";
 import { clearPrivateCachesOnLogout } from "./pwa/serviceWorker";
 import { workspacePath, workspaceRoutes } from "./routes";
+
+const StudioStartPage = lazy(() => import("./editor/ImageGraphicStudio").then((module) => ({ default: module.StudioStartPage })));
+const ImageGraphicStudio = lazy(() => import("./editor/ImageGraphicStudio").then((module) => ({ default: module.ImageGraphicStudio })));
 
 const developmentBuild = (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV ?? false;
 
@@ -167,6 +170,8 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
         <Route path=":workspaceId/projects" element={<ProjectsPage />} />
         <Route path=":workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} />} />
         <Route path=":workspaceId/jobs" element={<JobsPage />} />
+        <Route path=":workspaceId/studio/new" element={<Suspense fallback={<AppLoading />}><StudioStartPage /></Suspense>} />
+        <Route path=":workspaceId/studio/:documentId" element={<Suspense fallback={<AppLoading />}><ImageGraphicStudio /></Suspense>} />
         <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
       </Routes>
     </div>
@@ -214,6 +219,7 @@ function ProjectsPage() {
 
 function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: string; refresh: number; onUpload: () => void }) {
   const { workspaceId = "" } = useParams();
+  const navigate = useNavigate();
   const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
@@ -223,7 +229,7 @@ function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: 
   return <main className="page" data-testid="files-page">
     <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files you have not placed in a project.</p></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></section>
     {error && <div className="inline-error" role="alert">{error.message}</div>}
-    {files === null ? <StatePanel kind="loading" title="Loading files" message="Retrieving accepted workspace sources." /> : files.length === 0 ? <StatePanel kind="empty" title="No files yet" message="Files you upload, create or save without a project will appear here." action={{ label: "Upload a file", onClick: onUpload }} /> : <div className="file-list" role="list" aria-label="Workspace files">{files.map((file) => <article className="file-card" role="listitem" key={file.file_id}><span className="file-type-icon"><FileStack aria-hidden="true" /></span><div><strong>{file.display_name}</strong><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span></div><small title={file.current_source_version_id}>Source preserved</small></article>)}</div>}
+    {files === null ? <StatePanel kind="loading" title="Loading files" message="Retrieving accepted workspace sources." /> : files.length === 0 ? <StatePanel kind="empty" title="No files yet" message="Files you upload, create or save without a project will appear here." action={{ label: "Upload a file", onClick: onUpload }} /> : <div className="file-list" role="list" aria-label="Workspace files">{files.map((file) => <article className="file-card" role="listitem" key={file.file_id}><span className="file-type-icon"><FileStack aria-hidden="true" /></span><div><strong>{file.display_name}</strong><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span></div><small title={file.current_source_version_id}>Source preserved</small><Button size="compact" onClick={() => navigate(`${workspacePath(workspaceId, "studio/new")}?source=${encodeURIComponent(file.file_id)}`)}>Create in Studio</Button></article>)}</div>}
   </main>;
 }
 
