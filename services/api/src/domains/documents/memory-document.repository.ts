@@ -181,6 +181,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
       after.revision = stored.record.current_revision + 1;
       stored.history.splice(stored.historyCursor);
       stored.history.push({ before, after: clone(after) });
+      if (stored.history.length > DOCUMENT_HISTORY_LIMIT) stored.history.splice(0, stored.history.length - DOCUMENT_HISTORY_LIMIT);
       stored.historyCursor = stored.history.length;
       stored.snapshot = after;
       stored.record.current_revision = after.revision;

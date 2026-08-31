@@ -169,7 +169,14 @@ export class PostgresDocumentRepository implements DocumentRepository {
          VALUES($1,$2,$3,$4,$5,$6,$7)`,
         [this.runtime.id("history"), documentId, cursor + 1, operationId, before, after, now],
       );
-      await client.query("UPDATE editor_documents SET current_revision=$1,current_snapshot=$2,history_cursor=$3,updated_at=$4 WHERE document_id=$5", [after.revision, after, cursor + 1, now, documentId]);
+      let nextCursor = cursor + 1;
+      if (nextCursor > DOCUMENT_HISTORY_LIMIT) {
+        const trimmed = nextCursor - DOCUMENT_HISTORY_LIMIT;
+        await client.query("DELETE FROM document_history_entries WHERE document_id=$1 AND history_position<=$2", [documentId, trimmed]);
+        await client.query("UPDATE document_history_entries SET history_position=history_position-$2 WHERE document_id=$1", [documentId, trimmed]);
+        nextCursor = DOCUMENT_HISTORY_LIMIT;
+      }
+      await client.query("UPDATE editor_documents SET current_revision=$1,current_snapshot=$2,history_cursor=$3,updated_at=$4 WHERE document_id=$5", [after.revision, after, nextCursor, now, documentId]);
       await this.appendVersion(client, documentId, after, "restore", `Restored ${versionId}`, context.principal.actorId, now, versionId);
       return (await this.read(client, workspaceId, documentId))!;
     });

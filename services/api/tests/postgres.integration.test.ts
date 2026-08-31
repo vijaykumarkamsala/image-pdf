@@ -914,6 +914,26 @@ test(
       const changed = await documents.mutate(mutationContext, { workspaceId, documentId, baseRevision: 0, mutation, leaseTokenHash: tokenHash });
       assert.equal(changed.snapshot.revision, 1);
 
+      let revision = changed.snapshot.revision;
+      for (let index = 2; index <= 101; index += 1) {
+        const command = context("actor-editor-pg", `editor-mutate-pg-${index}`, "document.mutate", { documentId, index });
+        const next = await documents.mutate(command, {
+          workspaceId,
+          documentId,
+          baseRevision: revision,
+          mutation: { kind: "document.rename", properties: {} },
+          leaseTokenHash: tokenHash,
+        });
+        revision = next.snapshot.revision;
+        assert.equal(Boolean(next.checkpoint), index % 10 === 0);
+      }
+      const history = await pool.query(
+        "SELECT MIN(history_position)::int AS minimum,MAX(history_position)::int AS maximum,COUNT(*)::int AS count FROM document_history_entries WHERE document_id=$1",
+        [documentId],
+      );
+      assert.deepEqual(history.rows, [{ minimum: 1, maximum: 100, count: 100 }]);
+      assert.equal(Number((await pool.query("SELECT history_cursor FROM editor_documents WHERE document_id=$1", [documentId])).rows[0]!["history_cursor"]), 100);
+
       const named = await documents.createVersion(
         context("actor-editor-pg", "editor-version-pg", "document.version", { documentId }),
         workspaceId, documentId, "PostgreSQL checkpoint",
@@ -924,6 +944,11 @@ test(
       );
       assert.equal(restored.value.snapshot.layers?.length, 0);
       assert.ok(restored.value.snapshot.revision > changed.snapshot.revision);
+      const boundedAfterRestore = await pool.query(
+        "SELECT MIN(history_position)::int AS minimum,MAX(history_position)::int AS maximum,COUNT(*)::int AS count FROM document_history_entries WHERE document_id=$1",
+        [documentId],
+      );
+      assert.deepEqual(boundedAfterRestore.rows, [{ minimum: 1, maximum: 100, count: 100 }]);
       const versions = (await documents.get("actor-editor-pg", workspaceId, documentId))!.versions;
       assert.ok(versions.some((item) => item.document_version_id === named.value.document_version_id));
       assert.ok(versions.some((item) => item.kind === "restore"));
