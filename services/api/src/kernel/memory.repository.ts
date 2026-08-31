@@ -60,11 +60,17 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
   private readonly audits: AuditEvent[] = [];
   private readonly usage: UsageEvent[] = [];
   private readonly idempotency = new Map<string, IdempotencyEntry<unknown>>();
+  private readonly mutationListeners = new Set<(event: AuditEvent) => void>();
 
   private readonly objectCatalog: MetadataObjectReferenceCatalog;
 
   constructor(private readonly runtime: RuntimeValues) {
     this.objectCatalog = new MetadataObjectReferenceCatalog(runtime);
+  }
+
+  onMutation(listener: (event: AuditEvent) => void): () => void {
+    this.mutationListeners.add(listener);
+    return () => this.mutationListeners.delete(listener);
   }
 
   async bootstrap(context: CommandContext): Promise<BootstrapResult> {
@@ -478,7 +484,7 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
     resourceKind: string,
     resourceId: string,
   ): void {
-    this.audits.push({
+    const event: AuditEvent = {
       schema_version: VERSION,
       audit_event_id: this.runtime.id("audit"),
       workspace_id: workspaceId,
@@ -488,7 +494,9 @@ export class MemoryProductKernelRepository implements ProductKernelRepository {
       resource_id: resourceId,
       occurred_at: this.runtime.now(),
       trace_id: context.traceId,
-    });
+    };
+    this.audits.push(event);
+    for (const listener of this.mutationListeners) listener(event);
     this.usage.push({
       schema_version: VERSION,
       usage_event_id: this.runtime.id("usage"),

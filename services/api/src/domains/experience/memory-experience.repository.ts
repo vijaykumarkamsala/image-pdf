@@ -2,16 +2,18 @@ import { createHash } from "node:crypto";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import type {
   AttentionItem,
+  AuditEvent,
   NotificationKind,
   NotificationRecord,
   ProcessingJobRecord,
   RecentWorkItem,
   SearchResultKind,
+  UploadSessionRecord,
   WorkspaceSearchResult,
 } from "ipw-contracts-ts/product";
 
 import { DomainError } from "../../kernel/errors.js";
-import type { ProductKernelRepository } from "../../kernel/product.types.js";
+import { MemoryProductKernelRepository } from "../../kernel/memory.repository.js";
 import { MemoryIntakeRepository } from "../intake/memory-intake.repository.js";
 import { MemoryDurableJobRepository } from "../jobs/memory-durable-job.repository.js";
 import { decodeExperienceCursor, encodeExperienceCursor } from "./experience-cursor.js";
@@ -28,12 +30,19 @@ export class MemoryExperienceRepository implements ExperienceRepository {
   private readonly projectedNotifications = new Map<string, NotificationRecord>();
   private readonly reads = new Map<string, string>();
   private readonly commands = new Map<string, { name: string; requestHash: string }>();
+  private readonly unsubscribers: Array<() => void>;
 
   constructor(
-    private readonly product: ProductKernelRepository,
+    private readonly product: MemoryProductKernelRepository,
     private readonly jobs: MemoryDurableJobRepository,
     private readonly intake: MemoryIntakeRepository,
-  ) {}
+  ) {
+    this.unsubscribers = [
+      this.product.onMutation((event) => this.projectAudit(event)),
+      this.jobs.onTransition((job) => this.projectJob(job)),
+      this.intake.onTransition((upload) => this.projectUpload(upload)),
+    ];
+  }
 
   async home(actorId: string, workspaceId: string, now: string): Promise<ExperienceHomeData> {
     const [{ projects }, files, audits, jobPage, uploads] = await Promise.all([
@@ -91,7 +100,6 @@ export class MemoryExperienceRepository implements ExperienceRepository {
   }
 
   async notifications(actorId: string, workspaceId: string, cursorValue: string | undefined, limit: number): Promise<NotificationPageData> {
-    await this.syncNotifications(actorId, workspaceId);
     const cursor = decodeExperienceCursor(cursorValue);
     const ordered = [...this.projectedNotifications.values()]
       .filter((item) => item.workspace_id === workspaceId)
@@ -118,7 +126,6 @@ export class MemoryExperienceRepository implements ExperienceRepository {
   }
 
   async markNotificationRead(actorId: string, workspaceId: string, notificationId: string, now: string, command: ExperienceCommand): Promise<boolean> {
-    await this.syncNotifications(actorId, workspaceId);
     const notification = this.projectedNotifications.get(notificationId);
     if (!notification || notification.workspace_id !== workspaceId) throw new DomainError(404, "notification-not-found", "Notification was not found");
     if (this.commandReplay(actorId, command)) return true;
@@ -127,7 +134,6 @@ export class MemoryExperienceRepository implements ExperienceRepository {
   }
 
   async markAllNotificationsRead(actorId: string, workspaceId: string, now: string, command: ExperienceCommand): Promise<boolean> {
-    await this.syncNotifications(actorId, workspaceId);
     if (this.commandReplay(actorId, command)) return true;
     for (const notification of this.projectedNotifications.values()) {
       if (notification.workspace_id === workspaceId) {
@@ -185,35 +191,33 @@ export class MemoryExperienceRepository implements ExperienceRepository {
     };
   }
 
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    for (const unsubscribe of this.unsubscribers) unsubscribe();
+  }
 
-  private async syncNotifications(actorId: string, workspaceId: string): Promise<void> {
-    const [jobPage, uploads, audits] = await Promise.all([
-      this.jobs.listWorkspaceJobs(workspaceId, "all", undefined, 100),
-      this.intake.listWorkspaceUploads(workspaceId),
-      this.product.listAuditEvents(actorId, workspaceId),
-    ]);
-    for (const item of jobPage.jobs) {
-      if (item.state === "succeeded") {
-        this.addNotification(workspaceId, `job:${item.job_id}:succeeded`, "job_completed", "Job completed", "The file check finished successfully.", "processing_job", item.job_id, item.updated_at);
-        if (item.attempt > 1) this.addNotification(workspaceId, `job:${item.job_id}:retry-completed`, "retry_completed", "Retry completed", "The retried job finished successfully.", "processing_job", item.job_id, item.updated_at);
-      } else if (item.state === "failed") {
-        this.addNotification(workspaceId, `job:${item.job_id}:failed`, "job_failed", "Job could not finish", item.failure?.message ?? "Review the job timeline.", "processing_job", item.job_id, item.updated_at);
-      } else if (item.state === "cancelled") {
-        this.addNotification(workspaceId, `job:${item.job_id}:cancelled`, "job_cancelled", "Job cancelled", "The job stopped before completion.", "processing_job", item.job_id, item.updated_at);
-      } else if (item.state === "retry_wait") {
-        this.addNotification(workspaceId, `job:${item.job_id}:retry-required:${item.attempt}`, "retry_required", "Retry scheduled", item.failure?.message ?? "The job will retry safely.", "processing_job", item.job_id, item.updated_at);
-      }
+  private projectJob(item: ProcessingJobRecord): void {
+    if (!item.workspace_id) return;
+    if (item.state === "succeeded") {
+      this.addNotification(item.workspace_id, `job:${item.job_id}:completed:${item.attempt}`, "job_completed", "Job completed", "The file check finished successfully.", "processing_job", item.job_id, item.updated_at);
+      if (item.attempt > 1) this.addNotification(item.workspace_id, `job:${item.job_id}:retry-completed:${item.attempt}`, "retry_completed", "Retry completed", "The retried job finished successfully.", "processing_job", item.job_id, item.updated_at);
+    } else if (item.state === "failed") {
+      this.addNotification(item.workspace_id, `job:${item.job_id}:failed:${item.attempt}`, "job_failed", "Job could not finish", item.failure?.message ?? "Review the job timeline.", "processing_job", item.job_id, item.updated_at);
+    } else if (item.state === "cancelled") {
+      this.addNotification(item.workspace_id, `job:${item.job_id}:cancelled:${item.attempt}`, "job_cancelled", "Job cancelled", "The job stopped before completion.", "processing_job", item.job_id, item.updated_at);
+    } else if (item.state === "retry_wait") {
+      this.addNotification(item.workspace_id, `job:${item.job_id}:retry-required:${item.attempt}`, "retry_required", "Retry scheduled", item.failure?.message ?? "The job will retry safely.", "processing_job", item.job_id, item.updated_at);
     }
-    for (const stored of uploads) {
-      const upload = stored.record;
-      if (upload.state === "ready") this.addNotification(workspaceId, `upload:${upload.upload_session_id}:ready`, "upload_accepted", "File accepted", upload.display_name, "upload_session", upload.upload_session_id, upload.updated_at);
-      if (upload.state === "rejected") this.addNotification(workspaceId, `upload:${upload.upload_session_id}:rejected`, "upload_rejected", "File not accepted", upload.failure?.message ?? upload.display_name, "upload_session", upload.upload_session_id, upload.updated_at);
-      if (upload.state === "expired") this.addNotification(workspaceId, `upload:${upload.upload_session_id}:expired`, "source_cleanup_required", "Temporary source expired", upload.display_name, "upload_session", upload.upload_session_id, upload.updated_at);
-    }
-    for (const event of audits) {
-      if (event.action === "guest-source.handoff") this.addNotification(workspaceId, `audit:${event.audit_event_id}`, "guest_handoff_completed", "Guest source saved", "The original source is now in Default Files.", event.resource_kind, event.resource_id, event.occurred_at);
-    }
+  }
+
+  private projectUpload(upload: UploadSessionRecord): void {
+    if (!upload.workspace_id) return;
+    if (upload.state === "ready") this.addNotification(upload.workspace_id, `upload:${upload.upload_session_id}:ready`, "upload_accepted", "File accepted", upload.display_name, "upload_session", upload.upload_session_id, upload.updated_at);
+    if (upload.state === "rejected") this.addNotification(upload.workspace_id, `upload:${upload.upload_session_id}:rejected`, "upload_rejected", "File not accepted", upload.failure?.message ?? upload.display_name, "upload_session", upload.upload_session_id, upload.updated_at);
+    if (upload.state === "expired") this.addNotification(upload.workspace_id, `upload:${upload.upload_session_id}:expired`, "source_cleanup_required", "Temporary source expired", upload.display_name, "upload_session", upload.upload_session_id, upload.updated_at);
+  }
+
+  private projectAudit(event: AuditEvent): void {
+    if (event.action === "guest-source.handed-off") this.addNotification(event.workspace_id, `audit:${event.audit_event_id}`, "guest_handoff_completed", "Guest source saved", "The original source is now in Default Files.", event.resource_kind, event.resource_id, event.occurred_at);
   }
 
   private addNotification(workspaceId: string, sourceKey: string, kind: NotificationKind, title: string, message: string, resourceKind: string, resourceId: string, occurredAt: string) {

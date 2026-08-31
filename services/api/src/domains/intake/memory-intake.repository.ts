@@ -36,6 +36,12 @@ export class MemoryIntakeRepository implements IntakeRepository {
   private readonly commands = new Map<string, CommandEntry>();
   private readonly classifications = new Map<string, IntakeClassificationRecord>();
   private readonly cleanup = new Map<string, { workerId: string; expiresAt: string; completedAt?: string }>();
+  private readonly transitionListeners = new Set<(upload: UploadSessionRecord) => void>();
+
+  onTransition(listener: (upload: UploadSessionRecord) => void): () => void {
+    this.transitionListeners.add(listener);
+    return () => this.transitionListeners.delete(listener);
+  }
 
   async createGuest(record: GuestSessionRecord, tokenHash: string): Promise<void> {
     this.guests.set(record.guest_session_id, { record, tokenHash });
@@ -215,7 +221,9 @@ export class MemoryIntakeRepository implements IntakeRepository {
       const active = !["ready", "rejected", "expired", "cancelled"].includes(stored.record.state);
       const retainedGuest = stored.record.owner_kind === "guest" && ["ready", "rejected"].includes(stored.record.state);
       if ((active || retainedGuest) && stored.record.expires_at <= now) {
-        this.uploads.set(id, { ...stored, record: { ...stored.record, state: "expired", updated_at: now } });
+        const expired = { ...stored, record: { ...stored.record, state: "expired" as const, updated_at: now } };
+        this.uploads.set(id, expired);
+        this.notifyTransition(expired.record);
       }
       const current = this.uploads.get(id)!;
       const lease = this.cleanup.get(id);
@@ -305,6 +313,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
     };
     updated.quarantineRef = { ...stored.quarantineRef, objectKey: input.immutableObjectKey, zone: "immutable" };
     this.uploads.set(uploadSessionId, updated);
+    this.notifyTransition(updated.record);
     return updated;
   }
 
@@ -317,6 +326,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
     if (!stored || stored.record.state !== "inspecting") throw new DomainError(409, "upload-state-conflict", "Upload is not being inspected");
     const updated = { ...stored, record: { ...stored.record, state: "rejected" as const, failure, updated_at: now } };
     this.uploads.set(uploadSessionId, updated);
+    this.notifyTransition(updated.record);
     return updated;
   }
 
@@ -341,6 +351,10 @@ export class MemoryIntakeRepository implements IntakeRepository {
       throw new DomainError(404, "upload-not-found", "Upload session was not found");
     }
     return stored;
+  }
+
+  private notifyTransition(upload: UploadSessionRecord): void {
+    for (const listener of this.transitionListeners) listener(upload);
   }
 
   private ownedBy(record: UploadSessionRecord, owner: IntakeOwner): boolean {

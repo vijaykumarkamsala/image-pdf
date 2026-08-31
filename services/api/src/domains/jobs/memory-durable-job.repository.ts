@@ -35,7 +35,13 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
   private readonly checkpoints = new Map<string, StoredCheckpoint>();
   private readonly commands = new Map<string, CommandEntry>();
   private readonly leaseHashes = new Map<string, string>();
+  private readonly transitionListeners = new Set<(job: ProcessingJobRecord) => void>();
   private cursor = 0;
+
+  onTransition(listener: (job: ProcessingJobRecord) => void): () => void {
+    this.transitionListeners.add(listener);
+    return () => this.transitionListeners.delete(listener);
+  }
 
   constructor(
     private readonly intake: MemoryIntakeRepository,
@@ -404,6 +410,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
       occurred_at: job.updated_at,
       trace_id: traceId,
     });
+    for (const listener of this.transitionListeners) listener(job);
   }
 
   private ownedBy(job: ProcessingJobRecord, owner: IntakeOwner): boolean {

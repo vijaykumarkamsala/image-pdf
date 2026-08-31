@@ -588,6 +588,20 @@ test(
         10,
       );
       assert.ok(experienceSearch.results.some((item) => item.resource_id === "file-accepted-pg"));
+      const projectedBeforeRead = await pool.query(
+        "SELECT kind,source_key,resource_id FROM notifications WHERE workspace_id=$1 ORDER BY kind DESC",
+        [first.workspace.workspace_id],
+      );
+      assert.deepEqual(
+        projectedBeforeRead.rows
+          .filter((row) => ["upload-accepted-pg", "job-accepted-pg"].includes(row.resource_id))
+          .map((row) => row.kind),
+        ["upload_accepted", "job_completed"],
+      );
+      assert.equal(
+        new Set(projectedBeforeRead.rows.map((row) => row.source_key)).size,
+        projectedBeforeRead.rows.length,
+      );
       const experienceNotifications = await experience.notifications(
         "actor-pg",
         first.workspace.workspace_id,
@@ -823,6 +837,11 @@ test(
       const handoffAudit = await repository.listAuditEvents("actor-pg", first.workspace.workspace_id);
       assert.ok(handoffAudit.some((event) => event.action === "guest-source.handed-off"
         && event.resource_id === handedOff.fileId));
+      const handoffNotifications = await pool.query(
+        "SELECT kind,resource_id FROM notifications WHERE workspace_id=$1 AND kind='guest_handoff_completed'",
+        [first.workspace.workspace_id],
+      );
+      assert.deepEqual(handoffNotifications.rows, [{ kind: "guest_handoff_completed", resource_id: handedOff.fileId }]);
     } finally {
       await repository.close();
     }

@@ -161,6 +161,39 @@ test("real workspace search, notifications, and durable Jobs use server state", 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
+test("notification pagination appends durable pages and announces the result", async ({ page }) => {
+  await identify(page, "notification-pagination");
+  const listed = await page.request.get("/v1/me/workspaces").then((response) => response.json()) as { workspaces: Array<{ workspace_id: string }> };
+  const workspaceId = listed.workspaces[0]!.workspace_id;
+  const notification = (index: number) => ({
+    schema_version: "1.11.0",
+    notification_id: `notification-page-${index}`,
+    workspace_id: workspaceId,
+    kind: "upload_accepted",
+    title: `Accepted file ${index}`,
+    message: `source-${index}.png`,
+    resource_kind: "upload_session",
+    resource_id: `upload-page-${index}`,
+    occurred_at: `2026-08-30T00:${String(59 - index).padStart(2, "0")}:00.000Z`,
+    read_at: null,
+  });
+  await page.route(`**/v1/workspaces/${workspaceId}/notifications?**`, (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    route.fulfill({ json: cursor
+      ? { schema_version: "1.11.0", notifications: [notification(13)], next_cursor: null, unread_count: 13 }
+      : { schema_version: "1.11.0", notifications: Array.from({ length: 12 }, (_, index) => notification(index + 1)), next_cursor: "older-page", unread_count: 13 } });
+  });
+
+  await page.goto(`/w/${workspaceId}`);
+  await expect(page.getByTestId("workspace-home")).toBeVisible();
+  await page.getByRole("button", { name: "13 unread notifications" }).click();
+  await expect(page.locator(".notification-list > button")).toHaveCount(12);
+  await page.getByRole("button", { name: "Load more" }).click();
+  await expect(page.locator(".notification-list > button")).toHaveCount(13);
+  await expect(page.getByRole("status")).toHaveText("1 older notification loaded.");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test("an in-flight upload can be cancelled and its temporary source is removed", async ({ page }) => {
   let releaseTransfer: (() => void) | undefined;
   await page.route("**/v1/uploads/**", async (route) => {

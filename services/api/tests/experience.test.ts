@@ -115,8 +115,15 @@ test("Home, notifications, search and feature state are derived from real worksp
     const notifications = await json(await server.request(`/workspaces/${workspaceId}/notifications?limit=1`));
     assert.equal(notifications.notifications.length, 1);
     assert.ok(notifications.next_cursor);
+    const nextNotifications = await json(await server.request(
+      `/workspaces/${workspaceId}/notifications?limit=1&cursor=${encodeURIComponent(notifications.next_cursor)}`,
+    ));
+    assert.equal(nextNotifications.notifications.length, 1);
+    assert.notEqual(nextNotifications.notifications[0].notification_id, notifications.notifications[0].notification_id);
+    assert.equal(nextNotifications.next_cursor, null);
     const orderedNotifications = await json(await server.request(`/workspaces/${workspaceId}/notifications?limit=10`));
     assert.deepEqual(orderedNotifications.notifications.slice(0, 2).map((item: any) => item.kind), ["upload_accepted", "job_completed"]);
+    assert.equal(orderedNotifications.unread_count, 2);
     const readOptions = { method: "POST", headers: { "idempotency-key": "notification-read" } };
     const firstRead = await json(await server.request(
       `/workspaces/${workspaceId}/notifications/${notifications.notifications[0].notification_id}/read`,
@@ -128,6 +135,9 @@ test("Home, notifications, search and feature state are derived from real worksp
     ));
     assert.equal(firstRead.command.replayed, false);
     assert.equal(replayRead.command.replayed, true);
+    const afterRead = await json(await server.request(`/workspaces/${workspaceId}/notifications?limit=10`));
+    assert.ok(afterRead.notifications.find((item: any) => item.notification_id === notifications.notifications[0].notification_id).read_at);
+    assert.equal(afterRead.unread_count, 1);
 
     const features = await json(await server.request(`/workspaces/${workspaceId}/features`));
     assert.equal(features.features.length, 4);
@@ -135,6 +145,7 @@ test("Home, notifications, search and feature state are derived from real worksp
 
     await bootstrap(server, "actor-other-experience", "bootstrap-other-experience");
     assert.equal((await server.request(`/workspaces/${workspaceId}/search?q=retail`, {}, "actor-other-experience")).status, 404);
+    assert.equal((await server.request(`/workspaces/${workspaceId}/notifications`, {}, "actor-other-experience")).status, 404);
   } finally {
     await server.close();
   }

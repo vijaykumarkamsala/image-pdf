@@ -234,6 +234,9 @@ test("guest handoff preserves inspected source identity and requires explicit wo
     const files = await json(await server.request(`/workspaces/${workspaceId}/files`));
     assert.equal(files.files.length, 1);
     assert.equal(files.files[0].asset_original_id, ready.upload_session.asset_original_id);
+    const notifications = await json(await server.request(`/workspaces/${workspaceId}/notifications`));
+    assert.equal(notifications.notifications.filter((item: any) => item.kind === "guest_handoff_completed").length, 1);
+    assert.equal(notifications.notifications.find((item: any) => item.kind === "guest_handoff_completed").resource_id, files.files[0].file_id);
   } finally {
     await server.close();
   }

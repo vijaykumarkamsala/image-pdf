@@ -153,7 +153,6 @@ export class PostgresExperienceRepository implements ExperienceRepository {
   }
 
   async notifications(actorId: string, workspaceId: string, cursorValue: string | undefined, limit: number): Promise<NotificationPageData> {
-    await this.syncNotifications(workspaceId);
     const cursor = decodeExperienceCursor(cursorValue);
     const result = await this.pool.query(
       `SELECT notification.*,reads.read_at FROM notifications notification
@@ -211,7 +210,6 @@ export class PostgresExperienceRepository implements ExperienceRepository {
   }
 
   async markAllNotificationsRead(actorId: string, workspaceId: string, now: string, command: ExperienceCommand): Promise<boolean> {
-    await this.syncNotifications(workspaceId);
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -290,54 +288,6 @@ export class PostgresExperienceRepository implements ExperienceRepository {
 
   async close(): Promise<void> {
     await this.pool.end();
-  }
-
-  private async syncNotifications(workspaceId: string): Promise<void> {
-    await this.pool.query(
-      `WITH candidates AS (
-         SELECT 'job:' || job_id || ':succeeded' AS source_key,'job_completed' AS kind,
-           'Job completed' AS title,'The file check finished successfully.' AS message,
-           'processing_job' AS resource_kind,job_id AS resource_id,updated_at AS occurred_at
-         FROM processing_jobs WHERE workspace_id=$1 AND state='succeeded'
-         UNION ALL
-         SELECT 'job:' || job_id || ':retry-completed','retry_completed','Retry completed',
-           'The retried job finished successfully.','processing_job',job_id,updated_at
-         FROM processing_jobs WHERE workspace_id=$1 AND state='succeeded' AND attempt>1
-         UNION ALL
-         SELECT 'job:' || job_id || ':failed','job_failed','Job could not finish',
-           coalesce(failure->>'message','Review the job timeline.'),'processing_job',job_id,updated_at
-         FROM processing_jobs WHERE workspace_id=$1 AND state='failed'
-         UNION ALL
-         SELECT 'job:' || job_id || ':cancelled','job_cancelled','Job cancelled',
-           'The job stopped before completion.','processing_job',job_id,updated_at
-         FROM processing_jobs WHERE workspace_id=$1 AND state='cancelled'
-         UNION ALL
-         SELECT 'job:' || job_id || ':retry-required:' || attempt,'retry_required','Retry scheduled',
-           coalesce(failure->>'message','The job will retry safely.'),'processing_job',job_id,updated_at
-         FROM processing_jobs WHERE workspace_id=$1 AND state='retry_wait'
-         UNION ALL
-         SELECT 'upload:' || upload_session_id || ':ready','upload_accepted','File accepted',display_name,
-           'upload_session',upload_session_id,updated_at FROM upload_sessions WHERE workspace_id=$1 AND state='ready'
-         UNION ALL
-         SELECT 'upload:' || upload_session_id || ':rejected','upload_rejected','File not accepted',
-           coalesce(failure->>'message',display_name),'upload_session',upload_session_id,updated_at
-         FROM upload_sessions WHERE workspace_id=$1 AND state='rejected'
-         UNION ALL
-         SELECT 'upload:' || upload_session_id || ':expired','source_cleanup_required','Temporary source expired',
-           display_name,'upload_session',upload_session_id,updated_at
-         FROM upload_sessions WHERE workspace_id=$1 AND state='expired'
-         UNION ALL
-         SELECT 'audit:' || audit_event_id,'guest_handoff_completed','Guest source saved',
-           'The original source is now in Default Files.',resource_kind,resource_id,occurred_at
-         FROM audit_events WHERE workspace_id=$1 AND action='guest-source.handoff'
-       )
-       INSERT INTO notifications(notification_id,workspace_id,source_key,kind,title,message,
-         resource_kind,resource_id,occurred_at)
-       SELECT 'notification-' || md5($1 || ':' || source_key),$1,source_key,kind,title,message,
-         resource_kind,resource_id,occurred_at FROM candidates
-       ON CONFLICT (workspace_id,source_key) DO NOTHING`,
-      [workspaceId],
-    );
   }
 
   private async commandReplay(client: PoolClient, actorId: string, command: ExperienceCommand): Promise<boolean> {

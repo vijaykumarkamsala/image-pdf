@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -138,21 +138,54 @@ function NotificationCenter({ workspaceId, refresh }: { workspaceId: string; ref
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [unread, setUnread] = useState(0);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState(false);
+  const hasOlderPages = useRef(false);
 
   const load = useCallback(() => {
     api.notifications(workspaceId, undefined, 12).then((response) => {
-      setNotifications(response.notifications);
+      setNotifications((current) => {
+        if (!hasOlderPages.current) return response.notifications;
+        const fresh = new Set(response.notifications.map((item) => item.notification_id));
+        return [...response.notifications, ...current.filter((item) => !fresh.has(item.notification_id))];
+      });
+      if (!hasOlderPages.current) setCursor(response.next_cursor ?? null);
       setUnread(response.unread_count);
       setError(false);
     }, () => setError(true));
   }, [workspaceId]);
 
   useEffect(() => {
+    hasOlderPages.current = false;
+    setCursor(null);
+    setAnnouncement("");
     load();
     const timer = window.setInterval(load, 15_000);
     return () => window.clearInterval(timer);
   }, [load, refresh]);
+
+  async function more() {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const response = await api.notifications(workspaceId, cursor, 12);
+      setNotifications((current) => {
+        const present = new Set(current.map((item) => item.notification_id));
+        return [...current, ...response.notifications.filter((item) => !present.has(item.notification_id))];
+      });
+      hasOlderPages.current = true;
+      setCursor(response.next_cursor ?? null);
+      setUnread(response.unread_count);
+      setAnnouncement(`${response.notifications.length} older ${response.notifications.length === 1 ? "notification" : "notifications"} loaded.`);
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function markRead(item: NotificationRecord) {
     try {
@@ -179,10 +212,11 @@ function NotificationCenter({ workspaceId, refresh }: { workspaceId: string; ref
   }
 
   return <div className="notification-center"><Popover label={unread ? `${unread} unread notifications` : "Notifications"} trigger={<span className="notification-trigger"><Bell aria-hidden="true" />{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}</span>}>
-    <div className="notification-popover"><header><div><strong>Notifications</strong><span>{unread ? `${unread} unread` : "You're up to date"}</span></div>{unread > 0 && <Button tone="quiet" onClick={() => void markAll()}>Mark all read</Button>}</header>
+    <div className="notification-popover"><div className="notification-heading"><div><strong>Notifications</strong><span>{unread ? `${unread} unread` : "You're up to date"}</span></div>{unread > 0 && <Button tone="quiet" onClick={() => void markAll()}>Mark all read</Button>}</div>
       {error ? <InlineNotice tone="error" title="Notifications unavailable">Refresh and try again.</InlineNotice>
         : notifications.length === 0 ? <StatePanel kind="empty" title="No notifications" message="File and job updates will appear here." />
-          : <div className="notification-list">{notifications.map((item) => <button type="button" className={item.read_at ? "is-read" : "is-unread"} key={item.notification_id} onClick={() => void markRead(item)}><span className="notification-dot" /><span><strong>{item.title}</strong><small>{item.message}</small></span></button>)}</div>}
+          : <><div className="notification-list">{notifications.map((item) => <button type="button" className={item.read_at ? "is-read" : "is-unread"} key={item.notification_id} onClick={() => void markRead(item)}><span className="notification-dot" /><span><strong>{item.title}</strong><small>{item.message}</small></span></button>)}</div>
+            {(cursor || announcement) && <div className="notification-pagination">{cursor && <Button tone="quiet" disabled={loadingMore} onClick={() => void more()}>{loadingMore ? "Loading" : "Load more"}</Button>}<span role="status" aria-live="polite">{announcement}</span></div>}</>}
     </div>
   </Popover></div>;
 }
