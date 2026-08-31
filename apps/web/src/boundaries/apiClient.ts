@@ -46,6 +46,11 @@ export interface FileListResponse {
   files: WorkspaceFile[];
 }
 
+export interface WorkspaceListResponse {
+  schema_version: string;
+  workspaces: Workspace[];
+}
+
 export class ApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) {
     super(message);
@@ -312,6 +317,9 @@ export const api = {
   context(workspaceId: string): Promise<WorkspaceContextResponse> {
     return request(`/workspaces/${workspaceId}/context`);
   },
+  workspaces(): Promise<WorkspaceListResponse> {
+    return request("/me/workspaces");
+  },
   projects(workspaceId: string): Promise<ProjectListResponse> {
     return request(`/workspaces/${workspaceId}/projects`);
   },
@@ -364,7 +372,7 @@ export const api = {
   ): Promise<UploadFinaliseResponse> {
     return request(`/upload-sessions/${uploadSessionId}/finalise`, {
       method: "POST",
-      headers: { "idempotency-key": commandKey("finalise") },
+      headers: { "idempotency-key": `finalise-${uploadSessionId}` },
     }, { traceId });
   },
   uploadStatus(uploadSessionId: string, traceId: string): Promise<UploadStatusResponse> {

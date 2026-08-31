@@ -39,6 +39,9 @@ export function clearGuestBrowserState(): void {
       sessionStorage.removeItem(key);
     }
   }
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith("ipw-active-uploads-") || key.startsWith("ipw-upload-lease-")) localStorage.removeItem(key);
+  }
 }
 
 export function clearPrivateBrowserState(): void {

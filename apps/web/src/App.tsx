@@ -17,7 +17,8 @@ import {
 import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
 import { ApiError, api, createTraceId, type WorkspaceContextResponse } from "./boundaries/apiClient";
-import { clearGuestBrowserState, clearPrivateBrowserState, loadGuestSession, storeGuestSession, type StoredGuestSession } from "./boundaries/session";
+import { browserCoordinator } from "./boundaries/crossTab";
+import { clearGuestBrowserState, clearPrivateBrowserState, storeGuestSession, type StoredGuestSession } from "./boundaries/session";
 import { type ThemePreference, useThemePreference } from "./boundaries/theme";
 import { Brand } from "./components/Brand";
 import { HeaderOperations, JobsPage, SignedWorkspaceHome } from "./components/OperationalExperience";
@@ -40,20 +41,27 @@ function AppError({ error, retry }: { error: Error; retry: () => void }) {
   return <main className="app-center"><StatePanel kind="error" title={denied ? "Workspace access denied" : "Workspace unavailable"} message={error.message} action={{ label: "Try again", onClick: retry }} /></main>;
 }
 
-function useWorkspace() {
+function useWorkspace(canonicalWorkspaceId: string | null) {
   const [context, setContext] = useState<WorkspaceContextResponse | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceContextResponse["workspace"][]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     setError(null);
-    api.bootstrap().then(
-      (value) => active && setContext(value),
+    setContext(null);
+    const contextRequest = canonicalWorkspaceId ? api.context(canonicalWorkspaceId) : api.bootstrap();
+    Promise.all([contextRequest, api.workspaces()]).then(
+      ([value, listing]) => {
+        if (!active) return;
+        setContext(value);
+        setWorkspaces(listing.workspaces);
+      },
       (reason: unknown) => active && setError(reason instanceof Error ? reason : new Error("Workspace unavailable")),
     );
     return () => { active = false; };
-  }, [attempt]);
-  return { context, error, retry: () => setAttempt((value) => value + 1) };
+  }, [attempt, canonicalWorkspaceId]);
+  return { context, workspaces, error, retry: () => setAttempt((value) => value + 1) };
 }
 
 const navIcons = [Home, FolderKanban, FileStack, History];
@@ -75,8 +83,27 @@ function WorkspaceNavigation({ workspaceId, close }: { workspaceId: string; clos
   })}</nav>;
 }
 
-function WorkspaceShell({ context, preference, setPreference }: {
+function WorkspaceSwitcher({ current, workspaces }: {
+  current: WorkspaceContextResponse["workspace"];
+  workspaces: WorkspaceContextResponse["workspace"][];
+}) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const identity = <span className="workspace-switcher-content"><span className="workspace-avatar">{current.name.slice(0, 1).toUpperCase()}</span><span><strong>{current.name}</strong><small>Workspace</small></span>{workspaces.length > 1 && <ChevronDown aria-hidden="true" />}</span>;
+  if (workspaces.length <= 1) return <div className="workspace-switcher-static">{identity}</div>;
+  const suffix = location.pathname.replace(/^\/w\/[^/]+/, "") || "";
+  return <Popover label="Choose workspace" align="start" trigger={identity}>
+    <div className="workspace-popover" role="list" aria-label="Available workspaces">{workspaces.map((workspace) => <Button
+      key={workspace.workspace_id}
+      tone={workspace.workspace_id === current.workspace_id ? "quiet" : "secondary"}
+      onClick={() => navigate(`/w/${encodeURIComponent(workspace.workspace_id)}${suffix}${location.search}`)}
+    ><span className="workspace-avatar">{workspace.name.slice(0, 1).toUpperCase()}</span><span>{workspace.name}</span></Button>)}</div>
+  </Popover>;
+}
+
+function WorkspaceShell({ context, workspaces, preference, setPreference }: {
   context: WorkspaceContextResponse;
+  workspaces: WorkspaceContextResponse["workspace"][];
   preference: ThemePreference;
   setPreference: (value: ThemePreference) => void;
 }) {
@@ -99,14 +126,13 @@ function WorkspaceShell({ context, preference, setPreference }: {
     await api.logout();
     clearPrivateBrowserState();
     await clearPrivateCachesOnLogout();
+    browserCoordinator?.publish({ type: "session.logout" });
     window.location.replace("/");
   }
   return <div className="app-shell">
     <aside className="desktop-sidebar">
       <Brand />
-      <Popover label="Choose workspace" align="start" trigger={<span className="workspace-switcher-content"><span className="workspace-avatar">{context.workspace.name.slice(0, 1).toUpperCase()}</span><span><strong>{context.workspace.name}</strong><small>Personal workspace</small></span><ChevronDown aria-hidden="true" /></span>}>
-        <div className="workspace-popover"><strong>{context.workspace.name}</strong><span>Your current workspace</span></div>
-      </Popover>
+      <WorkspaceSwitcher current={context.workspace} workspaces={workspaces} />
       <WorkspaceNavigation workspaceId={id} />
       <div className="testing-status"><CheckCircle2 aria-hidden="true" /><div><strong>Free during testing</strong><span>{fileCount} {fileCount === 1 ? "file" : "files"} &middot; {jobCount} {jobCount === 1 ? "job" : "jobs"}</span></div></div>
     </aside>
@@ -191,31 +217,36 @@ function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: 
 }
 
 function SignedInApplication() {
-  const { context, error, retry } = useWorkspace();
-  const { preference, setPreference } = useThemePreference();
   const location = useLocation();
+  const match = /^\/w\/([^/]+)(?:\/|$)/.exec(location.pathname);
+  let canonicalWorkspaceId: string | null = null;
+  try { canonicalWorkspaceId = match ? decodeURIComponent(match[1]) : null; } catch { canonicalWorkspaceId = null; }
+  const { context, workspaces, error, retry } = useWorkspace(canonicalWorkspaceId);
+  const { preference, setPreference } = useThemePreference();
   if (error) return <AppError error={error} retry={retry} />;
   if (!context) return <AppLoading />;
   if (location.pathname.startsWith("/app")) return <Navigate replace to={workspacePath(context.workspace.workspace_id)} />;
-  return <WorkspaceShell context={context} preference={preference} setPreference={setPreference} />;
+  if (!canonicalWorkspaceId) return <Navigate replace to="/app" />;
+  return <WorkspaceShell context={context} workspaces={workspaces} preference={preference} setPreference={setPreference} />;
 }
 
 function GuestHome() {
   const { preference, setPreference } = useThemePreference();
-  const [guest, setGuest] = useState<StoredGuestSession | null>(() => loadGuestSession());
+  const [guest, setGuest] = useState<StoredGuestSession | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const preparation = useRef<ReturnType<typeof api.createGuestSession> | null>(null);
   useEffect(() => {
-    if (guest) return;
     let active = true;
-    api.createGuestSession().then((created) => {
+    preparation.current ??= api.createGuestSession();
+    void preparation.current.then((created) => {
       if (!active) return;
       const session = { guestSessionId: created.guest_session.guest_session_id, expiresAt: created.guest_session.expires_at };
       storeGuestSession(session);
       setGuest(session);
     }, (reason: unknown) => { if (active) setError(reason instanceof Error ? reason : new Error("Guest intake is unavailable")); });
     return () => { active = false; };
-  }, [guest]);
-  if (error) return <AppError error={error} retry={() => { setError(null); setGuest(null); }} />;
+  }, []);
+  if (error) return <AppError error={error} retry={() => window.location.reload()} />;
   return <div className="public-shell">
     <header className="public-header"><Brand /><div className="public-header-actions"><span className="free-testing"><CheckCircle2 aria-hidden="true" />Free during testing</span><ThemeMenu preference={preference} setPreference={setPreference} /></div></header>
     <main className="public-main" data-testid="guest-home">
@@ -248,6 +279,7 @@ function AuthComplete() {
       const context = await api.bootstrap();
       await api.handoffGuest(uploadSessionId, context.workspace.workspace_id, createTraceId(), idempotencyKey);
       clearGuestBrowserState();
+      browserCoordinator?.publish({ type: "guest.handoff", workspaceId: context.workspace.workspace_id, uploadSessionId });
       return workspacePath(context.workspace.workspace_id, "files");
     })();
     void completion.current.then(
@@ -262,8 +294,22 @@ function AuthComplete() {
   return <main className="app-center"><StatePanel kind="loading" title="Saving your original source" message="Verifying your session and preserving the accepted source." /></main>;
 }
 
+function CrossTabSessionBoundary() {
+  useEffect(() => browserCoordinator?.subscribe((event) => {
+    if (event.type === "session.logout") {
+      clearPrivateBrowserState();
+      void clearPrivateCachesOnLogout().finally(() => window.location.replace("/"));
+    }
+    if (event.type === "guest.handoff" && event.workspaceId) {
+      clearGuestBrowserState();
+      window.location.replace(workspacePath(event.workspaceId, "files"));
+    }
+  }), []);
+  return null;
+}
+
 export default function App() {
-  return <><OfflineStatus /><BrowserRouter><Routes>
+  return <><OfflineStatus /><CrossTabSessionBoundary /><BrowserRouter><Routes>
     <Route path="/" element={<GuestHome />} />
     <Route path="/guest/upload" element={<GuestHome />} />
     <Route path="/auth/complete" element={<AuthComplete />} />

@@ -12,8 +12,8 @@ export class IntakeController {
   constructor(private readonly intake: IntakeService) {}
 
   @Post("guest-sessions")
-  async createGuest(@Res({ passthrough: true }) response: Response) {
-    const created = await this.intake.createGuestSession();
+  async createGuest(@Headers() headers: RequestHeaders, @Res({ passthrough: true }) response: Response) {
+    const created = await this.intake.createGuestSession(headers);
     const maxAge = Math.max(0, Math.floor((new Date(created.authorization.guest_session.expires_at).getTime() - Date.now()) / 1000));
     response.appendHeader("Set-Cookie", secureCookie(GUEST_COOKIE, created.token, maxAge));
     response.appendHeader("Set-Cookie", secureCookie(CSRF_COOKIE, created.csrfToken, maxAge, false));

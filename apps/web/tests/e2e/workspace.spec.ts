@@ -10,7 +10,11 @@ async function identify(page: Page, suffix: string, theme: "light" | "dark" = "l
     localStorage.setItem("ipw-theme", selectedTheme);
     sessionStorage.setItem("ipw-bootstrap-key", `bootstrap-${actorId}`);
   }, { actorId: id, selectedTheme: theme });
+  const csrf = await page.evaluate(() => document.cookie.split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith("ipw-csrf="))?.slice("ipw-csrf=".length) ?? null).catch(() => null);
   const response = await page.request.post("/v1/auth/developer-session", {
+    headers: csrf ? { "x-csrf-token": decodeURIComponent(csrf) } : undefined,
     data: { actor_id: id, display_name: "Alex Morgan" },
   });
   expect(response.ok()).toBe(true);
@@ -35,6 +39,7 @@ const screenshotOptions = {
 
 test("real API onboarding, project creation, and Default Files journey", async ({ page }) => {
   await openWorkspace(page, "journey");
+  await expect(page.getByRole("button", { name: "Choose workspace" })).toHaveCount(0);
   await page.getByRole("link", { name: "Projects" }).first().click();
   await expect(page.getByRole("heading", { name: "No projects yet" })).toBeVisible();
   await page.getByRole("button", { name: "New project" }).first().click();
@@ -45,6 +50,51 @@ test("real API onboarding, project creation, and Default Files journey", async (
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "No files yet" })).toBeVisible();
   await expect(page.getByText("Files you upload, create or save without a project will appear here.")).toBeVisible();
+});
+
+test("canonical workspace URLs survive refresh and reject another tenant", async ({ page }) => {
+  await openWorkspace(page, "canonical-owner");
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  const ownerUrl = page.url();
+  await page.reload();
+  await expect(page.getByTestId("projects-page")).toBeVisible();
+  await page.getByRole("button", { name: "Account for Alex Morgan" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  await identify(page, "canonical-other");
+  await page.goto(ownerUrl);
+  await expect(page.getByRole("heading", { name: "Workspace access denied" })).toBeVisible();
+  await expect(page.getByTestId("projects-page")).toHaveCount(0);
+  expect(page.url()).toBe(ownerUrl);
+});
+
+test("workspace selector lists permitted workspaces and uses canonical URLs", async ({ page }) => {
+  await identify(page, "workspace-selector");
+  const listed = await page.request.get("/v1/me/workspaces").then((response) => response.json()) as { schema_version: string; workspaces: Array<Record<string, unknown>> };
+  const current = listed.workspaces[0];
+  const currentId = String(current["workspace_id"]);
+  const currentContext = await page.request.get(`/v1/workspaces/${currentId}/context`).then((response) => response.json()) as Record<string, any>;
+  const currentHome = await page.request.get(`/v1/workspaces/${currentId}/home`).then((response) => response.json()) as Record<string, unknown>;
+  const secondId = "workspace-permitted-second";
+  const second = { ...current, workspace_id: secondId, name: "Production team", personal_for_actor_id: null };
+  const secondContext = {
+    ...currentContext,
+    workspace: second,
+    membership: { ...currentContext["membership"], membership_id: "membership-permitted-second", workspace_id: secondId, role: "member" },
+    policy: { ...currentContext["policy"], workspace_id: secondId },
+    default_files: { ...currentContext["default_files"], default_files_id: "default-files-permitted-second", workspace_id: secondId },
+  };
+  const secondHome = JSON.parse(JSON.stringify(currentHome).replaceAll(currentId, secondId)) as Record<string, unknown>;
+  await page.route("**/v1/me/workspaces", (route) => route.fulfill({ json: { ...listed, workspaces: [current, second] } }));
+  await page.route(`**/v1/workspaces/${secondId}/context`, (route) => route.fulfill({ json: secondContext }));
+  await page.route(`**/v1/workspaces/${secondId}/home`, (route) => route.fulfill({ json: secondHome }));
+
+  await page.goto(`/w/${currentId}`);
+  await page.getByRole("button", { name: "Choose workspace" }).click();
+  await expect(page.getByRole("list", { name: "Available workspaces" }).getByText("Production team")).toBeVisible();
+  await page.getByRole("button", { name: /Production team/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/w/${secondId}$`));
+  await expect(page.locator(".header-workspace strong")).toHaveText("Production team");
 });
 
 test("real API secure upload becomes a preserved Default Files source", async ({ page }) => {
@@ -101,8 +151,12 @@ test("real workspace search, notifications, and durable Jobs use server state", 
 
   await page.getByRole("link", { name: "Jobs" }).first().click();
   await page.getByRole("tab", { name: "Completed" }).click();
-  await expect(page.getByRole("heading", { name: "File intake check" })).toBeVisible();
-  await page.getByRole("button", { name: "Timeline" }).click();
+  const completedJob = page.locator(".job-card").first();
+  await expect(completedJob.getByRole("heading", { name: "File intake check" })).toBeVisible();
+  const jobId = await completedJob.getAttribute("data-job-id");
+  expect(jobId).toBeTruthy();
+  const workspaceId = new URL(page.url()).pathname.split("/")[2];
+  await page.goto(`/w/${workspaceId}/jobs?view=completed&job=${jobId}`);
   await expect(page.getByRole("region", { name: "Ordered job timeline" })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
@@ -173,7 +227,7 @@ test("an interrupted transfer resumes the same file after browser refresh", asyn
   await expect(page.getByText("File not accepted")).toBeVisible({ timeout: 15_000 });
 });
 
-test("guest upload signs in to save the exact accepted source", async ({ page }) => {
+test("guest upload signs in to save the exact accepted source", async ({ page, context }) => {
   await page.route("**/v1/auth/login**", async (route) => {
     const response = await route.fetch({ maxRedirects: 0 });
     const authorizationUrl = response.headers()["location"];
@@ -196,13 +250,46 @@ test("guest upload signs in to save the exact accepted source", async ({ page })
   const guestState = await page.evaluate(() => sessionStorage.getItem("ipw-guest-session"));
   expect(guestState).toContain("guestSessionId");
   expect(guestState).not.toContain("token");
+  const otherTab = await context.newPage();
+  await otherTab.goto("/guest/upload");
+  await expect(otherTab.getByTestId("guest-home")).toBeVisible();
   await page.getByRole("button", { name: "Sign in to save" }).click();
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
+  await expect(otherTab.getByRole("heading", { name: "Default Files" })).toBeVisible({ timeout: 15_000 });
+  await expect(otherTab.getByText("synthetic-alpha-32.png")).toBeVisible();
 });
 
-test("account logout revokes the session and clears private browser state", async ({ page }) => {
+test("duplicate guest tabs recover from server state without sharing credentials", async ({ page, context }) => {
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  const otherTab = await context.newPage();
+  await otherTab.goto("/guest/upload");
+  await expect(otherTab.getByTestId("guest-home")).toBeVisible();
+  const [firstGuest, secondGuest] = await Promise.all([
+    page.evaluate(() => sessionStorage.getItem("ipw-guest-session")),
+    otherTab.evaluate(() => sessionStorage.getItem("ipw-guest-session")),
+  ]);
+  expect(firstGuest).toBe(secondGuest);
+
+  const fixture = resolve(fileURLToPath(new URL("../../../../", import.meta.url)), "data/fixtures/images/synthetic-alpha-32.png");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await expect(otherTab.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  const sharedReferences = await otherTab.evaluate(() => Object.entries(localStorage)
+    .filter(([key]) => key.startsWith("ipw-active-uploads-")));
+  expect(JSON.stringify(sharedReferences)).not.toMatch(/token|authorization|resumable|uri|https?:/i);
+  await page.close();
+  await otherTab.reload();
+  await expect(otherTab.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+});
+
+test("account logout revokes the session and clears private browser state", async ({ page, context }) => {
   await openWorkspace(page, "logout");
+  const otherTab = await context.newPage();
+  await otherTab.goto(page.url());
+  await expect(otherTab.getByTestId("workspace-home")).toBeVisible();
   await page.evaluate(async () => {
     sessionStorage.setItem("ipw-private-test", "private");
     localStorage.setItem("ipw-private-test", "private");
@@ -212,6 +299,7 @@ test("account logout revokes the session and clears private browser state", asyn
   await page.getByRole("button", { name: "Account for Alex Morgan" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByTestId("guest-home")).toBeVisible();
+  await expect(otherTab.getByTestId("guest-home")).toBeVisible();
   expect(await page.request.get("/v1/auth/session").then((response) => response.json())).toEqual({ authenticated: false });
   expect(await page.evaluate(async () => ({
     session: sessionStorage.getItem("ipw-private-test"),

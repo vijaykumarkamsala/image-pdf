@@ -19,14 +19,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .desktop-sidebar { position: fixed; inset: 0 auto 0 0; z-index: var(--layer-navigation); display: flex; flex-direction: column; width: 232px; padding: 17px 13px; border-right: 1px solid var(--color-border); background: var(--color-surface); }
 .desktop-sidebar > .product-brand { min-height: 44px; padding-inline: 8px; }
 .desktop-sidebar > .ds-popover-root { margin-top: 24px; }
+.workspace-switcher-static { margin-top: 24px; }
 .workspace-switcher-content { display: grid; grid-template-columns: 34px minmax(0, 1fr) 16px; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 6px; text-align: left; }
+.workspace-switcher-static .workspace-switcher-content { grid-template-columns: 34px minmax(0, 1fr); min-height: 52px; }
 .workspace-switcher-content > span:nth-child(2) { display: grid; min-width: 0; }
 .workspace-switcher-content strong, .workspace-switcher-content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-switcher-content strong { font-size: var(--text-sm); }
 .workspace-switcher-content small { color: var(--color-text-muted); font-size: 11px; }
 .workspace-switcher-content > svg { width: 15px; }
 .workspace-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-md); color: var(--color-brand); background: var(--color-brand-subtle); font-weight: 800; }
-.workspace-popover { display: grid; gap: 3px; padding: var(--space-4); }
+.workspace-popover { display: grid; gap: 6px; min-width: 220px; padding: var(--space-2); }
+.workspace-popover .ds-button { justify-content: flex-start; width: 100%; min-width: 0; }
+.workspace-popover .ds-button > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-popover span { color: var(--color-text-muted); font-size: var(--text-xs); }
 
 .primary-nav { display: grid; gap: 3px; margin-top: 15px; }

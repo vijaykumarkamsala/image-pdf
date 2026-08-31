@@ -82,8 +82,17 @@ export class IntakeService implements OnApplicationShutdown {
     private readonly identity: IdentityBoundary,
   ) {}
 
-  async createGuestSession(): Promise<{ authorization: GuestSessionAuthorization; token: string; csrfToken: string }> {
+  async createGuestSession(headers: Headers = {}): Promise<{ authorization: GuestSessionAuthorization; token: string; csrfToken: string }> {
     const now = this.runtime.now();
+    const existingToken = cookieValue(headers, GUEST_COOKIE);
+    if (existingToken) {
+      const existing = await this.repository.findGuest(this.hash(existingToken), now);
+      if (existing) return {
+        authorization: { schema_version: PRODUCT_SCHEMA_VERSION, guest_session: existing },
+        token: existingToken,
+        csrfToken: this.token(),
+      };
+    }
     const token = this.token();
     const guestSession: GuestSessionRecord = {
       schema_version: PRODUCT_SCHEMA_VERSION,

@@ -243,13 +243,26 @@ const JOB_TABS = [
 export function JobsPage() {
   const [params, setParams] = useSearchParams();
   const { workspaceId = "" } = useParams();
-  const [view, setView] = useState<(typeof JOB_TABS)[number][0]>("active");
+  const requestedView = params.get("view");
+  const initialView = JOB_TABS.some(([id]) => id === requestedView) ? requestedView as (typeof JOB_TABS)[number][0] : "active";
+  const [view, setView] = useState<(typeof JOB_TABS)[number][0]>(initialView);
   const [jobs, setJobs] = useState<ProcessingJobRecord[] | null>(null);
+  const [directJob, setDirectJob] = useState<ProcessingJobRecord | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [events, setEvents] = useState<Record<string, JobEventRecord[]>>({});
   const [error, setError] = useState<string | null>(null);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+  const [deepLinkLoading, setDeepLinkLoading] = useState(false);
   const [generation, setGeneration] = useState(0);
   const selectedJob = params.get("job");
+
+  useEffect(() => {
+    const next = JOB_TABS.some(([id]) => id === requestedView) ? requestedView as typeof view : "active";
+    if (next !== view) {
+      setView(next);
+      setJobs(null);
+    }
+  }, [requestedView, view]);
 
   const load = useCallback(() => {
     setError(null);
@@ -261,6 +274,36 @@ export function JobsPage() {
 
   useEffect(load, [load, generation]);
   useEffect(() => {
+    if (!selectedJob) {
+      setDirectJob(null);
+      setDeepLinkError(null);
+      setDeepLinkLoading(false);
+      return;
+    }
+    let active = true;
+    setDeepLinkLoading(true);
+    setDeepLinkError(null);
+    Promise.all([
+      api.jobStatus(selectedJob, createTraceId()),
+      api.jobEvents(selectedJob, 0, createTraceId()),
+    ]).then(([jobResponse, eventResponse]) => {
+      if (!active) return;
+      if (jobResponse.job.workspace_id !== workspaceId) {
+        setDirectJob(null);
+        setDeepLinkError("This job is not available in this workspace.");
+        return;
+      }
+      setDirectJob(jobResponse.job);
+      setEvents((current) => ({ ...current, [selectedJob]: eventResponse.events }));
+    }, () => {
+      if (active) {
+        setDirectJob(null);
+        setDeepLinkError("This job is missing or you no longer have access to it.");
+      }
+    }).finally(() => { if (active) setDeepLinkLoading(false); });
+    return () => { active = false; };
+  }, [selectedJob, workspaceId]);
+  useEffect(() => {
     if (!jobs?.some((item) => ["queued", "leased", "running", "retry_wait", "cancel_requested"].includes(item.state))) return;
     const timer = window.setInterval(() => setGeneration((current) => current + 1), 3000);
     return () => window.clearInterval(timer);
@@ -270,7 +313,10 @@ export function JobsPage() {
     try {
       const response = await api.jobEvents(jobId, 0, createTraceId());
       setEvents((current) => ({ ...current, [jobId]: response.events }));
-      setParams({ job: jobId });
+      const next = new URLSearchParams(params);
+      next.set("view", view);
+      next.set("job", jobId);
+      setParams(next);
     } catch {
       setError("The job timeline could not be loaded.");
     }
@@ -305,13 +351,20 @@ export function JobsPage() {
   const panel = (() => {
     if (error) return <InlineNotice tone="error" title="Jobs unavailable">{error}</InlineNotice>;
     if (jobs === null) return <StatePanel kind="loading" title="Loading Jobs" message="Reconnecting to durable job state." />;
-    if (jobs.length === 0) return <StatePanel kind="empty" title={`No ${view} jobs`} message="File checks will appear here when they enter this state." />;
-    return <div className="job-list">{jobs.map((item) => {
+    const visibleJobs = directJob && !jobs.some((item) => item.job_id === directJob.job_id) ? [directJob, ...jobs] : jobs;
+    if (visibleJobs.length === 0 && !deepLinkLoading && !deepLinkError) return <StatePanel kind="empty" title={`No ${view} jobs`} message="File checks will appear here when they enter this state." />;
+    return <div className="job-list">{deepLinkLoading && <StatePanel kind="loading" title="Opening job timeline" message="Retrieving the permitted job and its ordered events." />}{deepLinkError && <InlineNotice tone="error" title="Job unavailable">{deepLinkError}</InlineNotice>}{visibleJobs.map((item) => {
       const itemEvents = events[item.job_id];
       const active = ["queued", "leased", "running", "retry_wait", "cancel_requested"].includes(item.state);
       return <article className="job-card" key={item.job_id} data-job-id={item.job_id}><header><span className={`job-state-icon state-${item.state}`}>{active ? <LoaderCircle aria-hidden="true" /> : item.state === "succeeded" ? <CheckCircle2 aria-hidden="true" /> : item.state === "cancelled" ? <XCircle aria-hidden="true" /> : <AlertTriangle aria-hidden="true" />}</span><div><h2>File intake check</h2><p>1 file, {item.progress_percent}% complete</p></div><Badge tone={stateTone(item.state)}>{stateLabel(item.state)}</Badge></header>{item.failure && <InlineNotice tone={item.failure.retryable ? "warning" : "error"} title={item.failure.retryable ? "Recovery available" : "Job did not finish"}>{item.failure.message}</InlineNotice>}<div className="job-actions"><Button tone="quiet" onClick={() => void timeline(item.job_id)}><History aria-hidden="true" />Timeline</Button>{active && item.state !== "cancel_requested" && <Button tone="danger" onClick={() => void cancel(item)}>Cancel</Button>}{item.state === "failed" && item.failure?.retryable && <Button onClick={() => void retry(item)}><RotateCcw aria-hidden="true" />Retry</Button>}</div>{selectedJob === item.job_id && <section className="job-timeline" aria-label="Ordered job timeline">{itemEvents ? itemEvents.map((event) => <div key={event.job_event_id}><span /><div><strong>{event.event_kind.replaceAll(".", " ")}</strong><small>{stateLabel(event.state)}, {event.progress_percent}%</small></div></div>) : <StatePanel kind="loading" title="Loading timeline" message="Retrieving ordered job events." />}<details><summary>Advanced reference details</summary><dl><div><dt>Job</dt><dd>{item.job_id}</dd></div><div><dt>Upload</dt><dd>{item.upload_session_id}</dd></div>{itemEvents?.at(-1) && <div><dt>Trace</dt><dd>{itemEvents.at(-1)!.trace_id}</dd></div>}</dl></details></section>}</article>;
     })}{cursor && <Button onClick={() => void more()}>Load more</Button>}</div>;
   })();
 
-  return <main className="page jobs-page" data-testid="jobs-page"><section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>Jobs</h1><p>Follow file checks, recovery and completion without keeping this page open.</p></div><IconButton label="Refresh Jobs" onClick={() => setGeneration((current) => current + 1)}><RefreshCw aria-hidden="true" /></IconButton></section><Tabs label="Job views" selected={view} onSelect={(id) => { setView(id as typeof view); setJobs(null); setParams({}); }} items={JOB_TABS.map(([id, label]) => ({ id, label, panel }))} /></main>;
+  return <main className="page jobs-page" data-testid="jobs-page"><section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>Jobs</h1><p>Follow file checks, recovery and completion without keeping this page open.</p></div><IconButton label="Refresh Jobs" onClick={() => setGeneration((current) => current + 1)}><RefreshCw aria-hidden="true" /></IconButton></section><Tabs label="Job views" selected={view} onSelect={(id) => {
+    const nextView = id as typeof view;
+    setView(nextView);
+    setJobs(null);
+    setDirectJob(null);
+    setParams({ view: nextView });
+  }} items={JOB_TABS.map(([id, label]) => ({ id, label, panel }))} /></main>;
 }

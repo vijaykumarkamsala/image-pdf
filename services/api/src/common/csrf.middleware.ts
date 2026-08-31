@@ -9,7 +9,7 @@ export class CsrfMiddleware implements NestMiddleware {
   use(request: Request, _response: Response, next: NextFunction) {
     if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return next();
     const path = request.path.replace(/^\/v1/, "");
-    if (path === "/guest-sessions" || path === "/auth/developer-session") return next();
+    if (path === "/guest-sessions") return next();
     const headers = request.headers as Record<string, string | string[] | undefined>;
     if (!cookieValue(headers, SESSION_COOKIE) && !cookieValue(headers, GUEST_COOKIE)) return next();
     const cookie = cookieValue(headers, CSRF_COOKIE);

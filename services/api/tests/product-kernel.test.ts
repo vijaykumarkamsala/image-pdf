@@ -5,6 +5,8 @@ import { Test } from "@nestjs/testing";
 
 import { AppModule } from "../src/app.module.js";
 import { ProductErrorFilter } from "../src/common/product-error.filter.js";
+import { MemoryProductKernelRepository } from "../src/kernel/memory.repository.js";
+import { DeterministicRuntimeValues } from "../src/kernel/runtime.js";
 
 interface TestApi {
   base: string;
@@ -186,4 +188,22 @@ test("tenant isolation, idempotency conflicts, audit and zero-charge ledger are 
   } finally {
     await server.close();
   }
+});
+
+test("workspace listing and context stop authorizing a removed membership", async () => {
+  const repository = new MemoryProductKernelRepository(new DeterministicRuntimeValues());
+  const principal = { actorId: "actor-membership", displayName: "Membership Customer" };
+  const bootstrapped = await repository.bootstrap({
+    principal,
+    idempotencyKey: "bootstrap-membership",
+    traceId: "trace-membership",
+    requestHash: "request-membership",
+  });
+  assert.equal((await repository.listWorkspaces(principal.actorId)).length, 1);
+  assert.ok(await repository.workspaceContext(principal.actorId, bootstrapped.workspace.workspace_id));
+
+  const internals = repository as unknown as { memberships: Map<string, unknown> };
+  internals.memberships.delete(`${principal.actorId}:${bootstrapped.workspace.workspace_id}`);
+  assert.deepEqual(await repository.listWorkspaces(principal.actorId), []);
+  assert.equal(await repository.workspaceContext(principal.actorId, bootstrapped.workspace.workspace_id), null);
 });

@@ -12,6 +12,7 @@ import {
 import type { ProcessingJobRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
 
 import { ApiError, api, createTraceId } from "../boundaries/apiClient.ts";
+import { browserCoordinator } from "../boundaries/crossTab.ts";
 import type { StoredGuestSession } from "../boundaries/session.ts";
 import { IntakeFacts } from "./IntakeFacts.tsx";
 import {
@@ -101,18 +102,23 @@ export function UploadDialog({
   };
 
   function references(): ActiveUploadReference[] {
-    return parseActiveUploads(sessionStorage.getItem(storageKey(ownerScope)));
+    return parseActiveUploads(localStorage.getItem(storageKey(ownerScope)));
   }
 
   function persist(reference: ActiveUploadReference): void {
-    const next = [...references().filter((item) => item.uploadSessionId !== reference.uploadSessionId), reference];
-    sessionStorage.setItem(storageKey(ownerScope), JSON.stringify(next));
+    const current = references();
+    const prior = current.find((item) => item.uploadSessionId === reference.uploadSessionId);
+    if (prior && JSON.stringify(prior) === JSON.stringify(reference)) return;
+    const next = [...current.filter((item) => item.uploadSessionId !== reference.uploadSessionId), reference];
+    localStorage.setItem(storageKey(ownerScope), JSON.stringify(next));
+    browserCoordinator?.publish({ type: "upload.changed", ownerScope, uploadSessionId: reference.uploadSessionId });
   }
 
   function forget(uploadSessionId: string): void {
     const next = references().filter((item) => item.uploadSessionId !== uploadSessionId);
-    if (next.length) sessionStorage.setItem(storageKey(ownerScope), JSON.stringify(next));
-    else sessionStorage.removeItem(storageKey(ownerScope));
+    if (next.length) localStorage.setItem(storageKey(ownerScope), JSON.stringify(next));
+    else localStorage.removeItem(storageKey(ownerScope));
+    browserCoordinator?.publish({ type: "upload.changed", ownerScope, uploadSessionId });
   }
 
   function stop(id: string): void {
@@ -173,6 +179,22 @@ export function UploadDialog({
   }
 
   async function processItem(id: string): Promise<void> {
+    const selected = itemsRef.current.find((item) => item.id === id);
+    if (!selected) return;
+    const leadershipId = selected.upload?.upload_session_id ?? selected.id;
+    const completed = await browserCoordinator?.withUploadLeadership(leadershipId, () => processItemAsLeader(id));
+    if (completed === null) {
+      const reference = references().find((item) => item.uploadSessionId === selected.upload?.upload_session_id);
+      patchItem(id, {
+        phase: reference?.jobId ? "queued" : "error",
+        errorMessage: "This upload is continuing in another open tab. Its verified status will appear here.",
+        retryEligible: !reference?.jobId,
+      });
+      if (reference?.jobId) await monitor(id, reference);
+    }
+  }
+
+  async function processItemAsLeader(id: string): Promise<void> {
     const selected = itemsRef.current.find((item) => item.id === id);
     if (!selected?.file) return;
     const mediaType = mediaTypeFor(selected.file);
@@ -249,18 +271,24 @@ export function UploadDialog({
   }
 
   async function cancel(item: UploadItem): Promise<void> {
-    stop(item.id);
-    try {
-      if (item.job?.job_id) {
-        await api.cancelJob(item.job.job_id, item.traceId);
-      } else if (item.upload?.upload_session_id) {
-        await api.cancelUpload(item.upload.upload_session_id, item.traceId);
+    const mutationId = item.upload?.upload_session_id ?? item.id;
+    const completed = await browserCoordinator?.withUploadLeadership(mutationId, async () => {
+      stop(item.id);
+      try {
+        if (item.job?.job_id) {
+          await api.cancelJob(item.job.job_id, item.traceId);
+        } else if (item.upload?.upload_session_id) {
+          await api.cancelUpload(item.upload.upload_session_id, item.traceId);
+        }
+        if (item.upload?.upload_session_id) forget(item.upload.upload_session_id);
+        patchItem(item.id, { phase: "cancelled", progress: 0, errorMessage: undefined, retryEligible: false });
+      } catch (error) {
+        patchItem(item.id, { phase: "error", errorMessage: customerError(error), retryEligible: true });
       }
-      if (item.upload?.upload_session_id) forget(item.upload.upload_session_id);
-      patchItem(item.id, { phase: "cancelled", progress: 0, errorMessage: undefined, retryEligible: false });
-    } catch (error) {
-      patchItem(item.id, { phase: "error", errorMessage: customerError(error), retryEligible: true });
-    }
+    });
+    if (completed === null) patchItem(item.id, {
+      errorMessage: "This upload is controlled by another open tab. Close it there or wait for its status to update.",
+    });
   }
 
   function saveGuest(item: UploadItem): void {
@@ -308,31 +336,42 @@ export function UploadDialog({
   }
 
   useEffect(() => {
-    const recovered = references();
-    if (!recovered.length) return;
-    const restored = recovered.map<UploadItem>((reference) => ({
-      id: reference.uploadSessionId,
-      displayName: reference.displayName,
-      byteSize: reference.byteSize,
-      phase: reference.stage === "transferring" ? "error" : "queued",
-      progress: 0,
-      errorMessage: reference.stage === "transferring"
-        ? "Choose the same file to continue this upload."
-        : undefined,
-      retryEligible: reference.stage !== "transferring",
-      needsFile: reference.stage === "transferring",
-      saved: false,
-      upload: { upload_session_id: reference.uploadSessionId, display_name: reference.displayName } as UploadSessionRecord,
-      job: reference.jobId ? { job_id: reference.jobId } as ProcessingJobRecord : undefined,
-      traceId: reference.traceId,
-    }));
-    setQueue(restored);
-    onOpenChange(true);
-    for (const [index, reference] of recovered.entries()) {
-      if (reference.jobId) void monitor(restored[index].id, reference);
-    }
+    const restore = () => {
+      const recovered = references();
+      if (!recovered.length) return;
+      const restored = recovered.map<UploadItem>((reference) => {
+        const current = itemsRef.current.find((item) => item.upload?.upload_session_id === reference.uploadSessionId);
+        return {
+          id: current?.id ?? reference.uploadSessionId,
+          displayName: reference.displayName,
+          byteSize: reference.byteSize,
+          phase: reference.stage === "transferring" ? "error" : reference.stage === "ready" ? "queued" : "queued",
+          progress: current?.progress ?? 0,
+          errorMessage: reference.stage === "transferring"
+            ? "Choose the same file to continue this upload."
+            : undefined,
+          retryEligible: reference.stage !== "transferring",
+          needsFile: reference.stage === "transferring",
+          saved: false,
+          upload: { ...(current?.upload ?? {}), upload_session_id: reference.uploadSessionId, display_name: reference.displayName } as UploadSessionRecord,
+          job: reference.jobId ? { ...(current?.job ?? {}), job_id: reference.jobId } as ProcessingJobRecord : undefined,
+          traceId: reference.traceId,
+        };
+      });
+      const recoveredIds = new Set(restored.map((item) => item.upload?.upload_session_id));
+      setQueue([...itemsRef.current.filter((item) => !recoveredIds.has(item.upload?.upload_session_id)), ...restored]);
+      onOpenChange(true);
+      for (const [index, reference] of recovered.entries()) {
+        if (reference.jobId) void monitor(restored[index].id, reference);
+      }
+    };
+    restore();
+    const unsubscribe = browserCoordinator?.subscribe((event) => {
+      if (event.type === "upload.changed" && event.ownerScope === ownerScope) restore();
+    });
     return () => {
-      for (const item of restored) stop(item.id);
+      unsubscribe?.();
+      for (const item of itemsRef.current) stop(item.id);
     };
     // Recovery is keyed by the server-issued owner scope.
     // eslint-disable-next-line react-hooks/exhaustive-deps
