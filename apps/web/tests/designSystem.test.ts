@@ -8,6 +8,8 @@ const tokens = readFileSync(resolve(root, "tokens.css"), "utf8");
 const styles = readFileSync(resolve(root, "design-system.css"), "utf8");
 const components = readFileSync(resolve(root, "components.tsx"), "utf8");
 const overlays = readFileSync(resolve(root, "overlays.tsx"), "utf8");
+const upload = readFileSync(resolve(root, "../components/UploadDialog.tsx"), "utf8");
+const featureStyles = readFileSync(resolve(root, "../styles.css"), "utf8");
 
 test("semantic tokens define independent brand, focus, and status colours in both themes", () => {
   for (const token of [
@@ -36,4 +38,10 @@ test("modal foundation includes escape, focus trapping, and focus restoration", 
   assert.match(overlays, /event\.key === "Escape"/);
   assert.match(overlays, /event\.key !== "Tab"/);
   assert.match(overlays, /returnFocus\.current\?\.focus\(\)/);
+});
+
+test("upload actions use the shared button and dropzone system without legacy variants", () => {
+  assert.match(upload, /<Dropzone/);
+  assert.doesNotMatch(upload, /className="(?:button|icon-button)/);
+  assert.doesNotMatch(featureStyles, /^\.(?:button|icon-button)(?:[\s.{:#])/m);
 });

@@ -68,7 +68,7 @@ History
 SCHEMA_MAJOR = "v1"
 """Directory name under ``packages/schemas/`` holding the exported JSON Schema."""
 
-PRODUCT_SCHEMA_VERSION = "1.11.0"
+PRODUCT_SCHEMA_VERSION = "1.12.0"
 """Additive Product V2 contract line, independent from benchmark identities."""
 
 PRODUCT_SCHEMA_MAJOR = "product-v1"

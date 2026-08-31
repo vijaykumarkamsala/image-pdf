@@ -1,7 +1,9 @@
+import { resolveProductName } from "../config/product.ts";
+
 export interface ProductManifestOptions { productName?: string }
 
 export function createProductManifest(options: ProductManifestOptions = {}) {
-  const name = options.productName?.trim().slice(0, 64) || "Visual Workspace";
+  const name = resolveProductName(options.productName);
   return {
     id: "/",
     name,

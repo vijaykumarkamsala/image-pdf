@@ -30,7 +30,7 @@ const presentations: Record<UploadPhase, Omit<UploadPresentation, "progress">> =
   selecting: { title: "Upload a file", description: "Choose an image or PDF to add to Default Files." },
   authorising: { title: "Preparing upload", description: "Creating a private upload session." },
   uploading: { title: "Uploading securely", description: "Keep this window open while the file is transferred." },
-  queued: { title: "Waiting for inspection", description: "Your file is safely queued for quality and security checks." },
+  queued: { title: "Waiting for inspection", description: "Your file is safely queued for safety and structure checks." },
   inspecting: { title: "Checking your file", description: "Verifying the file type, safety and source details." },
   ready: { title: "File ready", description: "Your original is preserved and now appears in Default Files." },
   rejected: { title: "File not accepted", description: "The file did not pass the required safety or format checks." },

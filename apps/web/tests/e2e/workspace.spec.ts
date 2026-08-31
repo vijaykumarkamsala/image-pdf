@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 async function identify(page: Page, suffix: string, theme: "light" | "dark" = "light") {
   const id = `actor-${suffix}`;
@@ -107,8 +108,9 @@ test("real API secure upload becomes a preserved Default Files source", async ({
   await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible();
   await expect(page.getByText("PNG image")).toBeVisible();
-  await expect(page.getByText("78% confidence")).toBeVisible();
-  await expect(page.getByText("No combined quality score")).toBeVisible();
+  await expect(page.getByText("Likely", { exact: true })).toBeVisible();
+  await expect(page.getByText("No visual quality assessment was performed during intake.")).toBeVisible();
+  await expect(page.getByText(/Not assessed by intake/)).toBeVisible();
   await expect(page.getByText("This recommendation does not alter or process your source.")).toBeVisible();
   await page.getByLabel("Correct source category").selectOption("document");
   await expect(page.locator(".intake-recommendation").getByText("Create PDF", { exact: true })).toBeVisible();
@@ -166,7 +168,7 @@ test("notification pagination appends durable pages and announces the result", a
   const listed = await page.request.get("/v1/me/workspaces").then((response) => response.json()) as { workspaces: Array<{ workspace_id: string }> };
   const workspaceId = listed.workspaces[0]!.workspace_id;
   const notification = (index: number) => ({
-    schema_version: "1.11.0",
+    schema_version: PRODUCT_SCHEMA_VERSION,
     notification_id: `notification-page-${index}`,
     workspace_id: workspaceId,
     kind: "upload_accepted",
@@ -180,8 +182,8 @@ test("notification pagination appends durable pages and announces the result", a
   await page.route(`**/v1/workspaces/${workspaceId}/notifications?**`, (route) => {
     const cursor = new URL(route.request().url()).searchParams.get("cursor");
     route.fulfill({ json: cursor
-      ? { schema_version: "1.11.0", notifications: [notification(13)], next_cursor: null, unread_count: 13 }
-      : { schema_version: "1.11.0", notifications: Array.from({ length: 12 }, (_, index) => notification(index + 1)), next_cursor: "older-page", unread_count: 13 } });
+      ? { schema_version: PRODUCT_SCHEMA_VERSION, notifications: [notification(13)], next_cursor: null, unread_count: 13 }
+      : { schema_version: PRODUCT_SCHEMA_VERSION, notifications: Array.from({ length: 12 }, (_, index) => notification(index + 1)), next_cursor: "older-page", unread_count: 13 } });
   });
 
   await page.goto(`/w/${workspaceId}`);
@@ -330,6 +332,9 @@ test("account logout revokes the session and clears private browser state", asyn
     await cache.put("/private-test", new Response("private"));
   });
   await page.getByRole("button", { name: "Account for Alex Morgan" }).click();
+  await expect(page.getByText("Session active")).toBeVisible();
+  await expect(page.locator(".account-popover")).toContainText(/owner in Alex Morgan's workspace/i);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByTestId("guest-home")).toBeVisible();
   await expect(otherTab.getByTestId("guest-home")).toBeVisible();
@@ -370,6 +375,7 @@ test("customer copy discloses testing and inactive product areas without interna
     await expect(tile).toContainText("Not active in this build");
   }
   await expect(page.getByText("Available in a later recovery")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(/recovery/i);
   await expect(tiles.locator("a, button")).toHaveCount(0);
 });
 
@@ -423,6 +429,25 @@ test("phone navigation remains operable without page overflow", async ({ page })
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
 });
 
+test("phone controls preserve 44 pixel interaction targets", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWorkspace(page, "phone-targets");
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  await expect(page.getByRole("dialog", { name: "Upload files" })).toBeVisible();
+  const undersized = await page.locator('button:not([disabled]), a[href], [role="button"], [role="menuitem"], [role="tab"], label.ds-dropzone, select').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      return style.visibility !== "hidden" && style.display !== "none" && bounds.width > 0 && bounds.height > 0;
+    })
+    .map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { label: element.getAttribute("aria-label") ?? element.textContent?.trim() ?? element.tagName, width: bounds.width, height: bounds.height };
+    })
+    .filter((target) => target.width < 44 || target.height < 44));
+  expect(undersized).toEqual([]);
+});
+
 test("offline status is truthful and accessible", async ({ page }) => {
   await openWorkspace(page, "offline-status");
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
@@ -448,6 +473,30 @@ test("internal panel harness restores, constrains, persists and resets layout", 
   await expect(panel).toHaveClass(/dock-floating/);
 
   const header = panel.locator(".panel-window-header");
+  const pointerStart = await panel.boundingBox();
+  const headerBox = await header.boundingBox();
+  expect(pointerStart).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  await page.mouse.move(headerBox!.x + 24, headerBox!.y + headerBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(headerBox!.x + 64, headerBox!.y + headerBox!.height / 2 + 24, { steps: 4 });
+  await page.mouse.up();
+  const pointerMoved = await panel.boundingBox();
+  expect(pointerMoved!.x).toBeGreaterThan(pointerStart!.x);
+  expect(pointerMoved!.y).toBeGreaterThan(pointerStart!.y);
+
+  const resizeHandle = panel.getByRole("button", { name: "Resize panel" });
+  const resizeStart = await panel.boundingBox();
+  const resizeBox = await resizeHandle.boundingBox();
+  expect(resizeBox).not.toBeNull();
+  await page.mouse.move(resizeBox!.x + resizeBox!.width / 2, resizeBox!.y + resizeBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(resizeBox!.x + resizeBox!.width / 2 + 36, resizeBox!.y + resizeBox!.height / 2 + 28, { steps: 4 });
+  await page.mouse.up();
+  const pointerResized = await panel.boundingBox();
+  expect(pointerResized!.width).toBeGreaterThan(resizeStart!.width);
+  expect(pointerResized!.height).toBeGreaterThan(resizeStart!.height);
+
   await header.focus();
   const before = await panel.evaluate((element) => element.getBoundingClientRect().left);
   const widthBefore = await panel.evaluate((element) => element.getBoundingClientRect().width);

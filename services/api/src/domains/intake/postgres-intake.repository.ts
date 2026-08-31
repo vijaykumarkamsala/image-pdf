@@ -24,7 +24,8 @@ function classification(row: QueryResultRow): IntakeClassificationRecord {
     schema_version: PRODUCT_SCHEMA_VERSION,
     upload_session_id: String(row["upload_session_id"]),
     inferred_category: (row["inferred_category"] as IntakeClassificationRecord["inferred_category"]) ?? null,
-    confidence_percent: row["confidence_percent"] === null ? null : Number(row["confidence_percent"]),
+    evidence_label: String(row["evidence_label"]) as IntakeClassificationRecord["evidence_label"],
+    confidence_percent: null,
     evidence: Array.isArray(row["evidence"]) ? row["evidence"].map(String) : [],
     customer_category: (row["customer_category"] as IntakeClassificationRecord["customer_category"]) ?? null,
     updated_at: instant(row["updated_at"] as Date | string),
@@ -321,16 +322,17 @@ export class PostgresIntakeRepository implements IntakeRepository {
         return { classification: replay, replayed: true };
       }
       const result = await client.query(
-        `INSERT INTO intake_classifications(upload_session_id,inferred_category,confidence_percent,
-           evidence,customer_category,updated_at) VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO intake_classifications(upload_session_id,inferred_category,evidence_label,confidence_percent,
+           evidence,customer_category,updated_at) VALUES ($1,$2,$3,NULL,$4,$5,$6)
          ON CONFLICT (upload_session_id) DO UPDATE SET
            inferred_category=EXCLUDED.inferred_category,
-           confidence_percent=EXCLUDED.confidence_percent,
+           evidence_label=EXCLUDED.evidence_label,
+           confidence_percent=NULL,
            evidence=EXCLUDED.evidence,
            customer_category=EXCLUDED.customer_category,
            updated_at=EXCLUDED.updated_at
          RETURNING *`,
-        [value.upload_session_id, value.inferred_category, value.confidence_percent,
+        [value.upload_session_id, value.inferred_category, value.evidence_label,
           JSON.stringify(value.evidence), value.customer_category, value.updated_at],
       );
       const saved = classification(result.rows[0]);

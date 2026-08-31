@@ -34,6 +34,12 @@ const OUTCOME_LABELS = {
   "print-production": "Print & Production",
 } as const;
 
+const EVIDENCE_LABELS = {
+  verified: "Verified",
+  likely: "Likely",
+  unknown: "Unknown",
+} as const;
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -94,6 +100,7 @@ export function IntakeFacts({
   const facts = presentation.source_facts;
   const classification = presentation.classification;
   const evidence = classification.evidence ?? [];
+  const evidenceLabel = classification.evidence_label ?? "unknown";
   const effectiveCategory = classification.customer_category ?? classification.inferred_category ?? "";
   const isPdf = facts.detected_media_type === "application/pdf";
   const technicalFacts = [
@@ -121,13 +128,13 @@ export function IntakeFacts({
         <div><dt>File size</dt><dd>{formatBytes(facts.byte_size)}</dd></div>
         <div className="fact-identity"><dt><Fingerprint aria-hidden="true" />SHA-256</dt><dd><code>{facts.sha256}</code></dd></div>
       </dl></section>
-      <section><h4>Technical facts</h4>{technicalFacts.length ? <dl className="fact-list">{technicalFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="muted-copy">No additional technical dimensions are available from the approved parser.</p>}</section>
+      <section><h4>Structural facts</h4>{technicalFacts.length ? <dl className="fact-list">{technicalFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p className="muted-copy">No additional structural facts are available from the supported file reader.</p>}</section>
     </div>
 
-    <section className="intake-dimensions"><div className="intake-section-heading"><h4>Safety and risk dimensions</h4><span>No combined quality score</span></div><div className="risk-grid">{presentation.risk_dimensions.map((risk) => <article className={`risk-item risk-${risk.state}`} key={risk.dimension}>{risk.state === "clear" ? <ShieldCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}<div><strong>{risk.dimension}</strong><p>{risk.summary}</p></div></article>)}</div></section>
+    <section className="intake-dimensions"><div className="intake-section-heading"><h4>Intake checks</h4><span>Safety and structure only</span></div><div className="risk-grid">{presentation.risk_dimensions.map((risk) => <article className={`risk-item risk-${risk.state}`} key={risk.dimension}>{risk.state === "clear" ? <ShieldCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}<div><strong>{risk.dimension}</strong><p>{risk.summary}</p></div></article>)}</div></section>
 
     <section className="classification-panel">
-      <div><h4>Likely source category</h4>{classification.inferred_category ? <p><strong>{CATEGORY_LABELS[classification.inferred_category]}</strong>{classification.confidence_percent !== null && classification.confidence_percent !== undefined ? ` · ${classification.confidence_percent}% confidence` : ""}</p> : <p>No evidence-based category was inferred from file structure alone.</p>}{evidence.length > 0 && <p className="classification-evidence"><Info aria-hidden="true" />{evidence.join(" ")}</p>}</div>
+      <div><h4>Source category</h4>{classification.inferred_category ? <p className="classification-result"><strong>{CATEGORY_LABELS[classification.inferred_category]}</strong><Badge tone={evidenceLabel === "verified" ? "success" : "info"}>{EVIDENCE_LABELS[evidenceLabel]}</Badge></p> : <p className="classification-result"><Badge>Unknown</Badge><span>No category can be inferred from verified file structure alone.</span></p>}{evidence.length > 0 && <p className="classification-evidence"><Info aria-hidden="true" />{evidence.join(" ")}</p>}</div>
       <SelectField label="Correct source category" value={effectiveCategory} disabled={saving} onChange={(event) => void correct(event.target.value as IntakeSourceCategory)}>
         <option value="" disabled>Choose a category</option>
         {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
@@ -135,7 +142,12 @@ export function IntakeFacts({
     </section>
 
     {error && <InlineNotice tone="error" title="Category not saved">{error}</InlineNotice>}
-    <InlineNotice tone="success" title="Source is suitable">{presentation.suitable_explanation}</InlineNotice>
+    <InlineNotice tone="success" title="File passed intake safety checks">{presentation.intake_explanation}</InlineNotice>
+    <section className="intake-readiness" aria-label="Quality, intended use and production readiness">
+      <div><h4>Quality observations</h4>{presentation.quality_observations.map((observation) => <p key={observation}>{observation}</p>)}</div>
+      <div><h4>Intended-use requirements</h4>{presentation.intended_use_requirements.map((requirement) => <p key={requirement}>{requirement}</p>)}</div>
+      <div><h4>Production readiness</h4><p>{presentation.production_readiness}</p></div>
+    </section>
     <section className="intake-recommendation"><span>Recommended next outcome</span><strong>{OUTCOME_LABELS[presentation.recommended_outcome]}</strong><p>{presentation.recommendation_rationale}</p><small>This recommendation does not alter or process your source.</small></section>
   </section>;
 }

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { Test } from "@nestjs/testing";
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 import { AppModule } from "../src/app.module.js";
 import { ProductErrorFilter } from "../src/common/product-error.filter.js";
@@ -175,7 +176,7 @@ test("retryable failed jobs reopen only the same preserved source and replay ide
       await server.jobs.fail(
         jobId,
         tokenHash,
-        { schema_version: "1.10.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        { schema_version: PRODUCT_SCHEMA_VERSION, code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
         `2026-08-30T00:0${attempt}:20.000Z`,
         `2026-08-30T00:0${attempt + 1}:00.000Z`,
         `trace-retry-${attempt}`,

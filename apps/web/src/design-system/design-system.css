@@ -36,6 +36,7 @@
   place-items: center;
   width: 44px;
   height: 44px;
+  flex: 0 0 44px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -198,6 +199,7 @@
 @keyframes ds-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 620px) {
+  .ds-button-compact, .ds-menu [role="menuitem"], .ds-combobox-list button { min-height: 44px; }
   .ds-modal-layer { align-items: end; padding: 0; }
   .ds-modal { width: 100%; max-height: calc(100vh - 12px); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .ds-modal-drawer, .ds-modal-sheet { height: calc(100vh - 12px); }

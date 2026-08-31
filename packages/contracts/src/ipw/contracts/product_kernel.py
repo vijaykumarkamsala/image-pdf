@@ -417,18 +417,32 @@ class IntakeDimensionState(StrEnum):
     ATTENTION = "attention"
 
 
+class IntakeEvidenceLabel(StrEnum):
+    VERIFIED = "verified"
+    LIKELY = "likely"
+    UNKNOWN = "unknown"
+
+
 class IntakeClassificationRecord(ProductKernelContractModel):
     upload_session_id: SlugId
     inferred_category: IntakeSourceCategory | None = None
-    confidence_percent: int | None = Field(default=None, ge=0, le=100)
+    evidence_label: IntakeEvidenceLabel = IntakeEvidenceLabel.UNKNOWN
+    confidence_percent: None = Field(
+        default=None,
+        description="Compatibility field. Numeric confidence is unavailable until a calibrated method is approved.",
+    )
     evidence: tuple[NonEmptyStr, ...] = ()
     customer_category: IntakeSourceCategory | None = None
     updated_at: NonEmptyStr
 
     @model_validator(mode="after")
-    def _confidence_requires_inference(self) -> IntakeClassificationRecord:
-        if self.inferred_category is None and self.confidence_percent is not None:
-            raise ValueError("classification confidence requires an inferred category")
+    def _evidence_matches_inference(self) -> IntakeClassificationRecord:
+        if self.inferred_category is None and self.evidence_label is not IntakeEvidenceLabel.UNKNOWN:
+            raise ValueError("a classification evidence label requires an inferred category")
+        if self.inferred_category is not None and self.evidence_label is IntakeEvidenceLabel.UNKNOWN:
+            raise ValueError("an inferred category requires a verified or likely evidence label")
+        if self.inferred_category is not None and not self.evidence:
+            raise ValueError("an inferred category must explain its evidence")
         return self
 
 
@@ -444,7 +458,10 @@ class IntelligentIntakePresentation(ProductKernelContractModel):
     source_facts: SourceFacts
     classification: IntakeClassificationRecord
     risk_dimensions: tuple[IntakeRiskDimension, ...]
-    suitable_explanation: NonEmptyStr
+    intake_explanation: NonEmptyStr
+    quality_observations: tuple[NonEmptyStr, ...]
+    intended_use_requirements: tuple[NonEmptyStr, ...]
+    production_readiness: NonEmptyStr
     recommended_outcome: ProductOutcome
     recommendation_rationale: NonEmptyStr
 

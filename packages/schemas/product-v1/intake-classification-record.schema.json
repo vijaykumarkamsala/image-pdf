@@ -1,5 +1,14 @@
 {
   "$defs": {
+    "IntakeEvidenceLabel": {
+      "enum": [
+        "verified",
+        "likely",
+        "unknown"
+      ],
+      "title": "IntakeEvidenceLabel",
+      "type": "string"
+    },
     "IntakeSourceCategory": {
       "enum": [
         "photograph",
@@ -19,18 +28,10 @@
   "additionalProperties": false,
   "properties": {
     "confidence_percent": {
-      "anyOf": [
-        {
-          "maximum": 100,
-          "minimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
       "default": null,
-      "title": "Confidence Percent"
+      "description": "Compatibility field. Numeric confidence is unavailable until a calibrated method is approved.",
+      "title": "Confidence Percent",
+      "type": "null"
     },
     "customer_category": {
       "anyOf": [
@@ -53,6 +54,10 @@
       "title": "Evidence",
       "type": "array"
     },
+    "evidence_label": {
+      "$ref": "#/$defs/IntakeEvidenceLabel",
+      "default": "unknown"
+    },
     "inferred_category": {
       "anyOf": [
         {
@@ -65,7 +70,7 @@
       "default": null
     },
     "schema_version": {
-      "default": "1.11.0",
+      "default": "1.12.0",
       "title": "Schema Version",
       "type": "string"
     },

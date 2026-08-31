@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
 
+import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import { Pool } from "pg";
 
 import { DomainError } from "../src/kernel/errors.js";
@@ -157,7 +158,7 @@ test(
 
       const intake = new PostgresIntakeRepository(pool);
       await intake.createGuest(
-        { schema_version: "1.10.0", guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
+        { schema_version: PRODUCT_SCHEMA_VERSION, guest_session_id: "guest-pg", expires_at: "2026-08-31T00:00:00.000Z" },
         "c".repeat(64),
         "2026-08-30T00:00:00.000Z",
       );
@@ -166,7 +167,7 @@ test(
         "guest-pg",
       );
       const uploadRecord = {
-        schema_version: "1.10.0" as const,
+        schema_version: PRODUCT_SCHEMA_VERSION,
         upload_session_id: "upload-pg",
         owner_kind: "actor" as const,
         workspace_id: first.workspace.workspace_id,
@@ -178,7 +179,7 @@ test(
         bytes_received: 0,
         state: "initiated" as const,
         constraints: {
-          schema_version: "1.10.0" as const,
+          schema_version: PRODUCT_SCHEMA_VERSION,
           allowed_media_types: ["image/png"],
           max_bytes: 4,
           max_pixels: 100,
@@ -336,7 +337,7 @@ test(
       );
       const durableJobs = new PostgresDurableJobRepository(pool);
       const jobRecord = {
-        schema_version: "1.10.0" as const,
+        schema_version: PRODUCT_SCHEMA_VERSION,
         job_id: "job-pg",
         kind: "file_intake_inspection" as const,
         owner_kind: "actor" as const,
@@ -408,7 +409,7 @@ test(
       const retry = await durableJobs.fail(
         "job-pg",
         "3".repeat(64),
-        { schema_version: "1.10.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        { schema_version: PRODUCT_SCHEMA_VERSION, code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
         "2026-08-30T00:07:40.000Z",
         "2026-08-30T00:10:00.000Z",
         "trace-postgres-job",
@@ -434,7 +435,7 @@ test(
       const cancellationWon = await durableJobs.fail(
         "job-pg",
         "4".repeat(64),
-        { schema_version: "1.10.0", code: "late-worker-error", message: "late", retryable: true },
+        { schema_version: PRODUCT_SCHEMA_VERSION, code: "late-worker-error", message: "late", retryable: true },
         "2026-08-30T00:10:12.000Z",
         "2026-08-30T00:11:00.000Z",
         "trace-postgres-job",
@@ -504,7 +505,7 @@ test(
         "trace-postgres-accepted",
       );
       const sourceFacts = {
-        schema_version: "1.10.0" as const,
+        schema_version: PRODUCT_SCHEMA_VERSION,
         sha256: "9".repeat(64),
         detected_media_type: "image/png",
         byte_size: 4,
@@ -538,10 +539,11 @@ test(
       assert.equal(acceptedCompletion.job.state, "succeeded");
       assert.equal(acceptedCompletion.upload.asset_original_id, "asset-accepted-pg");
       const intakeClassification = {
-        schema_version: "1.10.0" as const,
+        schema_version: PRODUCT_SCHEMA_VERSION,
         upload_session_id: "upload-accepted-pg",
         inferred_category: "graphic" as const,
-        confidence_percent: 78,
+        evidence_label: "likely" as const,
+        confidence_percent: null,
         evidence: ["The verified image includes an alpha channel."],
         customer_category: "document" as const,
         updated_at: "2026-08-30T00:11:45.000Z",
@@ -566,6 +568,12 @@ test(
       );
       assert.equal(savedClassification.replayed, false);
       assert.equal(replayedClassification.replayed, true);
+      assert.equal(savedClassification.classification.evidence_label, "likely");
+      assert.equal(savedClassification.classification.confidence_percent, null);
+      await assert.rejects(
+        pool.query("UPDATE intake_classifications SET confidence_percent=42 WHERE upload_session_id=$1", ["upload-accepted-pg"]),
+        /intake_numeric_confidence_unavailable/,
+      );
       assert.equal(
         (await intake.findClassification("upload-accepted-pg", jobOwner))?.customer_category,
         "document",
@@ -691,7 +699,7 @@ test(
       const terminalFailure = await durableJobs.fail(
         "job-manual-retry-pg",
         "7".repeat(64),
-        { schema_version: "1.10.0", code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
+        { schema_version: PRODUCT_SCHEMA_VERSION, code: "scanner-unavailable", message: "Scanner unavailable", retryable: true },
         "2026-08-30T00:13:40.000Z",
         "2026-08-30T00:14:00.000Z",
         "trace-manual-retry-pg",

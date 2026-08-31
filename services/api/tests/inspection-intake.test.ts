@@ -7,7 +7,7 @@ import { AppModule } from "../src/app.module.js";
 import { ProductErrorFilter } from "../src/common/product-error.filter.js";
 import { LocalInspectionExecutor } from "../src/domains/jobs/local-inspection-executor.js";
 
-function png(width = 2, height = 3): Uint8Array {
+function png(width = 2, height = 3, colourType = 6): Uint8Array {
   const bytes = Buffer.alloc(33);
   Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(bytes, 0);
   bytes.writeUInt32BE(13, 8);
@@ -15,7 +15,7 @@ function png(width = 2, height = 3): Uint8Array {
   bytes.writeUInt32BE(width, 16);
   bytes.writeUInt32BE(height, 20);
   bytes[24] = 8;
-  bytes[25] = 6;
+  bytes[25] = colourType;
   return bytes;
 }
 
@@ -93,13 +93,17 @@ test("accepted bytes become an immutable source and Default Files entry only aft
       `/upload-sessions/${created.upload_session.upload_session_id}/intake-presentation`,
     ));
     assert.equal(presentation.presentation.classification.inferred_category, "graphic");
-    assert.equal(presentation.presentation.classification.confidence_percent, 78);
+    assert.equal(presentation.presentation.classification.evidence_label, "likely");
+    assert.equal(presentation.presentation.classification.confidence_percent, null);
+    assert.match(presentation.presentation.classification.evidence[0], /^Likely because/);
     assert.equal(presentation.presentation.recommended_outcome, "image-graphic-studio");
     assert.deepEqual(
       presentation.presentation.risk_dimensions.map((dimension: any) => dimension.dimension),
       ["safety", "structure", "privacy"],
     );
     assert.equal(presentation.presentation.source_facts.sha256, upload.upload_session.source_facts.sha256);
+    assert.match(presentation.presentation.quality_observations.join(" "), /No visual quality assessment/);
+    assert.match(presentation.presentation.production_readiness, /^Not assessed by intake/);
 
     const correctionOptions = {
       method: "PUT",
@@ -124,6 +128,49 @@ test("accepted bytes become an immutable source and Default Files entry only aft
     )).status, 404);
     const audit = await json(await server.request(`/workspaces/${workspaceId}/audit-events`));
     assert.equal(audit.events.filter((event: any) => event.action === "intake.classification-corrected").length, 1);
+  } finally {
+    await server.close();
+  }
+});
+
+test("high-resolution dimensions remain structural facts and cannot imply quality or production readiness", async () => {
+  const server = await api();
+  try {
+    const bootstrap = await json(await server.request("/session/bootstrap", {
+      method: "POST",
+      headers: { "idempotency-key": "bootstrap-high-resolution" },
+    }, "actor-high-resolution"));
+    const workspaceId = bootstrap.workspace.workspace_id as string;
+    const bytes = png(4000, 3000, 2);
+    const created = await json(await server.request(`/workspaces/${workspaceId}/upload-sessions`, {
+      method: "POST",
+      headers: { "idempotency-key": "upload-high-resolution" },
+      body: JSON.stringify({ display_name: "high-resolution.png", media_type: "image/png", byte_size: bytes.byteLength }),
+    }, "actor-high-resolution"));
+    const uploadUrl = new URL(created.authorization.upload_url, "http://local");
+    await server.request(`${uploadUrl.pathname.replace("/v1", "")}${uploadUrl.search}`, {
+      method: "PUT",
+      headers: { "content-type": "application/octet-stream", "upload-offset": "0" },
+      body: bytes,
+    }, "actor-high-resolution");
+    await server.request(`/upload-sessions/${created.upload_session.upload_session_id}/finalise`, {
+      method: "POST",
+      headers: { "idempotency-key": "finalise-high-resolution" },
+    }, "actor-high-resolution");
+    assert.equal(await server.executor.runAvailable(), true);
+    const presentation = await json(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/intake-presentation`,
+      {},
+      "actor-high-resolution",
+    ));
+    assert.equal(presentation.presentation.source_facts.width, 4000);
+    assert.equal(presentation.presentation.source_facts.height, 3000);
+    assert.equal(presentation.presentation.classification.inferred_category, null);
+    assert.equal(presentation.presentation.classification.evidence_label, "unknown");
+    assert.equal(presentation.presentation.classification.confidence_percent, null);
+    assert.match(presentation.presentation.quality_observations.join(" "), /dimensions are structural facts/i);
+    assert.match(presentation.presentation.production_readiness, /^Not assessed by intake/);
+    assert.doesNotMatch(JSON.stringify(presentation), /production.ready|source is suitable|% confidence/i);
   } finally {
     await server.close();
   }

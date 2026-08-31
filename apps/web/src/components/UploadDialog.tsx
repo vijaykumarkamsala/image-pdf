@@ -14,6 +14,7 @@ import type { ProcessingJobRecord, UploadSessionRecord } from "ipw-contracts-ts/
 import { ApiError, api, createTraceId } from "../boundaries/apiClient.ts";
 import { browserCoordinator } from "../boundaries/crossTab.ts";
 import type { StoredGuestSession } from "../boundaries/session.ts";
+import { Button, Dropzone, IconButton } from "../design-system";
 import { IntakeFacts } from "./IntakeFacts.tsx";
 import {
   mediaTypeFor,
@@ -86,7 +87,6 @@ export function UploadDialog({
 }: UploadDialogProps) {
   const ownerScope = guestSession?.guestSessionId ?? workspaceId ?? "unavailable";
   const [items, setItems] = useState<UploadItem[]>([]);
-  const [dragActive, setDragActive] = useState(false);
   const itemsRef = useRef<UploadItem[]>([]);
   const transfers = useRef(new Map<string, AbortController>());
   const monitors = useRef(new Map<string, number>());
@@ -373,7 +373,7 @@ export function UploadDialog({
       unsubscribe?.();
       for (const item of itemsRef.current) stop(item.id);
     };
-    // Recovery is keyed by the server-issued owner scope.
+    // Server-issued owner scope keeps resumable references isolated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownerScope]);
 
@@ -408,31 +408,15 @@ export function UploadDialog({
             <p>Each file is checked separately before it becomes available.</p>
           </div>
         </div>
-        {!embedded && <button type="button" className="icon-button" onClick={() => onOpenChange(false)} title="Close"><X aria-hidden="true" /></button>}
+        {!embedded && <IconButton label="Close upload" onClick={() => onOpenChange(false)}><X aria-hidden="true" /></IconButton>}
       </div>
 
-      <label
-        className={dragActive ? "upload-drop upload-drop-compact active" : "upload-drop upload-drop-compact"}
-        onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
-        onDragOver={(event) => event.preventDefault()}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragActive(false);
-          selectFiles([...event.dataTransfer.files]);
-        }}
-      >
-        <Upload aria-hidden="true" />
-        <strong>Drop images or PDFs here</strong>
-        <span>or choose files from this device</span>
-        <span className="button upload-choose">Choose files</span>
-        <input
-          type="file"
-          multiple
-          accept="image/*,.pdf,application/pdf"
-          onChange={(event) => selectFiles([...(event.target.files ?? [])])}
-        />
-      </label>
+      <Dropzone
+        label="Drop images or PDFs here"
+        description="or choose files from this device"
+        accept="image/*,.pdf,application/pdf"
+        onFiles={selectFiles}
+      />
 
       {items.length > 0 && (
         <ul className="upload-queue" aria-label="Selected files">
@@ -453,19 +437,19 @@ export function UploadDialog({
                   {item.errorMessage && <span className="upload-item-error" role="alert">{item.errorMessage}</span>}
                 </div>
                 <div className="upload-item-actions">
-                  {active && <button type="button" className="icon-button" title={`Cancel ${item.displayName}`} onClick={() => void cancel(item)}><X aria-hidden="true" /></button>}
+                  {active && <IconButton label={`Cancel ${item.displayName}`} onClick={() => void cancel(item)}><X aria-hidden="true" /></IconButton>}
                   {item.phase === "error" && item.retryEligible && !item.needsFile && (
-                    <button type="button" className="button compact" onClick={() => item.job ? void monitor(item.id, {
+                    <Button size="compact" onClick={() => item.job ? void monitor(item.id, {
                       uploadSessionId: item.upload!.upload_session_id,
                       jobId: item.job.job_id,
                       displayName: item.displayName,
                       byteSize: item.byteSize,
                       traceId: item.traceId,
                       stage: "processing",
-                    }) : void processItem(item.id)}><RotateCcw aria-hidden="true" />Retry</button>
+                    }) : void processItem(item.id)}><RotateCcw aria-hidden="true" />Retry</Button>
                   )}
                   {guestSession && item.phase === "ready" && !item.saved && (
-                    <button type="button" className="button primary compact" onClick={() => void saveGuest(item)}>Sign in to save</button>
+                    <Button tone="primary" size="compact" onClick={() => void saveGuest(item)}>Sign in to save</Button>
                   )}
                 </div>
                 {item.phase === "ready" && item.upload?.source_facts && (
@@ -485,18 +469,17 @@ export function UploadDialog({
       </div>
 
       <div className="dialog-actions upload-actions">
-        {!embedded && <button type="button" className="button" onClick={() => onOpenChange(false)}>Close</button>}
+        {!embedded && <Button onClick={() => onOpenChange(false)}>Close</Button>}
         {items.length > 0 && items.every((item) => terminalPhases.has(item.phase)) && !busy && (
-          <button type="button" className="button" onClick={reset}>Clear</button>
+          <Button onClick={reset}>Clear</Button>
         )}
-        <button
-          type="button"
-          className="button primary"
+        <Button
+          tone="primary"
           disabled={!eligible.length || busy}
           onClick={() => void Promise.allSettled(eligible.map((item) => processItem(item.id)))}
         >
           <Upload aria-hidden="true" />Upload {eligible.length || "files"}
-        </button>
+        </Button>
       </div>
     </section>
   );

@@ -617,26 +617,27 @@ export class IntakeService implements OnApplicationShutdown {
   }): IntakeClassificationRecord {
     const facts = record.source_facts;
     let inferredCategory: IntakeSourceCategory | null = null;
-    let confidencePercent: number | null = null;
+    let evidenceLabel: IntakeClassificationRecord["evidence_label"] = "unknown";
     let evidence: string[] = [];
     if (facts.detected_media_type === "application/pdf") {
       inferredCategory = "document";
-      confidencePercent = 100;
+      evidenceLabel = "verified";
       evidence = ["The validated container is a PDF document."];
     } else if ((facts.frame_count ?? 1) > 1) {
       inferredCategory = "animation";
-      confidencePercent = 95;
+      evidenceLabel = "verified";
       evidence = ["The verified image contains multiple frames."];
     } else if (facts.has_alpha === true) {
       inferredCategory = "graphic";
-      confidencePercent = 78;
-      evidence = ["The verified image includes an alpha channel commonly used by composed graphics."];
+      evidenceLabel = "likely";
+      evidence = ["Likely because the verified image has an alpha channel, a structural feature commonly used by composed graphics. Other source categories can also contain transparency."];
     }
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
       upload_session_id: record.upload_session_id,
       inferred_category: inferredCategory,
-      confidence_percent: confidencePercent,
+      evidence_label: evidenceLabel,
+      confidence_percent: null,
       evidence,
       customer_category: null,
       updated_at: record.updated_at,
@@ -679,7 +680,7 @@ export class IntakeService implements OnApplicationShutdown {
           schema_version: PRODUCT_SCHEMA_VERSION,
           dimension: "structure",
           state: "clear",
-          summary: "The supported container passed integrity and approved resource-limit checks.",
+          summary: "The supported file structure passed integrity and resource-limit checks.",
         },
         {
           schema_version: PRODUCT_SCHEMA_VERSION,
@@ -687,10 +688,18 @@ export class IntakeService implements OnApplicationShutdown {
           state: sensitive ? "attention" : "clear",
           summary: sensitive
             ? `Sensitive metadata is present: ${sensitiveMetadata.join(", ")}.`
-            : "No sensitive metadata was detected by the approved inspection path.",
+            : "No sensitive metadata was detected by the current file checks.",
         },
       ],
-      suitable_explanation: "This original passed the currently approved safety and structure checks. It has not been changed.",
+      intake_explanation: "The file passed intake safety checks and its supported structure was verified. The original has not been changed.",
+      quality_observations: [
+        "No visual quality assessment was performed during intake.",
+        "Pixel dimensions are structural facts and do not establish sharpness, print quality or fitness for an intended use.",
+      ],
+      intended_use_requirements: [
+        "Confirm the target dimensions, output medium, colour requirements and file format for the intended use.",
+      ],
+      production_readiness: "Not assessed by intake. Production readiness requires intended-use requirements and output-specific checks.",
       recommended_outcome: recommendedOutcome,
       recommendation_rationale: recommendationRationale,
     };

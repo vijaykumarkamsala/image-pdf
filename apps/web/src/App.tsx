@@ -112,6 +112,7 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
   const [fileRefresh, setFileRefresh] = useState(0);
   const [fileCount, setFileCount] = useState(0);
   const [jobCount, setJobCount] = useState(0);
+  const [sessionState, setSessionState] = useState<"checking" | "active" | "unavailable">("checking");
   const id = context.workspace.workspace_id;
   useEffect(() => {
     let active = true;
@@ -122,6 +123,14 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
     }, () => undefined);
     return () => { active = false; };
   }, [id, fileRefresh]);
+  useEffect(() => {
+    let active = true;
+    api.authSession().then(
+      (session) => { if (active) setSessionState(session.authenticated ? "active" : "unavailable"); },
+      () => { if (active) setSessionState("unavailable"); },
+    );
+    return () => { active = false; };
+  }, [id]);
   async function logout() {
     await api.logout();
     clearPrivateBrowserState();
@@ -146,7 +155,7 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
           <HeaderOperations workspaceId={id} refresh={fileRefresh} />
           <ThemeMenu preference={preference} setPreference={setPreference} />
           <Popover label={`Account for ${context.actor.display_name}`} trigger={<span className="account-button"><span>{context.actor.display_name.slice(0, 1).toUpperCase()}</span><span className="account-copy"><strong>{context.actor.display_name}</strong><small>{context.membership.role}</small></span></span>}>
-            <div className="account-popover"><div><strong>{context.actor.display_name}</strong><span>{context.workspace.name}</span></div><Button tone="quiet" onClick={() => void logout()}><LogOut aria-hidden="true" />Sign out</Button></div>
+            <div className="account-popover"><div><strong>{context.actor.display_name}</strong><span>{context.membership.role} in {context.workspace.name}</span><small>{sessionState === "checking" ? "Checking session" : sessionState === "active" ? "Session active" : "Session unavailable"}</small></div><Button tone="quiet" onClick={() => void logout()}><LogOut aria-hidden="true" />Sign out</Button></div>
           </Popover>
         </div>
       </header>

@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.11.0";
+export const PRODUCT_SCHEMA_VERSION = "1.12.0";
 
 export interface Actor {
   schema_version?: string;
@@ -117,7 +117,9 @@ export interface IntakeClassificationRecord {
   schema_version?: string;
   upload_session_id: string;
   inferred_category?: IntakeSourceCategory | null;
-  confidence_percent?: number | null;
+  evidence_label?: IntakeEvidenceLabel;
+  /** Compatibility field. Numeric confidence is unavailable until a calibrated method is approved. */
+  confidence_percent?: null;
   evidence?: string[];
   customer_category?: IntakeSourceCategory | null;
   updated_at: string;
@@ -125,6 +127,9 @@ export interface IntakeClassificationRecord {
 
 export type IntakeDimensionState = "clear" | "attention";
 export const IntakeDimensionStateValues: readonly IntakeDimensionState[] = ["clear", "attention"] as const;
+
+export type IntakeEvidenceLabel = "verified" | "likely" | "unknown";
+export const IntakeEvidenceLabelValues: readonly IntakeEvidenceLabel[] = ["verified", "likely", "unknown"] as const;
 
 export interface IntakeFailure {
   schema_version?: string;
@@ -433,7 +438,10 @@ export interface IntelligentIntakePresentation {
   source_facts: SourceFacts;
   classification: IntakeClassificationRecord;
   risk_dimensions: IntakeRiskDimension[];
-  suitable_explanation: string;
+  intake_explanation: string;
+  quality_observations: string[];
+  intended_use_requirements: string[];
+  production_readiness: string;
   recommended_outcome: ProductOutcome;
   recommendation_rationale: string;
 }

@@ -58,6 +58,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .account-copy { display: grid; min-width: 0; text-align: left; }
 .account-copy strong { font-size: var(--text-xs); }
 .account-copy small { color: var(--color-text-muted); font-size: 10px; text-transform: capitalize; }
+.account-popover { display: grid; gap: 10px; padding: 12px; }
+.account-popover > div { display: grid; gap: 3px; min-width: 0; }
+.account-popover span, .account-popover small { color: var(--color-text-muted); font-size: var(--text-xs); }
+.account-popover span { text-transform: capitalize; }
+.account-popover .ds-button { justify-content: flex-start; width: 100%; }
 .phone-menu, .phone-brand, .phone-bottom-nav { display: none; }
 
 .page { width: min(1180px, 100%); margin: 0 auto; padding: 38px 36px 64px; }
@@ -136,17 +141,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .guest-saved .ds-button { margin-left: auto; }
 .app-center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
 
-/* Recovery 2B upload component compatibility while it adopts the design system. */
-.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 15px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-surface); font-weight: 700; cursor: pointer; white-space: nowrap; }
-.button:hover { background: var(--color-surface-subtle); }
-.button.primary { border-color: var(--color-brand); color: var(--color-brand-contrast); background: var(--color-brand); }
-.button.primary:hover { background: var(--color-brand-hover); }
-.button:disabled { cursor: not-allowed; opacity: 0.55; }
-.button svg { width: 18px; height: 18px; }
-.button.compact { min-height: 40px; padding-inline: 11px; font-size: var(--text-xs); }
-.icon-button { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--color-text); background: transparent; cursor: pointer; }
-.icon-button:hover { border-color: var(--color-border); background: var(--color-surface-subtle); }
-.icon-button svg { width: 19px; height: 19px; }
 .dialog-layer { position: fixed; inset: 0; z-index: var(--layer-overlay); display: grid; place-items: center; padding: 20px; }
 .dialog-scrim { position: absolute; inset: 0; width: 100%; border: 0; background: var(--color-overlay); }
 .dialog { position: relative; width: min(460px, 100%); padding: 22px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-lg); }
@@ -160,13 +154,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .upload-status-icon svg { width: 20px; height: 20px; }
 .upload-status-icon.phase-error, .upload-status-icon.phase-rejected { color: var(--color-error); background: var(--color-error-subtle); }
 .upload-status-icon.phase-authorising svg, .upload-status-icon.phase-uploading svg, .upload-status-icon.phase-queued svg, .upload-status-icon.phase-inspecting svg { animation: spin 1.2s linear infinite; }
-.upload-drop { display: grid; justify-items: center; gap: 8px; min-height: 225px; padding: 28px 20px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-lg); background: var(--color-surface-raised); text-align: center; cursor: pointer; }
-.upload-drop:hover, .upload-drop.active { border-color: var(--color-brand); background: var(--color-brand-subtle); }
-.upload-drop > svg { width: 32px; height: 32px; color: var(--color-brand); }
-.upload-drop strong { margin-top: 4px; overflow-wrap: anywhere; }
-.upload-drop > span:not(.button) { color: var(--color-text-muted); font-size: var(--text-xs); }
-.upload-drop input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.upload-choose { margin-top: 5px; }
+.upload-dialog .ds-dropzone { min-height: 210px; }
 .upload-privacy { display: flex; align-items: flex-start; gap: 9px; margin-top: 14px; color: var(--color-text-muted); font-size: var(--text-xs); }
 .upload-privacy svg { width: 17px; flex: 0 0 auto; color: var(--color-success); }
 .upload-details { margin-top: 14px; font-size: var(--text-xs); }
@@ -220,8 +208,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .classification-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 0.8fr); align-items: end; gap: 14px; }
 .classification-panel p { margin: 4px 0 0; color: var(--color-text-muted); font-size: var(--text-xs); }
 .classification-panel p strong { color: var(--color-text); }
+.classification-panel .classification-result { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .classification-panel .classification-evidence { display: flex; align-items: flex-start; gap: 5px; margin-top: 7px; }
 .classification-evidence svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--color-info); }
+.intake-readiness { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--color-border); }
+.intake-readiness > div { min-width: 0; padding: 13px; }
+.intake-readiness > div + div { border-left: 1px solid var(--color-border); }
+.intake-readiness p { margin: 4px 0 0; color: var(--color-text-muted); font-size: var(--text-xs); }
 .intake-recommendation { border-left: 3px solid var(--color-brand); }
 .intake-recommendation > span, .intake-recommendation small { display: block; color: var(--color-text-muted); font-size: var(--text-xs); }
 .intake-recommendation > strong { display: block; margin-top: 3px; }
@@ -405,7 +398,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .dialog { width: 100%; max-height: calc(100vh - 12px); overflow-y: auto; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: 26px; }
   .upload-item { grid-template-columns: 30px minmax(0, 1fr); }
   .upload-item-actions { grid-column: 2; justify-content: flex-start; }
-  .intake-fact-groups, .risk-grid, .classification-panel { grid-template-columns: 1fr; }
+  .intake-fact-groups, .risk-grid, .classification-panel, .intake-readiness { grid-template-columns: 1fr; }
+  .intake-readiness > div + div { border-top: 1px solid var(--color-border); border-left: 0; }
   .fact-list > div { grid-template-columns: 1fr; gap: 2px; }
   .fact-list dd { text-align: left; }
   .intake-section-heading { align-items: flex-start; flex-direction: column; gap: 1px; }
