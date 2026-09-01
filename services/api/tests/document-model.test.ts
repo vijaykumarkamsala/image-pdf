@@ -208,16 +208,21 @@ test("autosave checkpoints, bounded history and lease takeover remain determinis
     intendedUseLabel: "Digital design",
   });
   const documentId = created.value.document.document_id;
-  const lease = await repository.acquireLease(context("actor-owner", "lease-owner"), "workspace-history", documentId);
-  const leaseHash = (await import("../src/domains/documents/document-model.js")).sha256(lease.lease_token);
+  const originalLease = await repository.acquireLease(context("actor-owner", "lease-owner"), "workspace-history", documentId);
+  const originalLeaseHash = (await import("../src/domains/documents/document-model.js")).sha256(originalLease.lease_token);
   await assert.rejects(
     repository.acquireLease(context("actor-peer", "lease-peer"), "workspace-history", documentId),
     (error: unknown) => error instanceof DomainError && error.code === "document-lease-held",
   );
-  assert.equal((await repository.takeoverLease(context("actor-peer", "takeover-request"), "workspace-history", documentId, false)).status, "requested");
-  assert.equal((await repository.takeoverLease(context("actor-peer", "takeover-force"), "workspace-history", documentId, true)).status, "acquired");
+  assert.equal((await repository.requestTakeover(
+    context("actor-peer", "takeover-request"), "workspace-history", documentId, "Please let me continue",
+  )).status, "requested");
+  const forced = await repository.forceTakeover(
+    context("actor-peer", "takeover-force"), "workspace-history", documentId, "Owner recovery",
+  );
+  assert.equal(forced.status, "acquired");
 
-  const replacement = await repository.acquireLease(context("actor-peer", "lease-peer-active"), "workspace-history", documentId);
+  const replacement = forced.grant!;
   const replacementHash = (await import("../src/domains/documents/document-model.js")).sha256(replacement.lease_token);
   let revision = 0;
   for (let index = 1; index <= 101; index += 1) {
@@ -239,5 +244,5 @@ test("autosave checkpoints, bounded history and lease takeover remain determinis
     repository.undo(context("actor-peer", "undo-beyond-window"), "workspace-history", documentId, replacementHash),
     (error: unknown) => error instanceof DomainError && error.code === "document-history-start",
   );
-  assert.notEqual(leaseHash, replacementHash);
+  assert.notEqual(originalLeaseHash, replacementHash);
 });

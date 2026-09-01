@@ -39,6 +39,8 @@ import type {
 } from "./documents.types.js";
 
 export class PostgresDocumentRepository implements DocumentRepository {
+  readonly recordsMutationsAtomically = true;
+
   constructor(private readonly pool: Pool, private readonly runtime: RuntimeValues) {}
 
   static async connect(connectionString: string, runtime: RuntimeValues, migrate = false) {
@@ -69,7 +71,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       });
       if (input.source) await this.insertCompatibility(client, documentId, input, now);
       return (await this.read(client, input.workspaceId, documentId))!;
-    });
+    }, (value) => ({ workspaceId: input.workspaceId, action: "document.created", resourceId: value.document.document_id }));
   }
 
   async list(actorId: string, workspaceId: string): Promise<EditorDocumentRecord[]> {
@@ -86,7 +88,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
   async mutate(context: CommandContext, input: DocumentMutationInput): Promise<DocumentMutationResult> {
     const result = await this.command(context, "document.mutate", async (client) => {
       const row = await this.lockDocument(client, input.workspaceId, input.documentId);
-      await this.requireLease(client, context.principal.actorId, input.documentId, input.leaseTokenHash);
+      await this.requireLease(client, context.principal.actorId, input.workspaceId, input.documentId, input.leaseTokenHash);
       const revision = Number(row["current_revision"]);
       if (revision !== input.baseRevision) {
         throw new DomainError(409, "document-revision-conflict", "This document changed in another editor. Reload before continuing");
@@ -126,7 +128,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
         : null;
       const record = documentRecord((await client.query("SELECT * FROM editor_documents WHERE document_id=$1", [input.documentId])).rows[0]!);
       return { document: record, snapshot: after, operationId, checkpoint };
-    });
+    }, () => ({ workspaceId: input.workspaceId, action: input.mutation.kind, resourceId: input.documentId }));
     return { ...result.value, replayed: result.replayed };
   }
 
@@ -145,13 +147,13 @@ export class PostgresDocumentRepository implements DocumentRepository {
         client, documentId, row["current_snapshot"] as EditorDocumentSnapshot,
         "named", name, context.principal.actorId, this.runtime.now(),
       );
-    });
+    }, () => ({ workspaceId, action: "document.version.created", resourceId: documentId }));
   }
 
   async restoreVersion(context: CommandContext, workspaceId: string, documentId: string, versionId: string, leaseTokenHash: string) {
     return this.command(context, "document.restore", async (client) => {
       const row = await this.lockDocument(client, workspaceId, documentId);
-      await this.requireLease(client, context.principal.actorId, documentId, leaseTokenHash);
+      await this.requireLease(client, context.principal.actorId, workspaceId, documentId, leaseTokenHash);
       const version = await client.query("SELECT snapshot FROM document_versions WHERE document_id=$1 AND document_version_id=$2", [documentId, versionId]);
       if (!version.rows[0]) throw new DomainError(404, "document-version-not-found", "Document version was not found");
       const before = row["current_snapshot"] as EditorDocumentSnapshot;
@@ -179,7 +181,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       await client.query("UPDATE editor_documents SET current_revision=$1,current_snapshot=$2,history_cursor=$3,updated_at=$4 WHERE document_id=$5", [after.revision, after, nextCursor, now, documentId]);
       await this.appendVersion(client, documentId, after, "restore", `Restored ${versionId}`, context.principal.actorId, now, versionId);
       return (await this.read(client, workspaceId, documentId))!;
-    });
+    }, () => ({ workspaceId, action: "document.version.restored", resourceId: documentId }));
   }
 
   async saveAs(
@@ -221,87 +223,126 @@ export class PostgresDocumentRepository implements DocumentRepository {
         [this.runtime.id("compatibility"), nextId, now, documentId],
       );
       return (await this.read(client, workspaceId, nextId))!;
-    });
+    }, (value) => ({ workspaceId, action: "document.saved-as", resourceId: value.document.document_id }));
   }
 
-  async acquireLease(context: CommandContext, workspaceId: string, documentId: string, allowTakeover = false): Promise<EditorLeaseGrant> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
+  async acquireLease(context: CommandContext, workspaceId: string, documentId: string): Promise<EditorLeaseGrant> {
+    const result = await this.command(context, "document.lease.acquire", async (client) => {
       await this.lockDocument(client, workspaceId, documentId);
-      const existing = await client.query("SELECT * FROM document_leases WHERE document_id=$1 FOR UPDATE", [documentId]);
+      const existing = await this.lockLease(client, workspaceId, documentId);
       const now = this.runtime.now();
-      const row = existing.rows[0];
-      if (!allowTakeover && row && String(row["actor_id"]) !== context.principal.actorId && new Date(now) <= new Date(row["grace_expires_at"] as Date)) {
-        throw new DomainError(409, "document-lease-held", `${String(row["actor_display_name"])} is currently editing this document`);
+      if (existing && existing["state"] !== "released" && new Date(now) <= new Date(existing["grace_expires_at"] as Date)) {
+        throw new DomainError(409, "document-lease-held", `${String(existing["actor_display_name"])} is currently editing this document`);
       }
-      const token = randomBytes(32).toString("hex");
-      const record = this.newLease(documentId, context, now);
-      await client.query(
-        `INSERT INTO document_leases(document_id,lease_id,actor_id,actor_display_name,state,token_hash,acquired_at,
-         heartbeat_at,expires_at,grace_expires_at,takeover_requested_by_actor_id,takeover_requested_at)
-         VALUES($1,$2,$3,$4,'active',$5,$6,$6,$7,$8,NULL,NULL)
-         ON CONFLICT(document_id) DO UPDATE SET lease_id=EXCLUDED.lease_id,actor_id=EXCLUDED.actor_id,
-           actor_display_name=EXCLUDED.actor_display_name,state='active',token_hash=EXCLUDED.token_hash,
-           acquired_at=EXCLUDED.acquired_at,heartbeat_at=EXCLUDED.heartbeat_at,expires_at=EXCLUDED.expires_at,
-           grace_expires_at=EXCLUDED.grace_expires_at,takeover_requested_by_actor_id=NULL,takeover_requested_at=NULL`,
-        [documentId, record.lease_id, record.actor_id, record.actor_display_name, sha256(token), now, record.expires_at, record.grace_expires_at],
-      );
-      await client.query("COMMIT");
-      return { schema_version: PRODUCT_SCHEMA_VERSION, lease: record, lease_token: token, takeover_warning: null };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      if (existing && existing["state"] !== "released") {
+        await this.recordLeaseEvent(client, context, workspaceId, documentId, existing, "expired");
+        await this.recordMutation(client, context, workspaceId, "document.lease.expired", documentId);
+      }
+      return this.issueLease(client, context, workspaceId, documentId, now);
+    }, () => ({ workspaceId, action: "document.lease.acquired", resourceId: documentId }));
+    return result.value;
   }
 
-  async heartbeatLease(actorId: string, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseRecord> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
+  async heartbeatLease(context: CommandContext, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseRecord> {
+    const result = await this.command(context, "document.lease.heartbeat", async (client) => {
       await this.lockDocument(client, workspaceId, documentId);
-      await this.requireLease(client, actorId, documentId, leaseTokenHash, true);
+      const current = await this.requireLease(client, context.principal.actorId, workspaceId, documentId, leaseTokenHash, true);
       const now = this.runtime.now();
       const expires = addSeconds(now, EDITOR_LEASE_SECONDS);
       const grace = addSeconds(expires, EDITOR_LEASE_GRACE_SECONDS);
       const updated = await client.query(
-        "UPDATE document_leases SET state='active',heartbeat_at=$1,expires_at=$2,grace_expires_at=$3 WHERE document_id=$4 RETURNING *",
-        [now, expires, grace, documentId],
+        `UPDATE document_leases lease SET state='active',heartbeat_at=$1,expires_at=$2,grace_expires_at=$3
+         FROM editor_documents document WHERE lease.document_id=$4 AND document.document_id=lease.document_id
+         AND document.workspace_id=$5 RETURNING lease.*`,
+        [now, expires, grace, documentId, workspaceId],
       );
-      await client.query("COMMIT");
+      await this.recordLeaseEvent(client, context, workspaceId, documentId, current, "heartbeat");
       return leaseRecord(updated.rows[0]!);
-    } catch (error) {
-      await client.query("ROLLBACK"); throw error;
-    } finally { client.release(); }
+    });
+    return result.value;
   }
 
   async releaseLease(context: CommandContext, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseRecord> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
+    const result = await this.command(context, "document.lease.release", async (client) => {
       await this.lockDocument(client, workspaceId, documentId);
-      await this.requireLease(client, context.principal.actorId, documentId, leaseTokenHash, true);
+      const current = await this.requireLease(client, context.principal.actorId, workspaceId, documentId, leaseTokenHash, true);
       const now = this.runtime.now();
-      const updated = await client.query("UPDATE document_leases SET state='released',expires_at=$1,grace_expires_at=$1 WHERE document_id=$2 RETURNING *", [now, documentId]);
-      await client.query("COMMIT");
+      const updated = await client.query(
+        `UPDATE document_leases lease SET state='released',expires_at=$1,grace_expires_at=$1,
+         takeover_request_id=NULL,takeover_requested_by_actor_id=NULL,takeover_requested_at=NULL,takeover_request_reason=NULL
+         FROM editor_documents document WHERE lease.document_id=$2 AND document.document_id=lease.document_id
+         AND document.workspace_id=$3 RETURNING lease.*`,
+        [now, documentId, workspaceId],
+      );
+      await this.recordLeaseEvent(client, context, workspaceId, documentId, current, "released");
       return leaseRecord(updated.rows[0]!);
-    } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+    }, () => ({ workspaceId, action: "document.lease.released", resourceId: documentId }));
+    return result.value;
   }
 
-  async takeoverLease(context: CommandContext, workspaceId: string, documentId: string, force: boolean): Promise<LeaseTakeoverResult> {
-    const existing = await this.pool.query("SELECT * FROM document_leases WHERE document_id=$1", [documentId]);
-    const row = existing.rows[0];
-    if (!row || new Date(this.runtime.now()) > new Date(row["grace_expires_at"] as Date) || force) {
-      const grant = await this.acquireLease(context, workspaceId, documentId, force);
-      return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired", current_editor: null, grant };
-    }
-    await this.pool.query(
-      "UPDATE document_leases SET takeover_requested_by_actor_id=$1,takeover_requested_at=$2 WHERE document_id=$3",
-      [context.principal.actorId, this.runtime.now(), documentId],
-    );
-    return { schema_version: PRODUCT_SCHEMA_VERSION, status: "requested", current_editor: leaseRecord(row), grant: null };
+  async requestTakeover(context: CommandContext, workspaceId: string, documentId: string, reason: string): Promise<LeaseTakeoverResult> {
+    const result = await this.command(context, "document.lease.takeover.request", async (client) => {
+      await this.lockDocument(client, workspaceId, documentId);
+      const existing = await this.lockLease(client, workspaceId, documentId);
+      const now = this.runtime.now();
+      if (!existing || existing["state"] === "released" || new Date(now) > new Date(existing["grace_expires_at"] as Date)) {
+        if (existing && existing["state"] !== "released") {
+          await this.recordLeaseEvent(client, context, workspaceId, documentId, existing, "expired");
+          await this.recordMutation(client, context, workspaceId, "document.lease.expired", documentId);
+        }
+        const grant = await this.issueLease(client, context, workspaceId, documentId, now);
+        return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired" as const, current_editor: null, grant };
+      }
+      const requestId = this.runtime.id("takeover-request");
+      await client.query(
+        `UPDATE document_leases lease SET takeover_request_id=$1,takeover_requested_by_actor_id=$2,
+         takeover_requested_at=$3,takeover_request_reason=$4 FROM editor_documents document
+         WHERE lease.document_id=$5 AND document.document_id=lease.document_id AND document.workspace_id=$6`,
+        [requestId, context.principal.actorId, now, reason, documentId, workspaceId],
+      );
+      await this.recordLeaseEvent(client, context, workspaceId, documentId, existing, "takeover_requested", String(existing["actor_id"]), reason);
+      await client.query(
+        `INSERT INTO notifications(notification_id,workspace_id,source_key,kind,title,message,resource_kind,
+         resource_id,occurred_at,recipient_actor_id) VALUES($1,$2,$3,'lease_takeover_requested',
+         'Takeover requested',$4,'editor_document',$5,$6,$7) ON CONFLICT(workspace_id,source_key) DO NOTHING`,
+        [this.runtime.id("notification"), workspaceId, `lease-takeover:${requestId}`,
+          `${context.principal.displayName} asked to edit this document.`, documentId, now, String(existing["actor_id"])],
+      );
+      return { schema_version: PRODUCT_SCHEMA_VERSION, status: "requested" as const, current_editor: leaseRecord(existing), grant: null };
+    }, () => ({ workspaceId, action: "document.lease.takeover-requested", resourceId: documentId }));
+    return result.value;
+  }
+
+  async denyTakeover(context: CommandContext, workspaceId: string, documentId: string, leaseTokenHash: string, reason: string): Promise<EditorLeaseRecord> {
+    const result = await this.command(context, "document.lease.takeover.deny", async (client) => {
+      await this.lockDocument(client, workspaceId, documentId);
+      const current = await this.requireLease(client, context.principal.actorId, workspaceId, documentId, leaseTokenHash, true);
+      const requester = current["takeover_requested_by_actor_id"] ? String(current["takeover_requested_by_actor_id"]) : null;
+      if (!requester) throw new DomainError(409, "takeover-request-missing", "There is no active takeover request");
+      await client.query(
+        `UPDATE document_leases lease SET takeover_request_id=NULL,takeover_requested_by_actor_id=NULL,
+         takeover_requested_at=NULL,takeover_request_reason=NULL FROM editor_documents document
+         WHERE lease.document_id=$1 AND document.document_id=lease.document_id AND document.workspace_id=$2`,
+        [documentId, workspaceId],
+      );
+      await this.recordLeaseEvent(client, context, workspaceId, documentId, current, "takeover_denied", requester, reason);
+      return leaseRecord(current);
+    }, () => ({ workspaceId, action: "document.lease.takeover-denied", resourceId: documentId }));
+    return result.value;
+  }
+
+  async forceTakeover(context: CommandContext, workspaceId: string, documentId: string, reason: string): Promise<LeaseTakeoverResult> {
+    const result = await this.command(context, "document.lease.takeover.force", async (client) => {
+      await this.lockDocument(client, workspaceId, documentId);
+      const existing = await this.lockLease(client, workspaceId, documentId);
+      const grant = await this.issueLease(client, context, workspaceId, documentId, this.runtime.now());
+      await this.recordLeaseEvent(
+        client, context, workspaceId, documentId, existing ?? grant.lease, "force_takeover",
+        existing ? String(existing["actor_id"]) : undefined, reason,
+      );
+      return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired" as const, current_editor: null, grant };
+    }, () => ({ workspaceId, action: "document.lease.force-takeover", resourceId: documentId }));
+    return result.value;
   }
 
   async compatibilityReports(actorId: string, workspaceId: string, documentId: string): Promise<ImportCompatibilityReport[]> {
@@ -324,7 +365,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
   ): Promise<DocumentCommandResult<DocumentHistoryResult>> {
     return this.command(context, command, async (client) => {
       const row = await this.lockDocument(client, workspaceId, documentId);
-      await this.requireLease(client, context.principal.actorId, documentId, leaseTokenHash);
+      await this.requireLease(client, context.principal.actorId, workspaceId, documentId, leaseTokenHash);
       const cursor = Number(row["history_cursor"]);
       const history = await client.query(
         direction === "undo"
@@ -351,10 +392,15 @@ export class PostgresDocumentRepository implements DocumentRepository {
         document: documentRecord(updated.rows[0]!), snapshot,
         canUndo: nextCursor > 0, canRedo: nextCursor < Number(count.rows[0]?.["maximum"] ?? 0),
       };
-    });
+    }, () => ({ workspaceId, action: `document.${direction}`, resourceId: documentId }));
   }
 
-  private async command<T>(context: CommandContext, command: string, execute: (client: PoolClient) => Promise<T>): Promise<DocumentCommandResult<T>> {
+  private async command<T>(
+    context: CommandContext,
+    command: string,
+    execute: (client: PoolClient) => Promise<T>,
+    audit?: (value: T) => { workspaceId: string; action: string; resourceId: string },
+  ): Promise<DocumentCommandResult<T>> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -368,6 +414,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
         return { value: prior.rows[0]["response_body"] as T, replayed: true };
       }
       const value = await execute(client);
+      if (audit) {
+        const event = audit(value);
+        await this.recordMutation(client, context, event.workspaceId, event.action, event.resourceId);
+      }
       await client.query(
         `INSERT INTO idempotency_records(actor_id,idempotency_key,command_name,request_hash,response_status,response_body,created_at)
          VALUES($1,$2,$3,$4,200,$5,$6)`,
@@ -386,6 +436,16 @@ export class PostgresDocumentRepository implements DocumentRepository {
     return result.rows[0];
   }
 
+  private async lockLease(client: PoolClient, workspaceId: string, documentId: string): Promise<QueryResultRow | undefined> {
+    const result = await client.query(
+      `SELECT lease.* FROM document_leases lease
+       JOIN editor_documents document ON document.document_id=lease.document_id
+       WHERE document.workspace_id=$1 AND lease.document_id=$2 FOR UPDATE OF lease`,
+      [workspaceId, documentId],
+    );
+    return result.rows[0];
+  }
+
   private async read(queryable: Pick<Pool, "query"> | Pick<PoolClient, "query">, workspaceId: string, documentId: string, required = true): Promise<DocumentReadModel | null> {
     const document = await queryable.query("SELECT * FROM editor_documents WHERE workspace_id=$1 AND document_id=$2", [workspaceId, documentId]);
     if (!document.rows[0]) {
@@ -401,21 +461,110 @@ export class PostgresDocumentRepository implements DocumentRepository {
     };
   }
 
-  private async requireLease(client: PoolClient, actorId: string, documentId: string, tokenHash: string, allowGrace = false) {
-    const result = await client.query("SELECT * FROM document_leases WHERE document_id=$1 FOR UPDATE", [documentId]);
+  private async requireLease(
+    client: PoolClient,
+    actorId: string,
+    workspaceId: string,
+    documentId: string,
+    tokenHash: string,
+    allowGrace = false,
+  ): Promise<QueryResultRow> {
+    const result = await client.query(
+      `SELECT lease.* FROM document_leases lease
+       JOIN editor_documents document ON document.document_id=lease.document_id
+       WHERE document.workspace_id=$1 AND lease.document_id=$2 FOR UPDATE OF lease`,
+      [workspaceId, documentId],
+    );
     const row = result.rows[0];
     if (!row || row["actor_id"] !== actorId || row["token_hash"] !== tokenHash || row["state"] === "released") {
       throw new DomainError(409, "document-lease-required", "An active editor lease is required");
     }
     const now = this.runtime.now();
     if (new Date(now) > new Date(row["grace_expires_at"] as Date)) {
-      await client.query("UPDATE document_leases SET state='expired' WHERE document_id=$1", [documentId]);
+      await client.query(
+        `UPDATE document_leases lease SET state='expired' FROM editor_documents document
+         WHERE lease.document_id=$1 AND document.document_id=lease.document_id AND document.workspace_id=$2`,
+        [documentId, workspaceId],
+      );
       throw new DomainError(409, "document-lease-expired", "The editor lease expired. Reopen the document to continue");
     }
     if (!allowGrace && new Date(now) > new Date(row["expires_at"] as Date)) {
-      await client.query("UPDATE document_leases SET state='grace' WHERE document_id=$1", [documentId]);
+      await client.query(
+        `UPDATE document_leases lease SET state='grace' FROM editor_documents document
+         WHERE lease.document_id=$1 AND document.document_id=lease.document_id AND document.workspace_id=$2`,
+        [documentId, workspaceId],
+      );
       throw new DomainError(409, "document-lease-grace", "Reconnect the editor before making changes");
     }
+    return row;
+  }
+
+  private async issueLease(
+    client: PoolClient,
+    context: CommandContext,
+    workspaceId: string,
+    documentId: string,
+    now: string,
+  ): Promise<EditorLeaseGrant> {
+    const token = randomBytes(32).toString("hex");
+    const record = this.newLease(documentId, context, now);
+    await client.query(
+      `INSERT INTO document_leases(document_id,lease_id,actor_id,actor_display_name,state,token_hash,acquired_at,
+       heartbeat_at,expires_at,grace_expires_at,takeover_requested_by_actor_id,takeover_requested_at,
+       takeover_request_id,takeover_request_reason)
+       VALUES($1,$2,$3,$4,'active',$5,$6,$6,$7,$8,NULL,NULL,NULL,NULL)
+       ON CONFLICT(document_id) DO UPDATE SET lease_id=EXCLUDED.lease_id,actor_id=EXCLUDED.actor_id,
+         actor_display_name=EXCLUDED.actor_display_name,state='active',token_hash=EXCLUDED.token_hash,
+         acquired_at=EXCLUDED.acquired_at,heartbeat_at=EXCLUDED.heartbeat_at,expires_at=EXCLUDED.expires_at,
+         grace_expires_at=EXCLUDED.grace_expires_at,takeover_requested_by_actor_id=NULL,takeover_requested_at=NULL,
+         takeover_request_id=NULL,takeover_request_reason=NULL`,
+      [documentId, record.lease_id, record.actor_id, record.actor_display_name, sha256(token), now, record.expires_at, record.grace_expires_at],
+    );
+    await this.recordLeaseEvent(client, context, workspaceId, documentId, record, "acquired");
+    return { schema_version: PRODUCT_SCHEMA_VERSION, lease: record, lease_token: token, takeover_warning: null };
+  }
+
+  private async recordLeaseEvent(
+    client: PoolClient,
+    context: CommandContext,
+    workspaceId: string,
+    documentId: string,
+    lease: QueryResultRow | EditorLeaseRecord,
+    kind: "acquired" | "heartbeat" | "takeover_requested" | "takeover_denied" | "expired" | "released" | "force_takeover",
+    subjectActorId?: string,
+    reason?: string,
+  ): Promise<void> {
+    const leaseId = "lease_id" in lease ? String(lease["lease_id"]) : null;
+    await client.query(
+      `INSERT INTO document_lease_events(document_lease_event_id,workspace_id,document_id,lease_id,event_kind,
+       actor_id,subject_actor_id,reason,trace_id,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [this.runtime.id("lease-event"), workspaceId, documentId, leaseId, kind, context.principal.actorId,
+        subjectActorId ?? null, reason ?? null, context.traceId, this.runtime.now()],
+    );
+  }
+
+  private async recordMutation(
+    client: PoolClient,
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    resourceId: string,
+  ): Promise<void> {
+    await client.query(
+      `INSERT INTO audit_events(audit_event_id,workspace_id,actor_id,action,resource_kind,resource_id,occurred_at,trace_id)
+       VALUES($1,$2,$3,$4,'editor_document',$5,$6,$7)`,
+      [this.runtime.id("audit"), workspaceId, context.principal.actorId, action, resourceId, this.runtime.now(), context.traceId],
+    );
+    const usageId = this.runtime.id("usage");
+    await client.query(
+      `INSERT INTO usage_events(usage_event_id,workspace_id,actor_id,event_kind,customer_amount,credit_debit,currency,occurred_at)
+       VALUES($1,$2,$3,$4,0,0,'USD',$5)`,
+      [usageId, workspaceId, context.principal.actorId, action, this.runtime.now()],
+    );
+    await client.query(
+      "INSERT INTO usage_admin_dimensions(usage_event_id,dimensions) VALUES($1,$2)",
+      [usageId, { resource_kind: "editor_document", operation: action }],
+    );
   }
 
   private async insertOperation(client: PoolClient, id: string, documentId: string, base: number, mutation: EditorMutation, context: CommandContext, now: string) {

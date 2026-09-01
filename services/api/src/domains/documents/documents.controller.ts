@@ -50,6 +50,16 @@ export class DocumentsController {
     return this.documents.takeover(headers, workspaceId, documentId, body);
   }
 
+  @Post(":documentId/lease/takeover/deny")
+  denyTakeover(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string, @Body() body: RequestBody) {
+    return this.documents.denyTakeover(headers, workspaceId, documentId, body);
+  }
+
+  @Post(":documentId/lease/takeover/force")
+  forceTakeover(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string, @Body() body: RequestBody) {
+    return this.documents.forceTakeover(headers, workspaceId, documentId, body);
+  }
+
   @Post(":documentId/undo")
   undo(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
     return this.documents.undo(headers, workspaceId, documentId);

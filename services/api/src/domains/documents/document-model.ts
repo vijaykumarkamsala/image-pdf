@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import type {
   ArtboardRecord,
+  EditableMaskRecord,
   EditorDocumentSnapshot,
   EditorMutation,
   LayerRecord,
@@ -16,6 +17,7 @@ export const DOCUMENT_HISTORY_LIMIT = 100;
 export const DOCUMENT_CHECKPOINT_INTERVAL = 10;
 export const EDITOR_LEASE_SECONDS = 30;
 export const EDITOR_LEASE_GRACE_SECONDS = 15;
+const SUPPORTED_BLEND_MODES = new Set(["normal", "multiply", "screen", "overlay", "darken", "lighten"]);
 
 export function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -309,19 +311,65 @@ function validateSnapshot(snapshot: EditorDocumentSnapshot) {
   const snapshotLayers = snapshot.layers ?? [];
   const layers = new Set(snapshotLayers.map((item) => item.layer_id));
   if (artboards.size !== snapshot.artboards.length || layers.size !== snapshotLayers.length) invalidMutation("Document identifiers must be unique");
+  const artboardOrders = new Set<number>();
   for (const artboard of snapshot.artboards) {
     finiteRange(artboard.width, 0, 100_000, "Artboard width", false);
     finiteRange(artboard.height, 0, 100_000, "Artboard height", false);
+    if (!Number.isSafeInteger(artboard.order) || artboard.order < 0 || artboardOrders.has(artboard.order)) {
+      invalidMutation("Artboard order must be unique and deterministic");
+    }
+    artboardOrders.add(artboard.order);
   }
+  const sharedAssets = new Map((snapshot.shared_assets ?? []).map((item) => [item.shared_asset_id, item]));
+  const sharedStyles = new Map((snapshot.shared_styles ?? []).map((item) => [item.shared_style_id, item]));
+  const maskRecords = new Map((snapshot.masks ?? []).map((item) => [item.mask_id, item]));
+  if (sharedAssets.size !== (snapshot.shared_assets ?? []).length) invalidMutation("Shared asset identifiers must be unique");
+  if (sharedStyles.size !== (snapshot.shared_styles ?? []).length) invalidMutation("Shared style identifiers must be unique");
+  if (maskRecords.size !== (snapshot.masks ?? []).length) invalidMutation("Mask identifiers must be unique");
+  const siblingOrders = new Set<string>();
+  const referencedMasks = new Set<string>();
   for (const layer of snapshotLayers) {
     if (!artboards.has(layer.artboard_id)) invalidMutation("Every layer must belong to an artboard");
     if (layer.parent_layer_id && (!layers.has(layer.parent_layer_id) || layer.parent_layer_id === layer.layer_id)) {
       invalidMutation("Layer nesting is invalid");
     }
+    if (layer.parent_layer_id) {
+      const parent = snapshotLayers.find((item) => item.layer_id === layer.parent_layer_id)!;
+      if (parent.artboard_id !== layer.artboard_id || parent.layer_type !== "group") {
+        invalidMutation("Parent and child layers must belong to the same artboard and the parent must be a group");
+      }
+    }
+    if (!Number.isSafeInteger(layer.order) || layer.order < 0) invalidMutation("Layer order must be a non-negative integer");
+    const orderKey = `${layer.artboard_id}:${layer.parent_layer_id ?? "root"}:${layer.order}`;
+    if (siblingOrders.has(orderKey)) invalidMutation("Sibling layer order must be unique and deterministic");
+    siblingOrders.add(orderKey);
     if (typeof layer.name !== "string" || !layer.name.trim()) invalidMutation("Every layer must have a name");
     finiteRange(layer.opacity, 0, 1, "Layer opacity");
+    if (!layer.blend_mode || !SUPPORTED_BLEND_MODES.has(layer.blend_mode)) {
+      invalidMutation(`Blend mode ${layer.blend_mode ?? "missing"} is not supported`);
+    }
+    if ((layer.shared_style_ids ?? []).some((styleId) => !sharedStyles.has(styleId))) {
+      invalidMutation("Every shared style reference must exist in the snapshot");
+    }
     validateTransform(layer.transform);
     validateLayerContent(layer);
+    if (layer.raster) {
+      const asset = sharedAssets.get(layer.raster.shared_asset_id);
+      if (!asset || !["raster", "brand"].includes(asset.kind)) invalidMutation("Raster layers require a valid raster shared asset");
+      for (const maskId of layer.raster.mask_ids ?? []) {
+        if (!maskId) invalidMutation("Mask identifiers must not be empty");
+        validateMaskReference(maskRecords, maskId, layer.artboard_id, referencedMasks);
+      }
+    }
+    if (layer.vector) {
+      if (layer.vector.shared_asset_id && !sharedAssets.has(layer.vector.shared_asset_id)) {
+        invalidMutation("Vector shared asset reference must exist in the snapshot");
+      }
+      for (const maskId of layer.vector.mask_ids ?? []) {
+        if (!maskId) invalidMutation("Mask identifiers must not be empty");
+        validateMaskReference(maskRecords, maskId, layer.artboard_id, referencedMasks);
+      }
+    }
     const visited = new Set([layer.layer_id]);
     let parentId = layer.parent_layer_id;
     while (parentId) {
@@ -330,13 +378,27 @@ function validateSnapshot(snapshot: EditorDocumentSnapshot) {
       parentId = snapshotLayers.find((item) => item.layer_id === parentId)?.parent_layer_id ?? null;
     }
   }
-  const masks = new Set<string>();
   for (const mask of snapshot.masks ?? []) {
-    if (masks.has(mask.mask_id)) invalidMutation("Mask identifiers must be unique");
-    masks.add(mask.mask_id);
     if (!artboards.has(mask.artboard_id)) invalidMutation("Every mask must belong to an artboard");
     finiteRange(mask.feather, 0, 1_000, "Mask feather");
+    if (!referencedMasks.has(mask.mask_id)) invalidMutation("Masks must be attached to a layer in the same artboard");
   }
+  for (const style of snapshot.shared_styles ?? []) {
+    for (const value of Object.values(style.properties ?? {})) {
+      if (typeof value === "number" && !Number.isFinite(value)) invalidMutation("Shared style values must be finite");
+    }
+  }
+}
+
+function validateMaskReference(
+  masks: Map<string, EditableMaskRecord>,
+  maskId: string,
+  artboardId: string,
+  referenced: Set<string>,
+) {
+  const mask = masks.get(maskId);
+  if (!mask || mask.artboard_id !== artboardId) invalidMutation("Mask references must exist in the same artboard");
+  referenced.add(maskId);
 }
 
 function validateTransform(value: LayerRecord["transform"]) {

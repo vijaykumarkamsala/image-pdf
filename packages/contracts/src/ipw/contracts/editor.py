@@ -344,6 +344,8 @@ class EditorDocumentSnapshot(EditorContractModel):
         layer_ids = {item.layer_id for item in self.layers}
         if len(artboard_ids) != len(self.artboards) or len(layer_ids) != len(self.layers):
             raise ValueError("artboard and layer identifiers must be unique")
+        if len({item.order for item in self.artboards}) != len(self.artboards):
+            raise ValueError("artboard order must be unique and deterministic")
         if any(layer.artboard_id not in artboard_ids for layer in self.layers):
             raise ValueError("every layer must reference an artboard in the snapshot")
         if any(
@@ -351,8 +353,58 @@ class EditorDocumentSnapshot(EditorContractModel):
             for layer in self.layers
         ):
             raise ValueError("parent layers must exist in the snapshot")
+        layers_by_id = {item.layer_id: item for item in self.layers}
+        for layer in self.layers:
+            if layer.parent_layer_id is not None:
+                parent = layers_by_id[layer.parent_layer_id]
+                if parent.artboard_id != layer.artboard_id or parent.layer_type is not LayerType.GROUP:
+                    raise ValueError("parent and child must share an artboard and the parent must be a group")
+            visited = {layer.layer_id}
+            parent_id = layer.parent_layer_id
+            while parent_id is not None:
+                if parent_id in visited:
+                    raise ValueError("layer nesting cannot contain cycles")
+                visited.add(parent_id)
+                parent_id = layers_by_id[parent_id].parent_layer_id
+        sibling_orders = {
+            (item.artboard_id, item.parent_layer_id, item.order) for item in self.layers
+        }
+        if len(sibling_orders) != len(self.layers):
+            raise ValueError("sibling layer order must be unique and deterministic")
+        supported_blend_modes = {"normal", "multiply", "screen", "overlay", "darken", "lighten"}
+        if any(layer.blend_mode not in supported_blend_modes for layer in self.layers):
+            raise ValueError("layer blend mode is not supported")
+        asset_ids = {item.shared_asset_id for item in self.shared_assets}
+        style_ids = {item.shared_style_id for item in self.shared_styles}
+        mask_ids = {item.mask_id for item in self.masks}
+        if len(asset_ids) != len(self.shared_assets) or len(style_ids) != len(self.shared_styles):
+            raise ValueError("shared asset and style identifiers must be unique")
+        if len(mask_ids) != len(self.masks):
+            raise ValueError("mask identifiers must be unique")
+        masks_by_id = {item.mask_id: item for item in self.masks}
+        referenced_masks: set[str] = set()
+        for layer in self.layers:
+            if any(style_id not in style_ids for style_id in layer.shared_style_ids):
+                raise ValueError("shared style references must exist")
+            if layer.raster is not None:
+                if layer.raster.shared_asset_id not in asset_ids:
+                    raise ValueError("raster shared asset references must exist")
+                layer_mask_ids = layer.raster.mask_ids
+            elif layer.vector is not None:
+                if layer.vector.shared_asset_id is not None and layer.vector.shared_asset_id not in asset_ids:
+                    raise ValueError("vector shared asset references must exist")
+                layer_mask_ids = layer.vector.mask_ids
+            else:
+                layer_mask_ids = ()
+            for mask_id in layer_mask_ids:
+                mask = masks_by_id.get(mask_id)
+                if mask is None or mask.artboard_id != layer.artboard_id:
+                    raise ValueError("mask references must exist in the same artboard")
+                referenced_masks.add(mask_id)
         if any(mask.artboard_id not in artboard_ids for mask in self.masks):
             raise ValueError("every mask must reference an artboard in the snapshot")
+        if referenced_masks != mask_ids:
+            raise ValueError("masks must be attached to a layer")
         return self
 
 

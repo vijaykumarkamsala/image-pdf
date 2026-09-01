@@ -25,7 +25,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -77,7 +77,7 @@
           "$ref": "#/$defs/ArtboardOrientation"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -148,7 +148,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -183,7 +183,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -283,7 +283,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -377,7 +377,7 @@
           "title": "Path Data"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -432,7 +432,7 @@
           "title": "Project Id"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -498,7 +498,7 @@
           "title": "Project Id"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -606,7 +606,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -660,7 +660,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -714,7 +714,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -842,7 +842,7 @@
           "default": null
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -938,7 +938,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1034,7 +1034,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1083,7 +1083,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1118,7 +1118,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1191,7 +1191,7 @@
           "title": "Fill"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1290,7 +1290,7 @@
           "title": "Preview Object Reference Id"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1374,7 +1374,7 @@
           "type": "object"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1455,7 +1455,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1527,7 +1527,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1565,7 +1565,7 @@
       "$ref": "#/$defs/EditorDocumentRecord"
     },
     "schema_version": {
-      "default": "1.13.0",
+      "default": "1.14.0",
       "title": "Schema Version",
       "type": "string"
     },

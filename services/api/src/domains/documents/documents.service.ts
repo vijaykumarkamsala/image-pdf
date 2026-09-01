@@ -73,7 +73,7 @@ export class DocumentsService implements OnApplicationShutdown {
       height: optionalDimension(body["height"]),
       source,
     });
-    if (!result.replayed) await this.audit(context, access.workspaceId, "document.created", result.value.document.document_id);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.created", result.value.document.document_id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
   }
 
@@ -87,7 +87,7 @@ export class DocumentsService implements OnApplicationShutdown {
       workspaceId: access.workspaceId, documentId: id, baseRevision, mutation,
       leaseTokenHash: this.leaseTokenHash(headers),
     });
-    if (!result.replayed) await this.audit(context, access.workspaceId, mutation.kind, id);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, mutation.kind, id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, mutation: result };
   }
 
@@ -96,15 +96,17 @@ export class DocumentsService implements OnApplicationShutdown {
     const id = requireId(documentId, "document id");
     const context = this.command(headers, access.principal, "document.lease.acquire", { workspaceId: access.workspaceId, documentId: id });
     const grant = await this.documents.acquireLease(context, access.workspaceId, id);
-    await this.audit(context, access.workspaceId, "document.lease.acquired", id);
+    await this.auditUnlessAtomic(context, access.workspaceId, "document.lease.acquired", id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, grant };
   }
 
   async heartbeat(headers: Headers, workspaceId: string, documentId: string) {
     const access = await this.access(headers, workspaceId, "document.edit");
+    const id = requireId(documentId, "document id");
+    const context = this.command(headers, access.principal, "document.lease.heartbeat", { workspaceId: access.workspaceId, documentId: id });
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
-      lease: await this.documents.heartbeatLease(access.principal.actorId, access.workspaceId, requireId(documentId, "document id"), this.leaseTokenHash(headers)),
+      lease: await this.documents.heartbeatLease(context, access.workspaceId, id, this.leaseTokenHash(headers)),
     };
   }
 
@@ -113,18 +115,38 @@ export class DocumentsService implements OnApplicationShutdown {
     const id = requireId(documentId, "document id");
     const context = this.command(headers, access.principal, "document.lease.release", { workspaceId: access.workspaceId, documentId: id });
     const lease = await this.documents.releaseLease(context, access.workspaceId, id, this.leaseTokenHash(headers));
-    await this.audit(context, access.workspaceId, "document.lease.released", id);
+    await this.auditUnlessAtomic(context, access.workspaceId, "document.lease.released", id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, lease };
   }
 
   async takeover(headers: Headers, workspaceId: string, documentId: string, body: Body) {
     const access = await this.access(headers, workspaceId, "document.edit");
     const id = requireId(documentId, "document id");
-    const force = body["force"] === true;
-    if (force && !access.permissions.has("document.lease.takeover")) throw new DomainError(403, "access-denied", "Only workspace administrators can force a takeover");
-    const context = this.command(headers, access.principal, "document.lease.takeover", { workspaceId: access.workspaceId, documentId: id, force });
-    const result = await this.documents.takeoverLease(context, access.workspaceId, id, force);
-    await this.audit(context, access.workspaceId, result.status === "acquired" ? "document.lease.taken-over" : "document.lease.takeover-requested", id);
+    if (body["force"] === true) throw new DomainError(400, "force-takeover-route-required", "Use the authorised force takeover action");
+    const reason = optionalReason(body["reason"], "Takeover requested");
+    const context = this.command(headers, access.principal, "document.lease.takeover.request", { workspaceId: access.workspaceId, documentId: id, reason });
+    const result = await this.documents.requestTakeover(context, access.workspaceId, id, reason);
+    await this.auditUnlessAtomic(context, access.workspaceId, result.status === "acquired" ? "document.lease.acquired-after-expiry" : "document.lease.takeover-requested", id);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, takeover: result };
+  }
+
+  async denyTakeover(headers: Headers, workspaceId: string, documentId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "document.edit");
+    const id = requireId(documentId, "document id");
+    const reason = optionalReason(body["reason"], "Takeover request denied");
+    const context = this.command(headers, access.principal, "document.lease.takeover.deny", { workspaceId: access.workspaceId, documentId: id, reason });
+    const lease = await this.documents.denyTakeover(context, access.workspaceId, id, this.leaseTokenHash(headers), reason);
+    await this.auditUnlessAtomic(context, access.workspaceId, "document.lease.takeover-denied", id);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, lease };
+  }
+
+  async forceTakeover(headers: Headers, workspaceId: string, documentId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "document.lease.takeover");
+    const id = requireId(documentId, "document id");
+    const reason = requireText(body["reason"], "force takeover reason", 500);
+    const context = this.command(headers, access.principal, "document.lease.takeover.force", { workspaceId: access.workspaceId, documentId: id, reason });
+    const result = await this.documents.forceTakeover(context, access.workspaceId, id, reason);
+    await this.auditUnlessAtomic(context, access.workspaceId, "document.lease.force-takeover", id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, takeover: result };
   }
 
@@ -142,7 +164,7 @@ export class DocumentsService implements OnApplicationShutdown {
     const name = requireText(body["name"], "version name", 100);
     const context = this.command(headers, access.principal, "document.version", { workspaceId: access.workspaceId, documentId: id, name });
     const result = await this.documents.createVersion(context, access.workspaceId, id, name);
-    if (!result.replayed) await this.audit(context, access.workspaceId, "document.version.created", id);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.version.created", id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, version: result.value, replayed: result.replayed };
   }
 
@@ -152,7 +174,7 @@ export class DocumentsService implements OnApplicationShutdown {
     const version = requireId(versionId, "version id");
     const context = this.command(headers, access.principal, "document.restore", { workspaceId: access.workspaceId, documentId: id, versionId: version });
     const result = await this.documents.restoreVersion(context, access.workspaceId, id, version, this.leaseTokenHash(headers));
-    if (!result.replayed) await this.audit(context, access.workspaceId, "document.version.restored", id);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.version.restored", id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
   }
 
@@ -167,7 +189,7 @@ export class DocumentsService implements OnApplicationShutdown {
     }
     const context = this.command(headers, access.principal, "document.save-as", { workspaceId: access.workspaceId, documentId: id, name, projectId });
     const result = await this.documents.saveAs(context, access.workspaceId, id, name, projectId, access.defaultFilesId);
-    if (!result.replayed) await this.audit(context, access.workspaceId, "document.saved-as", result.value.document.document_id);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.saved-as", result.value.document.document_id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
   }
 
@@ -198,7 +220,7 @@ export class DocumentsService implements OnApplicationShutdown {
     const result = direction === "undo"
       ? await this.documents.undo(context, access.workspaceId, id, this.leaseTokenHash(headers))
       : await this.documents.redo(context, access.workspaceId, id, this.leaseTokenHash(headers));
-    if (!result.replayed) await this.audit(context, access.workspaceId, `document.${direction}`, id);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, `document.${direction}`, id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, history: result.value, replayed: result.replayed };
   }
 
@@ -261,6 +283,18 @@ export class DocumentsService implements OnApplicationShutdown {
   private audit(context: CommandContext, workspaceId: string, action: string, resourceId: string) {
     return this.product.recordExternalMutation(context, workspaceId, action, "editor_document", resourceId);
   }
+
+  private auditUnlessAtomic(context: CommandContext, workspaceId: string, action: string, resourceId: string) {
+    return this.documents.recordsMutationsAtomically
+      ? Promise.resolve()
+      : this.audit(context, workspaceId, action, resourceId);
+  }
+}
+
+function optionalReason(value: unknown, fallback: string): string {
+  return value === undefined || value === null || value === ""
+    ? fallback
+    : requireText(value, "takeover reason", 500);
 }
 
 function requireMutation(value: unknown): EditorMutation {

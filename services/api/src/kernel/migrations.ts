@@ -20,25 +20,34 @@ export const MIGRATION_VERSIONS = [
   "0012_recovery_2c_transactional_notifications",
   "0013_recovery_2c_truthful_intake",
   "0014_recovery_2d_native_documents",
+  "0015_recovery_2d_corrective_foundation",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {
-  const version = await pool.query<{ server_version_num: string }>("SHOW server_version_num");
-  const major = Math.floor(Number(version.rows[0]?.server_version_num ?? 0) / 10000);
-  if (major !== POSTGRESQL_MAJOR) {
-    throw new Error(`PostgreSQL ${POSTGRESQL_MAJOR} is required; connected to major ${major || "unknown"}`);
-  }
-
-  const here = dirname(fileURLToPath(import.meta.url));
-  for (const versionName of MIGRATION_VERSIONS) {
-    const existing = await pool.query<{ present: boolean }>(
-      "SELECT to_regclass('public.schema_migrations') IS NOT NULL AS present",
-    );
-    if (existing.rows[0]?.present) {
-      const applied = await pool.query("SELECT 1 FROM schema_migrations WHERE version = $1", [versionName]);
-      if (applied.rowCount) continue;
+  const client = await pool.connect();
+  const lockName = "ipw-product-v2-schema-migrations";
+  try {
+    await client.query("SELECT pg_advisory_lock(hashtext($1))", [lockName]);
+    const version = await client.query<{ server_version_num: string }>("SHOW server_version_num");
+    const major = Math.floor(Number(version.rows[0]?.server_version_num ?? 0) / 10000);
+    if (major !== POSTGRESQL_MAJOR) {
+      throw new Error(`PostgreSQL ${POSTGRESQL_MAJOR} is required; connected to major ${major || "unknown"}`);
     }
-    const migration = resolve(here, "..", "..", "..", "migrations", `${versionName}.sql`);
-    await pool.query(await readFile(migration, "utf8"));
+
+    const here = dirname(fileURLToPath(import.meta.url));
+    for (const versionName of MIGRATION_VERSIONS) {
+      const existing = await client.query<{ present: boolean }>(
+        "SELECT to_regclass('public.schema_migrations') IS NOT NULL AS present",
+      );
+      if (existing.rows[0]?.present) {
+        const applied = await client.query("SELECT 1 FROM schema_migrations WHERE version = $1", [versionName]);
+        if (applied.rowCount) continue;
+      }
+      const migration = resolve(here, "..", "..", "..", "migrations", `${versionName}.sql`);
+      await client.query(await readFile(migration, "utf8"));
+    }
+  } finally {
+    await client.query("SELECT pg_advisory_unlock(hashtext($1))", [lockName]).catch(() => undefined);
+    client.release();
   }
 }

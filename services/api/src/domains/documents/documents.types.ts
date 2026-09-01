@@ -64,6 +64,7 @@ export interface DocumentHistoryResult {
 }
 
 export interface DocumentRepository {
+  readonly recordsMutationsAtomically: boolean;
   create(context: CommandContext, input: CreateDocumentInput): Promise<DocumentCommandResult<DocumentReadModel>>;
   list(actorId: string, workspaceId: string): Promise<EditorDocumentRecord[]>;
   get(actorId: string, workspaceId: string, documentId: string): Promise<DocumentReadModel | null>;
@@ -107,7 +108,7 @@ export interface DocumentRepository {
     documentId: string,
   ): Promise<EditorLeaseGrant>;
   heartbeatLease(
-    actorId: string,
+    context: CommandContext,
     workspaceId: string,
     documentId: string,
     leaseTokenHash: string,
@@ -118,11 +119,24 @@ export interface DocumentRepository {
     documentId: string,
     leaseTokenHash: string,
   ): Promise<EditorLeaseRecord>;
-  takeoverLease(
+  requestTakeover(
     context: CommandContext,
     workspaceId: string,
     documentId: string,
-    force: boolean,
+    reason: string,
+  ): Promise<LeaseTakeoverResult>;
+  denyTakeover(
+    context: CommandContext,
+    workspaceId: string,
+    documentId: string,
+    leaseTokenHash: string,
+    reason: string,
+  ): Promise<EditorLeaseRecord>;
+  forceTakeover(
+    context: CommandContext,
+    workspaceId: string,
+    documentId: string,
+    reason: string,
   ): Promise<LeaseTakeoverResult>;
   compatibilityReports(
     actorId: string,

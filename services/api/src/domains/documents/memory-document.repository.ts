@@ -58,6 +58,7 @@ interface IdempotencyRecord {
 }
 
 export class MemoryDocumentRepository implements DocumentRepository {
+  readonly recordsMutationsAtomically = false;
   private readonly documents = new Map<string, StoredDocument>();
   private readonly leases = new Map<string, StoredLease>();
   private readonly idempotency = new Map<string, IdempotencyRecord>();
@@ -225,49 +226,75 @@ export class MemoryDocumentRepository implements DocumentRepository {
     });
   }
 
-  async acquireLease(context: CommandContext, workspaceId: string, documentId: string, allowTakeover = false): Promise<EditorLeaseGrant> {
-    this.requireDocument(workspaceId, documentId);
-    const existing = this.leases.get(documentId);
-    const now = this.runtime.now();
-    if (!allowTakeover && existing && existing.record.actor_id !== context.principal.actorId && new Date(now) <= new Date(existing.record.grace_expires_at)) {
-      throw new DomainError(409, "document-lease-held", `${existing.record.actor_display_name} is currently editing this document`);
-    }
-    const rawToken = randomBytes(32).toString("hex");
-    const record = this.leaseRecord(documentId, context, now);
-    this.leases.set(documentId, { record, tokenHash: sha256(rawToken), takeoverRequestedBy: null });
-    return { schema_version: PRODUCT_SCHEMA_VERSION, lease: clone(record), lease_token: rawToken, takeover_warning: null };
+  async acquireLease(context: CommandContext, workspaceId: string, documentId: string): Promise<EditorLeaseGrant> {
+    return (await this.idempotent(context, "document.lease.acquire", () => {
+      this.requireDocument(workspaceId, documentId);
+      const existing = this.leases.get(documentId);
+      const now = this.runtime.now();
+      if (existing && existing.record.state !== "released" && new Date(now) <= new Date(existing.record.grace_expires_at)) {
+        throw new DomainError(409, "document-lease-held", `${existing.record.actor_display_name} is currently editing this document`);
+      }
+      return this.issueLease(context, documentId, now);
+    })).value;
   }
 
-  async heartbeatLease(actorId: string, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseRecord> {
-    this.requireDocument(workspaceId, documentId);
-    const lease = this.requireLease(actorId, documentId, leaseTokenHash, true);
-    const now = this.runtime.now();
-    lease.record.state = "active";
-    lease.record.heartbeat_at = now;
-    lease.record.expires_at = addSeconds(now, EDITOR_LEASE_SECONDS);
-    lease.record.grace_expires_at = addSeconds(lease.record.expires_at, EDITOR_LEASE_GRACE_SECONDS);
-    return clone(lease.record);
+  async heartbeatLease(context: CommandContext, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseRecord> {
+    return (await this.idempotent(context, "document.lease.heartbeat", () => {
+      this.requireDocument(workspaceId, documentId);
+      const lease = this.requireLease(context.principal.actorId, documentId, leaseTokenHash, true);
+      const now = this.runtime.now();
+      lease.record.state = "active";
+      lease.record.heartbeat_at = now;
+      lease.record.expires_at = addSeconds(now, EDITOR_LEASE_SECONDS);
+      lease.record.grace_expires_at = addSeconds(lease.record.expires_at, EDITOR_LEASE_GRACE_SECONDS);
+      return clone(lease.record);
+    })).value;
   }
 
   async releaseLease(context: CommandContext, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseRecord> {
-    this.requireDocument(workspaceId, documentId);
-    const lease = this.requireLease(context.principal.actorId, documentId, leaseTokenHash, true);
-    lease.record.state = "released";
-    lease.record.expires_at = this.runtime.now();
-    lease.record.grace_expires_at = this.runtime.now();
-    return clone(lease.record);
+    return (await this.idempotent(context, "document.lease.release", () => {
+      this.requireDocument(workspaceId, documentId);
+      const lease = this.requireLease(context.principal.actorId, documentId, leaseTokenHash, true);
+      lease.record.state = "released";
+      lease.record.expires_at = this.runtime.now();
+      lease.record.grace_expires_at = this.runtime.now();
+      return clone(lease.record);
+    })).value;
   }
 
-  async takeoverLease(context: CommandContext, workspaceId: string, documentId: string, force: boolean): Promise<LeaseTakeoverResult> {
-    this.requireDocument(workspaceId, documentId);
-    const existing = this.leases.get(documentId);
-    const now = this.runtime.now();
-    if (!existing || new Date(now) > new Date(existing.record.grace_expires_at) || force) {
-      const grant = await this.acquireLease(context, workspaceId, documentId, force);
-      return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired", current_editor: null, grant };
-    }
-    existing.takeoverRequestedBy = context.principal.actorId;
-    return { schema_version: PRODUCT_SCHEMA_VERSION, status: "requested", current_editor: clone(existing.record), grant: null };
+  async requestTakeover(context: CommandContext, workspaceId: string, documentId: string, reason: string): Promise<LeaseTakeoverResult> {
+    return (await this.idempotent(context, "document.lease.takeover.request", () => {
+      this.requireDocument(workspaceId, documentId);
+      const existing = this.leases.get(documentId);
+      const now = this.runtime.now();
+      if (!existing || existing.record.state === "released" || new Date(now) > new Date(existing.record.grace_expires_at)) {
+        const grant = this.issueLease(context, documentId, now);
+        return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired" as const, current_editor: null, grant };
+      }
+      void reason;
+      existing.takeoverRequestedBy = context.principal.actorId;
+      return { schema_version: PRODUCT_SCHEMA_VERSION, status: "requested" as const, current_editor: clone(existing.record), grant: null };
+    })).value;
+  }
+
+  async denyTakeover(context: CommandContext, workspaceId: string, documentId: string, leaseTokenHash: string, reason: string): Promise<EditorLeaseRecord> {
+    return (await this.idempotent(context, "document.lease.takeover.deny", () => {
+      this.requireDocument(workspaceId, documentId);
+      const lease = this.requireLease(context.principal.actorId, documentId, leaseTokenHash, true);
+      if (!lease.takeoverRequestedBy) throw new DomainError(409, "takeover-request-missing", "There is no active takeover request");
+      void reason;
+      lease.takeoverRequestedBy = null;
+      return clone(lease.record);
+    })).value;
+  }
+
+  async forceTakeover(context: CommandContext, workspaceId: string, documentId: string, reason: string): Promise<LeaseTakeoverResult> {
+    return (await this.idempotent(context, "document.lease.takeover.force", () => {
+      this.requireDocument(workspaceId, documentId);
+      void reason;
+      const grant = this.issueLease(context, documentId, this.runtime.now());
+      return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired" as const, current_editor: null, grant };
+    })).value;
   }
 
   async compatibilityReports(actorId: string, workspaceId: string, documentId: string): Promise<ImportCompatibilityReport[]> {
@@ -307,6 +334,13 @@ export class MemoryDocumentRepository implements DocumentRepository {
       state: "active", acquired_at: now, heartbeat_at: now, expires_at: expiresAt,
       grace_expires_at: addSeconds(expiresAt, EDITOR_LEASE_GRACE_SECONDS),
     };
+  }
+
+  private issueLease(context: CommandContext, documentId: string, now: string): EditorLeaseGrant {
+    const rawToken = randomBytes(32).toString("hex");
+    const record = this.leaseRecord(documentId, context, now);
+    this.leases.set(documentId, { record, tokenHash: sha256(rawToken), takeoverRequestedBy: null });
+    return { schema_version: PRODUCT_SCHEMA_VERSION, lease: clone(record), lease_token: rawToken, takeover_warning: null };
   }
 
   private advanceHistory(stored: StoredDocument, target: EditorDocumentSnapshot) {

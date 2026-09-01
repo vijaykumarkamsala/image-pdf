@@ -157,7 +157,7 @@ export class PostgresExperienceRepository implements ExperienceRepository {
     const result = await this.pool.query(
       `SELECT notification.*,reads.read_at FROM notifications notification
        LEFT JOIN notification_reads reads ON reads.notification_id=notification.notification_id AND reads.actor_id=$2
-       WHERE notification.workspace_id=$1
+       WHERE notification.workspace_id=$1 AND (notification.recipient_actor_id IS NULL OR notification.recipient_actor_id=$2)
          AND ($3::timestamptz IS NULL OR (notification.occurred_at,notification.kind,notification.notification_id)<($3::timestamptz,$4,$5))
        ORDER BY notification.occurred_at DESC,notification.kind DESC,notification.notification_id DESC LIMIT $6`,
       [workspaceId, actorId, cursor?.occurredAt ?? null, cursor?.kind ?? "~", cursor?.resourceId ?? "", limit + 1],
@@ -165,7 +165,8 @@ export class PostgresExperienceRepository implements ExperienceRepository {
     const count = await this.pool.query(
       `SELECT count(*)::integer AS unread FROM notifications notification
        LEFT JOIN notification_reads reads ON reads.notification_id=notification.notification_id AND reads.actor_id=$2
-       WHERE notification.workspace_id=$1 AND reads.notification_id IS NULL`,
+       WHERE notification.workspace_id=$1 AND (notification.recipient_actor_id IS NULL OR notification.recipient_actor_id=$2)
+         AND reads.notification_id IS NULL`,
       [workspaceId, actorId],
     );
     const notifications = result.rows.slice(0, limit).map(notification);
@@ -189,8 +190,9 @@ export class PostgresExperienceRepository implements ExperienceRepository {
         return true;
       }
       const existing = await client.query(
-        "SELECT 1 FROM notifications WHERE workspace_id=$1 AND notification_id=$2 FOR UPDATE",
-        [workspaceId, notificationId],
+        `SELECT 1 FROM notifications WHERE workspace_id=$1 AND notification_id=$2
+         AND (recipient_actor_id IS NULL OR recipient_actor_id=$3) FOR UPDATE`,
+        [workspaceId, notificationId, actorId],
       );
       if (!existing.rowCount) throw new DomainError(404, "notification-not-found", "Notification was not found");
       await client.query(
@@ -220,6 +222,7 @@ export class PostgresExperienceRepository implements ExperienceRepository {
       await client.query(
         `INSERT INTO notification_reads(notification_id,actor_id,read_at)
          SELECT notification_id,$2,$3 FROM notifications WHERE workspace_id=$1
+         AND (recipient_actor_id IS NULL OR recipient_actor_id=$2)
          ON CONFLICT (notification_id,actor_id) DO NOTHING`,
         [workspaceId, actorId, now],
       );

@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.13.0";
+export const PRODUCT_SCHEMA_VERSION = "1.14.0";
 
 export interface Actor {
   schema_version?: string;
@@ -396,8 +396,8 @@ export interface Membership {
   role: RolePreset;
 }
 
-export type NotificationKind = "upload_accepted" | "upload_rejected" | "job_completed" | "job_failed" | "job_cancelled" | "retry_required" | "retry_completed" | "guest_handoff_completed" | "source_cleanup_required";
-export const NotificationKindValues: readonly NotificationKind[] = ["upload_accepted", "upload_rejected", "job_completed", "job_failed", "job_cancelled", "retry_required", "retry_completed", "guest_handoff_completed", "source_cleanup_required"] as const;
+export type NotificationKind = "upload_accepted" | "upload_rejected" | "job_completed" | "job_failed" | "job_cancelled" | "retry_required" | "retry_completed" | "guest_handoff_completed" | "source_cleanup_required" | "lease_takeover_requested";
+export const NotificationKindValues: readonly NotificationKind[] = ["upload_accepted", "upload_rejected", "job_completed", "job_failed", "job_cancelled", "retry_required", "retry_completed", "guest_handoff_completed", "source_cleanup_required", "lease_takeover_requested"] as const;
 
 export interface NotificationRecord {
   schema_version?: string;

@@ -962,3 +962,182 @@ test(
     }
   },
 );
+
+test(
+  "PostgreSQL 17 scopes lease transitions to tenants and serialises takeover retries",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    const pool = new Pool({ connectionString, max: 8 });
+    const runtime = new DeterministicRuntimeValues("2026-09-01T08:00:00.000Z");
+    for (let index = 0; index < 2000; index += 1) runtime.id("test-seed");
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    try {
+      await Promise.all([runMigrations(pool), runMigrations(pool)]);
+      const owner = await product.bootstrap(context("actor-lease-owner-pg", "lease-owner-bootstrap", "session.bootstrap", {}));
+      const outsider = await product.bootstrap(context("actor-lease-outsider-pg", "lease-outsider-bootstrap", "session.bootstrap", {}));
+      await pool.query(
+        `INSERT INTO actors(actor_id,display_name,created_at) VALUES
+         ('actor-lease-peer-a','Lease peer A',now()),('actor-lease-peer-b','Lease peer B',now())
+         ON CONFLICT(actor_id) DO NOTHING`,
+      );
+      const created = await documents.create(
+        context("actor-lease-owner-pg", "lease-document-create", "document.create", { name: "Tenant lease proof" }),
+        {
+          workspaceId: owner.workspace.workspace_id,
+          defaultFilesId: owner.defaultFiles.default_files_id,
+          name: "Tenant lease proof",
+          intendedUse: "digital",
+          intendedUseLabel: "Digital design",
+          width: 640,
+          height: 480,
+        },
+      );
+      const documentId = created.value.document.document_id;
+      const held = await documents.acquireLease(
+        context("actor-lease-owner-pg", "lease-document-acquire", "document.lease.acquire", { documentId }),
+        owner.workspace.workspace_id,
+        documentId,
+      );
+      const acquireReplay = await documents.acquireLease(
+        context("actor-lease-owner-pg", "lease-document-acquire", "document.lease.acquire", { documentId }),
+        owner.workspace.workspace_id,
+        documentId,
+      );
+      assert.equal(acquireReplay.lease_token, held.lease_token);
+
+      await assert.rejects(
+        documents.requestTakeover(
+          context("actor-lease-outsider-pg", "lease-guessed-id", "document.lease.takeover.request", { documentId }),
+          outsider.workspace.workspace_id,
+          documentId,
+          "Guessed identifier",
+        ),
+        (error: unknown) => error instanceof DomainError && error.code === "document-not-found",
+      );
+
+      const requestAContext = context("actor-lease-peer-a", "lease-request-a", "document.lease.takeover.request", { documentId, reason: "A" });
+      const requestBContext = context("actor-lease-peer-b", "lease-request-b", "document.lease.takeover.request", { documentId, reason: "B" });
+      const [requestA, requestB] = await Promise.all([
+        documents.requestTakeover(requestAContext, owner.workspace.workspace_id, documentId, "A"),
+        documents.requestTakeover(requestBContext, owner.workspace.workspace_id, documentId, "B"),
+      ]);
+      assert.equal(requestA.status, "requested");
+      assert.equal(requestB.status, "requested");
+      assert.equal(
+        (await documents.requestTakeover(requestAContext, owner.workspace.workspace_id, documentId, "A")).status,
+        "requested",
+      );
+
+      const leaseEvents = await pool.query(
+        `SELECT event_kind,actor_id FROM document_lease_events
+         WHERE workspace_id=$1 AND document_id=$2 ORDER BY occurred_at,event_kind,actor_id`,
+        [owner.workspace.workspace_id, documentId],
+      );
+      assert.equal(leaseEvents.rows.filter((row) => row.event_kind === "takeover_requested").length, 2);
+      const notifications = await pool.query(
+        "SELECT recipient_actor_id FROM notifications WHERE workspace_id=$1 AND resource_id=$2 AND kind='lease_takeover_requested'",
+        [owner.workspace.workspace_id, documentId],
+      );
+      assert.ok(notifications.rows.every((row) => row.recipient_actor_id === "actor-lease-owner-pg"));
+
+      const forced = await documents.forceTakeover(
+        context("actor-lease-peer-a", "lease-force-a", "document.lease.takeover.force", { documentId, reason: "Owner-approved recovery" }),
+        owner.workspace.workspace_id,
+        documentId,
+        "Owner-approved recovery",
+      );
+      assert.equal(forced.status, "acquired");
+      assert.equal(forced.grant?.lease.actor_id, "actor-lease-peer-a");
+
+      await pool.query(
+        `CREATE OR REPLACE FUNCTION reject_editor_atomic_audit() RETURNS trigger AS $$
+         BEGIN
+           IF NEW.action='layer.add' AND NEW.resource_id='${documentId}' THEN
+             RAISE EXCEPTION 'atomic audit proof';
+           END IF;
+           RETURN NEW;
+         END;
+         $$ LANGUAGE plpgsql;
+         CREATE TRIGGER reject_editor_atomic_audit_trigger BEFORE INSERT ON audit_events
+         FOR EACH ROW EXECUTE FUNCTION reject_editor_atomic_audit();`,
+      );
+      try {
+        const artboardId = created.value.snapshot.artboards[0].artboard_id;
+        const mutation = {
+          kind: "layer.add" as const,
+          layer: {
+            schema_version: PRODUCT_SCHEMA_VERSION,
+            layer_id: "layer-atomic-proof",
+            artboard_id: artboardId,
+            parent_layer_id: null,
+            layer_type: "shape" as const,
+            name: "Atomic proof",
+            order: 0,
+            visible: true,
+            locked: false,
+            opacity: 1,
+            blend_mode: "normal",
+            transform: {
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              x: 0, y: 0, width: 100, height: 100, rotation_degrees: 0,
+              scale_x: 1, scale_y: 1, skew_x_degrees: 0, skew_y_degrees: 0,
+              flip_x: false, flip_y: false,
+            },
+            shared_style_ids: [],
+            raster: null,
+            vector: null,
+            rich_text: null,
+            shape: {
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              shape: "rectangle" as const,
+              fill: "#3559e0",
+              stroke: null,
+              stroke_width: 0,
+              corner_radius: 0,
+            },
+            group: null,
+            extension_payload: {},
+          },
+          properties: {},
+        };
+        await assert.rejects(
+          documents.mutate(
+            context("actor-lease-peer-a", "lease-atomic-mutation", "document.mutate", { documentId, mutation }),
+            {
+              workspaceId: owner.workspace.workspace_id,
+              documentId,
+              baseRevision: 0,
+              mutation,
+              leaseTokenHash: (await import("../src/domains/documents/document-model.js")).sha256(forced.grant!.lease_token),
+            },
+          ),
+          /atomic audit proof/,
+        );
+      } finally {
+        await pool.query("DROP TRIGGER IF EXISTS reject_editor_atomic_audit_trigger ON audit_events");
+        await pool.query("DROP FUNCTION IF EXISTS reject_editor_atomic_audit() ");
+      }
+      assert.equal((await documents.get("actor-lease-peer-a", owner.workspace.workspace_id, documentId))!.snapshot.revision, 0);
+      assert.equal(
+        Number((await pool.query("SELECT count(*)::int AS count FROM document_operations WHERE document_id=$1", [documentId])).rows[0].count),
+        0,
+      );
+
+      const audit = await pool.query(
+        "SELECT action FROM audit_events WHERE workspace_id=$1 AND resource_id=$2 ORDER BY occurred_at",
+        [owner.workspace.workspace_id, documentId],
+      );
+      assert.ok(audit.rows.some((row) => row.action === "document.lease.takeover-requested"));
+      assert.ok(audit.rows.some((row) => row.action === "document.lease.force-takeover"));
+      const usage = await pool.query(
+        "SELECT customer_amount,credit_debit FROM usage_events WHERE workspace_id=$1",
+        [owner.workspace.workspace_id],
+      );
+      assert.ok(usage.rows.every((row) => Number(row.customer_amount) === 0 && row.credit_debit === 0));
+    } finally {
+      await pool.end();
+    }
+  },
+);

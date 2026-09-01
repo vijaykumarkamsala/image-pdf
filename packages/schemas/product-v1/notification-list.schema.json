@@ -10,7 +10,8 @@
         "retry_required",
         "retry_completed",
         "guest_handoff_completed",
-        "source_cleanup_required"
+        "source_cleanup_required",
+        "lease_takeover_requested"
       ],
       "title": "NotificationKind",
       "type": "string"
@@ -63,7 +64,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.13.0",
+          "default": "1.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -119,7 +120,7 @@
       "type": "array"
     },
     "schema_version": {
-      "default": "1.13.0",
+      "default": "1.14.0",
       "title": "Schema Version",
       "type": "string"
     },

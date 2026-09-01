@@ -599,6 +599,7 @@ class NotificationKind(StrEnum):
     RETRY_COMPLETED = "retry_completed"
     GUEST_HANDOFF_COMPLETED = "guest_handoff_completed"
     SOURCE_CLEANUP_REQUIRED = "source_cleanup_required"
+    LEASE_TAKEOVER_REQUESTED = "lease_takeover_requested"
 
 
 class NotificationRecord(ProductKernelContractModel):
