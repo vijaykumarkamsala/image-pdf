@@ -14,7 +14,7 @@ export interface EditorRendererCallbacks {
 
 export interface EditorRenderer {
   mount(element: HTMLCanvasElement, callbacks: EditorRendererCallbacks): void;
-  render(snapshot: EditorDocumentSnapshot, sourceUrl?: string): Promise<void>;
+  render(snapshot: EditorDocumentSnapshot, assetSource?: string | ((sharedAssetId: string) => string)): Promise<void>;
   resize(width: number, height: number): void;
   select(layerId: string | null): void;
   setReadOnly(readOnly: boolean): void;

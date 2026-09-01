@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.16.0";
+export const PRODUCT_SCHEMA_VERSION = "1.17.0";
 
 export interface Actor {
   schema_version?: string;
@@ -209,17 +209,20 @@ export interface EditorMutation {
   schema_version?: string;
   kind: EditorOperationKind;
   target_id?: string | null;
+  target_ids?: string[];
   layer?: LayerRecord | null;
   artboard?: ArtboardRecord | null;
   mask?: EditableMaskRecord | null;
+  shared_asset?: SharedAssetRecord | null;
+  shared_style?: SharedStyleRecord | null;
   transform?: LayerTransform | null;
   crop?: CropRegion | null;
   adjustments?: VisualAdjustments | null;
   properties?: Partial<Record<string, string | number | boolean | null>>;
 }
 
-export type EditorOperationKind = "layer.add" | "layer.update" | "layer.remove" | "layer.reorder" | "artboard.add" | "artboard.update" | "artboard.remove" | "mask.update" | "document.rename";
-export const EditorOperationKindValues: readonly EditorOperationKind[] = ["layer.add", "layer.update", "layer.remove", "layer.reorder", "artboard.add", "artboard.update", "artboard.remove", "mask.update", "document.rename"] as const;
+export type EditorOperationKind = "layer.add" | "layer.update" | "layer.remove" | "layer.reorder" | "layer.group" | "layer.ungroup" | "artboard.add" | "artboard.update" | "artboard.remove" | "mask.update" | "asset.add" | "style.upsert" | "style.detach" | "document.rename";
+export const EditorOperationKindValues: readonly EditorOperationKind[] = ["layer.add", "layer.update", "layer.remove", "layer.reorder", "layer.group", "layer.ungroup", "artboard.add", "artboard.update", "artboard.remove", "mask.update", "asset.add", "style.upsert", "style.detach", "document.rename"] as const;
 
 export type EditorPreviewState = "not_required" | "preparing" | "ready" | "failed" | "cancelled";
 export const EditorPreviewStateValues: readonly EditorPreviewState[] = ["not_required", "preparing", "ready", "failed", "cancelled"] as const;
@@ -520,6 +523,13 @@ export interface ShapeLayerData {
   stroke?: string | null;
   stroke_width?: number;
   corner_radius?: number;
+  points?: ShapePoint[];
+}
+
+export interface ShapePoint {
+  schema_version?: string;
+  x: number;
+  y: number;
 }
 
 export type SharedAssetKind = "raster" | "vector" | "brand";

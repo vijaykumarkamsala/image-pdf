@@ -11,14 +11,20 @@ from ipw.contracts.editor import (
     ArtboardRecord,
     ArtboardUnit,
     EditorDocumentSnapshot,
+    EditableMaskRecord,
     IntendedUseKind,
     IntendedUseMetadata,
     LayerRecord,
     LayerTransform,
     LayerType,
+    MaskKind,
     PreviewProvenance,
     ShapeKind,
     ShapeLayerData,
+    ShapePoint,
+    RichTextLayerData,
+    RichTextRun,
+    VectorLayerData,
 )
 
 
@@ -99,4 +105,28 @@ def test_preview_contract_cannot_become_authoritative() -> None:
             height=400,
             authoritative=cast(Any, True),
             created_at="2026-08-31T00:00:00.000Z",
+        )
+
+
+def test_native_semantics_reject_misleading_geometry_and_ranges() -> None:
+    with pytest.raises(ValidationError, match="orientation"):
+        ArtboardRecord(
+            **{**artboard().model_dump(), "orientation": ArtboardOrientation.PORTRAIT}
+        )
+    with pytest.raises(ValidationError, match="exactly two"):
+        ShapeLayerData(shape=ShapeKind.LINE, points=(ShapePoint(x=0, y=0),))
+    with pytest.raises(ValidationError, match="unsupported commands"):
+        VectorLayerData(path_data='<script>alert("x")</script>')
+    with pytest.raises(ValidationError, match="non-overlapping"):
+        RichTextLayerData(
+            text="Native text",
+            runs=(RichTextRun(start=0, end=6), RichTextRun(start=4, end=8)),
+        )
+    with pytest.raises(ValidationError, match="inside the target"):
+        EditableMaskRecord(
+            mask_id="mask-bounds",
+            artboard_id="artboard-main",
+            name="Outside",
+            kind=MaskKind.SHAPE,
+            path_data="rect(0.5,0.5,0.8,0.8)",
         )

@@ -33,7 +33,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -57,7 +57,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -106,7 +106,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -193,7 +193,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -242,7 +242,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -277,7 +277,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -349,8 +349,16 @@
           "default": "#3559e0",
           "title": "Fill"
         },
+        "points": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ShapePoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -381,6 +389,34 @@
         "shape"
       ],
       "title": "ShapeLayerData",
+      "type": "object"
+    },
+    "ShapePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "default": "1.17.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "ShapePoint",
       "type": "object"
     },
     "VectorLayerData": {
@@ -446,7 +482,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -518,7 +554,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -665,7 +701,7 @@
       "default": null
     },
     "schema_version": {
-      "default": "1.16.0",
+      "default": "1.17.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -7,6 +7,7 @@ these models and must never be persisted as the editable source of truth.
 from __future__ import annotations
 
 from enum import StrEnum
+import re
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -113,6 +114,19 @@ class ArtboardRecord(EditorContractModel):
     background: ArtboardBackground
     intended_use: IntendedUseMetadata
 
+    @model_validator(mode="after")
+    def _orientation_matches_dimensions(self) -> ArtboardRecord:
+        expected = (
+            ArtboardOrientation.SQUARE
+            if self.width == self.height
+            else ArtboardOrientation.LANDSCAPE
+            if self.width > self.height
+            else ArtboardOrientation.PORTRAIT
+        )
+        if self.orientation is not expected:
+            raise ValueError("artboard orientation must match its dimensions")
+        return self
+
 
 class LayerTransform(EditorContractModel):
     x: float = Field(ge=-1_000_000, le=1_000_000)
@@ -206,6 +220,21 @@ class EditableMaskRecord(EditorContractModel):
     path_data: str | None = None
     object_reference_id: SlugId | None = None
 
+    @model_validator(mode="after")
+    def _supported_initial_mask(self) -> EditableMaskRecord:
+        if self.kind is MaskKind.SHAPE:
+            if self.path_data is None or not re.fullmatch(
+                r"(?:rect|ellipse)\(\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*\)",
+                self.path_data,
+            ):
+                raise ValueError("shape masks require a normalized rect or ellipse path")
+            if self.object_reference_id is not None:
+                raise ValueError("shape masks cannot carry an object reference")
+            values = [float(value) for value in self.path_data[self.path_data.index("(") + 1 : -1].split(",")]
+            if values[2] <= 0 or values[3] <= 0 or values[0] + values[2] > 1 or values[1] + values[3] > 1:
+                raise ValueError("shape mask bounds must stay inside the target layer")
+        return self
+
 
 class RasterLayerData(EditorContractModel):
     shared_asset_id: SlugId
@@ -224,6 +253,15 @@ class VectorLayerData(EditorContractModel):
     stroke: str | None = None
     stroke_width: float = Field(default=0, ge=0, le=10_000)
     mask_ids: tuple[SlugId, ...] = ()
+
+    @model_validator(mode="after")
+    def _internal_path_is_safe(self) -> VectorLayerData:
+        if self.path_data is not None:
+            if len(self.path_data) > 20_000 or not re.fullmatch(
+                r"[MmLlHhVvCcSsQqTtAaZz0-9eE+.,\s-]+", self.path_data
+            ):
+                raise ValueError("vector path uses unsupported commands or markup")
+        return self
 
 
 class RichTextRun(EditorContractModel):
@@ -246,6 +284,17 @@ class RichTextLayerData(EditorContractModel):
     color: NonEmptyStr = "#162033"
     text_align: Literal["left", "center", "right", "justify"] = "left"
 
+    @model_validator(mode="after")
+    def _runs_are_ordered_and_bounded(self) -> RichTextLayerData:
+        previous_end = 0
+        for run in self.runs:
+            if run.end > len(self.text):
+                raise ValueError("rich-text runs must stay within the text")
+            if run.start < previous_end:
+                raise ValueError("rich-text runs must be ordered and non-overlapping")
+            previous_end = run.end
+        return self
+
 
 class ShapeKind(StrEnum):
     RECTANGLE = "rectangle"
@@ -254,12 +303,28 @@ class ShapeKind(StrEnum):
     POLYGON = "polygon"
 
 
+class ShapePoint(EditorContractModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
 class ShapeLayerData(EditorContractModel):
     shape: ShapeKind
     fill: str | None = "#3559e0"
     stroke: str | None = None
     stroke_width: float = Field(default=0, ge=0, le=10_000)
     corner_radius: float = Field(default=0, ge=0, le=100_000)
+    points: tuple[ShapePoint, ...] = ()
+
+    @model_validator(mode="after")
+    def _points_match_shape(self) -> ShapeLayerData:
+        if self.shape in {ShapeKind.RECTANGLE, ShapeKind.ELLIPSE} and self.points:
+            raise ValueError("rectangle and ellipse shapes do not use explicit points")
+        if self.shape is ShapeKind.LINE and len(self.points) != 2:
+            raise ValueError("line shapes require exactly two points")
+        if self.shape is ShapeKind.POLYGON and len(self.points) < 3:
+            raise ValueError("polygon shapes require at least three points")
+        return self
 
 
 class GroupLayerData(EditorContractModel):
@@ -439,19 +504,27 @@ class EditorOperationKind(StrEnum):
     LAYER_UPDATE = "layer.update"
     LAYER_REMOVE = "layer.remove"
     LAYER_REORDER = "layer.reorder"
+    LAYER_GROUP = "layer.group"
+    LAYER_UNGROUP = "layer.ungroup"
     ARTBOARD_ADD = "artboard.add"
     ARTBOARD_UPDATE = "artboard.update"
     ARTBOARD_REMOVE = "artboard.remove"
     MASK_UPDATE = "mask.update"
+    ASSET_ADD = "asset.add"
+    STYLE_UPSERT = "style.upsert"
+    STYLE_DETACH = "style.detach"
     DOCUMENT_RENAME = "document.rename"
 
 
 class EditorMutation(EditorContractModel):
     kind: EditorOperationKind
     target_id: SlugId | None = None
+    target_ids: tuple[SlugId, ...] = ()
     layer: LayerRecord | None = None
     artboard: ArtboardRecord | None = None
     mask: EditableMaskRecord | None = None
+    shared_asset: SharedAssetRecord | None = None
+    shared_style: SharedStyleRecord | None = None
     transform: LayerTransform | None = None
     crop: CropRegion | None = None
     adjustments: VisualAdjustments | None = None

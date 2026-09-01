@@ -165,3 +165,58 @@ test("verified raster becomes an immutable-source native document with lease, au
     await server.close();
   }
 });
+
+test("additional Studio assets are server-authorised, replay-safe and independently delivered", async () => {
+  const server = await api();
+  try {
+    const bootstrap = await json(await server.request("/session/bootstrap", { method: "POST", headers: { "idempotency-key": "asset-bootstrap" } }));
+    const workspaceId = bootstrap.workspace.workspace_id as string;
+    const accept = async (name: string, bytes: Uint8Array, key: string) => {
+      const upload = await json(await server.request(`/workspaces/${workspaceId}/upload-sessions`, {
+        method: "POST", headers: { "idempotency-key": `${key}-upload` },
+        body: JSON.stringify({ display_name: name, media_type: "image/png", byte_size: bytes.byteLength }),
+      }));
+      const uploadUrl = new URL(upload.authorization.upload_url, "http://local");
+      await server.request(`${uploadUrl.pathname.replace("/v1", "")}${uploadUrl.search}`, {
+        method: "PUT", headers: { "content-type": "application/octet-stream", "upload-offset": "0" }, body: bytes,
+      });
+      await server.request(`/upload-sessions/${upload.upload_session.upload_session_id}/finalise`, { method: "POST", headers: { "idempotency-key": `${key}-finalise` } });
+      assert.equal(await server.executor.runAvailable(), true);
+      return json(await server.request(`/upload-sessions/${upload.upload_session.upload_session_id}`));
+    };
+    const first = await accept("first.png", png(120, 80), "asset-first");
+    const secondBytes = png(64, 64);
+    const second = await accept("second.png", secondBytes, "asset-second");
+    const created = await json(await server.request(`/workspaces/${workspaceId}/documents`, {
+      method: "POST", headers: { "idempotency-key": "asset-document" },
+      body: JSON.stringify({ name: "Multi asset", source_file_id: first.upload_session.file_id, intended_use: "digital" }),
+    }));
+    const documentId = created.editor.document.document_id as string;
+    const lease = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}/lease`, {
+      method: "POST", headers: { "idempotency-key": "asset-lease" },
+    }));
+    const options = {
+      method: "POST",
+      headers: { "idempotency-key": "asset-add", "x-editor-lease": lease.grant.lease_token },
+      body: JSON.stringify({ base_revision: 0, file_id: second.upload_session.file_id, artboard_id: created.editor.snapshot.artboards[0].artboard_id }),
+    };
+    const added = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}/assets`, options));
+    const replay = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}/assets`, options));
+    assert.equal(added.mutation.snapshot.shared_assets.length, 2);
+    assert.equal(added.mutation.snapshot.layers.length, 2);
+    assert.equal(replay.mutation.replayed, true);
+    const addedAssetId = added.mutation.snapshot.layers.find((item: any) => item.name === "second.png").raster.shared_asset_id as string;
+    const delivered = await server.request(`/workspaces/${workspaceId}/documents/${documentId}/assets/${addedAssetId}/source`, { headers: { "content-type": "" } });
+    assert.equal(delivered.status, 200);
+    assert.deepEqual([...new Uint8Array(await delivered.arrayBuffer())], [...secondBytes]);
+
+    const spoofed = await server.request(`/workspaces/${workspaceId}/documents/${documentId}`, {
+      method: "PATCH", headers: { "idempotency-key": "asset-spoof", "x-editor-lease": lease.grant.lease_token },
+      body: JSON.stringify({ base_revision: 1, mutation: { kind: "asset.add", shared_asset: { shared_asset_id: "forged" }, properties: {} } }),
+    });
+    assert.equal(spoofed.status, 400);
+    assert.equal((await json(spoofed)).error.code, "document-mutation-invalid");
+  } finally {
+    await server.close();
+  }
+});

@@ -25,7 +25,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -77,7 +77,7 @@
           "$ref": "#/$defs/ArtboardOrientation"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -148,7 +148,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -228,7 +228,7 @@
           "title": "Path Data"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -248,10 +248,15 @@
         "layer.update",
         "layer.remove",
         "layer.reorder",
+        "layer.group",
+        "layer.ungroup",
         "artboard.add",
         "artboard.update",
         "artboard.remove",
         "mask.update",
+        "asset.add",
+        "style.upsert",
+        "style.detach",
         "document.rename"
       ],
       "title": "EditorOperationKind",
@@ -266,7 +271,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -320,7 +325,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -448,7 +453,7 @@
           "default": null
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -544,7 +549,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -640,7 +645,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -689,7 +694,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -724,7 +729,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -796,8 +801,16 @@
           "default": "#3559e0",
           "title": "Fill"
         },
+        "points": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ShapePoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -828,6 +841,202 @@
         "shape"
       ],
       "title": "ShapeLayerData",
+      "type": "object"
+    },
+    "ShapePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "default": "1.17.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "x": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "ShapePoint",
+      "type": "object"
+    },
+    "SharedAssetKind": {
+      "enum": [
+        "raster",
+        "vector",
+        "brand"
+      ],
+      "title": "SharedAssetKind",
+      "type": "string"
+    },
+    "SharedAssetRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_original_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Original Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/SharedAssetKind"
+        },
+        "linked_by_default": {
+          "default": false,
+          "title": "Linked By Default",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "object_reference_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Reference Id"
+        },
+        "preview_object_reference_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preview Object Reference Id"
+        },
+        "schema_version": {
+          "default": "1.17.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "shared_asset_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Shared Asset Id",
+          "type": "string"
+        },
+        "source_version_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Id"
+        },
+        "workspace_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Workspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "shared_asset_id",
+        "workspace_id",
+        "kind",
+        "name"
+      ],
+      "title": "SharedAssetRecord",
+      "type": "object"
+    },
+    "SharedStyleKind": {
+      "enum": [
+        "fill",
+        "stroke",
+        "text",
+        "effect",
+        "brand"
+      ],
+      "title": "SharedStyleKind",
+      "type": "string"
+    },
+    "SharedStyleRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/SharedStyleKind"
+        },
+        "name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Properties",
+          "type": "object"
+        },
+        "schema_version": {
+          "default": "1.17.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "shared_style_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Shared Style Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "shared_style_id",
+        "name",
+        "kind"
+      ],
+      "title": "SharedStyleRecord",
       "type": "object"
     },
     "VectorLayerData": {
@@ -893,7 +1102,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -965,7 +1174,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.16.0",
+          "default": "1.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1081,9 +1290,31 @@
       "type": "object"
     },
     "schema_version": {
-      "default": "1.16.0",
+      "default": "1.17.0",
       "title": "Schema Version",
       "type": "string"
+    },
+    "shared_asset": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SharedAssetRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "shared_style": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SharedStyleRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "target_id": {
       "anyOf": [
@@ -1097,6 +1328,15 @@
       ],
       "default": null,
       "title": "Target Id"
+    },
+    "target_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "title": "Target Ids",
+      "type": "array"
     },
     "transform": {
       "anyOf": [

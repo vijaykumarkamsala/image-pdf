@@ -1,14 +1,16 @@
 import { Inject, Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
-import type { EditorDocumentSnapshot, EditorMutation, Permission } from "ipw-contracts-ts/product";
+import type { EditorDocumentSnapshot, EditorMutation, LayerRecord, Permission, SharedAssetRecord } from "ipw-contracts-ts/product";
 
 import { DomainError, requireId, requireText } from "../../kernel/errors.js";
 import {
   PRODUCT_REPOSITORY,
+  RUNTIME_VALUES,
   type CommandContext,
   type ProductKernelRepository,
 } from "../../kernel/product.types.js";
 import { requestDigest } from "../../kernel/runtime.js";
+import type { RuntimeValues } from "../../kernel/runtime.js";
 import { IdentityBoundary } from "../identity/identity.service.js";
 import { INTAKE_REPOSITORY, type IntakeRepository, type StoredUploadSession } from "../intake/intake.types.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
@@ -26,6 +28,7 @@ export class DocumentsService implements OnApplicationShutdown {
     @Inject(PRODUCT_REPOSITORY) private readonly product: ProductKernelRepository,
     @Inject(INTAKE_REPOSITORY) private readonly intake: IntakeRepository,
     @Inject(PRIVATE_OBJECT_STORE) private readonly objects: PrivateObjectStore,
+    @Inject(RUNTIME_VALUES) private readonly runtime: RuntimeValues,
     private readonly identity: IdentityBoundary,
   ) {}
 
@@ -113,6 +116,92 @@ export class DocumentsService implements OnApplicationShutdown {
       leaseTokenHash: this.leaseTokenHash(headers),
     });
     if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, mutation.kind, id);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, mutation: result };
+  }
+
+  async addAsset(headers: Headers, workspaceId: string, documentId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "document.edit");
+    const id = requireId(documentId, "document id");
+    const fileId = requireId(body["file_id"], "file id");
+    const artboardId = requireId(body["artboard_id"], "artboard id");
+    const baseRevision = requiredRevision(body["base_revision"]);
+    const source = await this.verifiedSource(access.principal.actorId, access.workspaceId, fileId);
+    if (source.requiresPreview) {
+      throw new DomainError(409, "editor-asset-preview-required", "This source needs a generated preview before it can be added as another asset");
+    }
+    const current = await this.documents.get(access.principal.actorId, access.workspaceId, id);
+    if (!current) throw new DomainError(404, "document-not-found", "Document was not found");
+    const artboard = current.snapshot.artboards.find((item) => item.artboard_id === artboardId);
+    if (!artboard) throw new DomainError(404, "artboard-not-found", "Artboard was not found");
+    const sharedAssetId = this.runtime.id("shared-asset");
+    const sharedAsset: SharedAssetRecord = {
+      shared_asset_id: sharedAssetId,
+      workspace_id: access.workspaceId,
+      kind: "raster",
+      name: source.displayName,
+      asset_original_id: source.assetOriginalId,
+      source_version_id: source.sourceVersionId,
+      object_reference_id: source.objectReferenceId,
+      preview_object_reference_id: null,
+      linked_by_default: true,
+    };
+    const sourceWidth = source.width ?? artboard.width;
+    const sourceHeight = source.height ?? artboard.height;
+    const fit = Math.min(1, artboard.width / sourceWidth, artboard.height / sourceHeight);
+    const width = Math.max(1, sourceWidth * fit);
+    const height = Math.max(1, sourceHeight * fit);
+    const siblings = (current.snapshot.layers ?? []).filter((item) => item.artboard_id === artboardId && !item.parent_layer_id);
+    const layer: LayerRecord = {
+      layer_id: this.runtime.id("layer"),
+      artboard_id: artboardId,
+      parent_layer_id: null,
+      layer_type: "raster_image",
+      name: source.displayName,
+      order: siblings.length,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blend_mode: "normal",
+      transform: {
+        x: (artboard.width - width) / 2,
+        y: (artboard.height - height) / 2,
+        width,
+        height,
+        rotation_degrees: 0,
+        scale_x: 1,
+        scale_y: 1,
+        skew_x_degrees: 0,
+        skew_y_degrees: 0,
+        flip_x: false,
+        flip_y: false,
+      },
+      shared_style_ids: [],
+      raster: {
+        shared_asset_id: sharedAssetId,
+        instance_mode: "linked",
+        crop: { left: 0, top: 0, right: 1, bottom: 1 },
+        adjustments: { exposure: 0, brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, sharpness: 0 },
+        mask_ids: [],
+      },
+      vector: null,
+      rich_text: null,
+      shape: null,
+      group: null,
+      extension_payload: {},
+    };
+    const mutation: EditorMutation = { kind: "asset.add", target_id: layer.layer_id, shared_asset: sharedAsset, layer, properties: {} };
+    const context = this.command(headers, access.principal, "document.asset.add", {
+      workspaceId: access.workspaceId, documentId: id, baseRevision, fileId, artboardId,
+    });
+    const result = await this.documents.mutate(context, {
+      workspaceId: access.workspaceId,
+      documentId: id,
+      baseRevision,
+      mutation,
+      operationId: optionalId(body["operation_id"], "operation id"),
+      leaseTokenHash: this.leaseTokenHash(headers),
+    });
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.asset.added", id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, mutation: result };
   }
 
@@ -285,6 +374,36 @@ export class DocumentsService implements OnApplicationShutdown {
     return { bytes: await this.objects.read(stored.quarantineRef, byteSize), mediaType: stored.record.source_facts!.detected_media_type };
   }
 
+  async assetSource(headers: Headers, workspaceId: string, documentId: string, sharedAssetId: string) {
+    const access = await this.access(headers, workspaceId, "document.read");
+    const editor = await this.documents.get(access.principal.actorId, access.workspaceId, requireId(documentId, "document id"));
+    if (!editor) throw new DomainError(404, "document-not-found", "Document was not found");
+    const asset = (editor.snapshot.shared_assets ?? []).find((item) => item.shared_asset_id === requireId(sharedAssetId, "shared asset id"));
+    if (!asset || asset.workspace_id !== access.workspaceId || !asset.asset_original_id || !asset.source_version_id) {
+      throw new DomainError(404, "document-asset-not-found", "Document asset was not found");
+    }
+    const files = await this.product.listFiles(access.principal.actorId, access.workspaceId);
+    const file = files.find((item) => item.asset_original_id === asset.asset_original_id && item.current_source_version_id === asset.source_version_id);
+    if (!file) throw new DomainError(404, "document-asset-not-found", "Document asset was not found");
+    const { source, stored } = await this.verifiedSourceWithUpload(access.principal.actorId, access.workspaceId, file.file_id);
+    if (source.requiresPreview || source.byteSize > STUDIO_SYNC_PREVIEW_POLICY.maxCompressedBytes) {
+      const isInitialSource = editor.document.source_asset_original_id === asset.asset_original_id
+        && editor.document.source_version_id === asset.source_version_id;
+      const preview = isInitialSource
+        ? await this.documents.previewDelivery(access.principal.actorId, access.workspaceId, documentId)
+        : null;
+      if (!preview) throw new DomainError(409, "editor-asset-preview-required", "This asset requires a bounded generated preview");
+      return {
+        bytes: await this.objects.read({ ownerScope: access.workspaceId, objectKey: preview.objectKey, zone: "derivative" }, preview.byteSize),
+        mediaType: preview.mediaType,
+      };
+    }
+    return {
+      bytes: await this.objects.read(stored.quarantineRef, source.byteSize),
+      mediaType: source.mediaType,
+    };
+  }
+
   async onApplicationShutdown(): Promise<void> { await this.documents.close(); }
 
   private async history(headers: Headers, workspaceId: string, documentId: string, direction: "undo" | "redo") {
@@ -388,7 +507,7 @@ function requireRecoveredSnapshot(value: unknown, documentId: string): EditorDoc
 function requireMutation(value: unknown): EditorMutation {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new DomainError(400, "document-mutation-invalid", "A document mutation is required");
   const mutation = value as EditorMutation;
-  const kinds: EditorMutation["kind"][] = ["layer.add", "layer.update", "layer.remove", "layer.reorder", "artboard.add", "artboard.update", "artboard.remove", "mask.update", "document.rename"];
+  const kinds: EditorMutation["kind"][] = ["layer.add", "layer.update", "layer.remove", "layer.reorder", "layer.group", "layer.ungroup", "artboard.add", "artboard.update", "artboard.remove", "mask.update", "style.upsert", "style.detach", "document.rename"];
   if (!kinds.includes(mutation.kind)) throw new DomainError(400, "document-mutation-invalid", "Document mutation kind is not supported");
   return mutation;
 }

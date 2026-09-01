@@ -550,6 +550,20 @@ export const api = {
       body: JSON.stringify({ base_revision: baseRevision, operation_id: replay?.operationId, mutation }),
     }, { traceId: replay?.traceId });
   },
+  addDocumentAsset(
+    workspaceId: string,
+    documentId: string,
+    leaseToken: string,
+    baseRevision: number,
+    fileId: string,
+    artboardId: string,
+  ): Promise<DocumentMutationResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/assets`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("editor-asset"), "x-editor-lease": leaseToken },
+      body: JSON.stringify({ base_revision: baseRevision, file_id: fileId, artboard_id: artboardId }),
+    });
+  },
   documentHistory(workspaceId: string, documentId: string, leaseToken: string, direction: "undo" | "redo") {
     return request<{ history: { document: EditorDocumentRecord; snapshot: EditorDocumentSnapshot; canUndo: boolean; canRedo: boolean } }>(`/workspaces/${workspaceId}/documents/${documentId}/${direction}`, {
       method: "POST", headers: { "idempotency-key": commandKey(`editor-${direction}`), "x-editor-lease": leaseToken },
@@ -584,6 +598,9 @@ export const api = {
   },
   documentSourceUrl(workspaceId: string, documentId: string): string {
     return `/v1/workspaces/${encodeURIComponent(workspaceId)}/documents/${encodeURIComponent(documentId)}/source`;
+  },
+  documentAssetSourceUrl(workspaceId: string, documentId: string, sharedAssetId: string): string {
+    return `/v1/workspaces/${encodeURIComponent(workspaceId)}/documents/${encodeURIComponent(documentId)}/assets/${encodeURIComponent(sharedAssetId)}/source`;
   },
   handoffGuest(
     uploadSessionId: string,

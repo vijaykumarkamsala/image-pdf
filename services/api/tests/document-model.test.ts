@@ -200,6 +200,83 @@ test("malformed transforms, crops and cyclic nesting fail at the native document
   );
 });
 
+test("ordering, grouping, linked styles and unit conversion remain deterministic", () => {
+  const runtime = new DeterministicRuntimeValues();
+  let snapshot = initialSnapshot(runtime, "document-semantics", {
+    workspaceId: "workspace-semantics",
+    defaultFilesId: "default-semantics",
+    name: "Semantic proof",
+    intendedUse: "digital",
+    intendedUseLabel: "Digital design",
+  });
+  const artboardId = snapshot.artboards[0].artboard_id;
+  const shape = (id: string, order: number, x: number, fill: string) => ({
+    layer_id: id,
+    artboard_id: artboardId,
+    parent_layer_id: null,
+    layer_type: "shape" as const,
+    name: id,
+    order,
+    visible: true,
+    locked: false,
+    opacity: 1,
+    blend_mode: "normal",
+    transform: transform(x, 20, 100, 80),
+    shared_style_ids: [],
+    raster: null,
+    vector: null,
+    rich_text: null,
+    shape: { shape: "rectangle" as const, fill, stroke: null, stroke_width: 0, corner_radius: 0, points: [] },
+    group: null,
+    extension_payload: {},
+  });
+  snapshot = applyMutation(snapshot, { kind: "layer.add", layer: shape("layer-a", 0, 20, "#111111"), properties: {} });
+  snapshot = applyMutation(snapshot, { kind: "layer.add", layer: shape("layer-b", 1, 140, "#222222"), properties: {} });
+  snapshot = applyMutation(snapshot, { kind: "layer.add", layer: shape("layer-c", 2, 260, "#333333"), properties: {} });
+  snapshot = applyMutation(snapshot, { kind: "layer.reorder", target_id: "layer-a", properties: { order: 2 } });
+  assert.deepEqual(snapshot.layers!.filter((item) => !item.parent_layer_id).sort((a, b) => a.order - b.order).map((item) => item.layer_id), ["layer-b", "layer-c", "layer-a"]);
+
+  snapshot = applyMutation(snapshot, {
+    kind: "layer.group",
+    target_id: "group-semantic",
+    target_ids: ["layer-b", "layer-c"],
+    layer: {
+      layer_id: "group-semantic", artboard_id: artboardId, parent_layer_id: null, layer_type: "group", name: "Semantic group", order: 0,
+      visible: true, locked: false, opacity: 1, blend_mode: "normal", transform: transform(0, 0, 1, 1), shared_style_ids: [],
+      raster: null, vector: null, rich_text: null, shape: null, group: { collapsed: false }, extension_payload: {},
+    },
+    properties: {},
+  });
+  assert.deepEqual(snapshot.layers!.filter((item) => item.parent_layer_id === "group-semantic").sort((a, b) => a.order - b.order).map((item) => item.layer_id), ["layer-b", "layer-c"]);
+  assert.deepEqual(snapshot.layers!.filter((item) => !item.parent_layer_id).sort((a, b) => a.order - b.order).map((item) => item.layer_id), ["group-semantic", "layer-a"]);
+
+  snapshot = applyMutation(snapshot, {
+    kind: "style.upsert",
+    target_ids: ["layer-b", "layer-c"],
+    shared_style: { shared_style_id: "style-semantic", name: "Shared blue", kind: "fill", properties: { fill: "#0055aa" } },
+    properties: {},
+  });
+  assert.ok(snapshot.layers!.filter((item) => item.parent_layer_id === "group-semantic").every((item) => item.shared_style_ids?.includes("style-semantic")));
+  snapshot = applyMutation(snapshot, { kind: "style.detach", target_id: "style-semantic", target_ids: ["layer-b"], properties: {} });
+  assert.equal(snapshot.layers!.find((item) => item.layer_id === "layer-b")!.shape!.fill, "#0055aa");
+  assert.equal(snapshot.layers!.find((item) => item.layer_id === "layer-c")!.shared_style_ids![0], "style-semantic");
+
+  snapshot = applyMutation(snapshot, { kind: "layer.ungroup", target_id: "group-semantic", properties: {} });
+  assert.equal(snapshot.layers!.some((item) => item.layer_id === "group-semantic"), false);
+  assert.ok(snapshot.layers!.every((item) => item.parent_layer_id === null));
+  assert.deepEqual(snapshot.layers!.sort((a, b) => a.order - b.order).map((item) => item.order), [0, 1, 2]);
+
+  const beforeWidth = snapshot.layers![0]!.transform.width;
+  const artboard = snapshot.artboards[0];
+  snapshot = applyMutation(snapshot, {
+    kind: "artboard.update",
+    target_id: artboard.artboard_id,
+    artboard: { ...artboard, width: artboard.width / 96, height: artboard.height / 96, unit: "in", orientation: "landscape" },
+    properties: {},
+  });
+  assert.ok(Math.abs(snapshot.layers![0]!.transform.width - beforeWidth / 96) < 1e-12);
+});
+
 test("Studio format and synchronous preview limits are central, measured and fail closed", () => {
   assert.deepEqual([...STUDIO_EDITABLE_MEDIA_TYPES].sort(), ["image/jpeg", "image/png", "image/webp"]);
   assert.equal(requiresGeneratedPreview({

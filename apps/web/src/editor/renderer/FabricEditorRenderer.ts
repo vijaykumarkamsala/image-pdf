@@ -3,12 +3,16 @@ import {
   Ellipse,
   FabricImage,
   FabricObject,
+  Group,
+  Line,
+  Path,
+  Polygon,
   Rect,
   Shadow,
   Textbox,
   filters,
 } from "fabric";
-import type { EditorDocumentSnapshot, LayerRecord, LayerTransform } from "ipw-contracts-ts/product";
+import type { EditableMaskRecord, EditorDocumentSnapshot, LayerRecord, LayerTransform, RichTextRun, SharedStyleRecord } from "ipw-contracts-ts/product";
 
 import type { EditorRenderer, EditorRendererCallbacks, RendererViewport } from "./EditorRenderer";
 import { renderedToLayerTransform, snapCoordinate } from "./coordinates";
@@ -73,7 +77,7 @@ export class FabricEditorRenderer implements EditorRenderer {
     });
   }
 
-  async render(snapshot: EditorDocumentSnapshot, sourceUrl?: string): Promise<void> {
+  async render(snapshot: EditorDocumentSnapshot, assetSource?: string | ((sharedAssetId: string) => string)): Promise<void> {
     const canvas = this.requireCanvas();
     const generation = ++this.generation;
     this.rendering = true;
@@ -86,13 +90,14 @@ export class FabricEditorRenderer implements EditorRenderer {
 
       for (const artboard of [...snapshot.artboards].sort((left, right) => left.order - right.order)) {
         const offset = this.artboardOffset(artboard.artboard_id);
+        const scale = unitScale(artboard.unit);
         const artboardObject = new Rect({
         left: offset.x,
         top: offset.y,
         originX: "left",
         originY: "top",
-        width: artboard.width,
-        height: artboard.height,
+        width: artboard.width * scale,
+        height: artboard.height * scale,
         fill: artboard.background.kind === "transparent" ? "rgba(255,255,255,0.75)" : artboard.background.color ?? "#ffffff",
         stroke: "#9aa6b5",
         strokeWidth: 1,
@@ -104,13 +109,20 @@ export class FabricEditorRenderer implements EditorRenderer {
         canvas.add(artboardObject);
       }
 
-      const layers = [...(snapshot.layers ?? [])].sort((left, right) => left.order - right.order);
+      const layers = [...(snapshot.layers ?? [])]
+        .filter((layer) => !layer.parent_layer_id)
+        .sort((left, right) => {
+          const artboardOrder = snapshot.artboards.find((item) => item.artboard_id === left.artboard_id)!.order
+            - snapshot.artboards.find((item) => item.artboard_id === right.artboard_id)!.order;
+          return artboardOrder || left.order - right.order || left.layer_id.localeCompare(right.layer_id);
+        });
       for (const layer of layers) {
-        const object = await this.objectFor(layer, sourceUrl);
+        const object = await this.objectFor(layer, snapshot, assetSource);
         if (generation !== this.generation) return;
         if (!object) continue;
         const offset = this.artboardOffset(layer.artboard_id);
-        this.configure(object, layer, offset);
+        this.configure(object, layer, offset, unitScale(snapshot.artboards.find((item) => item.artboard_id === layer.artboard_id)?.unit), true, snapshot.shared_styles ?? []);
+        this.applyClip(object, layer, snapshot, offset);
         this.objects.set(layer.layer_id, object);
         this.layerByObject.set(object, structuredClone(layer));
         canvas.add(object);
@@ -165,8 +177,8 @@ export class FabricEditorRenderer implements EditorRenderer {
     this.fitBounds({
       left: offset.x - 32,
       top: offset.y - 32,
-      width: artboard.width + 64,
-      height: artboard.height + 64,
+      width: artboard.width * unitScale(artboard.unit) + 64,
+      height: artboard.height * unitScale(artboard.unit) + 64,
     });
   }
 
@@ -188,26 +200,55 @@ export class FabricEditorRenderer implements EditorRenderer {
     this.objects.clear();
   }
 
-  private async objectFor(layer: LayerRecord, sourceUrl?: string): Promise<FabricObject | null> {
+  private async objectFor(
+    layer: LayerRecord,
+    snapshot: EditorDocumentSnapshot,
+    assetSource?: string | ((sharedAssetId: string) => string),
+  ): Promise<FabricObject | null> {
+    const style = effectiveStyle(layer, snapshot.shared_styles ?? []);
     if (layer.layer_type === "shape" && layer.shape) {
-      const common = { width: layer.transform.width, height: layer.transform.height, fill: layer.shape.fill ?? "transparent", stroke: layer.shape.stroke ?? undefined, strokeWidth: layer.shape.stroke_width ?? 0 };
-      return layer.shape.shape === "ellipse"
-        ? new Ellipse({ ...common, rx: layer.transform.width / 2, ry: layer.transform.height / 2 })
-        : new Rect({ ...common, rx: layer.shape.corner_radius ?? 0, ry: layer.shape.corner_radius ?? 0 });
+      const common = {
+        fill: paintValue(style["fill"], layer.shape.fill) ?? "transparent",
+        stroke: paintValue(style["stroke"], layer.shape.stroke) ?? undefined,
+        strokeWidth: numericValue(style["stroke_width"], layer.shape.stroke_width ?? 0),
+      };
+      if (layer.shape.shape === "ellipse") return new Ellipse({ ...common, rx: layer.transform.width / 2, ry: layer.transform.height / 2 });
+      if (layer.shape.shape === "line") {
+        const points = layer.shape.points ?? [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }];
+        return new Line([
+          points[0]!.x * layer.transform.width,
+          points[0]!.y * layer.transform.height,
+          points[1]!.x * layer.transform.width,
+          points[1]!.y * layer.transform.height,
+        ], { ...common, fill: undefined, stroke: common.stroke ?? common.fill ?? "#3559e0", strokeWidth: Math.max(1, common.strokeWidth) });
+      }
+      if (layer.shape.shape === "polygon") {
+        const points = (layer.shape.points ?? []).map((point) => ({ x: point.x * layer.transform.width, y: point.y * layer.transform.height }));
+        return new Polygon(points, common);
+      }
+      return new Rect({ ...common, width: layer.transform.width, height: layer.transform.height, rx: layer.shape.corner_radius ?? 0, ry: layer.shape.corner_radius ?? 0 });
     }
     if (layer.layer_type === "rich_text" && layer.rich_text) {
-      return new Textbox(layer.rich_text.text, {
+      const font = approvedFont(stringValue(style["font_family"], layer.rich_text.font_family));
+      const text = new Textbox(layer.rich_text.text, {
         width: layer.transform.width,
-        fontFamily: layer.rich_text.font_family,
-        fontSize: layer.rich_text.font_size,
-        fill: layer.rich_text.color,
-        textAlign: layer.rich_text.text_align,
+        fontFamily: font.family,
+        fontSize: numericValue(style["font_size"], layer.rich_text.font_size),
+        fill: paintValue(style["color"], layer.rich_text.color) ?? "#162033",
+        textAlign: textAlignValue(style["text_align"], layer.rich_text.text_align),
       });
+      text.set("styles", richTextStyles(layer.rich_text.text, layer.rich_text.runs ?? []));
+      return text;
     }
     if (layer.layer_type === "vector_svg" && layer.vector?.path_data) {
-      return new Rect({ width: layer.transform.width, height: layer.transform.height, fill: layer.vector.fill ?? "transparent", stroke: layer.vector.stroke ?? undefined, strokeWidth: layer.vector.stroke_width ?? 0 });
+      return new Path(layer.vector.path_data, {
+        fill: paintValue(style["fill"], layer.vector.fill) ?? "transparent",
+        stroke: paintValue(style["stroke"], layer.vector.stroke) ?? undefined,
+        strokeWidth: numericValue(style["stroke_width"], layer.vector.stroke_width ?? 0),
+      });
     }
-    if (layer.layer_type === "raster_image" && sourceUrl) {
+    if (layer.layer_type === "raster_image" && layer.raster && assetSource) {
+      const sourceUrl = typeof assetSource === "function" ? assetSource(layer.raster.shared_asset_id) : assetSource;
       const response = await fetch(sourceUrl, { credentials: "same-origin", cache: "no-store" });
       if (!response.ok) throw new Error("The source preview could not be loaded");
       const blobUrl = URL.createObjectURL(await response.blob());
@@ -227,32 +268,92 @@ export class FabricEditorRenderer implements EditorRenderer {
         URL.revokeObjectURL(blobUrl);
       }
     }
+    if (layer.layer_type === "group" && layer.group) {
+      const children: FabricObject[] = [];
+      const childLayers = (snapshot.layers ?? [])
+        .filter((item) => item.parent_layer_id === layer.layer_id)
+        .sort((left, right) => left.order - right.order || left.layer_id.localeCompare(right.layer_id));
+      for (const childLayer of childLayers) {
+        const child = await this.objectFor(childLayer, snapshot, assetSource);
+        if (!child) continue;
+        this.configure(child, childLayer, { x: 0, y: 0 }, unitScale(snapshot.artboards.find((item) => item.artboard_id === layer.artboard_id)?.unit), false, snapshot.shared_styles ?? []);
+        const maskId = childLayer.raster?.mask_ids?.[0] ?? childLayer.vector?.mask_ids?.[0];
+        const mask = maskId ? snapshot.masks?.find((item) => item.mask_id === maskId && item.enabled) : undefined;
+        if (mask) child.clipPath = this.maskClip(mask, child) ?? undefined;
+        child.set({ selectable: false, evented: false });
+        children.push(child);
+      }
+      return children.length ? new Group(children, { subTargetCheck: false, interactive: false }) : null;
+    }
     return null;
   }
 
-  private configure(object: FabricObject, layer: LayerRecord, offset: { x: number; y: number }) {
+  private configure(object: FabricObject, layer: LayerRecord, offset: { x: number; y: number }, unit = 1, interactive = true, styles: SharedStyleRecord[] = []) {
     const intrinsicWidth = object.width || layer.transform.width;
     const intrinsicHeight = object.height || layer.transform.height;
+    const style = effectiveStyle(layer, styles);
     object.set({
-      left: offset.x + layer.transform.x,
-      top: offset.y + layer.transform.y,
+      left: offset.x + layer.transform.x * unit,
+      top: offset.y + layer.transform.y * unit,
       originX: "left",
       originY: "top",
       angle: layer.transform.rotation_degrees,
-      scaleX: (layer.transform.width / intrinsicWidth) * (layer.transform.scale_x ?? 1),
-      scaleY: (layer.transform.height / intrinsicHeight) * (layer.transform.scale_y ?? 1),
+      scaleX: (layer.transform.width * unit / intrinsicWidth) * (layer.transform.scale_x ?? 1),
+      scaleY: (layer.transform.height * unit / intrinsicHeight) * (layer.transform.scale_y ?? 1),
       flipX: layer.transform.flip_x,
       flipY: layer.transform.flip_y,
-      opacity: layer.opacity,
+      opacity: numericValue(style["opacity"], layer.opacity ?? 1),
       visible: layer.visible,
+      globalCompositeOperation: blendMode(style["blend_mode"], layer.blend_mode),
       objectCaching: true,
       cornerColor: "#3559e0",
       borderColor: "#3559e0",
       cornerStyle: "circle",
       transparentCorners: false,
     });
-    this.applyInteractivity(object, layer);
+    if (interactive) this.applyInteractivity(object, layer);
     object.setCoords();
+  }
+
+  private applyClip(object: FabricObject, layer: LayerRecord, snapshot: EditorDocumentSnapshot, offset: { x: number; y: number }) {
+    const artboard = snapshot.artboards.find((item) => item.artboard_id === layer.artboard_id);
+    if (!artboard) return;
+    const unit = unitScale(artboard.unit);
+    const artboardClip = new Rect({
+      left: offset.x,
+      top: offset.y,
+      width: artboard.width * unit,
+      height: artboard.height * unit,
+      originX: "left",
+      originY: "top",
+      absolutePositioned: true,
+    });
+    const maskId = layer.raster?.mask_ids?.[0] ?? layer.vector?.mask_ids?.[0];
+    const mask = maskId ? snapshot.masks?.find((item) => item.mask_id === maskId && item.enabled) : undefined;
+    const layerMask = mask ? this.maskClip(mask, object) : null;
+    if (layerMask) {
+      layerMask.clipPath = artboardClip;
+      object.clipPath = layerMask;
+    } else {
+      object.clipPath = artboardClip;
+    }
+  }
+
+  private maskClip(mask: EditableMaskRecord, object: FabricObject): FabricObject | null {
+    if (mask.kind !== "shape" || !mask.path_data) return null;
+    const match = /^(rect|ellipse)\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/.exec(mask.path_data);
+    if (!match) return null;
+    const [, kind, x, y, width, height] = match;
+    const bounds = {
+      left: Number(x) * (object.width ?? 1),
+      top: Number(y) * (object.height ?? 1),
+      originX: "left" as const,
+      originY: "top" as const,
+      inverted: mask.inverted,
+    };
+    return kind === "ellipse"
+      ? new Ellipse({ ...bounds, rx: Number(width) * (object.width ?? 1) / 2, ry: Number(height) * (object.height ?? 1) / 2 })
+      : new Rect({ ...bounds, width: Number(width) * (object.width ?? 1), height: Number(height) * (object.height ?? 1) });
   }
 
   private applyInteractivity(object: FabricObject, layer: LayerRecord) {
@@ -292,12 +393,13 @@ export class FabricEditorRenderer implements EditorRenderer {
     const layer = this.layerByObject.get(target);
     if (!layer) return;
     const offset = this.artboardOffset(layer.artboard_id);
+    const unit = unitScale(this.snapshot?.artboards.find((item) => item.artboard_id === layer.artboard_id)?.unit);
     const transform = renderedToLayerTransform(layer.transform, {
-      left: (target.left ?? 0) - offset.x,
-      top: (target.top ?? 0) - offset.y,
+      left: ((target.left ?? 0) - offset.x) / unit,
+      top: ((target.top ?? 0) - offset.y) / unit,
       angle: target.angle ?? 0,
-      scaledWidth: target.getScaledWidth(),
-      scaledHeight: target.getScaledHeight(),
+      scaledWidth: target.getScaledWidth() / unit,
+      scaledHeight: target.getScaledHeight() / unit,
       flipX: target.flipX ?? false,
       flipY: target.flipY ?? false,
     });
@@ -310,10 +412,11 @@ export class FabricEditorRenderer implements EditorRenderer {
     const artboard = this.snapshot.artboards.find((item) => item.artboard_id === layer?.artboard_id);
     if (!layer || !artboard) return;
     const offset = this.artboardOffset(layer.artboard_id);
+    const unit = unitScale(artboard.unit);
     const threshold = 6 / this.viewport.zoom;
     target.set({
-      left: offset.x + snapCoordinate((target.left ?? offset.x) - offset.x, [0, artboard.width / 2, artboard.width], threshold),
-      top: offset.y + snapCoordinate((target.top ?? offset.y) - offset.y, [0, artboard.height / 2, artboard.height], threshold),
+      left: offset.x + snapCoordinate((target.left ?? offset.x) - offset.x, [0, artboard.width * unit / 2, artboard.width * unit], threshold),
+      top: offset.y + snapCoordinate((target.top ?? offset.y) - offset.y, [0, artboard.height * unit / 2, artboard.height * unit], threshold),
     });
   }
 
@@ -346,7 +449,7 @@ export class FabricEditorRenderer implements EditorRenderer {
     let x = ARTBOARD_MARGIN;
     for (const artboard of [...this.snapshot.artboards].sort((left, right) => left.order - right.order)) {
       if (artboard.artboard_id === artboardId) return { x, y: ARTBOARD_MARGIN };
-      x += artboard.width + ARTBOARD_MARGIN;
+      x += artboard.width * unitScale(artboard.unit) + ARTBOARD_MARGIN;
     }
     return { x: ARTBOARD_MARGIN, y: ARTBOARD_MARGIN };
   }
@@ -356,8 +459,8 @@ export class FabricEditorRenderer implements EditorRenderer {
     return {
       left: 0,
       top: 0,
-      width: Math.max(1, artboards.reduce((total, item) => total + item.width + ARTBOARD_MARGIN, ARTBOARD_MARGIN)),
-      height: Math.max(1, ...artboards.map((item) => item.height + ARTBOARD_MARGIN * 2)),
+      width: Math.max(1, artboards.reduce((total, item) => total + item.width * unitScale(item.unit) + ARTBOARD_MARGIN, ARTBOARD_MARGIN)),
+      height: Math.max(1, ...artboards.map((item) => item.height * unitScale(item.unit) + ARTBOARD_MARGIN * 2)),
     };
   }
 
@@ -368,3 +471,70 @@ export class FabricEditorRenderer implements EditorRenderer {
 }
 
 function clamp(value: number, min: number, max: number): number { return Math.min(max, Math.max(min, value)); }
+
+function unitScale(unit: string | undefined): number {
+  return { px: 1, in: 96, mm: 96 / 25.4, pt: 96 / 72 }[unit ?? "px"] ?? 1;
+}
+
+function effectiveStyle(layer: LayerRecord, styles: SharedStyleRecord[]) {
+  const result: Record<string, string | number | boolean | null> = {};
+  for (const styleId of layer.shared_style_ids ?? []) {
+    const style = styles.find((item) => item.shared_style_id === styleId);
+    if (style) Object.assign(result, style.properties ?? {});
+  }
+  return result;
+}
+
+function approvedFont(value: string | undefined): { family: string; compatible: boolean } {
+  const fonts = new Map([
+    ["system-ui", "system-ui"],
+    ["arial", "Arial"],
+    ["times new roman", "Times New Roman"],
+    ["courier new", "Courier New"],
+  ]);
+  const family = fonts.get((value ?? "system-ui").toLowerCase());
+  return family ? { family, compatible: true } : { family: "Arial", compatible: false };
+}
+
+function richTextStyles(text: string, runs: RichTextRun[]) {
+  const styles: Record<number, Record<number, Record<string, string | number | boolean>>> = {};
+  for (const run of runs) {
+    for (let index = run.start; index < run.end; index += 1) {
+      const before = text.slice(0, index);
+      const line = before.split("\n").length - 1;
+      const character = index - (before.lastIndexOf("\n") + 1);
+      const source = run.style ?? {};
+      const target: Record<string, string | number | boolean> = {};
+      const font = typeof source["font_family"] === "string" ? approvedFont(source["font_family"]) : null;
+      if (font) target["fontFamily"] = font.family;
+      if (typeof source["font_size"] === "number") target["fontSize"] = source["font_size"];
+      if (typeof source["color"] === "string") target["fill"] = source["color"];
+      if (typeof source["font_weight"] === "string" || typeof source["font_weight"] === "number") target["fontWeight"] = source["font_weight"];
+      if (source["font_style"] === "italic" || source["font_style"] === "normal") target["fontStyle"] = source["font_style"];
+      if (typeof source["underline"] === "boolean") target["underline"] = source["underline"];
+      (styles[line] ??= {})[character] = target;
+    }
+  }
+  return styles;
+}
+
+function stringValue(style: string | number | boolean | null | undefined, fallback: string | undefined) {
+  return typeof style === "string" ? style : fallback;
+}
+
+function numericValue(style: string | number | boolean | null | undefined, fallback: number | undefined) {
+  return typeof style === "number" ? style : fallback ?? 0;
+}
+
+function paintValue(style: string | number | boolean | null | undefined, fallback: string | null | undefined) {
+  return typeof style === "string" || style === null ? style : fallback;
+}
+
+function textAlignValue(style: string | number | boolean | null | undefined, fallback: "left" | "center" | "right" | "justify" | undefined) {
+  return style === "left" || style === "center" || style === "right" || style === "justify" ? style : fallback ?? "left";
+}
+
+function blendMode(style: string | number | boolean | null | undefined, fallback: string | undefined) {
+  const value = typeof style === "string" ? style : fallback ?? "normal";
+  return value === "normal" ? "source-over" : value;
+}

@@ -35,6 +35,11 @@ export class DocumentsController {
     return this.documents.mutate(headers, workspaceId, documentId, body);
   }
 
+  @Post(":documentId/assets")
+  addAsset(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string, @Body() body: RequestBody) {
+    return this.documents.addAsset(headers, workspaceId, documentId, body);
+  }
+
   @Post(":documentId/lease")
   lease(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
     return this.documents.acquireLease(headers, workspaceId, documentId);
@@ -113,6 +118,18 @@ export class DocumentsController {
     @Res() response: Response,
   ) {
     const source = await this.documents.source(headers, workspaceId, documentId);
+    response.type(source.mediaType).setHeader("Content-Disposition", "inline").send(Buffer.from(source.bytes));
+  }
+
+  @Get(":documentId/assets/:sharedAssetId/source")
+  async assetSource(
+    @Headers() headers: RequestHeaders,
+    @Param("workspaceId") workspaceId: string,
+    @Param("documentId") documentId: string,
+    @Param("sharedAssetId") sharedAssetId: string,
+    @Res() response: Response,
+  ) {
+    const source = await this.documents.assetSource(headers, workspaceId, documentId, sharedAssetId);
     response.type(source.mediaType).setHeader("Content-Disposition", "inline").send(Buffer.from(source.bytes));
   }
 }
