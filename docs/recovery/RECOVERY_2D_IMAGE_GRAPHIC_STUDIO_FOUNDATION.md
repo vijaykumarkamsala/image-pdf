@@ -1,312 +1,460 @@
 # Recovery 2D: Image & Graphic Studio Foundation
 
-**Status:** Implementation and deterministic verification complete locally;
-product-owner visual and product review remain open
+**Status:** Corrective implementation and deterministic verification complete
+locally; product-owner approval remains open
 
 **Branch:** `recovery/2d-image-graphic-studio-foundation`
 
 **Exact baseline:** `origin/recovery/2c-production-web-intake` at
 `1cdba82be9b67c01177d0906564d65a38ae7eedc`
 
-**Verified implementation before this record:**
-`8abf37f0ee41db37aa387935898e6932400be684`
+**Original Recovery 2D record:** `c2c75160b5e68069e6eec00f7d0af36313827081`
 
-**Authority:** The approved Recovery 2D prompt dated 31 August 2026 under the
-Product V2 Consolidated Implementation Authority
+**Corrective implementation before this amended record:**
+`0fd14fd` (`test(web): align Studio accessibility and visual evidence`)
+
+**Authority:** The approved Recovery 2D prompt, the Product V2 Consolidated
+Implementation Authority and the accepted independent-audit corrective prompt
+dated 1 September 2026
+
+## Correction history and verdict
+
+The independent audit classified Recovery 2D at `c2c7516` as materially
+incomplete. The original record accurately described the initial foundation,
+but overstated customer usability for durable autosave, tenant-safe takeover,
+document discovery, large-source previews, native layer semantics, actual panel
+behavior and visual/integration evidence.
+
+Ten corrective commits resolve those findings before this amended record:
+
+1. `a99a115` - secure tenant-scoped leases, transactions and migration locking.
+2. `5f01012` - durable IndexedDB autosave, tab coordination and takeover UX.
+3. `88c3089` - native-document discovery, location and reopen journeys.
+4. `af39b15` - bounded durable preview jobs, derivatives and provenance.
+5. `aef9653` - complete supported native semantic behavior.
+6. `568a6fe` - complete actual Studio panel and input behavior.
+7. `f9e797b` - prove the real stack and reviewed light/dark visual states.
+8. `f7e1628` - segregate intake/preview storage capabilities and restore strict
+   worker typing.
+9. `73e2d4d` - restore complete Python formatting and lint gates.
+10. `0fd14fd` - fix native-document empty-list semantics and reconcile reviewed
+    responsive visual evidence.
+
+Corrected local verdict: the bounded Recovery 2D scope is implemented and
+verified. It is not approval for production release, final export, advanced
+professional-format import, live providers or a later recovery sequence.
 
 ## Customer outcome
 
-Recovery 2D activates Image & Graphic Studio as the first real native editor
-journey. A signed-in customer can start a blank graphic or open a verified
-raster source, preserve that immutable source, create a native document, edit
-artboards and layers, use non-destructive crop and visual adjustments, autosave,
-undo or redo, create and restore versions, recover after refresh, and Save As to
-Default Files or a permitted project.
+A signed-in customer can create a blank graphic or create from an accepted,
+Studio-compatible immutable raster source; edit a native document; recover
+pending edits after refresh or reconnect; use bounded undo/redo and named
+versions; restore by creating a new forward version; save an independent copy;
+and find or reopen native documents from Home, Files, Projects and Search.
 
-The responsive Studio has a command bar, canvas, artboard navigator, layers,
-assets, history/version and property/tool panels, All Tools search, keyboard
-commands, light/dark themes and focused tablet/phone layouts. It is explicitly a
-browser preview of the authoritative native document. No final export,
-enhancement, AI, OCR, PDF product, connector, e-sign, billing, native app or
-deployment capability is claimed.
+The responsive Studio provides real dock/float/move/resize/collapse/pin,
+close/reopen and reset behavior on desktop, adapted docks/drawers on tablet and
+a simplified phone review/light-correction surface. The rendered canvas is a
+non-authoritative browser preview. No final export, enhancement, AI, OCR, PDF
+product, connector, e-sign, billing, native app or deployment is claimed.
 
-## Architecture decision
+## Capability classification
 
-`docs/adr/ADR-0014-native-editor-renderer-foundation.md` compares Fabric.js
-7.4.0, Konva 10.3.0 and PixiJS 8.18.x using current primary sources. It records
-licence/commercial standing, maintenance, React/TypeScript integration,
-accessibility, supported objects, performance, serialization, mobile/browser
-constraints, export limits and lock-in.
+### Fully customer-usable in the deterministic Recovery 2D environment
 
-Fabric.js 7.4.0 is selected as a replaceable browser rendering and pointer-
-interaction adapter. `EditorRenderer` is the application boundary; only
-`FabricEditorRenderer.ts` imports Fabric. Native Product V2 contracts and
-PostgreSQL snapshots are authoritative, and no Fabric serialization enters the
-contract, API model or migration. Architecture guards enforce those boundaries
-and prevent editor runtime imports from legacy, benchmark, POC processor, PDF or
-model-weight code.
+- Blank native documents in Default Files or a permitted project.
+- JPEG, PNG and WebP source-based documents after the existing accepted,
+  malware-clean intake journey.
+- Multiple artboards with selected-artboard targeting, independent dimensions,
+  units, orientation and backgrounds.
+- Rectangle, ellipse, line, polygon, safe internal vector path, approved-font
+  rich text, raster and group layers.
+- Deterministic ordering, same-artboard hierarchy, visibility, locking,
+  opacity, supported blend modes and native transforms.
+- Multiple authorized raster assets, linked/independent instances,
+  non-destructive crop and supported visual adjustments.
+- Shared-style link, propagation and detach semantics.
+- Shape masks with enable, invert and rectangle/ellipse editing.
+- Autosave recovery, explicit conflict choices, undo/redo, named versions,
+  forward-only restore and Save As.
+- Tenant-scoped renewable leases, enforced read-only state, request/deny,
+  controlled acquisition after release and owner/admin force takeover.
+- Home, Default Files, Project and Search discovery/reopen.
+- Durable large-source preview preparation, progress, retry, cancellation and
+  failure states through PostgreSQL jobs/outbox and the Python worker.
 
-The exact package is locked with registry integrity. Fabric and the three
-transitive packages whose SPDX identifiers needed explicit treatment are
-recorded in `data/licences/production-editor.json`. All are permissive; the two
-dual-licence expressions select an approved option. The full Node lockfile
-licence gate passes.
+### Supported but intentionally bounded
 
-## Contracts and native model
+- Rich text supports deterministic approved fonts, editable content, size and
+  bounded formatting runs. It is not a complete typography/layout engine.
+- Internal vector paths use a validated safe command subset. External SVG is
+  fail-closed and produces compatibility information.
+- Masks are rendered and editable through initial shape operations; freehand
+  painting and advanced mask workflows are outside Recovery 2D.
+- Groups act as one transform/visibility/lock/opacity/order unit and ungroup
+  preserves placement; advanced component/symbol semantics are not claimed.
+- Browser rendering supports the documented initial blend modes and adjustment
+  preview. Unsupported values fail validation instead of degrading silently.
+- Phone is a review and lightweight-correction experience, not the desktop
+  floating-panel workspace compressed into a small viewport.
 
-Product schema version is `1.13.0`. Python remains the source of truth;
-generated TypeScript and all 73 JSON schemas match it. Nineteen editor schemas
-are new and the existing 54 product schemas were deterministically regenerated.
+### Model-only extension points
 
-The native model provides:
+- Variants and future brand discriminators.
+- Tables, sections, layouts, PDF objects, interactive fields and other future
+  layer discriminators not presented as usable controls.
+- PSD and AI-compatible source kinds for future compatibility reporting only.
 
-- workspace/project/default-files document location and stable document IDs;
-- independent artboards with dimensions, units, orientation, background and
-  intended-use metadata;
-- raster, SVG/vector, rich-text, shape and group layer discriminators plus
-  extension points for adjustments, masks, PDF objects, tables, sections,
-  layouts and interactive fields;
-- stable layer IDs, order, parent nesting, visibility, lock, opacity, blend-mode
-  placeholder and transforms;
-- linked or independent shared assets, styles and variants;
-- editable crop, rotate, flip, brightness/exposure, contrast, saturation,
-  temperature, tint and sharpness state;
-- editable mask records and layer references;
-- native operations, read models, versions, leases, compatibility reports and
-  non-authoritative preview provenance.
+### Deferred
 
-The source AssetOriginal and SourceVersion IDs are copied only as immutable
-references. Moving a WorkspaceFile or using Save As does not change those source
-identities. Rendering never mutates or recompresses the original.
+- Final export/render approval, Image enhancement, Recreate, generative fill,
+  OCR, Create PDF, Edit PDF and custom PDF-engine promotion.
+- Editable external SVG, PSD or AI import.
+- Advanced typography/font pipeline, mask painting and professional guides.
+- Region/version comments, approvals, sharing, presence and real-time
+  multi-user canvas editing.
+- Cloud connectors, e-sign, payments, native mobile applications and
+  deployment.
 
-## Persistence and API
+### Unverified live-provider behavior
 
-Migration `0014_recovery_2d_native_documents.sql` adds:
+- Live OIDC, GCS, Cloud Tasks and ClamAV compatibility remains a release gate.
+- The deterministic acceptance uses private local object storage, a
+  PostgreSQL-backed outbox bridge and local Python workers. It does not claim
+  live-provider approval.
 
-- `editor_documents`;
-- append-only `document_versions`;
-- append-only `document_operations`;
-- bounded `document_history_entries`;
-- `document_leases` with hashed tokens;
-- append-only `import_compatibility_reports`;
-- supporting indexes and the schema migration record.
+## Architecture and native authority
 
-Memory and PostgreSQL repositories implement the same document boundary.
-PostgreSQL owns authoritative metadata, snapshots, operations, versions,
-history and leases. History is capped at 100 entries and remains positions
-1-100 after further edits or forward restoration. Automatic checkpoints occur
-every ten revisions. Restoring creates a new forward version; no prior version
-is rewritten or deleted.
+ADR-0014 selects Fabric.js 7.4.0 as a replaceable browser rendering and pointer
+adapter after comparing Fabric, Konva and PixiJS. `EditorRenderer` is the
+application boundary; only `FabricEditorRenderer.ts` imports Fabric. Python
+contracts and PostgreSQL native snapshots remain authoritative. Fabric JSON is
+never persisted or accepted through the API. Architecture tests prevent
+production imports from legacy, benchmark, POC processor, PDF and model-weight
+code.
 
-NestJS exposes under `/v1/workspaces/:workspaceId/documents`:
+Product schema version is `1.17.0`. Python is the source of truth; all 75 JSON
+schemas and generated TypeScript match it. The model validates finite
+transforms, unique deterministic sibling order, same-artboard hierarchy,
+cycles, assets, styles, masks, supported blends/fonts and safe internal paths.
+Atomic group/ungroup, asset add and style upsert/detach operations are part of
+the native mutation contract.
 
-- `GET /` and `POST /`;
-- `GET /:documentId` and `PATCH /:documentId`;
-- `POST /:documentId/lease`, `/lease/heartbeat`, `/lease/release` and
-  `/lease/takeover`;
-- `POST /:documentId/undo` and `/redo`;
-- `POST /:documentId/versions` and
-  `/:documentId/versions/:versionId/restore`;
-- `POST /:documentId/save-as`;
+The immutable `AssetOriginal` and `SourceVersion` identities are referenced,
+never rewritten. Canonical WorkspaceFile location remains separate from
+reusable document/project references. Crop, adjustments, masks, restoration,
+Save As and preview generation do not mutate or recompress the source.
+
+## Persistence, transactions and API
+
+Recovery 2D uses three additive migrations:
+
+- `0014_recovery_2d_native_documents.sql` creates documents, append-only
+  versions/operations, bounded history, leases and compatibility reports.
+- `0015_recovery_2d_corrective_foundation.sql` adds durable lease events,
+  takeover state and corrective constraints compatible with existing data.
+- `0016_recovery_2d_preview_jobs.sql` adds preview job targets, append-only
+  preview provenance and derivative references.
+
+Migration runners take a PostgreSQL advisory lock. Repository commands use
+transactions and per-idempotency advisory locks. Document mutation, operation,
+audit, zero-charge usage and idempotency records commit atomically. Retry cannot
+leave a document edit without its required audit/usage evidence.
+
+The NestJS boundary under `/v1/workspaces/:workspaceId/documents` exposes:
+
+- `GET /`, `POST /`, `GET /studio-sources`, `GET /:documentId` and
+  `PATCH /:documentId`;
+- `POST /:documentId/assets` and
+  `GET /:documentId/assets/:sharedAssetId/source`;
+- `POST /:documentId/lease`, `/lease/heartbeat`, `/lease/release`,
+  `/lease/takeover`, `/lease/takeover/deny` and
+  `/lease/takeover/force`, plus `GET /:documentId/lease`;
+- `POST /:documentId/undo`, `/redo`, `/versions`,
+  `/versions/:versionId/restore` and `/save-as`;
+- `PATCH /:documentId/location`;
 - `GET /:documentId/compatibility-reports` and `/source`.
 
-Create, mutate, version, restore, lease/takeover and Save As use existing
-membership/permission, idempotency, trace and audit services. Mutations require
-the current revision and a valid active lease; conflicts fail with 409. Raw
-lease tokens are returned only to the client and only their SHA-256 hashes are
-stored. Leases last 30 seconds, heartbeat every 10 seconds in the client and
-have a 15-second disconnect grace period. Force takeover is owner/admin-only
-and audited. All recorded customer usage remains zero-charge and customer
-responses contain no price, currency or credit fields.
+Every lease transition first resolves the document through the authenticated
+workspace and uses a tenant-authoritative join with transactional row locking.
+Guessed cross-tenant IDs return no lease identity or metadata. Request and force
+takeover are separate; force requires the approved owner/admin permission.
+Request, denial, expiry, release and force transitions are durable and audited.
 
-The private source endpoint is permission-scoped, covered by the API-wide
-`no-store` policy, and capped at 50 MiB. It reads the existing private object
-adapter only for a document's verified immutable raster source.
+## Durable autosave and collaboration behavior
 
-## Import and rendering boundaries
+The browser stores an ordered pending-operation journal in IndexedDB, scoped by
+actor, workspace and document. Entries contain native operations, base version
+and revision, operation ID, idempotency key and trace context. They never contain
+credentials, signed URLs or source bytes. Failed saves retry with bounded
+exponential backoff and explicit Retry, reload current, Save As recovered copy
+and review/reapply choices.
 
-Verified, ready, malware-clean AVIF, BMP, GIF, JPEG, PNG, TIFF and WebP sources
-can create a linked raster document. A compatibility report preserves verified
-type and source identity. SVG has a contract and compatibility-report boundary
-but fails closed until an approved sanitizer exists. PSD and AI-compatible
-source kinds are defined for future reporting only; no editable-import claim is
-made and no professional source is silently flattened.
+Pending operations replay after refresh/reconnect only after actor/workspace
+validation. They are not silently discarded. Normal close drains acknowledged
+saves before releasing the lease where browser lifetime permits; the UI
+truthfully explains unavoidable browser-close limits. Heartbeat is independent
+of edits. BroadcastChannel plus a storage-event fallback coordinates tabs, and
+same-actor tabs cannot silently reuse or replace each other's token. Logout and
+retention cleanup clear private journals and the cross-tab logout regression is
+covered.
 
-The renderer supports deterministic initial artboards, raster previews, text,
-shapes and bounded vector paths; selection, move, resize, rotate, wheel zoom,
-space-drag pan, fit-all, fit-artboard, visual ruler foundations and snapping to
-artboard edges/centres. Native top-left transforms are derived from rendered
-coordinates across zoom and device-pixel ratio. The canvas is re-derived from
-the current native snapshot after every server mutation.
+When another editor holds the lease, all mutations, pointer transforms,
+keyboard changes, undo/redo and restoration are disabled. Viewing, navigation,
+zoom, version inspection and explicitly independent Save As remain. A takeover
+request is durably visible to the active editor, who may deny or save and
+release. The requester polls for controlled acquisition without a page refresh.
 
-The current browser source limit is a fail-closed safety boundary, not a proven
-synchronous-performance threshold. Sources above 50 MiB return 413; a measured
-server preview threshold, object-stored derivative and durable Python preview
-job remain release work. No final rendered output is stored or presented as an
-export in Recovery 2D.
+## Large-source and derivative architecture
 
-## Responsive and accessible experience
+The centralized Studio policy advertises only JPEG, PNG and WebP as editable.
+Other intake-supported files remain safely stored and receive a truthful
+compatibility result; TIFF, HEIF/HEIC, AVIF, SVG, PSD and AI are not advertised
+as editable Studio inputs.
 
-Desktop uses the existing dockable, floating, movable, resizable, collapsible
-and resettable panel framework. Tablet reflows the editor into stable docks.
-Phone presents Canvas, Document and Tools views with light corrections and
-version access instead of compressing the full desktop workspace; existing
-global Jobs navigation remains available.
+The measured synchronous browser policy is all of:
 
-Buttons and tabs on phone pass the 44 by 44 px scan, the page has no horizontal
-overflow at 768, 638 or 390 px, focus remains visible, controls have accessible
-names, reduced motion is respected and Axe reports no scoped violations.
-Keyboard support includes save-state recovery, undo/redo, delete, zoom, fit and
-Save As commands.
+- compressed source no larger than 12 MiB;
+- decoded raster no larger than 24,000,000 pixels;
+- largest dimension no larger than 8,192 pixels;
+- browser texture edge no larger than 8,192 pixels.
 
-Region/version comments are not mocked. The authority assigns their real domain
-journey to Sequence J, and section 19.2 prohibits disconnected mobile mock
-screens before that domain exists.
+Exceeding any synchronous criterion creates a durable `preview_generation` job,
+job event and transactional outbox record. The editor shows Preparing,
+progress, retry, cancellation and failure states and can be left/reopened while
+work continues. It does not request or decode the full source before a safe
+preview is ready.
+
+The Python processor verifies immutable byte count and SHA-256 before decode,
+supports at most 100 MiB compressed, 100,000,000 decoded pixels and a 50,000 px
+dimension, and applies Pillow's decompression-bomb boundary. It emits PNG
+workspace (maximum edge 2,048) and thumbnail (maximum edge 512) derivatives
+through the object-storage abstraction. Each append-only provenance record
+links source/document versions, processor/version, dimensions, color and
+metadata decisions, checksums, object reference, job/trace IDs and creation
+time, and is explicitly non-authoritative.
+
+## Renderer and professional workspace
+
+Fabric readiness is awaited before state capture. The adapter renders approved
+raster adjustments/crop, rich-text runs and font fallback, rectangle/ellipse/
+line/polygon, internal paths, masks, clipping and group hierarchy. Artboards
+clip their content and new content targets the active artboard. Source delivery
+uses same-origin authorized endpoints, and browser acceptance reads canvas
+pixels successfully; a tainted canvas fails the test.
+
+The actual Studio implements dock, float, pointer move/resize, collapse,
+close/reopen, pin and reset. Layout is scoped by actor, workspace and editor
+profile and clamped when the viewport changes. Pointer selection, move, visible
+resize handles, rotation, keyboard nudging, zoom, pan, fit and snapping with
+visible feedback are exercised. Rulers remain foundations; misleading guide
+controls are not presented as complete guide support.
+
+## Discovery and reopen
+
+Native documents are distinct from Source and Derivative customer objects.
+Home recent work, Default Files, project contents and workspace Search display
+document name, type, updated time, location and a bounded thumbnail state.
+Customers can leave and reopen without retaining a URL, find Save As copies and
+move canonical document location without changing source or reusable reference
+identity. Loading and empty states are explicit.
+
+## Corrective audit resolution matrix
+
+| Audit finding | Resolution | Evidence |
+| --- | --- | --- |
+| Tenant-unsafe lease reads/writes and takeover races | Resolved | `a99a115`; tenant joins, row locks, replay and real PostgreSQL guessed-ID/simultaneous takeover tests |
+| Autosave was memory-only and cross-tab behavior incomplete | Resolved | `5f01012`; journal, tab coordinator, durable session and refresh/offline/conflict/logout tests |
+| Read-only/takeover controls were not globally enforced | Resolved | `5f01012`; disabled controls/keyboard/pointer/history plus durable takeover flows |
+| Native documents were not discoverable | Resolved | `88c3089`; Home/Files/Project/Search repository, API and browser journey |
+| Large sources lacked durable preview derivatives | Resolved within bounded limits | `af39b15`; migration 0016, Python preview worker, provenance and real-stack test |
+| Layer discriminators exceeded executable semantics | Resolved for supported initial semantics | `aef9653`; native validators, atomic operations, renderer and API/browser tests |
+| Studio panels/interactions existed mainly in a harness | Resolved | `568a6fe`; actual Studio panel and real pointer/keyboard/snap tests |
+| Audit/usage/idempotency were not atomic for every mutation | Resolved | `a99a115`; transactional repository and rollback/replay PostgreSQL tests |
+| Intake and Studio format claims drifted | Resolved | centralized JPEG/PNG/WebP policy and fail-closed compatibility reporting |
+| Renderer timing, blank baselines and programmatic pointer proof | Resolved | `aef9653`, `568a6fe`, `f9e797b`; visible-control pointer and canvas-pixel tests |
+| No real React to NestJS to PostgreSQL acceptance journey | Resolved | `recovery2d.real.spec.ts` on fresh PostgreSQL 17.11 and deterministic providers |
+| Eight generic baselines did not cover required states | Resolved | 44 reviewed state baselines plus 8 inherited responsive baselines |
 
 ## Exact changed-file inventory
 
-### Contracts, schemas and licence evidence
+The original eight Recovery 2D commits changed the paths recorded by
+`git diff --name-status 1cdba82..c2c7516`. The seven corrective implementation
+commits and this amended record add or change these exact responsibility scopes:
 
-- `packages/contracts/src/ipw/contracts/editor.py`, `__init__.py`,
-  `product_kernel.py`, `version.py` and
-  `packages/contracts/tests/test_editor_contract.py`.
-- `packages/contracts-ts/src/generated/product.ts`.
-- Every JSON document under `packages/schemas/product-v1/`: 19 new editor
-  schemas and all 54 pre-existing schemas regenerated, 73 of 73 total.
-- `apps/web/package.json`, root `package-lock.json`,
-  `data/licences/production-editor.json`,
-  `tests/test_recovery_2d_editor_licence.py` and the existing Node provider
-  licence gate.
+### Contracts and generated artifacts
 
-### API and PostgreSQL
+- `packages/contracts/src/ipw/contracts/{__init__,editor,product_kernel,version}.py`
+- `packages/contracts/tests/test_editor_contract.py`
+- `packages/contracts-ts/src/generated/product.ts`
+- all 75 files under `packages/schemas/product-v1/`
 
-- `services/api/migrations/0014_recovery_2d_native_documents.sql`.
-- `services/api/src/domains/documents/`: `document-model.ts`,
-  `documents.controller.ts`, `documents.module.ts`, `documents.service.ts`,
-  `documents.types.ts`, `memory-document.repository.ts` and
-  `postgres-document.repository.ts`.
-- `services/api/src/app.module.ts`, `kernel/migrations.ts`,
-  `kernel/permissions.ts` and `domains/experience/experience.service.ts`.
-- `services/api/tests/document-model.test.ts`, `documents.test.ts`,
-  `experience.test.ts` and `postgres.integration.test.ts`.
+### API, persistence and migrations
 
-### React editor and rendering
+- `services/api/migrations/0015_recovery_2d_corrective_foundation.sql`
+- `services/api/migrations/0016_recovery_2d_preview_jobs.sql`
+- `services/api/src/domains/documents/` controller, service, types,
+  memory/PostgreSQL repositories, model and format policy
+- affected experience/job/intake/storage composition under
+  `services/api/src/domains/`
+- `services/api/src/kernel/migrations.ts`
+- document, experience and PostgreSQL tests under `services/api/tests/`
 
-- `apps/web/src/editor/ImageGraphicStudio.tsx`.
-- `apps/web/src/editor/renderer/EditorRenderer.ts`,
-  `FabricEditorRenderer.ts` and `coordinates.ts`.
-- `apps/web/src/App.tsx`, `boundaries/apiClient.ts`,
-  `components/OperationalExperience.tsx`, `components/OutcomeGrid.tsx`,
-  `panels/PanelFramework.tsx` and `styles.css`.
-- `apps/web/tests/editorRenderer.test.ts` and
-  `apps/web/tests/e2e/workspace.spec.ts`.
-- `tests/test_recovery_2d_editor_boundary.py`.
+### Browser editor
 
-### Decision and visual evidence
+- `apps/web/src/editor/` durable session, journal, tab coordinator, native
+  operations, renderer boundary and Fabric adapter
+- affected `apps/web/src/App.tsx`, API client, operational experience,
+  panel framework/layout and `styles.css`
+- web unit tests and `apps/web/tests/e2e/workspace.spec.ts`
 
-- `docs/adr/ADR-0014-native-editor-renderer-foundation.md` and this record.
-- Eight new files under `apps/web/tests/__screenshots__/` named
-  `studio-{1440x900,768x1024,638x768,390x844}-{light,dark}.png`.
+### Worker and storage
 
-No worker, storage implementation, infrastructure, deployment, legacy UI,
-benchmark runtime, PDF engine, model file or font was changed.
+- `services/processing-worker/src/ipw/processing_worker/{preview,repository,task_server}.py`
+- preview and PostgreSQL worker tests under `services/processing-worker/tests/`
+- `packages/storage/src/ipw/storage/{boundary,private}.py` and storage tests
+
+### Real-stack and visual evidence
+
+- `apps/web/playwright.recovery2d.config.ts`, normal Playwright exclusion,
+  configurable Vite API proxy and the `test:recovery2d` package script
+- `apps/web/tests/e2e/{recovery2d.real,studioVisualStates}.spec.ts`
+- 44 `apps/web/tests/__screenshots__/studio-state-*.png` baselines
+- `tools/{run_local_processing_job,recovery_2d_acceptance_probe}.py`
+
+### Records and decisions
+
+- corrected `docs/adr/ADR-0014-native-editor-renderer-foundation.md`
+- this amended Recovery 2D record
+
+No legacy UI, benchmark runtime, PDF engine, model file, font, infrastructure or
+deployment file was moved, promoted or integrated.
 
 ## Verification record
 
-Executed locally on 31 August 2026 without `.env`, credentials, customer files,
-model/font downloads, cloud calls or live providers:
+Executed locally without `.env`, credentials, customer files, cloud calls,
+model/font downloads or live providers:
 
-- `.venv\Scripts\python.exe tools/check.py`: all 18 gates passed in one
-  uninterrupted final run.
-- Python gate: 1,779 passed, 3 expected environment skips, required coverage
-  passed (the diagnostic run measured 90.49%).
-- Strict Python typing: 193 source files, no issues.
-- TypeScript typecheck and all npm workspace tests: passed.
-- Product contract drift: all 73 schemas and generated TypeScript match Python.
-- Playwright production-preview gate: passed in comparison mode with no
-  snapshot update. It includes pointer selection/move/resize/rotate persisted as
-  native transforms, refresh recovery, keyboard history, multi-artboard
-  navigation, Save As, raster crop/adjustment state, canvas pixel/aspect checks,
-  responsive target/overflow scans, Axe and eight exact Studio visuals.
-- Real PostgreSQL: `npm run test:postgres --workspace services/api` passed 2 of
-  2 tests, 0 skipped, against a fresh local PostgreSQL 17.11 instance. All 14
-  migrations ran. Direct verification returned server 17.11, migration count
-  14, history positions `1:100:100` and cursor `100`. pg-mem was not used as
-  PostgreSQL evidence. The synthetic database was stopped.
-- `git diff --check`: passed before each Recovery 2D commit and is repeated for
-  this record.
-- `npm audit --omit=dev` and `npm audit`: two Moderate transitive advisories in
-  `uuid <11.1.1` through `gaxios 6.4.0-6.7.1` (`GHSA-w5hq-g745-h8pq`). No unsafe
-  audit fix or dependency override was applied.
+- Real-stack acceptance: one complete production-preview browser journey passed
+  against fresh PostgreSQL 17.11 in approximately two minutes. It traversed
+  React -> NestJS -> migrations/repositories -> private local object storage ->
+  PostgreSQL outbox -> deterministic Python intake/preview workers. No
+  PostgreSQL acceptance test was skipped.
+- Real-stack database evidence: three jobs succeeded at 100% (two intake, one
+  preview); the preview outbox dispatched exactly once; two non-authoritative
+  derivatives were recorded at or below 2,048 px; provenance source hashes
+  matched the immutable source; audit and usage existed; customer amount and
+  credit debit were zero.
+- Studio state visuals: 6 Playwright tests passed in comparison mode, producing
+  44 exact light/dark state comparisons at `maxDiffPixelRatio: 0`.
+- Focused semantic browser proof: shared-style propagation and independent
+  detach passed.
+- Web unit tests: 33 passed, 0 failed.
+- Fresh-database prerequisite: migrations ran alone against PostgreSQL 17.11;
+  no test record was seeded before the aggregate run.
+- Complete repository verification: all 18 `tools/check.py` gates passed. This
+  included 1,787 Python tests passed with one intentional host-path skip, 155
+  TypeScript tests passed with no skips, 89 Playwright tests passed, 198 Python
+  source files strict-typechecked, both contract-drift gates, schema drift,
+  goldens, fixtures, licence register and model-weight verification.
+- The sole Python skip is the libvips-unavailable branch because libvips is
+  installed on this host; that branch remains covered on CI.
+- Full visual comparison: all 49 tagged visual tests passed without update mode
+  across 87 reviewed baselines. Accessibility and horizontal-overflow checks
+  are part of those journeys.
+- Final real-stack acceptance: 1 Playwright journey passed in 1.2 minutes at
+  current HEAD.
+- `npm audit` and `npm audit --omit=dev` each reported the same two Moderate
+  transitive findings documented below; no override or audit fix was applied.
 
-## Visual baseline inventory
+## Visual baseline inventory and accepted pixels
 
-All eight Studio states are new, intentional, reviewed-in-branch baselines and
-compare at `maxDiffPixelRatio: 0`:
+The visual inventory contains 87 reviewed baselines: 44 corrective Studio-state
+images, eight responsive Studio images and 35 workspace/guest images.
 
-- desktop 1440x900, light and dark;
-- tablet 768x1024, light and dark;
-- intermediate 638x768, light and dark;
-- phone 390x844, light and dark.
+Six of the original eight `studio-{viewport}-{theme}.png` baselines were
+intentionally refreshed at 1440x900, 768x1024 and 638x768 in light and dark.
+They now show real dock controls, selection affordances and panel content. The
+390x844 light/dark Studio baselines remained unchanged.
 
-The accepted pixels add only the activated Studio journey: responsive command
-bar, artboard canvas, native-preview label, artboard/layer/assets/history tabs,
-properties and All Tools surfaces, and theme-correct canvas chrome. Existing
-Recovery 2C reviewed baselines were not intentionally changed.
+The corrective delivery adds 44 reviewed `studio-state-*.png` baselines, light
+and dark for every state:
 
-## Requirement self-audit
+- blank, selected text, selected vector, multiple artboards, Layers panel,
+  group transform, History/named Versions and floating/moved/resized panel;
+- imported raster, raster adjustments and rendered mask;
+- read-only lease, takeover request, saving, failed save and offline pending;
+- preview preparing, progress and failure;
+- tablet 768x1024, intermediate 638x768 and phone review 390x844.
 
-| Requirement | Result | Evidence or bounded gap |
+All 44 Studio-state images are new evidence. Nineteen existing workspace images
+were intentionally refreshed because native documents are now visible in Home,
+Projects, Search or navigation context, or because their overlays expose that
+changed background. Together with the six Studio images, exactly 25 existing
+baselines changed. Unaffected guest, intake, Jobs, Files, Projects and phone
+Studio images remained byte-for-byte unchanged.
+
+Accepted pixels show only the named customer state and theme. The review process
+detected and removed one nondeterministic source-title race before commit by
+entering a fixed document name. A later no-update run passed all 49 visual tests.
+Original-resolution inspection confirmed nonblank dark/phone canvases, bounded
+panels, visible state messaging, no horizontal overflow and no incoherent
+overlap.
+
+## Requirement matrix
+
+| Requirement | Corrected result | Evidence or boundary |
 | --- | --- | --- |
-| A. Native document model | Delivered | Contract 1.13.0, 19 new schemas, native model and migration 0014 |
-| B. Non-destructive editing | Delivered foundation | Immutable source references, native crop/transform/adjustment/mask state; no export/recompression |
-| C. History, versions, autosave | Delivered | optimistic mutations, 100-entry history, checkpoints, named/forward restore and refresh tests |
-| D. Concurrency boundary | Delivered | hashed renewable lease, grace, request/force takeover, permissions and audit; no real-time co-editing |
-| E. Editor experience | Delivered for 2D | desktop/tablet/phone Studio, panels, All Tools, versions and global Jobs; comments remain Sequence J |
-| F. Canvas and renderer | Delivered foundation | ADR-0014, adapter boundary, transforms, pointer/zoom/pan/fit/rulers/snap and pixel tests |
-| G. API, persistence and jobs | Partially delivered | NestJS/PostgreSQL/security/usage delivered; measured async preview threshold and derivative job remain open |
-| H. Import compatibility | Partially delivered by design | verified raster works; SVG fails closed pending sanitizer; PSD/AI only truthful future report kinds |
-| I. Feature/release exclusions | Delivered | architecture guard and diff prove no prohibited product area was added |
-| Research decision | Delivered | primary-source, licence-aware three-candidate ADR and exact dependency evidence |
-| Required deterministic tests | Delivered | 18 gates, PostgreSQL 17.11, Playwright/Axe/pointer/visual and architecture evidence |
+| A. Native document model | Delivered for supported initial types | Contract 1.17.0, 75 schemas, migrations 0014-0016 and semantic validators |
+| B. Non-destructive editing | Delivered | Immutable source/hash proof, native crop/adjustment/mask/style data and derivative provenance |
+| C. History, versions and autosave | Delivered | IndexedDB journal, bounded history, named versions, forward restore, conflict/replay tests |
+| D. Concurrency boundary | Delivered | Tenant-safe leases, heartbeat/grace, read-only, request/deny/release/force and audit |
+| E. Editor experience | Delivered within 2D bounds | Actual professional panel behavior and responsive phone/tablet experience |
+| F. Canvas and renderer | Delivered within documented subset | Replaceable Fabric adapter, pointer controls, DPR/zoom, mask/group/vector pixels and nonblank visuals |
+| G. API, persistence and jobs | Delivered with live providers unverified | NestJS/PostgreSQL/outbox/Python worker/local storage real-stack evidence |
+| H. Import compatibility | Delivered truthfully | JPEG/PNG/WebP editable; unsupported formats preserved and fail closed |
+| I. Feature/release exclusions | Delivered | Architecture guards and diff show no prohibited later product area |
+| Research decision | Delivered | ADR-0014 and exact dependency/licence evidence |
+| Required deterministic tests | Delivered locally | Real PG17, browser journey, accessibility, input, overflow, visual and repository gates |
 
 ## Known limitations and release gates
 
-- Benchmark and approve an asynchronous server-preview threshold, durable
-  preview job, object-stored derivative and provenance before supporting sources
-  above the current 50 MiB browser-preview limit.
-- Select and security-review an SVG sanitizer before enabling SVG import.
-- Do not claim editable PSD or AI-compatible import until independent parser and
-  compatibility work preserves unsupported structures truthfully.
-- Rich text is a native extensible model with a basic browser text surface, not
-  a complete typography/font pipeline. Advanced groups, editable guides and
-  mask painting remain future editor depth.
-- Region/version comments, approvals, sharing and presence remain Sequence J.
-- Run live-provider compatibility checks in the release environment. Local
-  deterministic adapters are not live GCS, Cloud Tasks, ClamAV or OIDC proof.
-- Resolve or formally accept the two Moderate transitive advisories without an
-  unsafe override.
-- PWA platform presentation, the complete custom-PDF benchmark and model
-  licence/quality approval remain existing release gates.
-- Fabric upgrades require native-model, coordinate, pointer, accessibility and
-  visual compatibility regression; Fabric serialization must remain excluded.
+- External SVG, PSD and AI-compatible editable import are unavailable. Sources
+  remain preserved and receive compatibility information.
+- Final production export/render fidelity and approval are outside Recovery 2D.
+- Rich typography, advanced masks, professional guides, comments/approvals,
+  sharing/presence and real-time co-editing remain deferred.
+- Live OIDC, GCS, Cloud Tasks and ClamAV compatibility checks remain release
+  gates; local deterministic evidence is not a substitute.
+- Two Moderate transitive `uuid <11.1.1` advisories through the approved Google
+  provider dependency chain remain documented. No unsafe override is allowed.
+- PWA platform presentation, complete custom-PDF compatibility/security/
+  performance benchmark, and model licence/quality approval remain release
+  gates.
+- Fabric upgrades require native-model, renderer, coordinate, pointer,
+  accessibility and visual regression. Fabric serialization must remain
+  excluded from authoritative state.
 
 ## Rollback
 
-1. Create a dedicated rollback branch and stop local API/web/PostgreSQL
-   processes.
-2. Revert Recovery 2D commits in reverse order, beginning with the commit
-   containing this record, then `8abf37f`, `66d616a`, `bb37647`, `021110e`,
-   `eb704af`, `001a440` and `7ee9a44`. Do not rewrite approved Recovery 2C
-   history.
-3. Roll application code back before any separately approved data action.
-   Migration 0014 is additive and contains document/version/audit evidence; do
-   not drop its tables until retention and rollback impact are approved.
-4. Rebuild generated contracts from the restored Python authority, clear only
-   the Recovery 2D public shell/build caches and rerun the Recovery 2C
-   PostgreSQL, contract and full repository gates.
+1. Create a dedicated rollback branch and stop local API, web, worker and
+   PostgreSQL processes.
+2. Revert this amended record, then corrective commits in reverse order:
+   `0fd14fd`, `73e2d4d`, `f7e1628`, `f9e797b`, `568a6fe`, `aef9653`,
+   `af39b15`, `88c3089`, `5f01012` and `a99a115`.
+3. If the entire Recovery 2D scope must be removed, continue reverting the
+   original Recovery 2D commits through `7ee9a44`. Do not rewrite approved
+   Recovery 2C history.
+4. Roll application code back before any separately approved data action.
+   Migrations 0014-0016 contain additive document/version/audit/provenance
+   evidence; do not drop data without retention and rollback approval.
+5. Rebuild generated contracts from the restored Python authority, clear only
+   Recovery 2D public build/test artifacts and rerun the Recovery 2C contract,
+   PostgreSQL and complete repository gates.
 
-## Commit sequence
+## Complete commit sequence
+
+Original Recovery 2D commits:
 
 1. `7ee9a44` - define the native editor document model and renderer ADR.
 2. `001a440` - persist native editor documents in NestJS and PostgreSQL.
@@ -314,8 +462,22 @@ Recovery 2C reviewed baselines were not intentionally changed.
 4. `021110e` - build the responsive native Image and Graphic Studio.
 5. `bb37647` - keep restored PostgreSQL history within its durable bound.
 6. `66d616a` - complete pointer, viewport, keyboard and responsive interactions.
-7. `8abf37f` - enforce renderer/runtime and full dependency-licence boundaries.
-8. The commit containing this verification record.
+7. `8abf37f` - enforce renderer/runtime and dependency-licence boundaries.
+8. `c2c7516` - record the original completion claim later rejected by audit.
+
+Corrective commits:
+
+9. `a99a115` - secure native document transactions.
+10. `5f01012` - make autosave and leases durable.
+11. `88c3089` - make native documents discoverable.
+12. `af39b15` - add durable safe preview jobs.
+13. `aef9653` - complete native semantic correctness.
+14. `568a6fe` - complete professional Studio workspace behavior.
+15. `f9e797b` - prove real integration and visual acceptance.
+16. `f7e1628` - satisfy strict processing-worker capability boundaries.
+17. `73e2d4d` - restore complete Python quality gates.
+18. `0fd14fd` - align Studio accessibility and visual evidence.
+19. The commit containing this amended completion record.
 
 Recovery 2D remains local and paused for product-owner review. Nothing was
 pushed, merged or deployed, and no later recovery sequence was started.
