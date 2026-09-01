@@ -25,7 +25,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -77,7 +77,7 @@
           "$ref": "#/$defs/ArtboardOrientation"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -148,7 +148,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -183,7 +183,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -283,7 +283,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -377,7 +377,7 @@
           "title": "Path Data"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -432,7 +432,7 @@
           "title": "Project Id"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -456,6 +456,19 @@
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
           "title": "Created By Actor Id",
           "type": "string"
+        },
+        "current_preview_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current Preview Id"
         },
         "current_revision": {
           "minimum": 0,
@@ -484,6 +497,23 @@
           "title": "Name",
           "type": "string"
         },
+        "preview_job_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preview Job Id"
+        },
+        "preview_state": {
+          "$ref": "#/$defs/EditorPreviewState",
+          "default": "not_required"
+        },
         "project_id": {
           "anyOf": [
             {
@@ -498,7 +528,7 @@
           "title": "Project Id"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -606,7 +636,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -651,6 +681,17 @@
       "title": "EditorLocationKind",
       "type": "string"
     },
+    "EditorPreviewState": {
+      "enum": [
+        "not_required",
+        "preparing",
+        "ready",
+        "failed",
+        "cancelled"
+      ],
+      "title": "EditorPreviewState",
+      "type": "string"
+    },
     "GroupLayerData": {
       "additionalProperties": false,
       "properties": {
@@ -660,7 +701,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -714,7 +755,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -842,7 +883,7 @@
           "default": null
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -938,7 +979,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1034,7 +1075,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1083,7 +1124,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1118,7 +1159,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1191,7 +1232,7 @@
           "title": "Fill"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1290,7 +1331,7 @@
           "title": "Preview Object Reference Id"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1374,7 +1415,7 @@
           "type": "object"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1455,7 +1496,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1527,7 +1568,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1565,7 +1606,7 @@
       "$ref": "#/$defs/EditorDocumentRecord"
     },
     "schema_version": {
-      "default": "1.15.0",
+      "default": "1.16.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { appendFile, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 
-export type ObjectZone = "quarantine" | "immutable";
+export type ObjectZone = "quarantine" | "immutable" | "derivative";
 
 export interface PrivateObjectRef {
   ownerScope: string;
@@ -283,7 +283,7 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
   }
 
   private path(ref: PrivateObjectRef): string {
-    if (!/^(quarantine|immutable)\/[a-z0-9._-]{3,64}\/[a-z0-9._-]{3,128}$/.test(ref.objectKey)) {
+    if (!/^(quarantine|immutable|derivative)\/[a-z0-9._-]{3,64}(?:\/[a-z0-9._-]{3,128}){1,4}$/.test(ref.objectKey)) {
       throw new Error("invalid private object key");
     }
     const root = resolve(this.root);

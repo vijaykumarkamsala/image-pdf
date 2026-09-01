@@ -1,0 +1,85 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/studio-source-candidate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "byte_size": {
+      "minimum": 1,
+      "title": "Byte Size",
+      "type": "integer"
+    },
+    "compatibility_message": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Compatibility Message",
+      "type": "string"
+    },
+    "display_name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "editable": {
+      "title": "Editable",
+      "type": "boolean"
+    },
+    "file_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "File Id",
+      "type": "string"
+    },
+    "height": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Height"
+    },
+    "media_type": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Media Type",
+      "type": "string"
+    },
+    "requires_generated_preview": {
+      "title": "Requires Generated Preview",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.16.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "width": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Width"
+    }
+  },
+  "required": [
+    "file_id",
+    "display_name",
+    "media_type",
+    "byte_size",
+    "editable",
+    "compatibility_message",
+    "requires_generated_preview"
+  ],
+  "title": "StudioSourceCandidate",
+  "type": "object"
+}

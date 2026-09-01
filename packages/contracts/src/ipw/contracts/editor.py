@@ -408,6 +408,14 @@ class EditorDocumentSnapshot(EditorContractModel):
         return self
 
 
+class EditorPreviewState(StrEnum):
+    NOT_REQUIRED = "not_required"
+    PREPARING = "preparing"
+    READY = "ready"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class EditorDocumentRecord(EditorContractModel):
     document_id: SlugId
     workspace_id: SlugId
@@ -418,13 +426,14 @@ class EditorDocumentRecord(EditorContractModel):
     source_file_id: SlugId | None = None
     source_asset_original_id: SlugId | None = None
     source_version_id: SlugId | None = None
+    preview_state: EditorPreviewState = EditorPreviewState.NOT_REQUIRED
+    preview_job_id: SlugId | None = None
+    current_preview_id: SlugId | None = None
     current_version_id: SlugId
     current_revision: int = Field(ge=0)
     created_by_actor_id: SlugId
     created_at: NonEmptyStr
     updated_at: NonEmptyStr
-
-
 class EditorOperationKind(StrEnum):
     LAYER_ADD = "layer.add"
     LAYER_UPDATE = "layer.update"
@@ -555,12 +564,20 @@ class ImportCompatibilityReport(EditorContractModel):
 class PreviewProvenance(EditorContractModel):
     preview_id: SlugId
     document_id: SlugId
-    document_version_id: SlugId
-    renderer_name: NonEmptyStr
-    renderer_version: NonEmptyStr
-    snapshot_sha256: Sha256Hex
+    document_version_id: SlugId | None = None
+    source_version_id: SlugId
+    object_reference_id: SlugId
+    job_id: SlugId
+    trace_id: SlugId
+    processor_name: NonEmptyStr
+    processor_version: NonEmptyStr
+    zoom_level: Literal["workspace", "thumbnail"]
+    source_sha256: Sha256Hex
+    sha256: Sha256Hex
     width: int = Field(ge=1)
     height: int = Field(ge=1)
+    colour_decision: NonEmptyStr
+    metadata_decision: NonEmptyStr
     authoritative: Literal[False] = False
     created_at: NonEmptyStr
 

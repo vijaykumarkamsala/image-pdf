@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.15.0";
+export const PRODUCT_SCHEMA_VERSION = "1.16.0";
 
 export interface Actor {
   schema_version?: string;
@@ -157,6 +157,9 @@ export interface EditorDocumentRecord {
   source_file_id?: string | null;
   source_asset_original_id?: string | null;
   source_version_id?: string | null;
+  preview_state?: EditorPreviewState;
+  preview_job_id?: string | null;
+  current_preview_id?: string | null;
   current_version_id: string;
   current_revision: number;
   created_by_actor_id: string;
@@ -217,6 +220,9 @@ export interface EditorMutation {
 
 export type EditorOperationKind = "layer.add" | "layer.update" | "layer.remove" | "layer.reorder" | "artboard.add" | "artboard.update" | "artboard.remove" | "mask.update" | "document.rename";
 export const EditorOperationKindValues: readonly EditorOperationKind[] = ["layer.add", "layer.update", "layer.remove", "layer.reorder", "artboard.add", "artboard.update", "artboard.remove", "mask.update", "document.rename"] as const;
+
+export type EditorPreviewState = "not_required" | "preparing" | "ready" | "failed" | "cancelled";
+export const EditorPreviewStateValues: readonly EditorPreviewState[] = ["not_required", "preparing", "ready", "failed", "cancelled"] as const;
 
 export interface EffectivePermission {
   schema_version?: string;
@@ -418,8 +424,8 @@ export const PermissionValues: readonly Permission[] = ["workspace.read", "proje
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
 
-export type ProcessingJobKind = "file_intake_inspection";
-export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection"] as const;
+export type ProcessingJobKind = "file_intake_inspection" | "preview_generation";
+export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation"] as const;
 
 export interface ProcessingJobRecord {
   schema_version?: string;
@@ -429,7 +435,8 @@ export interface ProcessingJobRecord {
   workspace_id?: string | null;
   actor_id?: string | null;
   guest_session_id?: string | null;
-  upload_session_id: string;
+  upload_session_id?: string | null;
+  document_id?: string | null;
   state: ProcessingJobState;
   attempt: number;
   max_attempts: number;
@@ -560,6 +567,10 @@ export interface SourceFacts {
   sensitive_metadata?: string[];
   malware_scan_state: MalwareScanState;
 }
+
+/** Formats with one executable inspection, preview and browser-editing path. */
+export type StudioEditableMediaType = "image/jpeg" | "image/png" | "image/webp";
+export const StudioEditableMediaTypeValues: readonly StudioEditableMediaType[] = ["image/jpeg", "image/png", "image/webp"] as const;
 
 export interface UploadAuthorization {
   schema_version?: string;
@@ -844,13 +855,22 @@ export interface PreviewProvenance {
   schema_version?: string;
   preview_id: string;
   document_id: string;
-  document_version_id: string;
-  renderer_name: string;
-  renderer_version: string;
+  document_version_id?: string | null;
+  source_version_id: string;
+  object_reference_id: string;
+  job_id: string;
+  trace_id: string;
+  processor_name: string;
+  processor_version: string;
+  zoom_level: "workspace" | "thumbnail";
   /** Lower-case hexadecimal SHA-256 digest. */
-  snapshot_sha256: string;
+  source_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  sha256: string;
   width: number;
   height: number;
+  colour_decision: string;
+  metadata_decision: string;
   authoritative?: false;
   created_at: string;
 }
@@ -880,6 +900,24 @@ export interface SourceVersionRecord {
   sequence: number;
   previous_source_version_id?: string | null;
   created_at: string;
+}
+
+export interface StudioFormatCapability {
+  schema_version?: string;
+  editable_media_types?: StudioEditableMediaType[];
+}
+
+export interface StudioSourceCandidate {
+  schema_version?: string;
+  file_id: string;
+  display_name: string;
+  media_type: string;
+  byte_size: number;
+  width?: number | null;
+  height?: number | null;
+  editable: boolean;
+  compatibility_message: string;
+  requires_generated_preview: boolean;
 }
 
 export interface UploadSessionCreated {

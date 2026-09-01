@@ -28,6 +28,7 @@ import type {
   EditorDocumentSnapshot,
   DocumentVersionRecord,
   ImportCompatibilityReport,
+  StudioSourceCandidate,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -474,6 +475,9 @@ export const api = {
   },
   documents(workspaceId: string): Promise<DocumentListResponse> {
     return request(`/workspaces/${workspaceId}/documents`);
+  },
+  studioSources(workspaceId: string): Promise<{ sources: StudioSourceCandidate[] }> {
+    return request(`/workspaces/${workspaceId}/documents/studio-sources`);
   },
   createDocument(workspaceId: string, input: {
     name: string;

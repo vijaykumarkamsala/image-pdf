@@ -4,6 +4,7 @@ import test from "node:test";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 import { DomainError } from "../src/kernel/errors.js";
+import { requiresGeneratedPreview, STUDIO_EDITABLE_MEDIA_TYPES, STUDIO_SYNC_PREVIEW_POLICY } from "../src/domains/documents/studio-format-policy.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
 import { DeterministicRuntimeValues } from "../src/kernel/runtime.js";
 import { applyMutation, initialSnapshot, neutralAdjustments, snapshotDigest, transform } from "../src/domains/documents/document-model.js";
@@ -126,6 +127,8 @@ test("malformed transforms, crops and cyclic nesting fail at the native document
       mediaType: "image/png",
       width: 100,
       height: 80,
+      byteSize: 1024,
+      requiresPreview: false,
     },
   });
   const raster = original.layers![0]!;
@@ -195,6 +198,23 @@ test("malformed transforms, crops and cyclic nesting fail at the native document
     () => applyMutation(grouped, { kind: "layer.reorder", target_id: "group-b", properties: { parent_layer_id: "group-a" } }),
     (error: unknown) => error instanceof DomainError && error.code === "document-mutation-invalid",
   );
+});
+
+test("Studio format and synchronous preview limits are central, measured and fail closed", () => {
+  assert.deepEqual([...STUDIO_EDITABLE_MEDIA_TYPES].sort(), ["image/jpeg", "image/png", "image/webp"]);
+  assert.equal(requiresGeneratedPreview({
+    byteSize: STUDIO_SYNC_PREVIEW_POLICY.maxCompressedBytes,
+    width: 4000,
+    height: 3000,
+  }), false);
+  assert.equal(requiresGeneratedPreview({
+    byteSize: STUDIO_SYNC_PREVIEW_POLICY.maxCompressedBytes + 1,
+    width: 4000,
+    height: 3000,
+  }), true);
+  assert.equal(requiresGeneratedPreview({ byteSize: 1024, width: 9000, height: 100 }), true);
+  assert.equal(requiresGeneratedPreview({ byteSize: 1024, width: 6000, height: 5000 }), true);
+  assert.equal(requiresGeneratedPreview({ byteSize: 1024, width: null, height: null }), true);
 });
 
 test("autosave checkpoints, bounded history and lease takeover remain deterministic", async () => {

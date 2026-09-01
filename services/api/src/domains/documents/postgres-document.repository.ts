@@ -38,6 +38,7 @@ import type {
   DocumentMutationInput,
   DocumentMutationResult,
   DocumentRepository,
+  DocumentPreviewDelivery,
 } from "./documents.types.js";
 
 export class PostgresDocumentRepository implements DocumentRepository {
@@ -58,20 +59,24 @@ export class PostgresDocumentRepository implements DocumentRepository {
       const now = this.runtime.now();
       const snapshot = initialSnapshot(this.runtime, documentId, input);
       const locationKind = input.projectId ? "project" : "default_files";
+      const previewJobId = input.source?.requiresPreview ? this.runtime.id("job") : null;
       await client.query(
         `INSERT INTO editor_documents(document_id,workspace_id,project_id,location_kind,default_files_id,kind,name,
          source_file_id,source_asset_original_id,source_version_id,current_version_id,current_revision,current_snapshot,
-         history_cursor,created_by_actor_id,created_at,updated_at)
-         VALUES($1,$2,$3,$4,$5,'graphic',$6,$7,$8,$9,$10,0,$11,0,$12,$13,$13)`,
+         history_cursor,created_by_actor_id,created_at,updated_at,preview_state,preview_job_id)
+         VALUES($1,$2,$3,$4,$5,'graphic',$6,$7,$8,$9,$10,0,$11,0,$12,$13,$13,$14,$15)`,
         [documentId, input.workspaceId, input.projectId ?? null, locationKind, input.projectId ? null : input.defaultFilesId,
           input.name, input.source?.fileId ?? null, input.source?.assetOriginalId ?? null, input.source?.sourceVersionId ?? null,
-          versionId, snapshot, context.principal.actorId, now],
+          versionId, snapshot, context.principal.actorId, now, previewJobId ? "preparing" : "not_required", previewJobId],
       );
       await this.insertVersion(client, {
         id: versionId, documentId, sequence: 1, snapshot, kind: "initial", name: "Initial",
         actorId: context.principal.actorId, now,
       });
       if (input.source) await this.insertCompatibility(client, documentId, input, now);
+      if (previewJobId) {
+        await this.enqueuePreview(client, context, input.workspaceId, documentId, previewJobId, now);
+      }
       return (await this.read(client, input.workspaceId, documentId))!;
     }, (value) => ({ workspaceId: input.workspaceId, action: "document.created", resourceId: value.document.document_id }));
   }
@@ -85,6 +90,22 @@ export class PostgresDocumentRepository implements DocumentRepository {
   async get(actorId: string, workspaceId: string, documentId: string): Promise<DocumentReadModel | null> {
     void actorId;
     return this.read(this.pool, workspaceId, documentId, false);
+  }
+
+  async previewDelivery(actorId: string, workspaceId: string, documentId: string): Promise<DocumentPreviewDelivery | null> {
+    void actorId;
+    const result = await this.pool.query(
+      `SELECT object.object_key,object.media_type,object.byte_size
+       FROM editor_documents document
+       JOIN preview_provenance preview ON preview.preview_id=document.current_preview_id
+       JOIN object_references object ON object.object_reference_id=preview.object_reference_id
+         AND object.workspace_id=document.workspace_id
+       WHERE document.workspace_id=$1 AND document.document_id=$2 AND document.preview_state='ready'
+         AND preview.zoom_level='workspace'`,
+      [workspaceId, documentId],
+    );
+    const row = result.rows[0];
+    return row ? { objectKey: String(row["object_key"]), mediaType: String(row["media_type"]), byteSize: Number(row["byte_size"]) } : null;
   }
 
   async mutate(context: CommandContext, input: DocumentMutationInput): Promise<DocumentMutationResult> {
@@ -210,14 +231,21 @@ export class PostgresDocumentRepository implements DocumentRepository {
       }
       snapshot.document_id = nextId;
       snapshot.revision = 0;
+      const sourcePreviewState = String(source["preview_state"] ?? "not_required");
+      const cloneReadyPreview = sourcePreviewState === "ready" && Boolean(source["current_preview_id"]);
+      const nextPreviewJobId = sourcePreviewState === "not_required"
+        ? null
+        : cloneReadyPreview
+          ? String(source["preview_job_id"])
+          : this.runtime.id("job");
       await client.query(
         `INSERT INTO editor_documents(document_id,workspace_id,project_id,location_kind,default_files_id,kind,name,
          source_file_id,source_asset_original_id,source_version_id,current_version_id,current_revision,current_snapshot,
-         history_cursor,created_by_actor_id,created_at,updated_at)
-         VALUES($1,$2,$3,$4,$5,'graphic',$6,$7,$8,$9,$10,0,$11,0,$12,$13,$13)`,
+         history_cursor,created_by_actor_id,created_at,updated_at,preview_state,preview_job_id)
+         VALUES($1,$2,$3,$4,$5,'graphic',$6,$7,$8,$9,$10,0,$11,0,$12,$13,$13,$14,$15)`,
         [nextId, workspaceId, projectId ?? null, projectId ? "project" : "default_files", projectId ? null : defaultFilesId,
           name, source["source_file_id"], source["source_asset_original_id"], source["source_version_id"], versionId,
-          snapshot, context.principal.actorId, now],
+          snapshot, context.principal.actorId, now, cloneReadyPreview ? "ready" : nextPreviewJobId ? "preparing" : "not_required", nextPreviewJobId],
       );
       await this.insertVersion(client, {
         id: versionId, documentId: nextId, sequence: 1, snapshot, kind: "save_as", name,
@@ -232,6 +260,31 @@ export class PostgresDocumentRepository implements DocumentRepository {
          FROM import_compatibility_reports WHERE document_id=$4 ORDER BY created_at DESC LIMIT 1`,
         [this.runtime.id("compatibility"), nextId, now, documentId],
       );
+      if (cloneReadyPreview) {
+        const previews = await client.query(
+          "SELECT * FROM preview_provenance WHERE document_id=$1 ORDER BY zoom_level",
+          [documentId],
+        );
+        let workspacePreviewId: string | null = null;
+        for (const preview of previews.rows) {
+          const previewId = this.runtime.id("preview");
+          await client.query(
+            `INSERT INTO preview_provenance(preview_id,document_id,document_version_id,source_version_id,
+             object_reference_id,job_id,trace_id,processor_name,processor_version,zoom_level,source_sha256,
+             sha256,width,height,colour_decision,metadata_decision,authoritative,created_at)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,false,$17)`,
+            [previewId, nextId, versionId, preview["source_version_id"], preview["object_reference_id"],
+              preview["job_id"], context.traceId, preview["processor_name"], preview["processor_version"],
+              preview["zoom_level"], preview["source_sha256"], preview["sha256"], preview["width"],
+              preview["height"], preview["colour_decision"], preview["metadata_decision"], now],
+          );
+          if (preview["zoom_level"] === "workspace") workspacePreviewId = previewId;
+        }
+        if (!workspacePreviewId) throw new Error("ready source document has no workspace preview");
+        await client.query("UPDATE editor_documents SET current_preview_id=$1 WHERE document_id=$2", [workspacePreviewId, nextId]);
+      } else if (nextPreviewJobId) {
+        await this.enqueuePreview(client, context, workspaceId, nextId, nextPreviewJobId, now);
+      }
       return (await this.read(client, workspaceId, nextId))!;
     }, (value) => ({ workspaceId, action: "document.saved-as", resourceId: value.document.document_id }));
   }
@@ -663,8 +716,34 @@ export class PostgresDocumentRepository implements DocumentRepository {
        source_version_id,source_kind,state,source_preserved,sanitisation_required,preserved_structures,
        unsupported_structures,warnings,created_at) VALUES($1,$2,$3,$4,$5,'raster','compatible',true,false,$6,'[]'::jsonb,$7,$8)`,
       [this.runtime.id("compatibility"), input.workspaceId, documentId, input.source!.fileId, input.source!.sourceVersionId,
-        ["Immutable raster source", "Pixel dimensions", "Colour profile evidence"],
-        input.source!.width && input.source!.height ? [] : ["Source dimensions were unavailable"], now],
+        JSON.stringify(["Immutable raster source", "Pixel dimensions", "Colour profile evidence"]),
+        JSON.stringify(input.source!.width && input.source!.height ? [] : ["Source dimensions were unavailable"]), now],
+    );
+  }
+
+  private async enqueuePreview(
+    client: PoolClient,
+    context: CommandContext,
+    workspaceId: string,
+    documentId: string,
+    jobId: string,
+    now: string,
+  ): Promise<void> {
+    await client.query(
+      `INSERT INTO processing_jobs(job_id,kind,owner_kind,workspace_id,actor_id,document_id,state,attempt,
+       max_attempts,progress_percent,created_at,updated_at)
+       VALUES($1,'preview_generation','actor',$2,$3,$4,'queued',0,3,0,$5,$5)`,
+      [jobId, workspaceId, context.principal.actorId, documentId, now],
+    );
+    await client.query(
+      `INSERT INTO job_events(job_event_id,job_id,event_kind,state,progress_percent,occurred_at,trace_id)
+       VALUES($1,$2,'preview.queued','queued',0,$3,$4)`,
+      [this.runtime.id("job-event"), jobId, now, context.traceId],
+    );
+    await client.query(
+      `INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
+       VALUES($1,$2,'process_job',$3,$4,$5,$5)`,
+      [this.runtime.id("outbox"), jobId, { job_id: jobId }, context.traceId, now],
     );
   }
 
@@ -691,6 +770,9 @@ function documentRecord(row: QueryResultRow): EditorDocumentRecord {
     source_file_id: row["source_file_id"] ? String(row["source_file_id"]) : null,
     source_asset_original_id: row["source_asset_original_id"] ? String(row["source_asset_original_id"]) : null,
     source_version_id: row["source_version_id"] ? String(row["source_version_id"]) : null,
+    preview_state: String(row["preview_state"] ?? "not_required") as EditorDocumentRecord["preview_state"],
+    preview_job_id: row["preview_job_id"] ? String(row["preview_job_id"]) : null,
+    current_preview_id: row["current_preview_id"] ? String(row["current_preview_id"]) : null,
     current_version_id: String(row["current_version_id"]), current_revision: Number(row["current_revision"]),
     created_by_actor_id: String(row["created_by_actor_id"]), created_at: timestamp(row["created_at"]), updated_at: timestamp(row["updated_at"]),
   };

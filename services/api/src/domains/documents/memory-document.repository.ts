@@ -85,6 +85,9 @@ export class MemoryDocumentRepository implements DocumentRepository {
         source_file_id: input.source?.fileId ?? null,
         source_asset_original_id: input.source?.assetOriginalId ?? null,
         source_version_id: input.source?.sourceVersionId ?? null,
+        preview_state: input.source?.requiresPreview ? "preparing" : "not_required",
+        preview_job_id: input.source?.requiresPreview ? this.runtime.id("job") : null,
+        current_preview_id: null,
         current_version_id: versionId,
         current_revision: 0,
         created_by_actor_id: context.principal.actorId,
@@ -113,6 +116,10 @@ export class MemoryDocumentRepository implements DocumentRepository {
     void actorId;
     const stored = this.documents.get(documentId);
     return stored?.record.workspace_id === workspaceId ? this.read(stored) : null;
+  }
+
+  async previewDelivery(): Promise<null> {
+    return null;
   }
 
   async mutate(context: CommandContext, input: DocumentMutationInput): Promise<DocumentMutationResult> {
@@ -218,6 +225,9 @@ export class MemoryDocumentRepository implements DocumentRepository {
         location: projectId
           ? { schema_version: PRODUCT_SCHEMA_VERSION, kind: "project", project_id: projectId, default_files_id: null }
           : { schema_version: PRODUCT_SCHEMA_VERSION, kind: "default_files", project_id: null, default_files_id: defaultFilesId },
+        preview_state: source.record.preview_state === "not_required" ? "not_required" : "preparing",
+        preview_job_id: source.record.preview_state === "not_required" ? null : this.runtime.id("job"),
+        current_preview_id: null,
         current_version_id: versionId, current_revision: 0, created_by_actor_id: context.principal.actorId,
         created_at: now, updated_at: now,
       };

@@ -33,7 +33,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -57,7 +57,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -106,7 +106,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -193,7 +193,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -242,7 +242,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -277,7 +277,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -350,7 +350,7 @@
           "title": "Fill"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -446,7 +446,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -518,7 +518,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.15.0",
+          "default": "1.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -665,7 +665,7 @@
       "default": null
     },
     "schema_version": {
-      "default": "1.15.0",
+      "default": "1.16.0",
       "title": "Schema Version",
       "type": "string"
     },

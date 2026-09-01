@@ -143,7 +143,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     if (!current || current.state !== "failed" || !current.failure?.retryable || current.max_attempts >= 20) {
       throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
     }
-    this.intake.reopenForRetry(current.upload_session_id, owner, now);
+    this.intake.reopenForRetry(intakeUploadId(current), owner, now);
     const updated: ProcessingJobRecord = {
       ...current,
       state: "queued",
@@ -237,7 +237,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     if (current.state !== "leased") throw new DomainError(409, "job-state-conflict", "Job cannot start from its current state");
     const updated = { ...current, state: "running" as const, progress_percent: 10, updated_at: now };
     this.jobs.set(jobId, updated);
-    this.intake.markInspecting(current.upload_session_id, now);
+    this.intake.markInspecting(intakeUploadId(current), now);
     this.event(updated, "job.started", traceId);
     return updated;
   }
@@ -287,7 +287,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
   ): Promise<InspectionCompletion> {
     const current = this.requireLease(jobId, leaseTokenHash);
     if (current.state !== "running") throw new DomainError(409, "job-state-conflict", "Job is not running");
-    const upload = this.intake.completeAccepted(current.upload_session_id, {
+    const upload = this.intake.completeAccepted(intakeUploadId(current), {
       immutableObjectKey: result.immutableObjectKey,
       assetOriginalId: result.assetOriginalId,
       sourceVersionId: result.sourceVersionId,
@@ -331,7 +331,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
   ): Promise<InspectionCompletion> {
     const current = this.requireLease(jobId, leaseTokenHash);
     if (current.state !== "running") throw new DomainError(409, "job-state-conflict", "Job is not running");
-    const upload = this.intake.completeRejected(current.upload_session_id, failure, now);
+    const upload = this.intake.completeRejected(intakeUploadId(current), failure, now);
     const completed = { ...current, state: "succeeded" as const, progress_percent: 100, updated_at: now };
     this.jobs.set(jobId, completed);
     this.event(completed, "job.completed-with-rejection", traceId);
@@ -350,7 +350,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     if (current.state === "cancel_requested") {
       const cancelled = { ...current, state: "cancelled" as const, failure: null, updated_at: now };
       this.jobs.set(jobId, cancelled);
-      await this.intake.cancelUpload(current.upload_session_id, this.owner(current), now);
+      await this.intake.cancelUpload(intakeUploadId(current), this.owner(current), now);
       this.event(cancelled, "job.cancelled", traceId);
       return cancelled;
     }
@@ -378,7 +378,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
         state: "pending",
       });
     } else {
-      this.intake.completeRejected(current.upload_session_id, failure, now);
+      this.intake.completeRejected(intakeUploadId(current), failure, now);
     }
     return updated;
   }
@@ -424,4 +424,11 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
       ? { ownerKind: "actor", ownerScope: job.workspace_id!, workspaceId: job.workspace_id!, actorId: job.actor_id! }
       : { ownerKind: "guest", ownerScope: job.guest_session_id!, guestSessionId: job.guest_session_id! };
   }
+}
+
+function intakeUploadId(job: ProcessingJobRecord): string {
+  if (job.kind !== "file_intake_inspection" || !job.upload_session_id) {
+    throw new Error("intake repository received a non-intake job");
+  }
+  return job.upload_session_id;
 }

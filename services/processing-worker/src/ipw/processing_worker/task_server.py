@@ -14,6 +14,7 @@ from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 
 from ipw.processing_worker.durable_intake import DispatchMessage, DurableIntakeProcessor
+from ipw.processing_worker.preview import DurablePreviewProcessor
 from ipw.processing_worker.repository import PostgresWorkerRepository
 from ipw.storage import GcsWorkerPrivateObjectStore
 
@@ -22,6 +23,30 @@ _ID = re.compile(r"^[a-z0-9][a-z0-9._-]{2,127}$")
 
 class TaskIdentityVerifier(Protocol):
     def verify(self, authorization: str | None) -> None: ...
+
+
+class DurableJobProcessor(Protocol):
+    def process(self, message: DispatchMessage): ...
+
+
+class DurableJobRouter:
+    def __init__(
+        self,
+        repository: PostgresWorkerRepository,
+        intake: DurableIntakeProcessor,
+        preview: DurablePreviewProcessor,
+    ) -> None:
+        self._repository = repository
+        self._intake = intake
+        self._preview = preview
+
+    def process(self, message: DispatchMessage):
+        kind = self._repository.job_kind(message.job_id)
+        if kind == "file_intake_inspection":
+            return self._intake.process(message)
+        if kind == "preview_generation":
+            return self._preview.process(message)
+        raise LookupError("processing job kind is not supported")
 
 
 class GoogleOidcTaskIdentityVerifier:
@@ -57,7 +82,7 @@ class TaskResponse:
 
 
 class IntakeTaskApplication:
-    def __init__(self, verifier: TaskIdentityVerifier, processor: DurableIntakeProcessor) -> None:
+    def __init__(self, verifier: TaskIdentityVerifier, processor: DurableJobProcessor) -> None:
         self._verifier = verifier
         self._processor = processor
 
@@ -103,12 +128,19 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
     from ipw.inspection import production_malware_scanner
 
     repository = PostgresWorkerRepository.connect(env["IPW_DATABASE_URL"])
-    processor = DurableIntakeProcessor(
+    objects = GcsWorkerPrivateObjectStore(env["IPW_GCS_BUCKET"])
+    intake = DurableIntakeProcessor(
         repository,
-        GcsWorkerPrivateObjectStore(env["IPW_GCS_BUCKET"]),
+        objects,
         production_malware_scanner(env),
         worker_id=env.get("HOSTNAME", "processing-worker"),
     )
+    preview = DurablePreviewProcessor(
+        repository,
+        objects,
+        worker_id=env.get("HOSTNAME", "processing-worker"),
+    )
+    processor = DurableJobRouter(repository, intake, preview)
     verifier = GoogleOidcTaskIdentityVerifier(
         env["IPW_WORKER_OIDC_AUDIENCE"],
         env["IPW_CLOUD_TASKS_SERVICE_ACCOUNT"],

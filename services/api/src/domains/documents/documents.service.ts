@@ -14,19 +14,10 @@ import { INTAKE_REPOSITORY, type IntakeRepository, type StoredUploadSession } fr
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
 import { sha256, validateSnapshot } from "./document-model.js";
 import { DOCUMENT_REPOSITORY, type DocumentRepository, type VerifiedRasterSource } from "./documents.types.js";
+import { requiresGeneratedPreview, STUDIO_EDITABLE_MEDIA_TYPES, STUDIO_SYNC_PREVIEW_POLICY } from "./studio-format-policy.js";
 
 type Headers = Record<string, string | string[] | undefined>;
 type Body = Record<string, unknown>;
-
-const RASTER_MEDIA_TYPES = new Set([
-  "image/avif",
-  "image/bmp",
-  "image/gif",
-  "image/jpeg",
-  "image/png",
-  "image/tiff",
-  "image/webp",
-]);
 
 @Injectable()
 export class DocumentsService implements OnApplicationShutdown {
@@ -48,6 +39,39 @@ export class DocumentsService implements OnApplicationShutdown {
     const result = await this.documents.get(access.principal.actorId, access.workspaceId, requireId(documentId, "document id"));
     if (!result) throw new DomainError(404, "document-not-found", "Document was not found");
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result };
+  }
+
+  async sources(headers: Headers, workspaceId: string) {
+    const access = await this.access(headers, workspaceId, "document.create");
+    const [files, uploads] = await Promise.all([
+      this.product.listFiles(access.principal.actorId, access.workspaceId),
+      this.intake.listWorkspaceUploads(access.workspaceId),
+    ]);
+    const candidates = files.flatMap((file) => {
+      const stored = uploads.find((item) => item.record.file_id === file.file_id
+        || (item.record.asset_original_id === file.asset_original_id
+          && item.record.source_version_id === file.current_source_version_id));
+      const facts = stored?.record.source_facts;
+      if (!facts || stored?.record.state !== "ready") return [];
+      const editable = STUDIO_EDITABLE_MEDIA_TYPES.has(facts.detected_media_type);
+      return [{
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        file_id: file.file_id,
+        display_name: file.display_name,
+        media_type: facts.detected_media_type,
+        byte_size: facts.byte_size,
+        width: facts.width,
+        height: facts.height,
+        editable,
+        compatibility_message: editable
+          ? "Editable in Image & Graphic Studio"
+          : "Stored safely, but this format is not editable in Studio",
+        requires_generated_preview: editable && requiresGeneratedPreview({
+          byteSize: facts.byte_size, width: facts.width ?? null, height: facts.height ?? null,
+        }),
+      }];
+    });
+    return { schema_version: PRODUCT_SCHEMA_VERSION, sources: candidates };
   }
 
   async create(headers: Headers, workspaceId: string, body: Body) {
@@ -246,7 +270,18 @@ export class DocumentsService implements OnApplicationShutdown {
     if (!editor?.document.source_file_id) throw new DomainError(404, "document-source-not-found", "This document has no source image");
     const { stored } = await this.verifiedSourceWithUpload(access.principal.actorId, access.workspaceId, editor.document.source_file_id);
     const byteSize = stored.record.source_facts!.byte_size;
-    if (byteSize > 50 * 1024 * 1024) throw new DomainError(413, "editor-preview-too-large", "This source requires a server-generated preview before browser editing");
+    if (editor.document.preview_state === "preparing") throw new DomainError(409, "editor-preview-preparing", "The safe editor preview is still being prepared");
+    if (editor.document.preview_state === "failed") throw new DomainError(409, "editor-preview-failed", "The safe editor preview could not be prepared");
+    if (editor.document.preview_state === "cancelled") throw new DomainError(409, "editor-preview-cancelled", "Preview preparation was cancelled");
+    if (requiresGeneratedPreview({ byteSize, width: stored.record.source_facts!.width ?? null, height: stored.record.source_facts!.height ?? null })) {
+      const preview = await this.documents.previewDelivery(access.principal.actorId, access.workspaceId, documentId);
+      if (!preview) throw new DomainError(409, "editor-preview-unavailable", "The safe editor preview is not available yet");
+      return {
+        bytes: await this.objects.read({ ownerScope: access.workspaceId, objectKey: preview.objectKey, zone: "derivative" }, preview.byteSize),
+        mediaType: preview.mediaType,
+      };
+    }
+    if (byteSize > STUDIO_SYNC_PREVIEW_POLICY.maxCompressedBytes) throw new DomainError(413, "editor-source-too-large", "The source exceeds the synchronous editor limit");
     return { bytes: await this.objects.read(stored.quarantineRef, byteSize), mediaType: stored.record.source_facts!.detected_media_type };
   }
 
@@ -277,7 +312,7 @@ export class DocumentsService implements OnApplicationShutdown {
     if (!stored || stored.record.state !== "ready" || !facts || facts.malware_scan_state !== "clean") {
       throw new DomainError(409, "source-not-ready", "The source must pass intake safety checks before editing");
     }
-    if (!RASTER_MEDIA_TYPES.has(facts.detected_media_type)) {
+    if (!STUDIO_EDITABLE_MEDIA_TYPES.has(facts.detected_media_type)) {
       const message = facts.detected_media_type === "image/svg+xml"
         ? "SVG editing requires the approved sanitisation pipeline"
         : "This source format is not supported by Image & Graphic Studio";
@@ -289,6 +324,8 @@ export class DocumentsService implements OnApplicationShutdown {
         fileId: file.file_id, displayName: file.display_name, assetOriginalId: file.asset_original_id,
         sourceVersionId: file.current_source_version_id, objectReferenceId: null,
         mediaType: facts.detected_media_type, width: facts.width ?? null, height: facts.height ?? null,
+        byteSize: facts.byte_size,
+        requiresPreview: requiresGeneratedPreview({ byteSize: facts.byte_size, width: facts.width ?? null, height: facts.height ?? null }),
       },
     };
   }

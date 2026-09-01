@@ -22,6 +22,7 @@ class ObjectZone(StrEnum):
 
     QUARANTINE = "quarantine"
     IMMUTABLE = "immutable"
+    DERIVATIVE = "derivative"
 
 
 @dataclass(frozen=True)

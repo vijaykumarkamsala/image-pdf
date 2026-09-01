@@ -38,11 +38,12 @@ import type {
   LayerRecord,
   LayerTransform,
   ProjectRecord,
+  StudioSourceCandidate,
   VisualAdjustments,
   WorkspaceFile,
 } from "ipw-contracts-ts/product";
 
-import { api } from "../boundaries/apiClient";
+import { api, createTraceId } from "../boundaries/apiClient";
 import { Button, Dialog, IconButton, InlineNotice, StatePanel, Tabs, TextInput, Tooltip } from "../design-system";
 import { PanelFramework } from "../panels/PanelFramework";
 import { workspacePath } from "../routes";
@@ -61,6 +62,7 @@ export function StudioStartPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
+  const [sources, setSources] = useState<StudioSourceCandidate[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [sourceId, setSourceId] = useState(params.get("source") ?? "");
   const [projectId, setProjectId] = useState(params.get("project") ?? "");
@@ -70,8 +72,8 @@ export function StudioStartPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.files(workspaceId), api.projects(workspaceId)]).then(
-      ([fileResult, projectResult]) => { setFiles(fileResult.files); setProjects(projectResult.projects); },
+    Promise.all([api.files(workspaceId), api.projects(workspaceId), api.studioSources(workspaceId)]).then(
+      ([fileResult, projectResult, sourceResult]) => { setFiles(fileResult.files); setProjects(projectResult.projects); setSources(sourceResult.sources); },
       (reason: unknown) => setError(reason instanceof Error ? reason.message : "Studio sources could not be loaded"),
     );
   }, [workspaceId]);
@@ -110,9 +112,9 @@ export function StudioStartPage() {
         ><span className={`preset-shape preset-${item.id}`} /><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div>
       </section>
       <section aria-labelledby="studio-source-heading"><div className="section-heading"><div><h2 id="studio-source-heading">Accepted source</h2><p>Optional. The immutable original stays unchanged.</p></div></div>
-        {files.length === 0 ? <div className="studio-source-empty"><ImageIcon aria-hidden="true" /><span>Accepted images from Default Files will appear here.</span></div> : <div className="studio-source-list" role="radiogroup" aria-label="Source file">{files.map((file) => <button
-          type="button" role="radio" aria-checked={sourceId === file.file_id} key={file.file_id} onClick={() => { setSourceId(file.file_id); setName(`${file.display_name} design`); }}
-        ><ImageIcon aria-hidden="true" /><span><strong>{file.display_name}</strong><small>Source preserved</small></span></button>)}</div>}
+        {sources.length === 0 ? <div className="studio-source-empty"><ImageIcon aria-hidden="true" /><span>Accepted images from Default Files will appear here.</span></div> : <div className="studio-source-list" role="radiogroup" aria-label="Source file">{sources.map((source) => <button
+          type="button" role="radio" aria-checked={sourceId === source.file_id} aria-disabled={!source.editable} disabled={!source.editable} key={source.file_id} onClick={() => { setSourceId(source.file_id); setName(`${source.display_name} design`); }}
+        ><ImageIcon aria-hidden="true" /><span><strong>{source.display_name}</strong><small>{source.editable ? (source.requires_generated_preview ? "Safe preview prepared after creation" : "Source preserved") : source.compatibility_message}</small></span></button>)}</div>}
       </section>
       <div className="studio-start-fields">
         <TextInput label="Graphic name" maxLength={200} value={name} placeholder="Untitled graphic" onChange={(event) => setName(event.target.value)} />
@@ -169,7 +171,12 @@ export function ImageGraphicStudio() {
   const [forceOpen, setForceOpen] = useState(false);
   const [forceReason, setForceReason] = useState("");
   const [takeoverPending, setTakeoverPending] = useState(false);
-  const editorReady = editor !== null;
+  const [previewProgress, setPreviewProgress] = useState(0);
+  const [previewActionBusy, setPreviewActionBusy] = useState(false);
+  const [previewRetryable, setPreviewRetryable] = useState(false);
+  const [previewFailure, setPreviewFailure] = useState<string | null>(null);
+  const previewState = editor?.document.preview_state ?? "not_required";
+  const editorReady = editor !== null && (previewState === "not_required" || previewState === "ready");
 
   useEffect(() => {
     let active = true;
@@ -181,6 +188,30 @@ export function ImageGraphicStudio() {
     }).catch(() => undefined);
     return () => { active = false; };
   }, [workspaceId]);
+
+  useEffect(() => {
+    const jobId = editor?.document.preview_job_id;
+    if (!jobId || (previewState !== "preparing" && previewState !== "failed")) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const [status, document] = await Promise.all([
+          api.jobStatus(jobId, createTraceId()),
+          api.document(workspaceId, documentId),
+        ]);
+        if (!active) return;
+        setPreviewProgress(status.job.progress_percent);
+        setPreviewRetryable(Boolean(status.job.failure?.retryable));
+        setPreviewFailure(status.job.failure?.message ?? null);
+        replaceServer(document.editor);
+      } catch (reason) {
+        if (active) setMessage(reason instanceof Error ? reason.message : "Preview status could not be refreshed");
+      }
+    };
+    void refresh();
+    const timer = previewState === "preparing" ? window.setInterval(() => void refresh(), 1_500) : null;
+    return () => { active = false; if (timer !== null) window.clearInterval(timer); };
+  }, [documentId, editor?.document.preview_job_id, previewState, replaceServer, setMessage, workspaceId]);
 
   useEffect(() => {
     if (!takeoverPending || !readOnly || leaseRef.current) return;
@@ -440,6 +471,30 @@ export function ImageGraphicStudio() {
   }, [commit, readOnly, selectedId]);
 
   if (!editor) return <main className="studio-loading">{message ? <StatePanel kind="error" title="Studio unavailable" message={message} action={{ label: "Back to Home", onClick: () => navigate(workspacePath(workspaceId)) }} /> : <StatePanel kind="loading" title="Opening Studio" message="Loading the native document and editor lease." />}</main>;
+
+  if (previewState === "preparing") return <main className="studio-loading preview-preparation" data-testid="preview-preparing">
+    <h1 className="sr-only">Preparing a safe editing preview</h1>
+    <StatePanel kind="loading" title="Preparing a safe editing preview" message={`You can leave while the durable preview job continues. ${previewProgress}% complete.`} />
+    <div className="studio-loading-actions"><Button onClick={() => navigate(workspacePath(workspaceId))}>Close and return later</Button><Button tone="danger" disabled={previewActionBusy} onClick={() => {
+      if (!editor.document.preview_job_id) return;
+      setPreviewActionBusy(true);
+      void api.cancelJob(editor.document.preview_job_id, createTraceId()).finally(() => setPreviewActionBusy(false));
+    }}>{previewActionBusy ? "Cancelling..." : "Cancel preparation"}</Button></div>
+  </main>;
+
+  if (previewState === "failed" || previewState === "cancelled") return <main className="studio-loading preview-preparation" data-testid={`preview-${previewState}`}>
+    <h1 className="sr-only">{previewState === "failed" ? "Preview could not be prepared" : "Preview preparation was cancelled"}</h1>
+    <StatePanel kind="error" title={previewState === "failed" ? "Preview could not be prepared" : "Preview preparation was cancelled"} message={`${previewFailure ? `${previewFailure} ` : ""}The full-resolution source is unchanged and remains safely stored.`} />
+    <div className="studio-loading-actions"><Button onClick={() => navigate(workspacePath(workspaceId))}>Back to workspace</Button>{previewState === "failed" && previewRetryable && <Button tone="primary" disabled={previewActionBusy} onClick={() => {
+      if (!editor.document.preview_job_id) return;
+      setPreviewActionBusy(true);
+      void api.retryJob(editor.document.preview_job_id, createTraceId())
+        .then(() => api.document(workspaceId, documentId))
+        .then((result) => replaceServer(result.editor))
+        .catch((reason: unknown) => setMessage(reason instanceof Error ? reason.message : "Preview retry could not start"))
+        .finally(() => setPreviewActionBusy(false));
+    }}>{previewActionBusy ? "Retrying..." : "Retry preparation"}</Button>}</div>
+  </main>;
 
   const leftPanel = <Tabs label="Document panels" selected={leftTab} onSelect={setLeftTab} items={[
     { id: "artboards", label: "Artboards", panel: <ArtboardsPanel snapshot={editor.snapshot} activeId={activeArtboardId} select={(id) => { setActiveArtboardId(id); rendererRef.current?.fitArtboard(id); }} add={addArtboard} readOnly={readOnly} /> },

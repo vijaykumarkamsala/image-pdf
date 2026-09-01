@@ -28,6 +28,7 @@ class FakeBlob:
         self.metadata: dict[str, str] | None = None
         self.requested_generation: int | None = None
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.fail_upload = False
 
     def reload(self, **kwargs: Any) -> None:
         self.calls.append(("reload", kwargs))
@@ -41,6 +42,15 @@ class FakeBlob:
 
     def delete(self, **kwargs: Any) -> None:
         self.calls.append(("delete", kwargs))
+
+    def upload_from_string(self, data: bytes, **kwargs: Any) -> None:
+        self.calls.append(("upload", kwargs))
+        if self.fail_upload:
+            raise PreconditionFailed("already exists")  # type: ignore[no-untyped-call]
+        self.data = data
+        self.size = len(data)
+        self.generation = 29
+        self.content_type = kwargs.get("content_type")
 
 
 class FakeBucket:
@@ -180,6 +190,35 @@ def test_gcs_worker_promotion_is_conditional_idempotent_and_private() -> None:
     )
 
 
+def test_gcs_worker_derivative_write_is_conditional_and_idempotent() -> None:
+    client = FakeClient()
+    store = GcsWorkerPrivateObjectStore("private-bucket", client)
+    data = b"preview-png"
+    digest = hashlib.sha256(data).hexdigest()
+    ref = PrivateObjectRef(
+        "workspace-001",
+        "derivative/workspace-001/source-001/job-001/workspace.png",
+        ObjectZone.DERIVATIVE,
+    )
+
+    first = store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
+
+    blob = client.private_bucket.blobs[ref.object_key]
+    assert first.data == data
+    assert first.generation == "29"
+    assert blob.metadata == {"ipw-sha256": digest, "ipw-zone": "derivative"}
+    assert blob.calls[0] == (
+        "upload",
+        {"content_type": "image/png", "if_generation_match": 0, "checksum": "crc32c", "timeout": 60},
+    )
+    blob.fail_upload = True
+    second = store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
+    assert second.data == data
+    blob.data = b"collision"
+    with pytest.raises(RuntimeError, match="collision"):
+        store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
+
+
 def test_worker_storage_rejects_invalid_configuration_and_digest() -> None:
     with pytest.raises(ValueError, match="invalid private GCS bucket"):
         GcsWorkerPrivateObjectStore("", FakeClient())
@@ -229,3 +268,28 @@ def test_local_worker_storage_preserves_generation_and_no_overwrite(tmp_path: Pa
     invalid = PrivateObjectRef("workspace-001", "../outside", ObjectZone.QUARANTINE)
     with pytest.raises(ValueError, match="invalid private object key"):
         store.read(invalid, generation=digest, max_bytes=100)
+
+
+def test_local_worker_storage_writes_digest_bound_derivatives(tmp_path: Path) -> None:
+    store = LocalWorkerPrivateObjectStore(tmp_path)
+    data = b"bounded-preview"
+    digest = hashlib.sha256(data).hexdigest()
+    ref = PrivateObjectRef(
+        "workspace-preview",
+        "derivative/workspace-preview/source-preview/job-preview/workspace.png",
+        ObjectZone.DERIVATIVE,
+    )
+
+    first = store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
+    second = store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
+
+    assert first.data == second.data == data
+    assert first.generation == second.generation == digest
+    with pytest.raises(RuntimeError, match="collision"):
+        different = b"different-preview"
+        store.write_derivative(
+            ref,
+            data=different,
+            media_type="image/png",
+            sha256=hashlib.sha256(different).hexdigest(),
+        )

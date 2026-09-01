@@ -21,6 +21,8 @@ export interface VerifiedRasterSource {
   mediaType: string;
   width: number | null;
   height: number | null;
+  byteSize: number;
+  requiresPreview: boolean;
 }
 
 export interface CreateDocumentInput {
@@ -72,6 +74,12 @@ export interface EditorLeaseStatus {
     reason: string;
     requestedAt: string;
   } | null;
+}
+
+export interface DocumentPreviewDelivery {
+  objectKey: string;
+  mediaType: string;
+  byteSize: number;
 }
 
 export interface DocumentRepository {
@@ -168,6 +176,7 @@ export interface DocumentRepository {
     workspaceId: string,
     documentId: string,
   ): Promise<ImportCompatibilityReport[]>;
+  previewDelivery(actorId: string, workspaceId: string, documentId: string): Promise<DocumentPreviewDelivery | null>;
   close(): Promise<void>;
 }
 

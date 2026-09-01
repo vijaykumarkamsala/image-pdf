@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "StudioEditableMediaType": {
+      "description": "Formats with one executable inspection, preview and browser-editing path.",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ],
+      "title": "StudioEditableMediaType",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/studio-format-capability.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "editable_media_types": {
+      "default": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ],
+      "items": {
+        "$ref": "#/$defs/StudioEditableMediaType"
+      },
+      "title": "Editable Media Types",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.16.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "title": "StudioFormatCapability",
+  "type": "object"
+}

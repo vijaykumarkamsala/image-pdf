@@ -9,6 +9,12 @@
       "title": "Authoritative",
       "type": "boolean"
     },
+    "colour_decision": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Colour Decision",
+      "type": "string"
+    },
     "created_at": {
       "maxLength": 2048,
       "minLength": 1,
@@ -21,58 +27,113 @@
       "type": "string"
     },
     "document_version_id": {
-      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
-      "title": "Document Version Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Document Version Id"
     },
     "height": {
       "minimum": 1,
       "title": "Height",
       "type": "integer"
     },
+    "job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "metadata_decision": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Metadata Decision",
+      "type": "string"
+    },
+    "object_reference_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Object Reference Id",
+      "type": "string"
+    },
     "preview_id": {
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
       "title": "Preview Id",
       "type": "string"
     },
-    "renderer_name": {
+    "processor_name": {
       "maxLength": 2048,
       "minLength": 1,
-      "title": "Renderer Name",
+      "title": "Processor Name",
       "type": "string"
     },
-    "renderer_version": {
+    "processor_version": {
       "maxLength": 2048,
       "minLength": 1,
-      "title": "Renderer Version",
+      "title": "Processor Version",
       "type": "string"
     },
     "schema_version": {
-      "default": "1.15.0",
+      "default": "1.16.0",
       "title": "Schema Version",
       "type": "string"
     },
-    "snapshot_sha256": {
+    "sha256": {
       "description": "Lower-case hexadecimal SHA-256 digest.",
       "pattern": "^[0-9a-f]{64}$",
-      "title": "Snapshot Sha256",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "source_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    },
+    "source_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Source Version Id",
+      "type": "string"
+    },
+    "trace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Trace Id",
       "type": "string"
     },
     "width": {
       "minimum": 1,
       "title": "Width",
       "type": "integer"
+    },
+    "zoom_level": {
+      "enum": [
+        "workspace",
+        "thumbnail"
+      ],
+      "title": "Zoom Level",
+      "type": "string"
     }
   },
   "required": [
     "preview_id",
     "document_id",
-    "document_version_id",
-    "renderer_name",
-    "renderer_version",
-    "snapshot_sha256",
+    "source_version_id",
+    "object_reference_id",
+    "job_id",
+    "trace_id",
+    "processor_name",
+    "processor_version",
+    "zoom_level",
+    "source_sha256",
+    "sha256",
     "width",
     "height",
+    "colour_decision",
+    "metadata_decision",
     "created_at"
   ],
   "title": "PreviewProvenance",

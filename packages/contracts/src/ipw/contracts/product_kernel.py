@@ -346,6 +346,31 @@ class UploadSessionState(StrEnum):
 
 class ProcessingJobKind(StrEnum):
     FILE_INTAKE_INSPECTION = "file_intake_inspection"
+    PREVIEW_GENERATION = "preview_generation"
+
+
+class StudioEditableMediaType(StrEnum):
+    """Formats with one executable inspection, preview and browser-editing path."""
+
+    JPEG = "image/jpeg"
+    PNG = "image/png"
+    WEBP = "image/webp"
+
+
+class StudioFormatCapability(ProductKernelContractModel):
+    editable_media_types: tuple[StudioEditableMediaType, ...] = tuple(StudioEditableMediaType)
+
+
+class StudioSourceCandidate(ProductKernelContractModel):
+    file_id: SlugId
+    display_name: NonEmptyStr
+    media_type: NonEmptyStr
+    byte_size: int = Field(ge=1)
+    width: int | None = Field(default=None, ge=1)
+    height: int | None = Field(default=None, ge=1)
+    editable: bool
+    compatibility_message: NonEmptyStr
+    requires_generated_preview: bool
 
 
 class ProcessingJobState(StrEnum):
@@ -554,7 +579,8 @@ class ProcessingJobRecord(ProductKernelContractModel):
     workspace_id: SlugId | None = None
     actor_id: SlugId | None = None
     guest_session_id: SlugId | None = None
-    upload_session_id: SlugId
+    upload_session_id: SlugId | None = None
+    document_id: SlugId | None = None
     state: ProcessingJobState
     attempt: int = Field(ge=0)
     max_attempts: int = Field(ge=1)
@@ -566,6 +592,23 @@ class ProcessingJobRecord(ProductKernelContractModel):
     failure: IntakeFailure | None = None
     created_at: NonEmptyStr
     updated_at: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _target_matches_kind(self) -> ProcessingJobRecord:
+        intake = (
+            self.kind == ProcessingJobKind.FILE_INTAKE_INSPECTION
+            and self.upload_session_id is not None
+            and self.document_id is None
+        )
+        preview = (
+            self.kind == ProcessingJobKind.PREVIEW_GENERATION
+            and self.document_id is not None
+            and self.upload_session_id is None
+            and self.owner_kind == UploadOwnerKind.ACTOR
+        )
+        if not (intake or preview):
+            raise ValueError("processing job target must match its kind")
+        return self
 
 
 class JobEventRecord(ProductKernelContractModel):
@@ -736,6 +779,8 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
     "upload-session-record": UploadSessionRecord,
     "upload-session-created": UploadSessionCreated,
     "processing-job-record": ProcessingJobRecord,
+    "studio-format-capability": StudioFormatCapability,
+    "studio-source-candidate": StudioSourceCandidate,
     "job-event-record": JobEventRecord,
     "job-event-list": JobEventList,
     "job-list": JobList,

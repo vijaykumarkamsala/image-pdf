@@ -45,6 +45,7 @@ export class LocalInspectionExecutor {
       "trace-local-inspection",
     );
     const owner = this.owner(job);
+    if (!job.upload_session_id || job.kind !== "file_intake_inspection") throw new Error("local intake executor received a non-intake job");
     const stored = await this.intake.findUpload(job.upload_session_id, owner);
     if (!stored) throw new Error("claimed job upload is unavailable");
     try {

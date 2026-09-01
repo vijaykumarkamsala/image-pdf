@@ -893,6 +893,53 @@ test(
       assert.equal(replay.replayed, true);
       assert.equal(replay.value.document.document_id, created.value.document.document_id);
 
+      const largeSource = await product.registerFile(
+        context("actor-editor-pg", "editor-large-file-pg", "file.register", { workspaceId, name: "large.png" }),
+        workspaceId,
+        {
+          displayName: "large.png",
+          objectKey: `immutable/${workspaceId}/${"9".repeat(64)}`,
+          sha256: "9".repeat(64),
+          mediaType: "image/png",
+          byteSize: 13 * 1024 * 1024,
+        },
+      );
+      const largeDocument = await documents.create(
+        context("actor-editor-pg", "editor-large-document-pg", "document.create", { workspaceId, source: largeSource.file.file_id }),
+        {
+          workspaceId,
+          defaultFilesId: bootstrap.defaultFiles.default_files_id,
+          name: "Large source",
+          intendedUse: "source",
+          intendedUseLabel: "Source size",
+          source: {
+            fileId: largeSource.file.file_id,
+            displayName: largeSource.file.display_name,
+            assetOriginalId: largeSource.original.asset_original_id,
+            sourceVersionId: largeSource.sourceVersion.source_version_id,
+            objectReferenceId: largeSource.objectReference.object_reference_id,
+            mediaType: "image/png",
+            width: 9000,
+            height: 3000,
+            byteSize: 13 * 1024 * 1024,
+            requiresPreview: true,
+          },
+        },
+      );
+      assert.equal(largeDocument.value.document.preview_state, "preparing");
+      assert.ok(largeDocument.value.document.preview_job_id);
+      const previewRows = await pool.query(
+        `SELECT job.kind,job.state AS job_state,outbox.state AS outbox_state,event.event_kind
+         FROM processing_jobs job
+         JOIN job_outbox outbox USING(job_id)
+         JOIN job_events event USING(job_id)
+         WHERE job.document_id=$1`,
+        [largeDocument.value.document.document_id],
+      );
+      assert.deepEqual(previewRows.rows, [{
+        kind: "preview_generation", job_state: "queued", outbox_state: "pending", event_kind: "preview.queued",
+      }]);
+
       const documentId = created.value.document.document_id;
       const leaseContext = context("actor-editor-pg", "editor-lease-pg", "document.lease.acquire", { documentId });
       const lease = await documents.acquireLease(leaseContext, workspaceId, documentId);

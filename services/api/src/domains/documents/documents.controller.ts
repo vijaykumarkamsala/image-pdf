@@ -20,6 +20,11 @@ export class DocumentsController {
     return this.documents.create(headers, workspaceId, body);
   }
 
+  @Get("studio-sources")
+  sources(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string) {
+    return this.documents.sources(headers, workspaceId);
+  }
+
   @Get(":documentId")
   get(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
     return this.documents.get(headers, workspaceId, documentId);

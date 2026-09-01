@@ -7,10 +7,13 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import unquote, urlparse
 
 import pg8000.dbapi
+
+if TYPE_CHECKING:
+    from ipw.processing_worker.preview import LeasedPreviewJob, PreviewDerivative
 
 
 class DatabaseConnection(Protocol):
@@ -184,6 +187,324 @@ class PostgresWorkerRepository:
             raise
         finally:
             cursor.close()
+
+    def job_kind(self, job_id: str) -> str:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT kind FROM processing_jobs WHERE job_id=%s", (job_id,))
+        row = cursor.fetchone()
+        cursor.close()
+        if row is None:
+            raise LookupError("job was not found")
+        return str(row[0])
+
+    def claim_preview(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        lease_token: str,
+        trace_id: str,
+        now: datetime | None = None,
+        lease_seconds: int = 90,
+    ) -> LeasedPreviewJob | None:
+        from ipw.processing_worker.preview import LeasedPreviewJob
+
+        instant = now or utcnow()
+        token_hash = hashlib.sha256(lease_token.encode()).hexdigest()
+        cursor = self._connection.cursor()
+        try:
+            cursor.execute("BEGIN")
+            cursor.execute(
+                """SELECT job.*,document.source_version_id,document.current_version_id,
+                          object.object_key AS source_object_key,object.sha256 AS source_sha256,
+                          object.media_type AS source_media_type,object.byte_size AS source_byte_size,
+                          (document.current_snapshot->'artboards'->0->>'width')::integer AS source_width,
+                          (document.current_snapshot->'artboards'->0->>'height')::integer AS source_height
+                   FROM processing_jobs job
+                   JOIN editor_documents document ON document.document_id=job.document_id
+                     AND document.workspace_id=job.workspace_id
+                   JOIN source_versions source ON source.source_version_id=document.source_version_id
+                     AND source.workspace_id=document.workspace_id
+                   JOIN object_references object ON object.object_reference_id=source.object_reference_id
+                     AND object.workspace_id=document.workspace_id
+                   WHERE job.job_id=%s AND job.kind='preview_generation' FOR UPDATE OF job,document""",
+                (job_id,),
+            )
+            row = self._one(cursor)
+            if row is None:
+                self._connection.rollback()
+                raise LookupError("preview job was not found")
+            state = str(row["state"])
+            if state in {"succeeded", "failed", "cancelled"}:
+                self._connection.commit()
+                return None
+            if state == "cancel_requested":
+                self._cancel_preview_locked(cursor, row, instant, trace_id)
+                self._connection.commit()
+                return None
+            lease_expiry = row["lease_expires_at"]
+            eligible = state == "queued" or (
+                state == "retry_wait"
+                and (row["next_attempt_at"] is None or row["next_attempt_at"] <= instant)
+            ) or (
+                state in {"leased", "running"}
+                and lease_expiry is not None
+                and lease_expiry <= instant
+            )
+            if not eligible:
+                self._connection.commit()
+                raise JobBusyError("preview job is not eligible for a new lease")
+            if int(row["attempt"]) >= int(row["max_attempts"]):
+                cursor.execute(
+                    "UPDATE processing_jobs SET state='failed',updated_at=%s WHERE job_id=%s",
+                    (instant, job_id),
+                )
+                cursor.execute(
+                    "UPDATE editor_documents SET preview_state='failed',updated_at=%s WHERE document_id=%s",
+                    (instant, row["document_id"]),
+                )
+                self._connection.commit()
+                return None
+            cursor.execute(
+                """UPDATE processing_jobs SET state='leased',attempt=attempt+1,lease_owner=%s,
+                     lease_token_hash=%s,lease_expires_at=%s,heartbeat_at=%s,next_attempt_at=NULL,updated_at=%s
+                   WHERE job_id=%s RETURNING attempt,max_attempts""",
+                (worker_id, token_hash, instant + timedelta(seconds=lease_seconds), instant, instant, job_id),
+            )
+            attempt, max_attempts = cursor.fetchone()
+            self._event(cursor, job_id, "preview.leased", "leased", 5, instant, trace_id)
+            self._connection.commit()
+            return LeasedPreviewJob(
+                job_id=job_id,
+                document_id=str(row["document_id"]),
+                workspace_id=str(row["workspace_id"]),
+                actor_id=str(row["actor_id"]),
+                source_version_id=str(row["source_version_id"]),
+                document_version_id=str(row["current_version_id"]),
+                source_object_key=str(row["source_object_key"]),
+                source_sha256=str(row["source_sha256"]),
+                source_media_type=str(row["source_media_type"]),
+                source_byte_size=int(row["source_byte_size"]),
+                source_width=int(row["source_width"]),
+                source_height=int(row["source_height"]),
+                lease_token_hash=token_hash,
+                trace_id=trace_id,
+                attempt=int(attempt),
+                max_attempts=int(max_attempts),
+            )
+        except Exception:
+            self._connection.rollback()
+            raise
+        finally:
+            cursor.close()
+
+    def start_preview(self, lease: LeasedPreviewJob, now: datetime | None = None) -> None:
+        instant = now or utcnow()
+        cursor = self._connection.cursor()
+        cursor.execute("BEGIN")
+        cursor.execute(
+            """UPDATE processing_jobs SET state='running',progress_percent=10,updated_at=%s
+               WHERE job_id=%s AND lease_token_hash=%s AND state='leased'""",
+            (instant, lease.job_id, lease.lease_token_hash),
+        )
+        if cursor.rowcount != 1:
+            self._connection.rollback()
+            cursor.close()
+            raise JobBusyError("preview lease changed before start")
+        cursor.execute(
+            "UPDATE editor_documents SET preview_state='preparing',updated_at=%s WHERE workspace_id=%s AND document_id=%s",
+            (instant, lease.workspace_id, lease.document_id),
+        )
+        self._event(cursor, lease.job_id, "preview.started", "running", 10, instant, lease.trace_id)
+        self._connection.commit()
+        cursor.close()
+
+    def heartbeat_preview(self, lease: LeasedPreviewJob, now: datetime | None = None) -> None:
+        instant = now or utcnow()
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """UPDATE processing_jobs SET heartbeat_at=%s,lease_expires_at=%s,updated_at=%s
+               WHERE job_id=%s AND lease_token_hash=%s AND state IN ('leased','running','cancel_requested')""",
+            (instant, instant + timedelta(seconds=90), instant, lease.job_id, lease.lease_token_hash),
+        )
+        if cursor.rowcount != 1:
+            self._connection.rollback()
+            cursor.close()
+            raise JobBusyError("preview heartbeat lost its lease")
+        self._connection.commit()
+        cursor.close()
+
+    def cancellation_requested_preview(self, lease: LeasedPreviewJob) -> bool:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT state FROM processing_jobs WHERE job_id=%s", (lease.job_id,))
+        row = cursor.fetchone()
+        cursor.close()
+        return row is None or row[0] in {"cancel_requested", "cancelled"}
+
+    def checkpoint_preview(self, lease: LeasedPreviewJob, key: str, payload: dict[str, Any], now: datetime | None = None) -> None:
+        instant = now or utcnow()
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """INSERT INTO job_checkpoints(job_id,attempt,checkpoint_key,payload,created_at)
+               SELECT job_id,attempt,%s,%s::jsonb,%s FROM processing_jobs
+               WHERE job_id=%s AND lease_token_hash=%s AND state='running'
+               ON CONFLICT(job_id,attempt,checkpoint_key) DO UPDATE SET payload=EXCLUDED.payload,created_at=EXCLUDED.created_at""",
+            (key, json.dumps(payload), instant, lease.job_id, lease.lease_token_hash),
+        )
+        if cursor.rowcount != 1:
+            self._connection.rollback()
+            cursor.close()
+            raise JobBusyError("preview checkpoint lost its lease")
+        cursor.execute(
+            "UPDATE processing_jobs SET progress_percent=70,updated_at=%s WHERE job_id=%s",
+            (instant, lease.job_id),
+        )
+        self._connection.commit()
+        cursor.close()
+
+    def complete_preview(self, lease: LeasedPreviewJob, derivatives: tuple[PreviewDerivative, ...], now: datetime | None = None) -> None:
+        instant = now or utcnow()
+        cursor = self._connection.cursor()
+        try:
+            cursor.execute("BEGIN")
+            cursor.execute(
+                "SELECT state FROM processing_jobs WHERE job_id=%s AND lease_token_hash=%s FOR UPDATE",
+                (lease.job_id, lease.lease_token_hash),
+            )
+            row = cursor.fetchone()
+            if row is None or row[0] != "running":
+                raise JobBusyError("preview job is no longer running")
+            workspace_preview_id: str | None = None
+            for derivative in derivatives:
+                object_id = _id(f"preview-object-{derivative.zoom_level}", lease.job_id)
+                cursor.execute(
+                    """INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,created_at)
+                       VALUES(%s,%s,%s,%s,%s,%s,%s)
+                       ON CONFLICT(workspace_id,object_key) DO NOTHING""",
+                    (object_id, lease.workspace_id, derivative.object_key, derivative.sha256,
+                     derivative.media_type, derivative.byte_size, instant),
+                )
+                cursor.execute(
+                    "SELECT object_reference_id,sha256,byte_size FROM object_references WHERE workspace_id=%s AND object_key=%s",
+                    (lease.workspace_id, derivative.object_key),
+                )
+                object_id, digest, byte_size = cursor.fetchone()
+                if digest != derivative.sha256 or int(byte_size) != derivative.byte_size:
+                    raise RuntimeError("preview object identity conflict")
+                cursor.execute(
+                    """INSERT INTO preview_provenance(preview_id,document_id,document_version_id,source_version_id,
+                       object_reference_id,job_id,trace_id,processor_name,processor_version,zoom_level,source_sha256,
+                       sha256,width,height,colour_decision,metadata_decision,authoritative,created_at)
+                       VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,false,%s)
+                       ON CONFLICT(preview_id) DO NOTHING""",
+                    (derivative.preview_id, lease.document_id, lease.document_version_id, lease.source_version_id,
+                     object_id, lease.job_id, lease.trace_id, "ipw-bounded-pillow-preview", "1.0.0",
+                     derivative.zoom_level, lease.source_sha256, derivative.sha256, derivative.width,
+                     derivative.height, derivative.colour_decision, derivative.metadata_decision, instant),
+                )
+                if derivative.zoom_level == "workspace":
+                    workspace_preview_id = derivative.preview_id
+            if workspace_preview_id is None:
+                raise RuntimeError("workspace preview derivative is required")
+            cursor.execute(
+                """UPDATE editor_documents SET preview_state='ready',current_preview_id=%s,updated_at=%s
+                   WHERE workspace_id=%s AND document_id=%s AND preview_job_id=%s""",
+                (workspace_preview_id, instant, lease.workspace_id, lease.document_id, lease.job_id),
+            )
+            if cursor.rowcount != 1:
+                raise JobBusyError("preview document target changed")
+            cursor.execute(
+                """UPDATE processing_jobs SET state='succeeded',progress_percent=100,failure=NULL,
+                     lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=%s WHERE job_id=%s""",
+                (instant, lease.job_id),
+            )
+            self._event(cursor, lease.job_id, "preview.completed", "succeeded", 100, instant, lease.trace_id)
+            self._audit_preview(cursor, lease, "preview.generated", instant)
+            self._zero_usage_preview(cursor, lease, "preview.generated", instant)
+            self._connection.commit()
+        except Exception:
+            self._connection.rollback()
+            raise
+        finally:
+            cursor.close()
+
+    def fail_preview(self, lease: LeasedPreviewJob, *, code: str, message: str, retryable: bool, now: datetime | None = None) -> str:
+        instant = now or utcnow()
+        cursor = self._connection.cursor()
+        try:
+            cursor.execute("BEGIN")
+            cursor.execute(
+                "SELECT * FROM processing_jobs WHERE job_id=%s AND lease_token_hash=%s FOR UPDATE",
+                (lease.job_id, lease.lease_token_hash),
+            )
+            row = self._one(cursor)
+            if row is None:
+                raise JobBusyError("preview lease is no longer valid")
+            if row["state"] == "cancel_requested" or code == "preview-cancelled":
+                self._cancel_preview_locked(cursor, row, instant, lease.trace_id)
+                self._connection.commit()
+                return "cancelled"
+            will_retry = retryable and int(row["attempt"]) < int(row["max_attempts"])
+            state = "retry_wait" if will_retry else "failed"
+            retry_at = instant + timedelta(seconds=min(300, 2 ** int(row["attempt"]))) if will_retry else None
+            failure = {"schema_version": "1.16.0", "code": code, "message": message, "retryable": retryable}
+            cursor.execute(
+                """UPDATE processing_jobs SET state=%s,failure=%s::jsonb,next_attempt_at=%s,lease_owner=NULL,
+                     lease_token_hash=NULL,lease_expires_at=NULL,updated_at=%s WHERE job_id=%s""",
+                (state, json.dumps(failure), retry_at, instant, lease.job_id),
+            )
+            cursor.execute(
+                "UPDATE editor_documents SET preview_state=%s,updated_at=%s WHERE workspace_id=%s AND document_id=%s",
+                ("preparing" if will_retry else "failed", instant, lease.workspace_id, lease.document_id),
+            )
+            self._event(cursor, lease.job_id, "preview.retry-scheduled" if will_retry else "preview.failed", state, 70, instant, lease.trace_id)
+            if will_retry:
+                cursor.execute(
+                    """INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
+                       VALUES(%s,%s,'process_job',%s::jsonb,%s,%s,%s)""",
+                    (f"outbox-{uuid.uuid4()}", lease.job_id, json.dumps({"job_id": lease.job_id}), lease.trace_id, retry_at, instant),
+                )
+            else:
+                self._audit_preview(cursor, lease, "preview.failed", instant)
+                self._zero_usage_preview(cursor, lease, "preview.failed", instant)
+            self._connection.commit()
+            return state
+        except Exception:
+            self._connection.rollback()
+            raise
+        finally:
+            cursor.close()
+
+    def _cancel_preview_locked(self, cursor: Any, row: dict[str, Any], instant: datetime, trace_id: str) -> None:
+        cursor.execute(
+            """UPDATE processing_jobs SET state='cancelled',failure=NULL,lease_owner=NULL,lease_token_hash=NULL,
+                 lease_expires_at=NULL,updated_at=%s WHERE job_id=%s""",
+            (instant, row["job_id"]),
+        )
+        cursor.execute(
+            "UPDATE editor_documents SET preview_state='cancelled',updated_at=%s WHERE document_id=%s AND workspace_id=%s",
+            (instant, row["document_id"], row["workspace_id"]),
+        )
+        self._event(cursor, str(row["job_id"]), "preview.cancelled", "cancelled", 0, instant, trace_id)
+
+    def _audit_preview(self, cursor: Any, lease: LeasedPreviewJob, action: str, instant: datetime) -> None:
+        cursor.execute(
+            """INSERT INTO audit_events(audit_event_id,workspace_id,actor_id,action,resource_kind,resource_id,occurred_at,trace_id)
+               VALUES(%s,%s,%s,%s,'editor_document',%s,%s,%s)""",
+            (f"audit-{uuid.uuid4()}", lease.workspace_id, lease.actor_id, action, lease.document_id, instant, lease.trace_id),
+        )
+
+    def _zero_usage_preview(self, cursor: Any, lease: LeasedPreviewJob, event_kind: str, instant: datetime) -> None:
+        usage_id = f"usage-{uuid.uuid4()}"
+        cursor.execute(
+            """INSERT INTO usage_events(usage_event_id,workspace_id,actor_id,event_kind,customer_amount,credit_debit,currency,occurred_at)
+               VALUES(%s,%s,%s,%s,0,0,'USD',%s)""",
+            (usage_id, lease.workspace_id, lease.actor_id, event_kind, instant),
+        )
+        cursor.execute(
+            "INSERT INTO usage_admin_dimensions(usage_event_id,dimensions) VALUES(%s,%s::jsonb)",
+            (usage_id, json.dumps({"resource_kind": "editor_document", "operation": event_kind, "job_id": lease.job_id})),
+        )
 
     def start(self, lease: LeasedIntakeJob, now: datetime | None = None) -> None:
         instant = now or utcnow()

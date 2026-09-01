@@ -570,6 +570,55 @@ test("Image & Graphic Studio uses real native document APIs and deterministic re
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
+test("large Studio sources expose durable preparation and failure recovery states", async ({ page }) => {
+  await openWorkspace(page, "studio-preview-state");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  const documentId = new URL(page.url()).pathname.split("/")[4]!;
+  const documentUrl = `/v1/workspaces/${workspaceId}/documents/${documentId}`;
+  const original = await page.request.get(documentUrl).then((response) => response.json()) as Record<string, any>;
+  let previewState: "preparing" | "failed" = "preparing";
+  await page.route(`**${documentUrl}`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const body = structuredClone(original);
+    body.editor.document.preview_state = previewState;
+    body.editor.document.preview_job_id = "job-preview-ui";
+    body.editor.document.current_preview_id = null;
+    await route.fulfill({ json: body });
+  });
+  await page.route("**/v1/jobs/job-preview-ui**", async (route) => {
+    const job: ProcessingJobRecord = {
+      schema_version: PRODUCT_SCHEMA_VERSION, job_id: "job-preview-ui", kind: "preview_generation",
+      owner_kind: "actor", workspace_id: workspaceId, actor_id: "actor-studio-preview-state",
+      guest_session_id: null, upload_session_id: null, document_id: documentId,
+      state: previewState === "preparing" ? "running" : "failed", attempt: 1, max_attempts: 3,
+      progress_percent: previewState === "preparing" ? 70 : 70, lease_owner: null,
+      lease_expires_at: null, heartbeat_at: null, next_attempt_at: null,
+      failure: previewState === "failed" ? { schema_version: PRODUCT_SCHEMA_VERSION, code: "preview-temporary-failure", message: "Preview renderer was unavailable", retryable: true } : null,
+      created_at: "2026-09-01T00:00:00.000Z", updated_at: "2026-09-01T00:00:01.000Z",
+    };
+    await route.fulfill({ json: { schema_version: PRODUCT_SCHEMA_VERSION, job, command: { replayed: false } } });
+  });
+
+  await page.reload();
+  await expect(page.getByTestId("preview-preparing")).toBeVisible();
+  await expect(page.getByText("70% complete.")).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
+  const targets = await page.locator(".studio-loading-actions button").evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height));
+  expect(targets.every((height) => height >= 44)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  previewState = "failed";
+  await page.reload();
+  await expect(page.getByTestId("preview-failed")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry preparation" })).toBeVisible();
+  await expect(page.getByText("The full-resolution source is unchanged")).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test("Studio pointer selection, move, resize and rotation persist as native transforms", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openWorkspace(page, "studio-pointer");

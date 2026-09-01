@@ -42,6 +42,7 @@ export class JobsService implements OnApplicationShutdown {
       actor_id: owner.actorId ?? null,
       guest_session_id: owner.guestSessionId ?? null,
       upload_session_id: stored.record.upload_session_id,
+      document_id: null,
       state: "queued",
       attempt: 0,
       max_attempts: 3,

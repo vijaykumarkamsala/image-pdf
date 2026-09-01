@@ -27,12 +27,13 @@ function job(row: QueryResultRow): ProcessingJobRecord {
   return {
     schema_version: PRODUCT_SCHEMA_VERSION,
     job_id: String(row["job_id"]),
-    kind: "file_intake_inspection",
+    kind: String(row["kind"]) as ProcessingJobRecord["kind"],
     owner_kind: String(row["owner_kind"]) as ProcessingJobRecord["owner_kind"],
     workspace_id: row["workspace_id"] ? String(row["workspace_id"]) : null,
     actor_id: row["actor_id"] ? String(row["actor_id"]) : null,
     guest_session_id: row["guest_session_id"] ? String(row["guest_session_id"]) : null,
-    upload_session_id: String(row["upload_session_id"]),
+    upload_session_id: row["upload_session_id"] ? String(row["upload_session_id"]) : null,
+    document_id: row["document_id"] ? String(row["document_id"]) : null,
     state: String(row["state"]) as ProcessingJobRecord["state"],
     attempt: Number(row["attempt"]),
     max_attempts: Number(row["max_attempts"]),
@@ -243,10 +244,17 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       );
       const updated = job(updatedResult.rows[0]);
       if (state === "cancelled") {
-        await client.query(
-          "UPDATE upload_sessions SET state='cancelled',updated_at=$1 WHERE upload_session_id=$2",
-          [now, updated.upload_session_id],
-        );
+        if (updated.kind === "file_intake_inspection") {
+          await client.query(
+            "UPDATE upload_sessions SET state='cancelled',updated_at=$1 WHERE upload_session_id=$2",
+            [now, updated.upload_session_id],
+          );
+        } else {
+          await client.query(
+            "UPDATE editor_documents SET preview_state='cancelled',updated_at=$1 WHERE workspace_id=$2 AND document_id=$3",
+            [now, updated.workspace_id, updated.document_id],
+          );
+        }
       }
       await this.insertEvent(client, updated, state === "cancelled" ? "job.cancelled" : "job.cancel-requested", traceId);
       await client.query("COMMIT");
@@ -292,13 +300,19 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       if (current.state !== "failed" || !current.failure?.retryable || current.max_attempts >= 20) {
         throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
       }
-      const reopened = await client.query(
-        `UPDATE upload_sessions SET state='finalising',failure=NULL,updated_at=$1
-         WHERE upload_session_id=$2 AND ${this.ownerSql(owner, 3)}
-           AND state='rejected' AND coalesce((failure->>'retryable')::boolean,false)
-           AND cleanup_completed_at IS NULL AND expires_at>$1 RETURNING upload_session_id`,
-        [now, current.upload_session_id, ...this.ownerValues(owner)],
-      );
+      const reopened = current.kind === "file_intake_inspection"
+        ? await client.query(
+          `UPDATE upload_sessions SET state='finalising',failure=NULL,updated_at=$1
+           WHERE upload_session_id=$2 AND ${this.ownerSql(owner, 3)}
+             AND state='rejected' AND coalesce((failure->>'retryable')::boolean,false)
+             AND cleanup_completed_at IS NULL AND expires_at>$1 RETURNING upload_session_id`,
+          [now, current.upload_session_id, ...this.ownerValues(owner)],
+        )
+        : await client.query(
+          `UPDATE editor_documents SET preview_state='preparing',current_preview_id=NULL,updated_at=$1
+           WHERE workspace_id=$2 AND document_id=$3 AND preview_state='failed' RETURNING document_id`,
+          [now, current.workspace_id, current.document_id],
+        );
       if (!reopened.rowCount) throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
       const updatedResult = await client.query(
         `UPDATE processing_jobs SET state='queued',max_attempts=max_attempts+1,progress_percent=0,
