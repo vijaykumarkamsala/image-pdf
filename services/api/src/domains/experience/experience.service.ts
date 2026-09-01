@@ -106,6 +106,7 @@ export class ExperienceService implements OnApplicationShutdown {
       projects: access.permissions.has("project.read"),
       files: access.permissions.has("file.read"),
       jobs: access.permissions.has("job.read"),
+      documents: access.permissions.has("document.read"),
     }, cursor, limit);
     return { schema_version: PRODUCT_SCHEMA_VERSION, results: page.results, next_cursor: page.nextCursor };
   }

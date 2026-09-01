@@ -4,6 +4,7 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   ChevronDown,
+  FilePenLine,
   FileStack,
   FolderKanban,
   History,
@@ -15,7 +16,7 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react";
-import type { ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
+import type { EditorDocumentRecord, ProjectRecord, WorkspaceFile } from "ipw-contracts-ts/product";
 
 import { ApiError, api, createTraceId, type WorkspaceContextResponse } from "./boundaries/apiClient";
 import { browserCoordinator } from "./boundaries/crossTab";
@@ -187,13 +188,17 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
 function ProjectsPage() {
   const { workspaceId = "" } = useParams();
   const [projects, setProjects] = useState<ProjectRecord[] | null>(null);
+  const [documents, setDocuments] = useState<EditorDocumentRecord[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const load = useCallback(() => {
     setError(null);
-    api.projects(workspaceId).then((result) => setProjects(result.projects), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Projects unavailable")));
+    Promise.all([api.projects(workspaceId), api.documents(workspaceId)]).then(([result, documentResult]) => {
+      setProjects(result.projects);
+      setDocuments(documentResult.documents);
+    }, (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Projects unavailable")));
   }, [workspaceId]);
   useEffect(load, [load]);
   async function submit(event: FormEvent) {
@@ -212,7 +217,10 @@ function ProjectsPage() {
   return <main className="page" data-testid="projects-page">
     <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>Projects</h1><p>Organize files around each piece of work.</p></div><Button tone="primary" onClick={() => setCreating(true)}><Plus aria-hidden="true" />New project</Button></section>
     {error && <div className="inline-error" role="alert"><span>{error.message}</span><Button tone="quiet" onClick={load}>Retry</Button></div>}
-    {projects === null ? <StatePanel kind="loading" title="Loading projects" message="Retrieving work you can access." /> : projects.length === 0 ? <StatePanel kind="empty" title="No projects yet" message="Create a project when you want files grouped around one piece of work." action={{ label: "New project", onClick: () => setCreating(true) }} /> : <div className="project-grid">{projects.map((project) => <article className="project-card" key={project.project_id}><span className="project-icon"><BriefcaseBusiness aria-hidden="true" /></span><div><h2>{project.name}</h2><p>{project.parent_project_id ? "Subproject" : "Project"}</p></div><span className="status-dot">Active</span></article>)}</div>}
+    {projects === null || documents === null ? <StatePanel kind="loading" title="Loading projects" message="Retrieving work you can access." /> : projects.length === 0 ? <StatePanel kind="empty" title="No projects yet" message="Create a project when you want files grouped around one piece of work." action={{ label: "New project", onClick: () => setCreating(true) }} /> : <div className="project-grid">{projects.map((project) => {
+      const contents = documents.filter((document) => document.project_id === project.project_id);
+      return <article className="project-card project-card-with-contents" key={project.project_id}><span className="project-icon"><BriefcaseBusiness aria-hidden="true" /></span><div><h2>{project.name}</h2><p>{project.parent_project_id ? "Subproject" : "Project"}</p></div><span className="status-dot">Active</span><div className="project-contents"><strong>Native documents</strong><div role="list" aria-label={`${project.name} native documents`}>{contents.length ? contents.map((document) => <NativeDocumentCard key={document.document_id} document={document} projects={projects} workspaceId={workspaceId} onMoved={(moved) => setDocuments((current) => current?.map((item) => item.document_id === moved.document_id ? moved : item) ?? null)} />) : <span>No native documents</span>}</div></div></article>;
+    })}</div>}
     <Dialog open={creating} title="New project" onClose={() => setCreating(false)}><form className="modal-form" onSubmit={submit}><TextInput autoFocus label="Project name" maxLength={200} value={name} onChange={(event) => setName(event.target.value)} /><div className="dialog-actions"><Button type="button" onClick={() => setCreating(false)}>Cancel</Button><Button tone="primary" disabled={saving || !name.trim()}>{saving ? "Creating..." : "Create project"}</Button></div></form></Dialog>
   </main>;
 }
@@ -221,16 +229,45 @@ function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: 
   const { workspaceId = "" } = useParams();
   const navigate = useNavigate();
   const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
+  const [documents, setDocuments] = useState<EditorDocumentRecord[] | null>(null);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
     setError(null);
-    api.files(workspaceId).then((result) => setFiles(result.files), (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable")));
+    Promise.all([api.files(workspaceId), api.documents(workspaceId), api.projects(workspaceId)]).then(([result, documentResult, projectResult]) => {
+      setFiles(result.files);
+      setDocuments(documentResult.documents);
+      setProjects(projectResult.projects);
+    }, (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable")));
   }, [workspaceId, refresh]);
   return <main className="page" data-testid="files-page">
     <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files you have not placed in a project.</p></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></section>
     {error && <div className="inline-error" role="alert">{error.message}</div>}
-    {files === null ? <StatePanel kind="loading" title="Loading files" message="Retrieving accepted workspace sources." /> : files.length === 0 ? <StatePanel kind="empty" title="No files yet" message="Files you upload, create or save without a project will appear here." action={{ label: "Upload a file", onClick: onUpload }} /> : <div className="file-list" role="list" aria-label="Workspace files">{files.map((file) => <article className="file-card" role="listitem" key={file.file_id}><span className="file-type-icon"><FileStack aria-hidden="true" /></span><div><strong>{file.display_name}</strong><span>{file.canonical_location.kind === "default_files" ? defaultFilesName : "Project"}</span></div><small title={file.current_source_version_id}>Source preserved</small><Button size="compact" onClick={() => navigate(`${workspacePath(workspaceId, "studio/new")}?source=${encodeURIComponent(file.file_id)}`)}>Create in Studio</Button></article>)}</div>}
+    {files === null || documents === null ? <StatePanel kind="loading" title="Loading files" message="Retrieving accepted sources and native documents." /> : files.length === 0 && documents.filter((item) => item.location.kind === "default_files").length === 0 ? <StatePanel kind="empty" title="No files yet" message="Files you upload, create or save without a project will appear here." action={{ label: "Upload a file", onClick: onUpload }} /> : <div className="file-list" role="list" aria-label="Workspace files">{files.filter((file) => file.canonical_location.kind === "default_files").map((file) => <article className="file-card" role="listitem" key={file.file_id}><span className="file-type-icon"><FileStack aria-hidden="true" /></span><div><strong>{file.display_name}</strong><span>Source</span></div><small title={file.current_source_version_id}>Original preserved</small><Button size="compact" onClick={() => navigate(`${workspacePath(workspaceId, "studio/new")}?source=${encodeURIComponent(file.file_id)}`)}>Create in Studio</Button></article>)}{documents.filter((document) => document.location.kind === "default_files").map((document) => <NativeDocumentCard key={document.document_id} document={document} projects={projects} workspaceId={workspaceId} onMoved={(moved) => setDocuments((current) => current?.map((item) => item.document_id === moved.document_id ? moved : item) ?? null)} />)}</div>}
   </main>;
+}
+
+function NativeDocumentCard({ document, projects, workspaceId, onMoved }: {
+  document: EditorDocumentRecord;
+  projects: ProjectRecord[];
+  workspaceId: string;
+  onMoved: (document: EditorDocumentRecord) => void;
+}) {
+  const navigate = useNavigate();
+  const [moving, setMoving] = useState(false);
+  async function move(projectId: string) {
+    setMoving(true);
+    try {
+      const result = await api.moveDocument(workspaceId, document.document_id, projectId || undefined);
+      onMoved(result.document);
+    } finally { setMoving(false); }
+  }
+  return <article className="file-card native-document-card" role="listitem">
+    <span className="file-type-icon native-document-thumbnail"><FilePenLine aria-hidden="true" /></span>
+    <div><strong>{document.name}</strong><span>Native document</span><small>Updated {new Date(document.updated_at).toLocaleString()}</small></div>
+    <label className="document-location">Location<select disabled={moving} value={document.project_id ?? ""} onChange={(event) => void move(event.target.value)}><option value="">Default Files</option>{projects.map((project) => <option key={project.project_id} value={project.project_id}>{project.name}</option>)}</select></label>
+    <Button size="compact" onClick={() => navigate(workspacePath(workspaceId, `studio/${document.document_id}`))}>Open</Button>
+  </article>;
 }
 
 function SignedInApplication() {

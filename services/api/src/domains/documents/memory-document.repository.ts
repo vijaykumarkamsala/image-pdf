@@ -231,6 +231,18 @@ export class MemoryDocumentRepository implements DocumentRepository {
     });
   }
 
+  async move(context: CommandContext, workspaceId: string, documentId: string, projectId: string | undefined, defaultFilesId: string) {
+    return this.idempotent(context, "document.move", () => {
+      const stored = this.requireDocument(workspaceId, documentId);
+      stored.record.project_id = projectId ?? null;
+      stored.record.location = projectId
+        ? { schema_version: PRODUCT_SCHEMA_VERSION, kind: "project", project_id: projectId, default_files_id: null }
+        : { schema_version: PRODUCT_SCHEMA_VERSION, kind: "default_files", project_id: null, default_files_id: defaultFilesId };
+      stored.record.updated_at = this.runtime.now();
+      return clone(stored.record);
+    });
+  }
+
   async acquireLease(context: CommandContext, workspaceId: string, documentId: string): Promise<EditorLeaseGrant> {
     return (await this.idempotent(context, "document.lease.acquire", () => {
       this.requireDocument(workspaceId, documentId);

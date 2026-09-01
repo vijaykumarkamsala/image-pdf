@@ -592,7 +592,7 @@ test(
         first.workspace.workspace_id,
         "accepted",
         [],
-        { projects: true, files: true, jobs: true },
+        { projects: true, files: true, jobs: true, documents: true },
         undefined,
         10,
       );
@@ -952,6 +952,37 @@ test(
       const versions = (await documents.get("actor-editor-pg", workspaceId, documentId))!.versions;
       assert.ok(versions.some((item) => item.document_version_id === named.value.document_version_id));
       assert.ok(versions.some((item) => item.kind === "restore"));
+
+      const project = await product.createProject(
+        context("actor-editor-pg", "editor-project-pg", "project.create", { workspaceId, name: "Design work" }),
+        workspaceId,
+        { name: "Design work" },
+      );
+      const sourceIdentity = {
+        file: created.value.document.source_file_id,
+        original: created.value.document.source_asset_original_id,
+        version: created.value.document.source_version_id,
+      };
+      const moved = await documents.move(
+        context("actor-editor-pg", "editor-move-pg", "document.move", { documentId, projectId: project.value.project_id }),
+        workspaceId,
+        documentId,
+        project.value.project_id,
+        bootstrap.defaultFiles.default_files_id,
+      );
+      assert.equal(moved.value.location.kind, "project");
+      assert.deepEqual({
+        file: moved.value.source_file_id,
+        original: moved.value.source_asset_original_id,
+        version: moved.value.source_version_id,
+      }, sourceIdentity);
+      const experience = new PostgresExperienceRepository(pool);
+      assert.ok((await experience.home("actor-editor-pg", workspaceId, runtime.now())).recentWork
+        .some((item) => item.kind === "native_document" && item.resource_id === documentId));
+      assert.ok((await experience.search(
+        "actor-editor-pg", workspaceId, "postgresql", [],
+        { projects: true, files: true, jobs: true, documents: true }, undefined, 20,
+      )).results.some((item) => item.kind === "native_document" && item.path.endsWith(`/studio/${documentId}`)));
 
       const persisted = new PostgresDocumentRepository(pool, runtime);
       assert.equal((await persisted.get("actor-editor-pg", workspaceId, documentId))!.snapshot.revision, restored.value.snapshot.revision);

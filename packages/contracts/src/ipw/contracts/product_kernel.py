@@ -624,6 +624,7 @@ class SearchResultKind(StrEnum):
     PROJECT = "project"
     FILE = "file"
     JOB = "job"
+    NATIVE_DOCUMENT = "native_document"
 
 
 class WorkspaceSearchResult(ProductKernelContractModel):
@@ -643,6 +644,7 @@ class WorkspaceSearchPage(ProductKernelContractModel):
 class RecentWorkKind(StrEnum):
     PROJECT = "project"
     FILE = "file"
+    NATIVE_DOCUMENT = "native_document"
 
 
 class RecentWorkItem(ProductKernelContractModel):

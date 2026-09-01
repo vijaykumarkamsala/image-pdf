@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   Clock3,
+  FilePenLine,
   FileStack,
   History,
   LoaderCircle,
@@ -56,6 +57,7 @@ const SEARCH_RESULT_KIND_LABELS: Record<WorkspaceSearchResult["kind"], string> =
   project: "Project",
   file: "File",
   job: "Job",
+  native_document: "Native document",
 };
 
 function SearchCommand({ workspaceId }: { workspaceId: string }) {
@@ -128,7 +130,7 @@ function SearchCommand({ workspaceId }: { workspaceId: string }) {
     <IconButton label="Search workspace" onClick={() => setOpen(true)}><Search aria-hidden="true" /></IconButton>
     <Dialog open={open} title="Search workspace" onClose={() => setOpen(false)}>
       <div className="search-dialog">
-        <TextInput autoFocus label="Search projects, files and jobs" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <TextInput autoFocus label="Search projects, files, native documents and jobs" value={query} onChange={(event) => setQuery(event.target.value)} />
         {error && <InlineNotice tone="error" title="Search unavailable">{error}</InlineNotice>}
         {query.trim().length < 2 ? <StatePanel kind="empty" title="Find current work" message="Enter at least two characters." />
           : loading && results.length === 0 ? <StatePanel kind="loading" title="Searching" message="Checking work you can access." />
@@ -136,7 +138,7 @@ function SearchCommand({ workspaceId }: { workspaceId: string }) {
               : <div className="search-results" role="list" aria-label="Search results">{results.map((result) => {
                 const kindLabel = SEARCH_RESULT_KIND_LABELS[result.kind];
                 const description = result.description.trim().toLocaleLowerCase() === kindLabel.toLocaleLowerCase() ? null : result.description;
-                return <div role="listitem" key={`${result.kind}-${result.resource_id}`}><button type="button" onClick={() => openResult(result)}><span className="search-result-icon">{result.kind === "project" ? <BriefcaseBusiness aria-hidden="true" /> : result.kind === "file" ? <FileStack aria-hidden="true" /> : <History aria-hidden="true" />}</span><span><strong>{result.title}</strong>{description && <small>{description}</small>}</span><Badge>{kindLabel}</Badge></button></div>;
+                return <div role="listitem" key={`${result.kind}-${result.resource_id}`}><button type="button" onClick={() => openResult(result)}><span className="search-result-icon">{result.kind === "project" ? <BriefcaseBusiness aria-hidden="true" /> : result.kind === "file" ? <FileStack aria-hidden="true" /> : result.kind === "native_document" ? <FilePenLine aria-hidden="true" /> : <History aria-hidden="true" />}</span><span><strong>{result.title}</strong>{description && <small>{description}</small>}</span><Badge>{kindLabel}</Badge></button></div>;
               })}</div>}
         {cursor && <Button disabled={loading} onClick={() => void more()}>{loading ? "Loading" : "Load more"}</Button>}
       </div>
@@ -262,8 +264,8 @@ export function SignedWorkspaceHome({ workspaceId, actorName, onUpload, refresh 
   return <main className="page home-page" data-testid="workspace-home">
     <section className="page-heading home-heading"><div><p className="eyebrow">Good to see you, {actorName.split(" ")[0]}</p><h1>Continue your work</h1><p>Open something recent or begin with a file.</p></div><div className="heading-actions"><Button onClick={onUpload}><Upload aria-hidden="true" />Upload</Button><Button tone="primary" onClick={() => navigate(workspacePath(workspaceId, "projects"))}><Plus aria-hidden="true" />New project</Button></div></section>
 
-    <section className="home-section" aria-labelledby="recent-heading"><div className="section-heading"><div><h2 id="recent-heading">Recent work</h2><p>Projects and accepted files from this workspace.</p></div></div>
-      {home.recent_work.length === 0 ? <div className="compact-empty"><FileStack aria-hidden="true" /><div><strong>Start with your first file</strong><span>Your accepted source will stay connected to its history.</span></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></div> : <div className="recent-grid">{home.recent_work.slice(0, 4).map((item) => <button className="recent-card" key={item.resource_id} onClick={() => navigate(item.path)}><span className="recent-icon">{item.kind === "file" ? <FileStack aria-hidden="true" /> : <BriefcaseBusiness aria-hidden="true" />}</span><span><strong>{item.title}</strong><small>{item.description}</small></span></button>)}</div>}
+    <section className="home-section" aria-labelledby="recent-heading"><div className="section-heading"><div><h2 id="recent-heading">Recent work</h2><p>Projects, accepted sources and native documents from this workspace.</p></div></div>
+      {home.recent_work.length === 0 ? <div className="compact-empty"><FileStack aria-hidden="true" /><div><strong>Start with your first file</strong><span>Your accepted source will stay connected to its history.</span></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></div> : <div className="recent-grid">{home.recent_work.slice(0, 4).map((item) => <button className="recent-card" key={`${item.kind}-${item.resource_id}`} onClick={() => navigate(item.path)}><span className="recent-icon">{item.kind === "file" ? <FileStack aria-hidden="true" /> : item.kind === "native_document" ? <FilePenLine aria-hidden="true" /> : <BriefcaseBusiness aria-hidden="true" />}</span><span><strong>{item.title}</strong><small>{item.description}</small></span></button>)}</div>}
     </section>
 
     <section className="home-section" aria-labelledby="outcomes-heading"><div className="section-heading"><div><h2 id="outcomes-heading">Choose an outcome</h2><p>Every path starts by protecting and understanding the source.</p></div></div><OutcomeGrid features={features} workspaceId={workspaceId} /></section>

@@ -4,7 +4,8 @@
       "enum": [
         "project",
         "file",
-        "job"
+        "job",
+        "native_document"
       ],
       "title": "SearchResultKind",
       "type": "string"
@@ -35,7 +36,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.14.0",
+      "default": "1.15.0",
       "title": "Schema Version",
       "type": "string"
     },

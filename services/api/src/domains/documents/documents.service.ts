@@ -214,6 +214,24 @@ export class DocumentsService implements OnApplicationShutdown {
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
   }
 
+  async move(headers: Headers, workspaceId: string, documentId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "document.edit");
+    const id = requireId(documentId, "document id");
+    const projectId = optionalId(body["project_id"], "project id");
+    if (projectId) {
+      const projects = await this.product.listProjects(access.principal.actorId, access.workspaceId);
+      if (!projects.projects.some((item) => item.project_id === projectId)) {
+        throw new DomainError(404, "project-not-found", "Project was not found");
+      }
+    }
+    const context = this.command(headers, access.principal, "document.move", {
+      workspaceId: access.workspaceId, documentId: id, projectId,
+    });
+    const result = await this.documents.move(context, access.workspaceId, id, projectId, access.defaultFilesId);
+    if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.moved", id);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, document: result.value, replayed: result.replayed };
+  }
+
   async compatibility(headers: Headers, workspaceId: string, documentId: string) {
     const access = await this.access(headers, workspaceId, "document.read");
     return {

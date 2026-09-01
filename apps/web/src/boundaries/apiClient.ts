@@ -568,6 +568,13 @@ export const api = {
       body: JSON.stringify({ name, project_id: projectId || undefined, recovered_snapshot: recoveredSnapshot }),
     });
   },
+  moveDocument(workspaceId: string, documentId: string, projectId?: string): Promise<{ document: EditorDocumentRecord; replayed: boolean }> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/location`, {
+      method: "PATCH",
+      headers: { "idempotency-key": commandKey("editor-move") },
+      body: JSON.stringify({ project_id: projectId || undefined }),
+    });
+  },
   documentCompatibility(workspaceId: string, documentId: string): Promise<{ reports: ImportCompatibilityReport[] }> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/compatibility-reports`);
   },

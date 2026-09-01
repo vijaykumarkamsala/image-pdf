@@ -90,6 +90,11 @@ export class DocumentsController {
     return this.documents.saveAs(headers, workspaceId, documentId, body);
   }
 
+  @Patch(":documentId/location")
+  move(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string, @Body() body: RequestBody) {
+    return this.documents.move(headers, workspaceId, documentId, body);
+  }
+
   @Get(":documentId/compatibility-reports")
   compatibility(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
     return this.documents.compatibility(headers, workspaceId, documentId);

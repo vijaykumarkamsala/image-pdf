@@ -37,7 +37,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.14.0",
+          "default": "1.15.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -78,7 +78,7 @@
       "type": "array"
     },
     "schema_version": {
-      "default": "1.14.0",
+      "default": "1.15.0",
       "title": "Schema Version",
       "type": "string"
     }

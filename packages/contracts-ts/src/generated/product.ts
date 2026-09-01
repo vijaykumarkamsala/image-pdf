@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.14.0";
+export const PRODUCT_SCHEMA_VERSION = "1.15.0";
 
 export interface Actor {
   schema_version?: string;
@@ -477,8 +477,8 @@ export interface RecentWorkItem {
   updated_at: string;
 }
 
-export type RecentWorkKind = "project" | "file";
-export const RecentWorkKindValues: readonly RecentWorkKind[] = ["project", "file"] as const;
+export type RecentWorkKind = "project" | "file" | "native_document";
+export const RecentWorkKindValues: readonly RecentWorkKind[] = ["project", "file", "native_document"] as const;
 
 export interface RichTextLayerData {
   schema_version?: string;
@@ -500,8 +500,8 @@ export interface RichTextRun {
 export type RolePreset = "owner" | "admin" | "member" | "viewer";
 export const RolePresetValues: readonly RolePreset[] = ["owner", "admin", "member", "viewer"] as const;
 
-export type SearchResultKind = "project" | "file" | "job";
-export const SearchResultKindValues: readonly SearchResultKind[] = ["project", "file", "job"] as const;
+export type SearchResultKind = "project" | "file" | "job" | "native_document";
+export const SearchResultKindValues: readonly SearchResultKind[] = ["project", "file", "job", "native_document"] as const;
 
 export type ShapeKind = "rectangle" | "ellipse" | "line" | "polygon";
 export const ShapeKindValues: readonly ShapeKind[] = ["rectangle", "ellipse", "line", "polygon"] as const;

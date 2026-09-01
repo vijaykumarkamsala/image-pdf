@@ -87,6 +87,11 @@ export class PostgresExperienceRepository implements ExperienceRepository {
              CASE WHEN canonical_location_kind='project' THEN 'Project file' ELSE 'Default Files' END,
              '/w/' || workspace_id || '/files',updated_at
            FROM workspace_files WHERE workspace_id=$1
+           UNION ALL
+           SELECT 'native_document',document_id,name,
+             CASE WHEN location_kind='project' THEN 'Native document - Project' ELSE 'Native document - Default Files' END,
+             '/w/' || workspace_id || '/studio/' || document_id,updated_at
+           FROM editor_documents WHERE workspace_id=$1
          ) recent ORDER BY updated_at DESC,resource_id DESC LIMIT 8`,
         [workspaceId],
       ),
@@ -247,27 +252,33 @@ export class PostgresExperienceRepository implements ExperienceRepository {
     limit: number,
   ): Promise<SearchPageData> {
     const cursor = decodeExperienceCursor(cursorValue);
-    const requested = kinds.length ? kinds : ["project", "file", "job"];
+    const requested = kinds.length ? kinds : ["project", "file", "job", "native_document"];
     const result = await this.pool.query(
       `SELECT * FROM (
          SELECT 'project' AS kind,project_id AS resource_id,name AS title,
            CASE WHEN parent_project_id IS NULL THEN 'Project' ELSE 'Subproject' END AS description,
            '/w/' || workspace_id || '/projects' AS path,created_at AS updated_at
-         FROM projects WHERE workspace_id=$1 AND archived=false AND $3 AND 'project'=ANY($6::text[])
+         FROM projects WHERE workspace_id=$1 AND archived=false AND $3 AND 'project'=ANY($7::text[])
            AND position(lower($2) in lower(name))>0
          UNION ALL
          SELECT 'file',file_id,display_name,'Workspace file','/w/' || workspace_id || '/files',updated_at
-         FROM workspace_files WHERE workspace_id=$1 AND $4 AND 'file'=ANY($6::text[])
+         FROM workspace_files WHERE workspace_id=$1 AND $4 AND 'file'=ANY($7::text[])
            AND position(lower($2) in lower(display_name))>0
          UNION ALL
          SELECT 'job',job_id,replace(kind,'_',' '),replace(state,'_',' '),
            '/w/' || workspace_id || '/jobs?job=' || job_id,updated_at
-         FROM processing_jobs WHERE workspace_id=$1 AND $5 AND 'job'=ANY($6::text[])
+         FROM processing_jobs WHERE workspace_id=$1 AND $5 AND 'job'=ANY($7::text[])
            AND position(lower($2) in lower(kind || ' ' || job_id))>0
+         UNION ALL
+         SELECT 'native_document',document_id,name,
+           CASE WHEN location_kind='project' THEN 'Native document - Project' ELSE 'Native document - Default Files' END,
+           '/w/' || workspace_id || '/studio/' || document_id,updated_at
+         FROM editor_documents WHERE workspace_id=$1 AND $6 AND 'native_document'=ANY($7::text[])
+           AND position(lower($2) in lower(name))>0
        ) result
-       WHERE ($7::timestamptz IS NULL OR (updated_at,resource_id,kind)<($7::timestamptz,$8,$9))
-       ORDER BY updated_at DESC,resource_id DESC,kind DESC LIMIT $10`,
-      [workspaceId, query, access.projects, access.files, access.jobs, requested,
+       WHERE ($8::timestamptz IS NULL OR (updated_at,resource_id,kind)<($8::timestamptz,$9,$10))
+       ORDER BY updated_at DESC,resource_id DESC,kind DESC LIMIT $11`,
+      [workspaceId, query, access.projects, access.files, access.jobs, access.documents, requested,
         cursor?.occurredAt ?? null, cursor?.resourceId ?? "", cursor?.kind ?? "", limit + 1],
     );
     const results = result.rows.slice(0, limit).map((row): WorkspaceSearchResult => ({

@@ -49,8 +49,8 @@ export class ExperienceController {
     @Query("limit") rawLimit?: string,
   ) {
     const kinds = rawKinds ? rawKinds.split(",").filter(Boolean) : [];
-    if (kinds.some((kind) => !["project", "file", "job"].includes(kind))) {
-      throw new DomainError(400, "search-kind-invalid", "Search only available projects, files and jobs");
+    if (kinds.some((kind) => !["project", "file", "job", "native_document"].includes(kind))) {
+      throw new DomainError(400, "search-kind-invalid", "Search only available projects, files, native documents and jobs");
     }
     return this.experience.search(headers, workspaceId, query, kinds as SearchResultKind[], cursor, this.limit(rawLimit, 20));
   }

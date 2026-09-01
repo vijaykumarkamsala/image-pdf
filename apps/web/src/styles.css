@@ -115,10 +115,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .project-card p { margin: 0; color: var(--color-text-muted); font-size: var(--text-xs); }
 .status-dot { position: absolute; top: 10px; right: 10px; color: var(--color-success); font-size: 10px; font-weight: 800; }
 .file-list { display: grid; gap: 8px; }
-.file-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 70px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.file-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 70px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
 .file-card > div { display: grid; min-width: 0; }
 .file-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-card span, .file-card small { color: var(--color-text-muted); font-size: var(--text-xs); }
+.native-document-thumbnail { background: var(--color-info-subtle); color: var(--color-info); }
+.document-location { display: grid; gap: 3px; color: var(--color-text-muted); font-size: var(--text-xs); }
+.document-location select { min-width: 150px; min-height: 36px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); padding: 0 30px 0 8px; }
+.project-card-with-contents { flex-wrap: wrap; align-content: flex-start; }
+.project-contents { display: grid; flex: 0 0 100%; gap: 8px; min-width: 0; border-top: 1px solid var(--color-border-subtle); padding-top: 10px; }
+.project-contents > div { display: grid; gap: 6px; }
+.project-contents .file-card { grid-template-columns: 34px minmax(0, 1fr); padding: 9px; }
+.project-contents .document-location, .project-contents .file-card > .ds-button { grid-column: 2; width: 100%; }
 .inline-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-error) 50%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-error); background: var(--color-error-subtle); }
 .modal-form { display: grid; gap: 20px; padding: 20px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -390,6 +398,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .compact-empty .ds-button { grid-column: 1 / -1; width: 100%; }
   .file-card { grid-template-columns: 38px minmax(0, 1fr); }
   .file-card > small { grid-column: 2; }
+  .file-card .document-location { grid-column: 2; }
+  .document-location select { width: 100%; min-height: 44px; }
   .phone-bottom-nav { position: fixed; inset: auto 0 0; z-index: var(--layer-navigation); display: block; height: 68px; border-top: 1px solid var(--color-border); background: var(--color-surface); }
   .phone-bottom-nav .primary-nav { display: grid; grid-template-columns: repeat(4, 1fr); height: 100%; margin: 0; }
   .phone-bottom-nav .primary-nav a { display: grid; place-content: center; justify-items: center; gap: 2px; padding: 0; border-radius: 0; font-size: 10px; }

@@ -114,6 +114,13 @@ export interface DocumentRepository {
     defaultFilesId: string,
     recoveredSnapshot?: EditorDocumentSnapshot,
   ): Promise<DocumentCommandResult<DocumentReadModel>>;
+  move(
+    context: CommandContext,
+    workspaceId: string,
+    documentId: string,
+    projectId: string | undefined,
+    defaultFilesId: string,
+  ): Promise<DocumentCommandResult<EditorDocumentRecord>>;
   acquireLease(
     context: CommandContext,
     workspaceId: string,

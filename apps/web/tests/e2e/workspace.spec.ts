@@ -774,6 +774,53 @@ test("autosave conflict offers explicit recovery without discarding pending work
   await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toBeVisible();
 });
 
+test("native documents are discoverable, movable and reopen from customer navigation", async ({ page }) => {
+  await openWorkspace(page, "studio-discovery");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  await page.getByRole("button", { name: "New project" }).first().click();
+  await page.getByLabel("Project name").fill("Campaign project");
+  await page.getByRole("button", { name: "Create project" }).click();
+
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByLabel("Graphic name").fill("Discoverable campaign graphic");
+  await page.getByLabel("Location").selectOption({ label: "Campaign project" });
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const documentUrl = page.url();
+
+  await page.getByRole("button", { name: "Back to Home" }).click();
+  const recent = page.locator(".recent-card").filter({ hasText: "Discoverable campaign graphic" });
+  await expect(recent).toContainText("Native document");
+  await recent.click();
+  await expect(page).toHaveURL(documentUrl);
+  await expect(page.getByRole("heading", { name: "Discoverable campaign graphic" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Back to Home" }).click();
+  await page.getByRole("button", { name: "Search workspace" }).click();
+  await page.getByLabel("Search projects, files, native documents and jobs").fill("Discoverable campaign");
+  const searchResult = page.getByRole("listitem").filter({ hasText: "Discoverable campaign graphic" });
+  await expect(searchResult).toContainText("Native document");
+  await searchResult.getByRole("button").click();
+  await expect(page).toHaveURL(documentUrl);
+
+  await page.getByRole("button", { name: "Back to Home" }).click();
+  await page.getByRole("link", { name: "Projects" }).first().click();
+  const project = page.locator(".project-card").filter({ hasText: "Campaign project" });
+  const projectDocument = project.locator(".native-document-card").filter({ hasText: "Discoverable campaign graphic" });
+  await expect(projectDocument).toBeVisible();
+  await projectDocument.getByLabel("Location").selectOption("");
+  await expect(projectDocument).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Files" }).first().click();
+  const defaultDocument = page.locator(".native-document-card").filter({ hasText: "Discoverable campaign graphic" });
+  await expect(defaultDocument).toContainText("Native document");
+  await defaultDocument.getByRole("button", { name: "Open" }).click();
+  await expect(page).toHaveURL(documentUrl);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+});
+
 test("verified raster import remains linked while crop and adjustments autosave non-destructively", async ({ page }) => {
   test.slow();
   await openWorkspace(page, "studio-raster");

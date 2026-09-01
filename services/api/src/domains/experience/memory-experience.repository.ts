@@ -14,6 +14,7 @@ import type {
 
 import { DomainError } from "../../kernel/errors.js";
 import { MemoryProductKernelRepository } from "../../kernel/memory.repository.js";
+import type { DocumentRepository } from "../documents/documents.types.js";
 import { MemoryIntakeRepository } from "../intake/memory-intake.repository.js";
 import { MemoryDurableJobRepository } from "../jobs/memory-durable-job.repository.js";
 import { decodeExperienceCursor, encodeExperienceCursor } from "./experience-cursor.js";
@@ -36,6 +37,7 @@ export class MemoryExperienceRepository implements ExperienceRepository {
     private readonly product: MemoryProductKernelRepository,
     private readonly jobs: MemoryDurableJobRepository,
     private readonly intake: MemoryIntakeRepository,
+    private readonly documents: DocumentRepository,
   ) {
     this.unsubscribers = [
       this.product.onMutation((event) => this.projectAudit(event)),
@@ -45,9 +47,10 @@ export class MemoryExperienceRepository implements ExperienceRepository {
   }
 
   async home(actorId: string, workspaceId: string, now: string): Promise<ExperienceHomeData> {
-    const [{ projects }, files, audits, jobPage, uploads] = await Promise.all([
+    const [{ projects }, files, documents, audits, jobPage, uploads] = await Promise.all([
       this.product.listProjects(actorId, workspaceId),
       this.product.listFiles(actorId, workspaceId),
+      this.documents.list(actorId, workspaceId),
       this.product.listAuditEvents(actorId, workspaceId),
       this.jobs.listWorkspaceJobs(workspaceId, "all", undefined, 100),
       this.intake.listWorkspaceUploads(workspaceId),
@@ -71,6 +74,15 @@ export class MemoryExperienceRepository implements ExperienceRepository {
         description: file.canonical_location.kind === "project" ? "Project file" : "Default Files",
         path: `/w/${workspaceId}/files`,
         updated_at: timestamp.get(file.file_id) ?? "1970-01-01T00:00:00.000Z",
+      })),
+      ...documents.map((document) => ({
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        kind: "native_document" as const,
+        resource_id: document.document_id,
+        title: document.name,
+        description: `Native document - ${document.location.kind === "project" ? "Project" : "Default Files"}`,
+        path: `/w/${workspaceId}/studio/${document.document_id}`,
+        updated_at: document.updated_at,
       })),
     ].sort((left, right) => right.updated_at.localeCompare(left.updated_at) || right.resource_id.localeCompare(left.resource_id)).slice(0, 8);
 
@@ -153,14 +165,15 @@ export class MemoryExperienceRepository implements ExperienceRepository {
     cursorValue: string | undefined,
     limit: number,
   ): Promise<SearchPageData> {
-    const [{ projects }, files, audits, jobPage] = await Promise.all([
+    const [{ projects }, files, documents, audits, jobPage] = await Promise.all([
       this.product.listProjects(actorId, workspaceId),
       this.product.listFiles(actorId, workspaceId),
+      this.documents.list(actorId, workspaceId),
       this.product.listAuditEvents(actorId, workspaceId),
       this.jobs.listWorkspaceJobs(workspaceId, "all", undefined, 100),
     ]);
     const timestamp = new Map(audits.map((event) => [event.resource_id, event.occurred_at]));
-    const requested = new Set(kinds.length ? kinds : ["project", "file", "job"] as SearchResultKind[]);
+    const requested = new Set(kinds.length ? kinds : ["project", "file", "job", "native_document"] as SearchResultKind[]);
     const needle = query.toLocaleLowerCase();
     const results: WorkspaceSearchResult[] = [];
     if (access.projects && requested.has("project")) for (const project of projects) {
@@ -172,6 +185,13 @@ export class MemoryExperienceRepository implements ExperienceRepository {
     if (access.jobs && requested.has("job")) for (const item of jobPage.jobs) {
       const label = `${item.kind.replaceAll("_", " ")} ${item.job_id}`;
       if (label.toLocaleLowerCase().includes(needle)) results.push(this.searchResult("job", item.job_id, item.kind.replaceAll("_", " "), item.state.replaceAll("_", " "), `/w/${workspaceId}/jobs?job=${item.job_id}`, item.updated_at));
+    }
+    if (access.documents && requested.has("native_document")) for (const document of documents) {
+      if (document.name.toLocaleLowerCase().includes(needle)) {
+        results.push(this.searchResult("native_document", document.document_id, document.name,
+          document.location.kind === "project" ? "Native document - Project" : "Native document - Default Files",
+          `/w/${workspaceId}/studio/${document.document_id}`, document.updated_at));
+      }
     }
     results.sort((left, right) => right.updated_at.localeCompare(left.updated_at)
       || right.resource_id.localeCompare(left.resource_id) || right.kind.localeCompare(left.kind));

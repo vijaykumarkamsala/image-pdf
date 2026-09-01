@@ -29,6 +29,7 @@ export interface SearchAccess {
   projects: boolean;
   files: boolean;
   jobs: boolean;
+  documents: boolean;
 }
 
 export interface ExperienceCommand {

@@ -236,6 +236,19 @@ export class PostgresDocumentRepository implements DocumentRepository {
     }, (value) => ({ workspaceId, action: "document.saved-as", resourceId: value.document.document_id }));
   }
 
+  async move(context: CommandContext, workspaceId: string, documentId: string, projectId: string | undefined, defaultFilesId: string) {
+    return this.command(context, "document.move", async (client) => {
+      await this.lockDocument(client, workspaceId, documentId);
+      const result = await client.query(
+        `UPDATE editor_documents SET project_id=$1,location_kind=$2,default_files_id=$3,updated_at=$4
+         WHERE workspace_id=$5 AND document_id=$6 RETURNING *`,
+        [projectId ?? null, projectId ? "project" : "default_files", projectId ? null : defaultFilesId,
+          this.runtime.now(), workspaceId, documentId],
+      );
+      return documentRecord(result.rows[0]!);
+    }, () => ({ workspaceId, action: "document.moved", resourceId: documentId }));
+  }
+
   async acquireLease(context: CommandContext, workspaceId: string, documentId: string): Promise<EditorLeaseGrant> {
     const result = await this.command(context, "document.lease.acquire", async (client) => {
       await this.lockDocument(client, workspaceId, documentId);
