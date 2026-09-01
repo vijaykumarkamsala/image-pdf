@@ -188,7 +188,7 @@ test("real workspace search, notifications, and durable Jobs use server state", 
   await page.getByRole("button", { name: "Create project" }).click();
 
   await page.keyboard.press("Control+K");
-  const searchInput = page.getByLabel("Search projects, files and jobs");
+  const searchInput = page.getByLabel("Search projects, files, native documents and jobs");
   await searchInput.fill("Searchable");
   const searchResult = page.getByRole("button", { name: /Searchable campaign/ });
   await expect(searchResult).toBeVisible();
@@ -1404,7 +1404,7 @@ test("@visual intermediate light open Search", async ({ page }) => {
   await page.getByLabel("Project name").fill("Searchable campaign");
   await page.getByRole("button", { name: "Create project" }).click();
   await page.keyboard.press("Control+K");
-  await page.getByLabel("Search projects, files and jobs").fill("Searchable");
+  await page.getByLabel("Search projects, files, native documents and jobs").fill("Searchable");
   await expect(page.getByRole("button", { name: /Searchable campaign/ })).toBeVisible();
   await prepareVisualScreenshot(page);
   await expect(page).toHaveScreenshot("workspace-search-open-638x768-light.png", screenshotOptions);
