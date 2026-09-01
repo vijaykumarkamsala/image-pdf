@@ -137,7 +137,9 @@ class GcsWorkerPrivateObjectStore:
             )
             if hashlib.sha256(existing).hexdigest() != sha256:
                 raise RuntimeError("immutable object collision") from None
-        return PrivateObjectRef(source.owner_scope, target_key, ObjectZone.IMMUTABLE)
+        return PrivateObjectRef(
+            source.owner_scope, target_key, ObjectZone.IMMUTABLE, str(target.generation)
+        )
 
     def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None:
         blob = self._bucket.blob(ref.object_key, generation=int(generation) if generation else None)
@@ -210,7 +212,10 @@ class LocalWorkerPrivateObjectStore:
         if hashlib.sha256(snapshot.data).hexdigest() != sha256:
             raise RuntimeError("promotion digest mismatch")
         target = PrivateObjectRef(
-            source.owner_scope, _immutable_key(source.owner_scope, sha256), ObjectZone.IMMUTABLE
+            source.owner_scope,
+            _immutable_key(source.owner_scope, sha256),
+            ObjectZone.IMMUTABLE,
+            sha256,
         )
         path = self._path(target)
         path.parent.mkdir(parents=True, exist_ok=True)

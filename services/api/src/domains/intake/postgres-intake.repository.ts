@@ -64,7 +64,9 @@ function stored(row: QueryResultRow): StoredUploadSession {
       ownerScope: ownerKind === "actor" ? String(row["workspace_id"]) : String(row["guest_session_id"]),
       objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
       zone: row["immutable_object_key"] ? "immutable" : "quarantine",
-      generation: row["provider_generation"] ? String(row["provider_generation"]) : undefined,
+      generation: row["immutable_object_key"]
+        ? row["immutable_provider_generation"] ? String(row["immutable_provider_generation"]) : undefined
+        : row["provider_generation"] ? String(row["provider_generation"]) : undefined,
     },
     uploadTokenHash: String(row["upload_token_hash"]),
     uploadTokenExpiresAt: instant(row["upload_token_expires_at"] as Date | string),
@@ -398,7 +400,9 @@ export class PostgresIntakeRepository implements IntakeRepository {
         ownerScope: String(row["owner_kind"] === "actor" ? row["workspace_id"] : row["guest_session_id"]),
         objectKey: String(row["immutable_object_key"] ?? row["quarantine_object_key"]),
         zone: row["immutable_object_key"] ? "immutable" as const : "quarantine" as const,
-        generation: row["provider_generation"] ? String(row["provider_generation"]) : undefined,
+        generation: row["immutable_object_key"]
+          ? row["immutable_provider_generation"] ? String(row["immutable_provider_generation"]) : undefined
+          : row["provider_generation"] ? String(row["provider_generation"]) : undefined,
       },
     }));
   }

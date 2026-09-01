@@ -51,6 +51,7 @@ class IntakeJobRepository(Protocol):
         lease: LeasedIntakeJob,
         *,
         immutable_object_key: str,
+        immutable_storage_generation: str,
         facts: dict[str, Any],
     ) -> None: ...
     def complete_rejected(
@@ -168,10 +169,13 @@ class DurableIntakeProcessor:
                 sha256=digest,
                 max_bytes=lease.expected_byte_size,
             )
+            if not immutable.generation:
+                raise RuntimeError("immutable object storage generation is unavailable")
             self._heartbeat_and_cancel(lease)
             self._repository.complete_accepted(
                 lease,
                 immutable_object_key=immutable.object_key,
+                immutable_storage_generation=immutable.generation,
                 facts=facts,
             )
             self._objects.delete(source, generation=lease.object_generation)

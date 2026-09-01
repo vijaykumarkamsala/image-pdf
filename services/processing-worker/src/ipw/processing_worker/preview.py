@@ -40,6 +40,7 @@ class LeasedPreviewJob:
     source_byte_size: int
     source_width: int
     source_height: int
+    source_storage_generation: str
     lease_token_hash: str
     trace_id: str
     attempt: int
@@ -109,7 +110,11 @@ class DurablePreviewProcessor:
             source = PrivateObjectRef(
                 lease.workspace_id, lease.source_object_key, ObjectZone.IMMUTABLE
             )
-            snapshot = self._objects.read(source, generation="", max_bytes=MAX_COMPRESSED_BYTES)
+            snapshot = self._objects.read(
+                source,
+                generation=lease.source_storage_generation,
+                max_bytes=MAX_COMPRESSED_BYTES,
+            )
             if len(snapshot.data) != lease.source_byte_size:
                 raise ValueError("immutable source byte count does not match its source version")
             if hashlib.sha256(snapshot.data).hexdigest() != lease.source_sha256:

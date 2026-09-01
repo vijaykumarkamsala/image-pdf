@@ -374,11 +374,13 @@ export class IntakeService implements OnApplicationShutdown {
       }
       const command = this.commandContext(headers, { ownerKind: "actor", ownerScope: workspaceId, workspaceId, actorId: principal.actorId }, "guest-source.handoff", { uploadSessionId: id, workspaceId });
       const target = await this.objects.rehome(stored.quarantineRef, workspaceId, stored.record.source_facts.sha256);
+      if (!target.generation) throw new Error("immutable object storage generation is unavailable");
       const result = await this.handoffs.handoff({
         uploadSessionId: id, guestSessionId: guest.guest_session_id, workspaceId, actorId: principal.actorId,
         objectReferenceId: this.runtime.id("object"), assetOriginalId: stored.record.asset_original_id,
         sourceVersionId: stored.record.source_version_id, fileId: this.runtime.id("file"),
         displayName: stored.record.display_name, immutableObjectKey: target.objectKey,
+        immutableStorageGeneration: target.generation,
         sha256: stored.record.source_facts.sha256, mediaType: stored.record.source_facts.detected_media_type,
         byteSize: stored.record.source_facts.byte_size, command, now: this.runtime.now(),
       });

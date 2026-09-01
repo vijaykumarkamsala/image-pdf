@@ -50,6 +50,7 @@ export interface AcceptedInspection {
   sourceVersionId: string;
   fileId: string | null;
   immutableObjectKey: string;
+  immutableStorageGeneration: string;
   facts: NonNullable<UploadSessionRecord["source_facts"]>;
 }
 

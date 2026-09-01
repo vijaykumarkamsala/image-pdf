@@ -94,6 +94,7 @@ export class LocalInspectionExecutor {
         return true;
       }
       const immutable = await this.objects.promote(stored.quarantineRef, outcome.facts.sha256);
+      if (!immutable.generation) throw new Error("immutable object storage generation is unavailable");
       await this.jobs.completeAccepted(
         job.job_id,
         leaseHash,
@@ -103,6 +104,7 @@ export class LocalInspectionExecutor {
           sourceVersionId: this.runtime.id("source"),
           fileId: owner.ownerKind === "actor" ? this.runtime.id("file") : null,
           immutableObjectKey: immutable.objectKey,
+          immutableStorageGeneration: immutable.generation,
           facts: outcome.facts,
         },
         this.runtime.now(),

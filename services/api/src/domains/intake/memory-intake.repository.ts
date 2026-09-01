@@ -290,6 +290,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
     uploadSessionId: string,
     input: {
       immutableObjectKey: string;
+      immutableStorageGeneration: string;
       assetOriginalId: string;
       sourceVersionId: string;
       fileId: string | null;
@@ -311,7 +312,12 @@ export class MemoryIntakeRepository implements IntakeRepository {
         updated_at: input.now,
       },
     };
-    updated.quarantineRef = { ...stored.quarantineRef, objectKey: input.immutableObjectKey, zone: "immutable" };
+    updated.quarantineRef = {
+      ...stored.quarantineRef,
+      objectKey: input.immutableObjectKey,
+      zone: "immutable",
+      generation: input.immutableStorageGeneration,
+    };
     this.uploads.set(uploadSessionId, updated);
     this.notifyTransition(updated.record);
     return updated;

@@ -67,7 +67,7 @@ class Objects:
         self, ref: PrivateObjectRef, *, generation: str, max_bytes: int
     ) -> PrivateObjectSnapshot:
         assert ref.zone is ObjectZone.IMMUTABLE
-        assert generation == ""
+        assert generation == hashlib.sha256(self.data).hexdigest()
         assert len(self.data) <= max_bytes
         return PrivateObjectSnapshot(
             ref, hashlib.sha256(self.data).hexdigest(), "image/png", self.data
@@ -97,6 +97,7 @@ def leased_job(data: bytes, *, media_type: str = "image/png") -> LeasedPreviewJo
         source_byte_size=len(data),
         source_width=96,
         source_height=64,
+        source_storage_generation=digest,
         lease_token_hash="a" * 64,
         trace_id="trace-preview-unit",
         attempt=1,

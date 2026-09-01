@@ -215,18 +215,32 @@ class PostgresWorkerRepository:
         try:
             cursor.execute("BEGIN")
             cursor.execute(
-                """SELECT job.*,document.source_version_id,document.current_version_id,
+                """SELECT job.*,document.source_version_id,document.source_asset_original_id,
+                          document.current_version_id,
+                          object.object_reference_id AS source_object_reference_id,
                           object.object_key AS source_object_key,object.sha256 AS source_sha256,
                           object.media_type AS source_media_type,object.byte_size AS source_byte_size,
-                          (document.current_snapshot->'artboards'->0->>'width')::integer AS source_width,
-                          (document.current_snapshot->'artboards'->0->>'height')::integer AS source_height
+                          object.storage_generation AS object_storage_generation,
+                          facts.width AS source_width,facts.height AS source_height,
+                          facts.storage_generation AS source_storage_generation,
+                          facts.workspace_id AS facts_workspace_id,
+                          facts.asset_original_id AS facts_asset_original_id,
+                          facts.object_reference_id AS facts_object_reference_id,
+                          facts.source_sha256 AS facts_source_sha256,
+                          facts.media_type AS facts_media_type,facts.byte_size AS facts_byte_size,
+                          facts.malware_scan_state AS facts_malware_scan_state
                    FROM processing_jobs job
                    JOIN editor_documents document ON document.document_id=job.document_id
                      AND document.workspace_id=job.workspace_id
                    JOIN source_versions source ON source.source_version_id=document.source_version_id
                      AND source.workspace_id=document.workspace_id
+                     AND source.asset_original_id=document.source_asset_original_id
+                   JOIN asset_originals original ON original.asset_original_id=source.asset_original_id
+                     AND original.workspace_id=source.workspace_id
+                     AND original.object_reference_id=source.object_reference_id
                    JOIN object_references object ON object.object_reference_id=source.object_reference_id
                      AND object.workspace_id=document.workspace_id
+                   LEFT JOIN source_inspection_facts facts ON facts.source_version_id=source.source_version_id
                    WHERE job.job_id=%s AND job.kind='preview_generation' FOR UPDATE OF job,document""",
                 (job_id,),
             )
@@ -234,6 +248,47 @@ class PostgresWorkerRepository:
             if row is None:
                 self._connection.rollback()
                 raise LookupError("preview job was not found")
+            verified_facts = (
+                row["facts_workspace_id"] == row["workspace_id"]
+                and row["facts_asset_original_id"] == row["source_asset_original_id"]
+                and row["facts_object_reference_id"] == row["source_object_reference_id"]
+                and row["facts_source_sha256"] == row["source_sha256"]
+                and row["source_storage_generation"] == row["object_storage_generation"]
+                and row["facts_media_type"] == row["source_media_type"]
+                and int(row["facts_byte_size"] or -1) == int(row["source_byte_size"])
+                and row["facts_malware_scan_state"] == "clean"
+                and row["source_width"] is not None
+                and row["source_height"] is not None
+            )
+            if not verified_facts:
+                failure = {
+                    "schema_version": "1.17.0",
+                    "code": "preview-source-facts-unverified",
+                    "message": "Immutable inspected source facts are missing or no longer match",
+                    "retryable": False,
+                }
+                cursor.execute(
+                    """UPDATE processing_jobs SET state='failed',failure=%s::jsonb,
+                         lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=%s
+                       WHERE job_id=%s""",
+                    (json.dumps(failure), instant, job_id),
+                )
+                cursor.execute(
+                    """UPDATE editor_documents SET preview_state='failed',updated_at=%s
+                       WHERE workspace_id=%s AND document_id=%s""",
+                    (instant, row["workspace_id"], row["document_id"]),
+                )
+                self._event(
+                    cursor,
+                    job_id,
+                    "preview.failed",
+                    "failed",
+                    int(row["progress_percent"]),
+                    instant,
+                    trace_id,
+                )
+                self._connection.commit()
+                return None
             state = str(row["state"])
             if state in {"succeeded", "failed", "cancelled"}:
                 self._connection.commit()
@@ -298,6 +353,7 @@ class PostgresWorkerRepository:
                 source_byte_size=int(row["source_byte_size"]),
                 source_width=int(row["source_width"]),
                 source_height=int(row["source_height"]),
+                source_storage_generation=str(row["source_storage_generation"]),
                 lease_token_hash=token_hash,
                 trace_id=trace_id,
                 attempt=int(attempt),
@@ -429,8 +485,9 @@ class PostgresWorkerRepository:
                 cursor.execute(
                     """INSERT INTO preview_provenance(preview_id,document_id,document_version_id,source_version_id,
                        object_reference_id,job_id,trace_id,processor_name,processor_version,zoom_level,source_sha256,
-                       sha256,width,height,colour_decision,metadata_decision,authoritative,created_at)
-                       VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,false,%s)
+                       source_width,source_height,source_storage_generation,sha256,width,height,
+                       colour_decision,metadata_decision,authoritative,created_at)
+                       VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,false,%s)
                        ON CONFLICT(preview_id) DO NOTHING""",
                     (
                         derivative.preview_id,
@@ -444,6 +501,9 @@ class PostgresWorkerRepository:
                         "1.0.0",
                         derivative.zoom_level,
                         lease.source_sha256,
+                        lease.source_width,
+                        lease.source_height,
+                        lease.source_storage_generation,
                         derivative.sha256,
                         derivative.width,
                         derivative.height,
@@ -728,6 +788,7 @@ class PostgresWorkerRepository:
         lease: LeasedIntakeJob,
         *,
         immutable_object_key: str,
+        immutable_storage_generation: str,
         facts: dict[str, Any],
         now: datetime | None = None,
     ) -> None:
@@ -745,8 +806,8 @@ class PostgresWorkerRepository:
                 assert lease.actor_id
                 assert file_id
                 cursor.execute(
-                    """INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,created_at)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    """INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,storage_generation,created_at)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                        ON CONFLICT(workspace_id,object_key) DO NOTHING""",
                     (
                         object_id,
@@ -755,15 +816,20 @@ class PostgresWorkerRepository:
                         facts["sha256"],
                         facts["detected_media_type"],
                         facts["byte_size"],
+                        immutable_storage_generation,
                         instant,
                     ),
                 )
                 cursor.execute(
-                    "SELECT object_reference_id,sha256,byte_size FROM object_references WHERE workspace_id=%s AND object_key=%s",
+                    "SELECT object_reference_id,sha256,byte_size,storage_generation FROM object_references WHERE workspace_id=%s AND object_key=%s",
                     (lease.workspace_id, immutable_object_key),
                 )
-                object_id, existing_sha, existing_size = cursor.fetchone()
-                if existing_sha != facts["sha256"] or int(existing_size) != int(facts["byte_size"]):
+                object_id, existing_sha, existing_size, existing_generation = cursor.fetchone()
+                if (
+                    existing_sha != facts["sha256"]
+                    or int(existing_size) != int(facts["byte_size"])
+                    or existing_generation != immutable_storage_generation
+                ):
                     raise RuntimeError("immutable object identity conflict")
                 cursor.execute(
                     """INSERT INTO asset_originals(asset_original_id,workspace_id,object_reference_id,original_filename,created_at)
@@ -774,6 +840,28 @@ class PostgresWorkerRepository:
                     """INSERT INTO source_versions(source_version_id,workspace_id,asset_original_id,object_reference_id,sequence,created_at)
                        VALUES (%s,%s,%s,%s,1,%s)""",
                     (source_id, lease.workspace_id, asset_id, object_id, instant),
+                )
+                cursor.execute(
+                    """INSERT INTO source_inspection_facts(
+                         source_version_id,workspace_id,asset_original_id,object_reference_id,
+                         source_sha256,storage_generation,media_type,byte_size,width,height,
+                         malware_scan_state,inspection_schema_version,inspected_at)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (
+                        source_id,
+                        lease.workspace_id,
+                        asset_id,
+                        object_id,
+                        facts["sha256"],
+                        immutable_storage_generation,
+                        facts["detected_media_type"],
+                        facts["byte_size"],
+                        facts.get("width"),
+                        facts.get("height"),
+                        facts["malware_scan_state"],
+                        facts["schema_version"],
+                        instant,
+                    ),
                 )
                 cursor.execute(
                     "SELECT default_files_id FROM default_files_locations WHERE workspace_id=%s",
@@ -796,11 +884,13 @@ class PostgresWorkerRepository:
                     ),
                 )
             cursor.execute(
-                """UPDATE upload_sessions SET state='ready',immutable_object_key=%s,asset_original_id=%s,
-                     source_version_id=%s,file_id=%s,source_facts=%s::jsonb,verified_sha256=%s,updated_at=%s
+                """UPDATE upload_sessions SET state='ready',immutable_object_key=%s,
+                     immutable_provider_generation=%s,asset_original_id=%s,source_version_id=%s,
+                     file_id=%s,source_facts=%s::jsonb,verified_sha256=%s,updated_at=%s
                    WHERE upload_session_id=%s AND state='inspecting'""",
                 (
                     immutable_object_key,
+                    immutable_storage_generation,
                     asset_id,
                     source_id,
                     file_id,

@@ -11,6 +11,11 @@ import { PostgresGuestHandoffRepository } from "../src/domains/intake/guest-hand
 import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
 import { PostgresExperienceRepository } from "../src/domains/experience/postgres-experience.repository.js";
 import { PostgresDocumentRepository } from "../src/domains/documents/postgres-document.repository.js";
+import { DocumentsService } from "../src/domains/documents/documents.service.js";
+import { IdentityBoundary } from "../src/domains/identity/identity.service.js";
+import type { AuthRepository } from "../src/domains/identity/auth.types.js";
+import type { IntakeRepository } from "../src/domains/intake/intake.types.js";
+import type { PrivateObjectStore } from "../src/domains/intake/private-object-store.js";
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
@@ -531,6 +536,7 @@ test(
           sourceVersionId: "source-accepted-pg",
           fileId: "file-accepted-pg",
           immutableObjectKey: `immutable/${first.workspace.workspace_id}/${sourceFacts.sha256}`,
+          immutableStorageGeneration: sourceFacts.sha256,
           facts: sourceFacts,
         },
         "2026-08-30T00:11:40.000Z",
@@ -811,6 +817,7 @@ test(
           sourceVersionId: "source-guest-preserved",
           fileId: null,
           immutableObjectKey: `immutable/guest-pg/${sourceFacts.sha256}`,
+          immutableStorageGeneration: sourceFacts.sha256,
           facts: sourceFacts,
         },
         "2026-08-30T00:12:40.000Z",
@@ -829,6 +836,7 @@ test(
         fileId: "file-guest-handoff",
         displayName: "guest-ready.png",
         immutableObjectKey: `immutable/${first.workspace.workspace_id}/${sourceFacts.sha256}`,
+        immutableStorageGeneration: sourceFacts.sha256,
         sha256: sourceFacts.sha256,
         mediaType: sourceFacts.detected_media_type,
         byteSize: sourceFacts.byte_size,
@@ -1214,6 +1222,163 @@ test(
         [owner.workspace.workspace_id],
       );
       assert.ok(usage.rows.every((row) => Number(row.customer_amount) === 0 && row.credit_debit === 0));
+    } finally {
+      await pool.end();
+    }
+  },
+);
+
+test(
+  "PostgreSQL 17 enforces the parameterized lease boundary through DocumentsService",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    process.env["NODE_ENV"] = "test";
+    const pool = new Pool({ connectionString, max: 12 });
+    const suffix = randomUUID().slice(0, 8);
+    const runtime = new DeterministicRuntimeValues("2026-09-01T10:00:00.000Z");
+    for (let index = 0; index < 4000; index += 1) runtime.id("service-seed");
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    const identity = new IdentityBoundary({} as AuthRepository);
+    const service = new DocumentsService(
+      documents,
+      product,
+      {} as IntakeRepository,
+      {} as PrivateObjectStore,
+      runtime,
+      identity,
+    );
+    const ownerId = `actor-lease-service-owner-${suffix}`;
+    const peerAId = `actor-lease-service-peer-a-${suffix}`;
+    const peerBId = `actor-lease-service-peer-b-${suffix}`;
+    const outsiderId = `actor-lease-service-outsider-${suffix}`;
+    const headers = (actorId: string, key: string, token?: string) => ({
+      "x-ipw-test-actor-id": actorId,
+      "x-ipw-test-actor-name": actorId,
+      "idempotency-key": `${key}-${suffix}`,
+      "x-trace-id": `trace-${key}-${suffix}`,
+      ...(token ? { "x-editor-lease": token } : {}),
+    });
+    const expectCode = async (operation: () => Promise<unknown>, code: string) => {
+      let observed: unknown;
+      try {
+        await operation();
+      } catch (error) {
+        observed = error;
+      }
+      assert.ok(observed instanceof DomainError);
+      assert.equal(observed.code, code);
+      assert.doesNotMatch(observed.message, /lease-service-owner|lease-token|display_name|token_hash/i);
+    };
+
+    try {
+      await runMigrations(pool);
+      const owner = await product.bootstrap(context(ownerId, `bootstrap-${suffix}`, "session.bootstrap", {}));
+      const outsider = await product.bootstrap(context(outsiderId, `bootstrap-outsider-${suffix}`, "session.bootstrap", {}));
+      await pool.query(
+        `INSERT INTO actors(actor_id,display_name,created_at) VALUES($1,$1,now()),($2,$2,now())`,
+        [peerAId, peerBId],
+      );
+      await pool.query(
+        `INSERT INTO memberships(membership_id,workspace_id,actor_id,role,created_at)
+         VALUES($1,$2,$3,'member',now()),($4,$2,$5,'member',now())`,
+        [`membership-${peerAId}`, owner.workspace.workspace_id, peerAId, `membership-${peerBId}`, peerBId],
+      );
+      const created = await documents.create(
+        context(ownerId, `create-${suffix}`, "document.create", { name: "Service lease boundary" }),
+        {
+          workspaceId: owner.workspace.workspace_id,
+          defaultFilesId: owner.defaultFiles.default_files_id,
+          name: "Service lease boundary",
+          intendedUse: "digital",
+          intendedUseLabel: "Digital design",
+          width: 640,
+          height: 480,
+        },
+      );
+      const workspaceId = owner.workspace.workspace_id;
+      const documentId = created.value.document.document_id;
+      const first = await service.acquireLease(headers(ownerId, "acquire"), workspaceId, documentId);
+      const replay = await service.acquireLease(headers(ownerId, "acquire"), workspaceId, documentId);
+      assert.equal(replay.grant.lease_token, first.grant.lease_token);
+      const token = first.grant.lease_token;
+
+      const crossWorkspaceCases: Array<[string, () => Promise<unknown>]> = [
+        ["acquire", () => service.acquireLease(headers(outsiderId, "cross-acquire"), outsider.workspace.workspace_id, documentId)],
+        ["heartbeat", () => service.heartbeat(headers(outsiderId, "cross-heartbeat", token), outsider.workspace.workspace_id, documentId)],
+        ["release", () => service.releaseLease(headers(outsiderId, "cross-release", token), outsider.workspace.workspace_id, documentId)],
+        ["request", () => service.takeover(headers(outsiderId, "cross-request"), outsider.workspace.workspace_id, documentId, { reason: "Known identifier" })],
+        ["force", () => service.forceTakeover(headers(outsiderId, "cross-force"), outsider.workspace.workspace_id, documentId, { reason: "Known identifier" })],
+      ];
+      for (const [name, operation] of crossWorkspaceCases) {
+        await expectCode(operation, "document-not-found");
+        assert.ok(name);
+      }
+
+      await expectCode(
+        () => service.heartbeat(headers(ownerId, "stale-heartbeat", "captured-stale-token"), workspaceId, documentId),
+        "document-lease-required",
+      );
+      await expectCode(
+        () => service.releaseLease(headers(ownerId, "stale-release", "captured-stale-token"), workspaceId, documentId),
+        "document-lease-required",
+      );
+      await expectCode(
+        () => service.heartbeat(headers(peerAId, "captured-heartbeat", token), workspaceId, documentId),
+        "document-lease-required",
+      );
+      await expectCode(
+        () => service.forceTakeover(headers(peerAId, "unauthorised-force"), workspaceId, documentId, { reason: "Not permitted" }),
+        "access-denied",
+      );
+
+      const requestAHeaders = headers(peerAId, "request-a");
+      const requestA = await service.takeover(requestAHeaders, workspaceId, documentId, { reason: "Peer A" });
+      const requestAReplay = await service.takeover(requestAHeaders, workspaceId, documentId, { reason: "Peer A" });
+      assert.equal(requestA.takeover.status, "requested");
+      assert.deepEqual(requestAReplay, requestA);
+      const [simultaneousA, simultaneousB] = await Promise.all([
+        service.takeover(headers(peerAId, "simultaneous-a"), workspaceId, documentId, { reason: "Concurrent A" }),
+        service.takeover(headers(peerBId, "simultaneous-b"), workspaceId, documentId, { reason: "Concurrent B" }),
+      ]);
+      assert.equal(simultaneousA.takeover.status, "requested");
+      assert.equal(simultaneousB.takeover.status, "requested");
+
+      const heartbeatHeaders = headers(ownerId, "heartbeat", token);
+      const heartbeat = await service.heartbeat(heartbeatHeaders, workspaceId, documentId);
+      assert.deepEqual(await service.heartbeat(heartbeatHeaders, workspaceId, documentId), heartbeat);
+      const releaseHeaders = headers(ownerId, "release", token);
+      const released = await service.releaseLease(releaseHeaders, workspaceId, documentId);
+      assert.deepEqual(await service.releaseLease(releaseHeaders, workspaceId, documentId), released);
+
+      const acquiredByPeer = await service.takeover(
+        headers(peerAId, "acquire-after-release"),
+        workspaceId,
+        documentId,
+        { reason: "Owner released" },
+      );
+      assert.equal(acquiredByPeer.takeover.status, "acquired");
+      const peerToken = acquiredByPeer.takeover.grant!.lease_token;
+      const forced = await service.forceTakeover(
+        headers(ownerId, "authorised-force"),
+        workspaceId,
+        documentId,
+        { reason: "Owner recovery exercise" },
+      );
+      assert.equal(forced.takeover.status, "acquired");
+      await expectCode(
+        () => service.heartbeat(headers(peerAId, "stale-after-force", peerToken), workspaceId, documentId),
+        "document-lease-required",
+      );
+
+      const events = await pool.query<{ event_kind: string }>(
+        `SELECT event_kind FROM document_lease_events WHERE workspace_id=$1 AND document_id=$2`,
+        [workspaceId, documentId],
+      );
+      assert.equal(events.rows.filter((event) => event.event_kind === "takeover_requested").length, 3);
+      assert.equal(events.rows.filter((event) => event.event_kind === "released").length, 1);
+      assert.equal(events.rows.filter((event) => event.event_kind === "force_takeover").length, 1);
     } finally {
       await pool.end();
     }

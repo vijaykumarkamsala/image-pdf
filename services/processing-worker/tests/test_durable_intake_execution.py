@@ -96,10 +96,12 @@ class FakeRepository:
         lease: LeasedIntakeJob,
         *,
         immutable_object_key: str,
+        immutable_storage_generation: str,
         facts: dict[str, Any],
     ) -> None:
         assert lease.job_id
         assert immutable_object_key
+        assert immutable_storage_generation == "a" * 64
         assert facts
         self.calls.append("complete.accepted")
         self.terminal = True
@@ -160,7 +162,10 @@ class FakeObjects:
         assert len(sha256) == 64
         assert len(self.data) <= max_bytes
         return PrivateObjectRef(
-            source.owner_scope, "immutable/workspace-001/" + "a" * 64, ObjectZone.IMMUTABLE
+            source.owner_scope,
+            "immutable/workspace-001/" + "a" * 64,
+            ObjectZone.IMMUTABLE,
+            "a" * 64,
         )
 
     def delete(self, _ref: PrivateObjectRef, *, generation: str | None = None) -> None:

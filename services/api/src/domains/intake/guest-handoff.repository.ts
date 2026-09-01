@@ -18,6 +18,7 @@ export interface GuestHandoffInput {
   fileId: string;
   displayName: string;
   immutableObjectKey: string;
+  immutableStorageGeneration: string;
   sha256: string;
   mediaType: string;
   byteSize: number;
@@ -137,15 +138,18 @@ export class PostgresGuestHandoffRepository implements GuestHandoffRepository {
       );
       let objectReferenceId = input.objectReferenceId;
       if (existingObject.rows[0]) {
-        if (existingObject.rows[0]["sha256"] !== input.sha256 || Number(existingObject.rows[0]["byte_size"]) !== input.byteSize) {
+        if (existingObject.rows[0]["sha256"] !== input.sha256
+          || Number(existingObject.rows[0]["byte_size"]) !== input.byteSize
+          || existingObject.rows[0]["storage_generation"] !== input.immutableStorageGeneration) {
           throw new DomainError(409, "immutable-object-conflict", "Immutable object identity conflicts with stored facts");
         }
         objectReferenceId = String(existingObject.rows[0]["object_reference_id"]);
       } else {
         await client.query(
-          `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [objectReferenceId, input.workspaceId, input.immutableObjectKey, input.sha256, input.mediaType, input.byteSize, input.now],
+          `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,storage_generation,created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [objectReferenceId, input.workspaceId, input.immutableObjectKey, input.sha256, input.mediaType,
+            input.byteSize, input.immutableStorageGeneration, input.now],
         );
       }
       await client.query(
@@ -158,6 +162,22 @@ export class PostgresGuestHandoffRepository implements GuestHandoffRepository {
          VALUES ($1,$2,$3,$4,1,$5)`,
         [input.sourceVersionId, input.workspaceId, input.assetOriginalId, objectReferenceId, input.now],
       );
+      const inspection = await client.query(
+        `INSERT INTO source_inspection_facts(source_version_id,workspace_id,asset_original_id,object_reference_id,
+         source_sha256,storage_generation,media_type,byte_size,width,height,malware_scan_state,
+         inspection_schema_version,inspected_at)
+         SELECT $1,$2,$3,$4,$5::char(64),$6,$7,$8,
+           (upload.source_facts->>'width')::integer,(upload.source_facts->>'height')::integer,
+           upload.source_facts->>'malware_scan_state',upload.source_facts->>'schema_version',$9
+         FROM upload_sessions upload WHERE upload.upload_session_id=$10 AND upload.state='ready'
+           AND upload.source_facts->>'sha256'=$5::text`,
+        [input.sourceVersionId, input.workspaceId, input.assetOriginalId, objectReferenceId,
+          input.sha256, input.immutableStorageGeneration, input.mediaType, input.byteSize,
+          input.now, input.uploadSessionId],
+      );
+      if (inspection.rowCount !== 1) {
+        throw new DomainError(409, "source-facts-conflict", "Verified source facts no longer match this immutable source");
+      }
       const defaults = await client.query(
         "SELECT default_files_id FROM default_files_locations WHERE workspace_id=$1",
         [input.workspaceId],

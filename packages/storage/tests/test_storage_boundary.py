@@ -157,7 +157,7 @@ def test_gcs_worker_promotion_is_conditional_idempotent_and_private() -> None:
     target = store.promote(source, source_generation="17", sha256=digest, max_bytes=100)
 
     assert target == PrivateObjectRef(
-        "workspace-001", f"immutable/workspace-001/{digest}", ObjectZone.IMMUTABLE
+        "workspace-001", f"immutable/workspace-001/{digest}", ObjectZone.IMMUTABLE, "23"
     )
     assert client.private_bucket.copy_kwargs == {
         "if_generation_match": 0,
@@ -258,6 +258,7 @@ def test_local_worker_storage_preserves_generation_and_no_overwrite(tmp_path: Pa
         store.promote(source, source_generation=digest, sha256="0" * 64, max_bytes=100)
 
     target = store.promote(source, source_generation=digest, sha256=digest, max_bytes=100)
+    assert target.generation == digest
     assert (tmp_path / target.object_key).read_bytes() == b"local original"
     assert store.promote(source, source_generation=digest, sha256=digest, max_bytes=100) == target
     (tmp_path / target.object_key).write_bytes(b"collision")

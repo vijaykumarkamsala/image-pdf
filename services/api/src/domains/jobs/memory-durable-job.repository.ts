@@ -289,6 +289,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
     if (current.state !== "running") throw new DomainError(409, "job-state-conflict", "Job is not running");
     const upload = this.intake.completeAccepted(intakeUploadId(current), {
       immutableObjectKey: result.immutableObjectKey,
+      immutableStorageGeneration: result.immutableStorageGeneration,
       assetOriginalId: result.assetOriginalId,
       sourceVersionId: result.sourceVersionId,
       fileId: result.fileId,

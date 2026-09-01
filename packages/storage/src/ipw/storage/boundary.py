@@ -32,6 +32,7 @@ class PrivateObjectRef:
     owner_scope: str
     object_key: str
     zone: ObjectZone
+    generation: str | None = None
 
 
 @dataclass(frozen=True)

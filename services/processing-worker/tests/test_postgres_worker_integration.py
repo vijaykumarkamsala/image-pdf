@@ -65,6 +65,7 @@ class Objects:
             source.owner_scope,
             f"immutable/{source.owner_scope}/{sha256}",
             ObjectZone.IMMUTABLE,
+            sha256,
         )
 
     def delete(self, _ref: PrivateObjectRef, *, generation: str | None = None) -> None:

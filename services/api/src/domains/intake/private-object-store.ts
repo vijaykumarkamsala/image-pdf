@@ -150,7 +150,7 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
       throw new Error("immutable object collision");
     }
     if (!existing) this.objects.set(objectKey, bytes);
-    return { ownerScope: ref.ownerScope, objectKey, zone: "immutable" };
+    return { ownerScope: ref.ownerScope, objectKey, zone: "immutable", generation: sha256 };
   }
 
   async remove(ref: PrivateObjectRef): Promise<void> {
@@ -166,7 +166,7 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
       throw new Error("immutable object collision");
     }
     if (!existing) this.objects.set(objectKey, bytes);
-    return { ownerScope: targetOwnerScope, objectKey, zone: "immutable" };
+    return { ownerScope: targetOwnerScope, objectKey, zone: "immutable", generation: sha256 };
   }
 }
 
@@ -247,6 +247,7 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
       ownerScope: ref.ownerScope,
       objectKey: immutableKey(ref.ownerScope, sha256),
       zone: "immutable",
+      generation: sha256,
     };
     const targetPath = this.path(target);
     await mkdir(resolve(targetPath, ".."), { recursive: true, mode: 0o700 });
@@ -270,6 +271,7 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
       ownerScope: safeSegment(targetOwnerScope, "owner scope"),
       objectKey: immutableKey(targetOwnerScope, sha256),
       zone: "immutable",
+      generation: sha256,
     };
     const targetPath = this.path(target);
     await mkdir(resolve(targetPath, ".."), { recursive: true, mode: 0o700 });
