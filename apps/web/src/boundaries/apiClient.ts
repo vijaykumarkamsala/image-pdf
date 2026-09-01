@@ -493,9 +493,9 @@ export const api = {
   document(workspaceId: string, documentId: string): Promise<DocumentResponse> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}`);
   },
-  acquireDocumentLease(workspaceId: string, documentId: string): Promise<{ grant: EditorLeaseGrant }> {
+  acquireDocumentLease(workspaceId: string, documentId: string, idempotencyKey = commandKey("editor-lease")): Promise<{ grant: EditorLeaseGrant }> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/lease`, {
-      method: "POST", headers: { "idempotency-key": commandKey("editor-lease") },
+      method: "POST", headers: { "idempotency-key": idempotencyKey },
     });
   },
   heartbeatDocumentLease(workspaceId: string, documentId: string, leaseToken: string) {
@@ -503,21 +503,48 @@ export const api = {
       method: "POST", headers: { "idempotency-key": commandKey("editor-heartbeat"), "x-editor-lease": leaseToken },
     });
   },
+  documentLeaseStatus(workspaceId: string, documentId: string, leaseToken: string) {
+    return request<{
+      status: {
+        lease: EditorLeaseGrant["lease"];
+        takeoverRequest: { actorId: string; actorDisplayName: string; reason: string; requestedAt: string } | null;
+      };
+    }>(`/workspaces/${workspaceId}/documents/${documentId}/lease`, {
+      headers: { "x-editor-lease": leaseToken },
+    });
+  },
   releaseDocumentLease(workspaceId: string, documentId: string, leaseToken: string) {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/lease/release`, {
       method: "POST", headers: { "idempotency-key": commandKey("editor-release"), "x-editor-lease": leaseToken },
     });
   },
-  takeoverDocumentLease(workspaceId: string, documentId: string, force = false): Promise<{ takeover: { status: "requested" | "acquired"; grant?: EditorLeaseGrant | null } }> {
+  takeoverDocumentLease(workspaceId: string, documentId: string, reason = "Editing access requested"): Promise<{ takeover: { status: "requested" | "acquired"; grant?: EditorLeaseGrant | null } }> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/lease/takeover`, {
-      method: "POST", headers: { "idempotency-key": commandKey("editor-takeover") }, body: JSON.stringify({ force }),
+      method: "POST", headers: { "idempotency-key": commandKey("editor-takeover") }, body: JSON.stringify({ reason }),
     });
   },
-  mutateDocument(workspaceId: string, documentId: string, leaseToken: string, baseRevision: number, mutation: EditorMutation): Promise<DocumentMutationResponse> {
-    return request(`/workspaces/${workspaceId}/documents/${documentId}`, {
-      method: "PATCH", headers: { "idempotency-key": commandKey("editor-mutation"), "x-editor-lease": leaseToken },
-      body: JSON.stringify({ base_revision: baseRevision, mutation }),
+  forceTakeoverDocumentLease(workspaceId: string, documentId: string, reason: string) {
+    return request<{ takeover: { status: "acquired"; grant: EditorLeaseGrant } }>(`/workspaces/${workspaceId}/documents/${documentId}/lease/takeover/force`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-force-takeover") }, body: JSON.stringify({ reason }),
     });
+  },
+  denyTakeoverDocumentLease(workspaceId: string, documentId: string, leaseToken: string, reason: string) {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/lease/takeover/deny`, {
+      method: "POST", headers: { "idempotency-key": commandKey("editor-deny-takeover"), "x-editor-lease": leaseToken }, body: JSON.stringify({ reason }),
+    });
+  },
+  mutateDocument(
+    workspaceId: string,
+    documentId: string,
+    leaseToken: string,
+    baseRevision: number,
+    mutation: EditorMutation,
+    replay?: { operationId: string; idempotencyKey: string; traceId: string },
+  ): Promise<DocumentMutationResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}`, {
+      method: "PATCH", headers: { "idempotency-key": replay?.idempotencyKey ?? commandKey("editor-mutation"), "x-editor-lease": leaseToken },
+      body: JSON.stringify({ base_revision: baseRevision, operation_id: replay?.operationId, mutation }),
+    }, { traceId: replay?.traceId });
   },
   documentHistory(workspaceId: string, documentId: string, leaseToken: string, direction: "undo" | "redo") {
     return request<{ history: { document: EditorDocumentRecord; snapshot: EditorDocumentSnapshot; canUndo: boolean; canRedo: boolean } }>(`/workspaces/${workspaceId}/documents/${documentId}/${direction}`, {
@@ -534,11 +561,11 @@ export const api = {
       method: "POST", headers: { "idempotency-key": commandKey("editor-restore"), "x-editor-lease": leaseToken },
     });
   },
-  saveAsDocument(workspaceId: string, documentId: string, name: string, projectId?: string): Promise<DocumentResponse> {
+  saveAsDocument(workspaceId: string, documentId: string, name: string, projectId?: string, recoveredSnapshot?: EditorDocumentSnapshot): Promise<DocumentResponse> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/save-as`, {
       method: "POST",
       headers: { "idempotency-key": commandKey("editor-save-as") },
-      body: JSON.stringify({ name, project_id: projectId || undefined }),
+      body: JSON.stringify({ name, project_id: projectId || undefined, recovered_snapshot: recoveredSnapshot }),
     });
   },
   documentCompatibility(workspaceId: string, documentId: string): Promise<{ reports: ImportCompatibilityReport[] }> {

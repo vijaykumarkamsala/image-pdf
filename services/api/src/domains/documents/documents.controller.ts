@@ -40,6 +40,11 @@ export class DocumentsController {
     return this.documents.heartbeat(headers, workspaceId, documentId);
   }
 
+  @Get(":documentId/lease")
+  leaseStatus(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
+    return this.documents.leaseStatus(headers, workspaceId, documentId);
+  }
+
   @Post(":documentId/lease/release")
   release(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
     return this.documents.releaseLease(headers, workspaceId, documentId);

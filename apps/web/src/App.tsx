@@ -138,7 +138,7 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
   }, [id]);
   async function logout() {
     await api.logout();
-    clearPrivateBrowserState();
+    await clearPrivateBrowserState();
     await clearPrivateCachesOnLogout();
     browserCoordinator?.publish({ type: "session.logout" });
     window.location.replace("/");
@@ -317,8 +317,9 @@ function AuthComplete() {
 function CrossTabSessionBoundary() {
   useEffect(() => browserCoordinator?.subscribe((event) => {
     if (event.type === "session.logout") {
-      clearPrivateBrowserState();
-      void clearPrivateCachesOnLogout().finally(() => window.location.replace("/"));
+      void clearPrivateBrowserState()
+        .then(() => clearPrivateCachesOnLogout())
+        .finally(() => window.location.replace("/"));
     }
     if (event.type === "guest.handoff" && event.workspaceId) {
       clearGuestBrowserState();

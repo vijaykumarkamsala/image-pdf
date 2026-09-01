@@ -1,3 +1,5 @@
+import { clearEditorJournals } from "../editor/editorJournal";
+
 export interface SessionBoundary {
   status: "loading" | "signed_out" | "signed_in";
   workspaceId?: string;
@@ -44,9 +46,10 @@ export function clearGuestBrowserState(): void {
   }
 }
 
-export function clearPrivateBrowserState(): void {
+export async function clearPrivateBrowserState(): Promise<void> {
   sessionStorage.clear();
   for (const key of Object.keys(localStorage)) {
     if (key !== "ipw-theme") localStorage.removeItem(key);
   }
+  await clearEditorJournals();
 }

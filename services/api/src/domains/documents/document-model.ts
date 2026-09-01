@@ -305,7 +305,7 @@ function requireArtboard(snapshot: EditorDocumentSnapshot, id: string | null | u
   return artboard;
 }
 
-function validateSnapshot(snapshot: EditorDocumentSnapshot) {
+export function validateSnapshot(snapshot: EditorDocumentSnapshot) {
   if (snapshot.artboards.length === 0) invalidMutation("A document must keep at least one artboard");
   const artboards = new Set(snapshot.artboards.map((item) => item.artboard_id));
   const snapshotLayers = snapshot.layers ?? [];

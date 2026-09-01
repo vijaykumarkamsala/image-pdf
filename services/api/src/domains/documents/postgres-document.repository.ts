@@ -28,11 +28,13 @@ import {
   initialSnapshot,
   sha256,
   snapshotDigest,
+  stableJson,
 } from "./document-model.js";
 import type {
   CreateDocumentInput,
   DocumentCommandResult,
   DocumentHistoryResult,
+  EditorLeaseStatus,
   DocumentMutationInput,
   DocumentMutationResult,
   DocumentRepository,
@@ -95,7 +97,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       }
       const before = row["current_snapshot"] as EditorDocumentSnapshot;
       const after = applyMutation(before, input.mutation);
-      const operationId = this.runtime.id("document-operation");
+      const operationId = input.operationId ?? this.runtime.id("document-operation");
       const now = this.runtime.now();
       const cursor = Number(row["history_cursor"]);
       await client.query("DELETE FROM document_history_entries WHERE document_id=$1 AND history_position>$2", [input.documentId, cursor]);
@@ -191,13 +193,21 @@ export class PostgresDocumentRepository implements DocumentRepository {
     name: string,
     projectId: string | undefined,
     defaultFilesId: string,
+    recoveredSnapshot?: EditorDocumentSnapshot,
   ) {
     return this.command(context, "document.save-as", async (client) => {
       const source = await this.lockDocument(client, workspaceId, documentId);
       const nextId = this.runtime.id("document");
       const versionId = this.runtime.id("document-version");
       const now = this.runtime.now();
-      const snapshot = structuredClone(source["current_snapshot"] as EditorDocumentSnapshot);
+      const authoritativeSnapshot = source["current_snapshot"] as EditorDocumentSnapshot;
+      const snapshot = structuredClone(recoveredSnapshot ?? authoritativeSnapshot);
+      if (snapshot.document_id !== documentId) {
+        throw new DomainError(400, "recovered-snapshot-invalid", "Recovered state belongs to another document");
+      }
+      if (stableJson(snapshot.shared_assets ?? []) !== stableJson(authoritativeSnapshot.shared_assets ?? [])) {
+        throw new DomainError(409, "recovered-assets-conflict", "Recovered edits cannot replace authorised document assets");
+      }
       snapshot.document_id = nextId;
       snapshot.revision = 0;
       await client.query(
@@ -351,6 +361,30 @@ export class PostgresDocumentRepository implements DocumentRepository {
     if (!exists.rowCount) throw new DomainError(404, "document-not-found", "Document was not found");
     const rows = await this.pool.query("SELECT * FROM import_compatibility_reports WHERE document_id=$1 ORDER BY created_at DESC", [documentId]);
     return rows.rows.map(compatibilityReport);
+  }
+
+  async leaseStatus(actorId: string, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseStatus> {
+    const result = await this.pool.query(
+      `SELECT lease.*,requester.display_name AS requester_display_name
+       FROM editor_documents document
+       JOIN document_leases lease ON lease.document_id=document.document_id
+       LEFT JOIN actors requester ON requester.actor_id=lease.takeover_requested_by_actor_id
+       WHERE document.workspace_id=$1 AND document.document_id=$2 AND lease.actor_id=$3 AND lease.token_hash=$4`,
+      [workspaceId, documentId, actorId, leaseTokenHash],
+    );
+    const row = result.rows[0];
+    if (!row || row["state"] === "released" || new Date(this.runtime.now()) > new Date(row["grace_expires_at"] as Date)) {
+      throw new DomainError(409, "document-lease-required", "An active editor lease is required");
+    }
+    return {
+      lease: leaseRecord(row),
+      takeoverRequest: row["takeover_requested_by_actor_id"] ? {
+        actorId: String(row["takeover_requested_by_actor_id"]),
+        actorDisplayName: String(row["requester_display_name"] ?? "Workspace member"),
+        reason: String(row["takeover_request_reason"] ?? "Editing access requested"),
+        requestedAt: timestamp(row["takeover_requested_at"]),
+      } : null,
+    };
   }
 
   async close(): Promise<void> { await this.pool.end(); }

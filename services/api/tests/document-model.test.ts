@@ -217,6 +217,15 @@ test("autosave checkpoints, bounded history and lease takeover remain determinis
   assert.equal((await repository.requestTakeover(
     context("actor-peer", "takeover-request"), "workspace-history", documentId, "Please let me continue",
   )).status, "requested");
+  const requested = await repository.leaseStatus("actor-owner", "workspace-history", documentId, originalLeaseHash);
+  assert.equal(requested.takeoverRequest?.actorId, "actor-peer");
+  await repository.denyTakeover(
+    context("actor-owner", "takeover-deny"), "workspace-history", documentId, originalLeaseHash, "Finishing a saved edit",
+  );
+  assert.equal((await repository.leaseStatus("actor-owner", "workspace-history", documentId, originalLeaseHash)).takeoverRequest, null);
+  await repository.requestTakeover(
+    context("actor-peer", "takeover-request-again"), "workspace-history", documentId, "Please let me continue",
+  );
   const forced = await repository.forceTakeover(
     context("actor-peer", "takeover-force"), "workspace-history", documentId, "Owner recovery",
   );

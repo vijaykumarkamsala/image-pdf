@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
-import type { EditorMutation, Permission } from "ipw-contracts-ts/product";
+import type { EditorDocumentSnapshot, EditorMutation, Permission } from "ipw-contracts-ts/product";
 
 import { DomainError, requireId, requireText } from "../../kernel/errors.js";
 import {
@@ -12,7 +12,7 @@ import { requestDigest } from "../../kernel/runtime.js";
 import { IdentityBoundary } from "../identity/identity.service.js";
 import { INTAKE_REPOSITORY, type IntakeRepository, type StoredUploadSession } from "../intake/intake.types.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
-import { sha256 } from "./document-model.js";
+import { sha256, validateSnapshot } from "./document-model.js";
 import { DOCUMENT_REPOSITORY, type DocumentRepository, type VerifiedRasterSource } from "./documents.types.js";
 
 type Headers = Record<string, string | string[] | undefined>;
@@ -85,6 +85,7 @@ export class DocumentsService implements OnApplicationShutdown {
     const context = this.command(headers, access.principal, "document.mutate", { workspaceId: access.workspaceId, documentId: id, baseRevision, mutation });
     const result = await this.documents.mutate(context, {
       workspaceId: access.workspaceId, documentId: id, baseRevision, mutation,
+      operationId: optionalId(body["operation_id"], "operation id"),
       leaseTokenHash: this.leaseTokenHash(headers),
     });
     if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, mutation.kind, id);
@@ -107,6 +108,19 @@ export class DocumentsService implements OnApplicationShutdown {
     return {
       schema_version: PRODUCT_SCHEMA_VERSION,
       lease: await this.documents.heartbeatLease(context, access.workspaceId, id, this.leaseTokenHash(headers)),
+    };
+  }
+
+  async leaseStatus(headers: Headers, workspaceId: string, documentId: string) {
+    const access = await this.access(headers, workspaceId, "document.edit");
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      status: await this.documents.leaseStatus(
+        access.principal.actorId,
+        access.workspaceId,
+        requireId(documentId, "document id"),
+        this.leaseTokenHash(headers),
+      ),
     };
   }
 
@@ -187,8 +201,15 @@ export class DocumentsService implements OnApplicationShutdown {
       const projects = await this.product.listProjects(access.principal.actorId, access.workspaceId);
       if (!projects.projects.some((item) => item.project_id === projectId)) throw new DomainError(404, "project-not-found", "Project was not found");
     }
-    const context = this.command(headers, access.principal, "document.save-as", { workspaceId: access.workspaceId, documentId: id, name, projectId });
-    const result = await this.documents.saveAs(context, access.workspaceId, id, name, projectId, access.defaultFilesId);
+    const recoveredSnapshot = body["recovered_snapshot"] === undefined
+      ? undefined
+      : requireRecoveredSnapshot(body["recovered_snapshot"], id);
+    const context = this.command(headers, access.principal, "document.save-as", {
+      workspaceId: access.workspaceId, documentId: id, name, projectId, recoveredSnapshot,
+    });
+    const result = await this.documents.saveAs(
+      context, access.workspaceId, id, name, projectId, access.defaultFilesId, recoveredSnapshot,
+    );
     if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.saved-as", result.value.document.document_id);
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
   }
@@ -295,6 +316,18 @@ function optionalReason(value: unknown, fallback: string): string {
   return value === undefined || value === null || value === ""
     ? fallback
     : requireText(value, "takeover reason", 500);
+}
+
+function requireRecoveredSnapshot(value: unknown, documentId: string): EditorDocumentSnapshot {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new DomainError(400, "recovered-snapshot-invalid", "A native recovered document snapshot is required");
+  }
+  const snapshot = structuredClone(value) as EditorDocumentSnapshot;
+  if (snapshot.document_id !== documentId) {
+    throw new DomainError(400, "recovered-snapshot-invalid", "Recovered state belongs to another document");
+  }
+  validateSnapshot(snapshot);
+  return snapshot;
 }
 
 function requireMutation(value: unknown): EditorMutation {

@@ -40,6 +40,7 @@ export interface DocumentMutationInput {
   documentId: string;
   baseRevision: number;
   mutation: EditorMutation;
+  operationId?: string;
   leaseTokenHash: string;
 }
 
@@ -61,6 +62,16 @@ export interface DocumentHistoryResult {
   snapshot: EditorDocumentSnapshot;
   canUndo: boolean;
   canRedo: boolean;
+}
+
+export interface EditorLeaseStatus {
+  lease: EditorLeaseRecord;
+  takeoverRequest: {
+    actorId: string;
+    actorDisplayName: string;
+    reason: string;
+    requestedAt: string;
+  } | null;
 }
 
 export interface DocumentRepository {
@@ -101,6 +112,7 @@ export interface DocumentRepository {
     name: string,
     projectId: string | undefined,
     defaultFilesId: string,
+    recoveredSnapshot?: EditorDocumentSnapshot,
   ): Promise<DocumentCommandResult<DocumentReadModel>>;
   acquireLease(
     context: CommandContext,
@@ -138,6 +150,12 @@ export interface DocumentRepository {
     documentId: string,
     reason: string,
   ): Promise<LeaseTakeoverResult>;
+  leaseStatus(
+    actorId: string,
+    workspaceId: string,
+    documentId: string,
+    leaseTokenHash: string,
+  ): Promise<EditorLeaseStatus>;
   compatibilityReports(
     actorId: string,
     workspaceId: string,

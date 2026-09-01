@@ -17,6 +17,7 @@ export interface EditorRenderer {
   render(snapshot: EditorDocumentSnapshot, sourceUrl?: string): Promise<void>;
   resize(width: number, height: number): void;
   select(layerId: string | null): void;
+  setReadOnly(readOnly: boolean): void;
   zoomBy(factor: number): void;
   fit(): void;
   fitArtboard(artboardId: string): void;

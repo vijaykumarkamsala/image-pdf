@@ -25,6 +25,8 @@ export class FabricEditorRenderer implements EditorRenderer {
   private viewport: RendererViewport = { zoom: 1, panX: 0, panY: 0 };
   private panning = false;
   private lastPointer: { x: number; y: number } | null = null;
+  private readOnly = false;
+  private rendering = false;
 
   mount(element: HTMLCanvasElement, callbacks: EditorRendererCallbacks): void {
     this.callbacks = callbacks;
@@ -39,7 +41,9 @@ export class FabricEditorRenderer implements EditorRenderer {
     this.canvas.upperCanvasEl.setAttribute("role", "application");
     this.canvas.on("selection:created", ({ selected }) => this.selection(selected?.[0] ?? null));
     this.canvas.on("selection:updated", ({ selected }) => this.selection(selected?.[0] ?? null));
-    this.canvas.on("selection:cleared", () => this.callbacks?.onSelection(null));
+    this.canvas.on("selection:cleared", () => {
+      if (!this.rendering) this.callbacks?.onSelection(null);
+    });
     this.canvas.on("object:moving", ({ target }) => this.snap(target));
     this.canvas.on("object:modified", ({ target }) => this.modified(target));
     this.canvas.on("mouse:wheel", ({ e }) => {
@@ -72,15 +76,17 @@ export class FabricEditorRenderer implements EditorRenderer {
   async render(snapshot: EditorDocumentSnapshot, sourceUrl?: string): Promise<void> {
     const canvas = this.requireCanvas();
     const generation = ++this.generation;
-    const shouldFit = this.viewport.zoom === 1 && this.viewport.panX === 0 && this.viewport.panY === 0;
-    this.snapshot = structuredClone(snapshot);
-    this.objects.clear();
-    canvas.clear();
-    canvas.backgroundColor = "transparent";
+    this.rendering = true;
+    try {
+      const shouldFit = this.viewport.zoom === 1 && this.viewport.panX === 0 && this.viewport.panY === 0;
+      this.snapshot = structuredClone(snapshot);
+      this.objects.clear();
+      canvas.clear();
+      canvas.backgroundColor = "transparent";
 
-    for (const artboard of [...snapshot.artboards].sort((left, right) => left.order - right.order)) {
-      const offset = this.artboardOffset(artboard.artboard_id);
-      const artboardObject = new Rect({
+      for (const artboard of [...snapshot.artboards].sort((left, right) => left.order - right.order)) {
+        const offset = this.artboardOffset(artboard.artboard_id);
+        const artboardObject = new Rect({
         left: offset.x,
         top: offset.y,
         originX: "left",
@@ -94,24 +100,27 @@ export class FabricEditorRenderer implements EditorRenderer {
         evented: false,
         excludeFromExport: true,
         shadow: new Shadow({ color: "rgba(23, 32, 51, 0.16)", blur: 16, offsetX: 0, offsetY: 5, affectStroke: false, nonScaling: true }),
-      });
-      canvas.add(artboardObject);
-    }
+        });
+        canvas.add(artboardObject);
+      }
 
-    const layers = [...(snapshot.layers ?? [])].sort((left, right) => left.order - right.order);
-    for (const layer of layers) {
-      const object = await this.objectFor(layer, sourceUrl);
-      if (generation !== this.generation) return;
-      if (!object) continue;
-      const offset = this.artboardOffset(layer.artboard_id);
-      this.configure(object, layer, offset);
-      this.objects.set(layer.layer_id, object);
-      this.layerByObject.set(object, structuredClone(layer));
-      canvas.add(object);
+      const layers = [...(snapshot.layers ?? [])].sort((left, right) => left.order - right.order);
+      for (const layer of layers) {
+        const object = await this.objectFor(layer, sourceUrl);
+        if (generation !== this.generation) return;
+        if (!object) continue;
+        const offset = this.artboardOffset(layer.artboard_id);
+        this.configure(object, layer, offset);
+        this.objects.set(layer.layer_id, object);
+        this.layerByObject.set(object, structuredClone(layer));
+        canvas.add(object);
+      }
+      canvas.requestRenderAll();
+      if (shouldFit) this.fit();
+      else this.applyViewport();
+    } finally {
+      if (generation === this.generation) this.rendering = false;
     }
-    canvas.requestRenderAll();
-    if (shouldFit) this.fit();
-    else this.applyViewport();
   }
 
   resize(width: number, height: number): void {
@@ -129,6 +138,15 @@ export class FabricEditorRenderer implements EditorRenderer {
       if (object) canvas.setActiveObject(object);
     }
     canvas.requestRenderAll();
+  }
+
+  setReadOnly(readOnly: boolean): void {
+    this.readOnly = readOnly;
+    for (const object of this.objects.values()) {
+      const layer = this.layerByObject.get(object);
+      if (layer) this.applyInteractivity(object, layer);
+    }
+    this.canvas?.requestRenderAll();
   }
 
   zoomBy(factor: number): void {
@@ -227,15 +245,28 @@ export class FabricEditorRenderer implements EditorRenderer {
       flipY: layer.transform.flip_y,
       opacity: layer.opacity,
       visible: layer.visible,
-      selectable: !layer.locked,
-      evented: !layer.locked,
       objectCaching: true,
       cornerColor: "#3559e0",
       borderColor: "#3559e0",
       cornerStyle: "circle",
       transparentCorners: false,
     });
+    this.applyInteractivity(object, layer);
     object.setCoords();
+  }
+
+  private applyInteractivity(object: FabricObject, layer: LayerRecord) {
+    const mutable = !this.readOnly && !layer.locked;
+    object.set({
+      selectable: true,
+      evented: true,
+      hasControls: mutable,
+      lockMovementX: !mutable,
+      lockMovementY: !mutable,
+      lockScalingX: !mutable,
+      lockScalingY: !mutable,
+      lockRotation: !mutable,
+    });
   }
 
   private applyFilters(image: FabricImage, layer: LayerRecord) {
@@ -257,7 +288,7 @@ export class FabricEditorRenderer implements EditorRenderer {
   }
 
   private modified(target: FabricObject | undefined) {
-    if (!target) return;
+    if (!target || this.readOnly) return;
     const layer = this.layerByObject.get(target);
     if (!layer) return;
     const offset = this.artboardOffset(layer.artboard_id);
@@ -274,7 +305,7 @@ export class FabricEditorRenderer implements EditorRenderer {
   }
 
   private snap(target: FabricObject | undefined) {
-    if (!target || !this.snapshot) return;
+    if (!target || !this.snapshot || this.readOnly) return;
     const layer = this.layerByObject.get(target);
     const artboard = this.snapshot.artboards.find((item) => item.artboard_id === layer?.artboard_id);
     if (!layer || !artboard) return;

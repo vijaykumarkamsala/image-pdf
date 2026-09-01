@@ -613,35 +613,49 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   await page.mouse.down();
   await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2 + 40, (shapeBounds.top + shapeBounds.bottom) / 2 + 30, { steps: 6 });
   await page.mouse.up();
-  const controls = await lowerCanvas.evaluate((element: HTMLCanvasElement) => {
-    const context = element.getContext("2d")!;
-    const pixels = context.getImageData(0, 0, element.width, element.height).data;
-    const painted = (offset: number) => pixels[offset]! < 100 && pixels[offset + 1]! < 140 && pixels[offset + 2]! > 170 && pixels[offset + 3]! > 220;
-    let right = 0;
-    let bottom = 0;
-    for (let y = 0; y < element.height; y += 1) for (let x = 0; x < element.width; x += 1) {
-      const offset = (y * element.width + x) * 4;
-      if (painted(offset)) {
-        right = Math.max(right, x);
-        bottom = Math.max(bottom, y);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByLabel("Fill").fill("#22aa66");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" }).click();
+  const visibleControls = page.locator(".lower-canvas, .upper-canvas");
+  const locateResizeControl = () => visibleControls.evaluateAll((elements: HTMLCanvasElement[]) => {
+    let best = { x: 0, y: 0, count: 0 };
+    for (const element of elements) {
+      const pixels = element.getContext("2d")!.getImageData(0, 0, element.width, element.height).data;
+      const bounds = element.getBoundingClientRect();
+      const painted = (offset: number) => pixels[offset]! < 100 && pixels[offset + 1]! < 140
+        && pixels[offset + 2]! > 170 && pixels[offset + 3]! > 180;
+      let right = 0;
+      let bottom = 0;
+      for (let y = 0; y < element.height; y += 1) for (let x = 0; x < element.width; x += 1) {
+        if (painted((y * element.width + x) * 4)) {
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
       }
-    }
-    let totalX = 0;
-    let totalY = 0;
-    let count = 0;
-    for (let y = Math.max(0, bottom - 20); y <= bottom; y += 1) for (let x = Math.max(0, right - 20); x <= right; x += 1) {
-      if (painted((y * element.width + x) * 4)) {
-        totalX += x;
-        totalY += y;
-        count += 1;
+      let totalX = 0;
+      let totalY = 0;
+      let count = 0;
+      for (let y = Math.max(0, bottom - 24); y <= bottom; y += 1) for (let x = Math.max(0, right - 24); x <= right; x += 1) {
+        if (painted((y * element.width + x) * 4)) {
+          totalX += x;
+          totalY += y;
+          count += 1;
+        }
       }
+      if (count > best.count) best = {
+        x: bounds.left + (totalX / count) * bounds.width / element.width,
+        y: bounds.top + (totalY / count) * bounds.height / element.height,
+        count,
+      };
     }
-    return { x: totalX / count, y: totalY / count, count };
+    return best;
   });
+  await expect.poll(async () => (await locateResizeControl()).count).toBeGreaterThan(20);
+  const controls = await locateResizeControl();
   expect(controls.count).toBeGreaterThan(20);
-  const lowerBounds = await lowerCanvas.boundingBox();
-  const resizeX = lowerBounds!.x + controls.x;
-  const resizeY = lowerBounds!.y + controls.y;
+  const resizeX = controls.x;
+  const resizeY = controls.y;
   await page.mouse.move(resizeX, resizeY);
   await page.mouse.down();
   await page.mouse.move(resizeX + 40, resizeY + 25, { steps: 6 });
@@ -662,6 +676,102 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   expect(shape.transform.width * shape.transform.scale_x).toBeGreaterThan(320);
   expect(shape.transform.height * shape.transform.scale_y).toBeGreaterThan(220);
   expect(shape.transform.rotation_degrees).toBe(90);
+});
+
+test("same actor tabs preserve one lease owner and enforce read-only controls", async ({ page, context }) => {
+  await openWorkspace(page, "studio-tab-owner");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const documentUrl = page.url();
+  const ownerLease = await page.evaluate(() => Object.entries(sessionStorage)
+    .find(([key]) => key.startsWith("ipw-editor-lease:"))?.[1] ?? null);
+  expect(ownerLease).toBeTruthy();
+
+  const viewer = await context.newPage();
+  await viewer.goto(documentUrl);
+  await expect(viewer.getByTestId("image-graphic-studio")).toBeVisible();
+  await expect(viewer.getByText("View only", { exact: true })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Shape", exact: true })).toBeDisabled();
+  await expect(viewer.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await expect(viewer.locator(".lower-canvas")).toBeVisible();
+  expect(await viewer.evaluate(() => Object.keys(sessionStorage)
+    .some((key) => key.startsWith("ipw-editor-lease:")))).toBe(false);
+  expect(await page.evaluate(() => Object.entries(sessionStorage)
+    .find(([key]) => key.startsWith("ipw-editor-lease:"))?.[1] ?? null)).toBe(ownerLease);
+
+  await viewer.close();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+});
+
+test("failed autosave remains durable across refresh and replays after reconnect", async ({ page }) => {
+  await openWorkspace(page, "studio-durable-replay");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  await page.route("**/v1/workspaces/*/documents/*", async (route) => {
+    if (route.request().method() === "PATCH") await route.abort("failed");
+    else await route.continue();
+  });
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.getByText("Save failed", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 pending edit", { exact: true })).toBeVisible();
+  expect(await page.evaluate(async () => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1", 1);
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const request = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    };
+  }))).toBe(1);
+
+  await page.unroute("**/v1/workspaces/*/documents/*");
+  await page.reload();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" })).toBeVisible();
+  expect(await page.evaluate(async () => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1", 1);
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const request = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    };
+  }))).toBe(0);
+});
+
+test("autosave conflict offers explicit recovery without discarding pending work", async ({ page }) => {
+  await openWorkspace(page, "studio-conflict-recovery");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  let conflicted = false;
+  await page.route("**/v1/workspaces/*/documents/*", async (route) => {
+    if (!conflicted && route.request().method() === "PATCH") {
+      conflicted = true;
+      await route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "document-revision-conflict", message: "This document changed elsewhere" } }),
+      });
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await expect(page.getByText("Save conflict", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reload current" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save recovered copy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review and reapply" })).toBeVisible();
+  await expect(page.getByText("1 pending edit", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Review and reapply" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Heading" })).toBeVisible();
 });
 
 test("verified raster import remains linked while crop and adjustments autosave non-destructively", async ({ page }) => {

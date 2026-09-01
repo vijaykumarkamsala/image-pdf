@@ -31,6 +31,7 @@ import type {
   CreateDocumentInput,
   DocumentCommandResult,
   DocumentHistoryResult,
+  EditorLeaseStatus,
   DocumentMutationInput,
   DocumentMutationResult,
   DocumentRepository,
@@ -49,7 +50,7 @@ interface StoredDocument {
 interface StoredLease {
   record: EditorLeaseRecord;
   tokenHash: string;
-  takeoverRequestedBy: string | null;
+  takeoverRequest: EditorLeaseStatus["takeoverRequest"];
 }
 
 interface IdempotencyRecord {
@@ -134,7 +135,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
         ? this.appendVersion(stored, "autosave_checkpoint", `Autosave ${after.revision}`, context.principal.actorId)
         : null;
       return {
-        document: clone(stored.record), snapshot: clone(after), operationId: this.runtime.id("document-operation"),
+        document: clone(stored.record), snapshot: clone(after), operationId: input.operationId ?? this.runtime.id("document-operation"),
         checkpoint: checkpoint ? clone(checkpoint) : null,
       };
     });
@@ -199,13 +200,17 @@ export class MemoryDocumentRepository implements DocumentRepository {
     name: string,
     projectId: string | undefined,
     defaultFilesId: string,
+    recoveredSnapshot?: EditorDocumentSnapshot,
   ) {
     return this.idempotent(context, "document.save-as", () => {
       const source = this.requireDocument(workspaceId, documentId);
       const nextId = this.runtime.id("document");
       const versionId = this.runtime.id("document-version");
       const now = this.runtime.now();
-      const snapshot = clone(source.snapshot);
+      const snapshot = clone(recoveredSnapshot ?? source.snapshot);
+      if (snapshot.document_id !== documentId) {
+        throw new DomainError(400, "recovered-snapshot-invalid", "Recovered state belongs to another document");
+      }
       snapshot.document_id = nextId;
       snapshot.revision = 0;
       const record: EditorDocumentRecord = {
@@ -272,7 +277,12 @@ export class MemoryDocumentRepository implements DocumentRepository {
         return { schema_version: PRODUCT_SCHEMA_VERSION, status: "acquired" as const, current_editor: null, grant };
       }
       void reason;
-      existing.takeoverRequestedBy = context.principal.actorId;
+      existing.takeoverRequest = {
+        actorId: context.principal.actorId,
+        actorDisplayName: context.principal.displayName,
+        reason,
+        requestedAt: this.runtime.now(),
+      };
       return { schema_version: PRODUCT_SCHEMA_VERSION, status: "requested" as const, current_editor: clone(existing.record), grant: null };
     })).value;
   }
@@ -281,9 +291,9 @@ export class MemoryDocumentRepository implements DocumentRepository {
     return (await this.idempotent(context, "document.lease.takeover.deny", () => {
       this.requireDocument(workspaceId, documentId);
       const lease = this.requireLease(context.principal.actorId, documentId, leaseTokenHash, true);
-      if (!lease.takeoverRequestedBy) throw new DomainError(409, "takeover-request-missing", "There is no active takeover request");
+      if (!lease.takeoverRequest) throw new DomainError(409, "takeover-request-missing", "There is no active takeover request");
       void reason;
-      lease.takeoverRequestedBy = null;
+      lease.takeoverRequest = null;
       return clone(lease.record);
     })).value;
   }
@@ -300,6 +310,12 @@ export class MemoryDocumentRepository implements DocumentRepository {
   async compatibilityReports(actorId: string, workspaceId: string, documentId: string): Promise<ImportCompatibilityReport[]> {
     void actorId;
     return clone(this.requireDocument(workspaceId, documentId).compatibility);
+  }
+
+  async leaseStatus(actorId: string, workspaceId: string, documentId: string, leaseTokenHash: string): Promise<EditorLeaseStatus> {
+    this.requireDocument(workspaceId, documentId);
+    const lease = this.requireLease(actorId, documentId, leaseTokenHash, true);
+    return { lease: clone(lease.record), takeoverRequest: clone(lease.takeoverRequest) };
   }
 
   async close(): Promise<void> {}
@@ -339,7 +355,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
   private issueLease(context: CommandContext, documentId: string, now: string): EditorLeaseGrant {
     const rawToken = randomBytes(32).toString("hex");
     const record = this.leaseRecord(documentId, context, now);
-    this.leases.set(documentId, { record, tokenHash: sha256(rawToken), takeoverRequestedBy: null });
+    this.leases.set(documentId, { record, tokenHash: sha256(rawToken), takeoverRequest: null });
     return { schema_version: PRODUCT_SCHEMA_VERSION, lease: clone(record), lease_token: rawToken, takeover_warning: null };
   }
 
