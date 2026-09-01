@@ -243,13 +243,17 @@ class PostgresWorkerRepository:
                 self._connection.commit()
                 return None
             lease_expiry = row["lease_expires_at"]
-            eligible = state == "queued" or (
-                state == "retry_wait"
-                and (row["next_attempt_at"] is None or row["next_attempt_at"] <= instant)
-            ) or (
-                state in {"leased", "running"}
-                and lease_expiry is not None
-                and lease_expiry <= instant
+            eligible = (
+                state == "queued"
+                or (
+                    state == "retry_wait"
+                    and (row["next_attempt_at"] is None or row["next_attempt_at"] <= instant)
+                )
+                or (
+                    state in {"leased", "running"}
+                    and lease_expiry is not None
+                    and lease_expiry <= instant
+                )
             )
             if not eligible:
                 self._connection.commit()
@@ -269,7 +273,14 @@ class PostgresWorkerRepository:
                 """UPDATE processing_jobs SET state='leased',attempt=attempt+1,lease_owner=%s,
                      lease_token_hash=%s,lease_expires_at=%s,heartbeat_at=%s,next_attempt_at=NULL,updated_at=%s
                    WHERE job_id=%s RETURNING attempt,max_attempts""",
-                (worker_id, token_hash, instant + timedelta(seconds=lease_seconds), instant, instant, job_id),
+                (
+                    worker_id,
+                    token_hash,
+                    instant + timedelta(seconds=lease_seconds),
+                    instant,
+                    instant,
+                    job_id,
+                ),
             )
             attempt, max_attempts = cursor.fetchone()
             self._event(cursor, job_id, "preview.leased", "leased", 5, instant, trace_id)
@@ -325,7 +336,13 @@ class PostgresWorkerRepository:
         cursor.execute(
             """UPDATE processing_jobs SET heartbeat_at=%s,lease_expires_at=%s,updated_at=%s
                WHERE job_id=%s AND lease_token_hash=%s AND state IN ('leased','running','cancel_requested')""",
-            (instant, instant + timedelta(seconds=90), instant, lease.job_id, lease.lease_token_hash),
+            (
+                instant,
+                instant + timedelta(seconds=90),
+                instant,
+                lease.job_id,
+                lease.lease_token_hash,
+            ),
         )
         if cursor.rowcount != 1:
             self._connection.rollback()
@@ -341,7 +358,13 @@ class PostgresWorkerRepository:
         cursor.close()
         return row is None or row[0] in {"cancel_requested", "cancelled"}
 
-    def checkpoint_preview(self, lease: LeasedPreviewJob, key: str, payload: dict[str, Any], now: datetime | None = None) -> None:
+    def checkpoint_preview(
+        self,
+        lease: LeasedPreviewJob,
+        key: str,
+        payload: dict[str, Any],
+        now: datetime | None = None,
+    ) -> None:
         instant = now or utcnow()
         cursor = self._connection.cursor()
         cursor.execute(
@@ -362,7 +385,12 @@ class PostgresWorkerRepository:
         self._connection.commit()
         cursor.close()
 
-    def complete_preview(self, lease: LeasedPreviewJob, derivatives: tuple[PreviewDerivative, ...], now: datetime | None = None) -> None:
+    def complete_preview(
+        self,
+        lease: LeasedPreviewJob,
+        derivatives: tuple[PreviewDerivative, ...],
+        now: datetime | None = None,
+    ) -> None:
         instant = now or utcnow()
         cursor = self._connection.cursor()
         try:
@@ -381,8 +409,15 @@ class PostgresWorkerRepository:
                     """INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,media_type,byte_size,created_at)
                        VALUES(%s,%s,%s,%s,%s,%s,%s)
                        ON CONFLICT(workspace_id,object_key) DO NOTHING""",
-                    (object_id, lease.workspace_id, derivative.object_key, derivative.sha256,
-                     derivative.media_type, derivative.byte_size, instant),
+                    (
+                        object_id,
+                        lease.workspace_id,
+                        derivative.object_key,
+                        derivative.sha256,
+                        derivative.media_type,
+                        derivative.byte_size,
+                        instant,
+                    ),
                 )
                 cursor.execute(
                     "SELECT object_reference_id,sha256,byte_size FROM object_references WHERE workspace_id=%s AND object_key=%s",
@@ -397,10 +432,25 @@ class PostgresWorkerRepository:
                        sha256,width,height,colour_decision,metadata_decision,authoritative,created_at)
                        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,false,%s)
                        ON CONFLICT(preview_id) DO NOTHING""",
-                    (derivative.preview_id, lease.document_id, lease.document_version_id, lease.source_version_id,
-                     object_id, lease.job_id, lease.trace_id, "ipw-bounded-pillow-preview", "1.0.0",
-                     derivative.zoom_level, lease.source_sha256, derivative.sha256, derivative.width,
-                     derivative.height, derivative.colour_decision, derivative.metadata_decision, instant),
+                    (
+                        derivative.preview_id,
+                        lease.document_id,
+                        lease.document_version_id,
+                        lease.source_version_id,
+                        object_id,
+                        lease.job_id,
+                        lease.trace_id,
+                        "ipw-bounded-pillow-preview",
+                        "1.0.0",
+                        derivative.zoom_level,
+                        lease.source_sha256,
+                        derivative.sha256,
+                        derivative.width,
+                        derivative.height,
+                        derivative.colour_decision,
+                        derivative.metadata_decision,
+                        instant,
+                    ),
                 )
                 if derivative.zoom_level == "workspace":
                     workspace_preview_id = derivative.preview_id
@@ -409,7 +459,13 @@ class PostgresWorkerRepository:
             cursor.execute(
                 """UPDATE editor_documents SET preview_state='ready',current_preview_id=%s,updated_at=%s
                    WHERE workspace_id=%s AND document_id=%s AND preview_job_id=%s""",
-                (workspace_preview_id, instant, lease.workspace_id, lease.document_id, lease.job_id),
+                (
+                    workspace_preview_id,
+                    instant,
+                    lease.workspace_id,
+                    lease.document_id,
+                    lease.job_id,
+                ),
             )
             if cursor.rowcount != 1:
                 raise JobBusyError("preview document target changed")
@@ -418,7 +474,9 @@ class PostgresWorkerRepository:
                      lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=%s WHERE job_id=%s""",
                 (instant, lease.job_id),
             )
-            self._event(cursor, lease.job_id, "preview.completed", "succeeded", 100, instant, lease.trace_id)
+            self._event(
+                cursor, lease.job_id, "preview.completed", "succeeded", 100, instant, lease.trace_id
+            )
             self._audit_preview(cursor, lease, "preview.generated", instant)
             self._zero_usage_preview(cursor, lease, "preview.generated", instant)
             self._connection.commit()
@@ -428,7 +486,15 @@ class PostgresWorkerRepository:
         finally:
             cursor.close()
 
-    def fail_preview(self, lease: LeasedPreviewJob, *, code: str, message: str, retryable: bool, now: datetime | None = None) -> str:
+    def fail_preview(
+        self,
+        lease: LeasedPreviewJob,
+        *,
+        code: str,
+        message: str,
+        retryable: bool,
+        now: datetime | None = None,
+    ) -> str:
         instant = now or utcnow()
         cursor = self._connection.cursor()
         try:
@@ -446,8 +512,17 @@ class PostgresWorkerRepository:
                 return "cancelled"
             will_retry = retryable and int(row["attempt"]) < int(row["max_attempts"])
             state = "retry_wait" if will_retry else "failed"
-            retry_at = instant + timedelta(seconds=min(300, 2 ** int(row["attempt"]))) if will_retry else None
-            failure = {"schema_version": "1.16.0", "code": code, "message": message, "retryable": retryable}
+            retry_at = (
+                instant + timedelta(seconds=min(300, 2 ** int(row["attempt"])))
+                if will_retry
+                else None
+            )
+            failure = {
+                "schema_version": "1.16.0",
+                "code": code,
+                "message": message,
+                "retryable": retryable,
+            }
             cursor.execute(
                 """UPDATE processing_jobs SET state=%s,failure=%s::jsonb,next_attempt_at=%s,lease_owner=NULL,
                      lease_token_hash=NULL,lease_expires_at=NULL,updated_at=%s WHERE job_id=%s""",
@@ -455,14 +530,34 @@ class PostgresWorkerRepository:
             )
             cursor.execute(
                 "UPDATE editor_documents SET preview_state=%s,updated_at=%s WHERE workspace_id=%s AND document_id=%s",
-                ("preparing" if will_retry else "failed", instant, lease.workspace_id, lease.document_id),
+                (
+                    "preparing" if will_retry else "failed",
+                    instant,
+                    lease.workspace_id,
+                    lease.document_id,
+                ),
             )
-            self._event(cursor, lease.job_id, "preview.retry-scheduled" if will_retry else "preview.failed", state, 70, instant, lease.trace_id)
+            self._event(
+                cursor,
+                lease.job_id,
+                "preview.retry-scheduled" if will_retry else "preview.failed",
+                state,
+                70,
+                instant,
+                lease.trace_id,
+            )
             if will_retry:
                 cursor.execute(
                     """INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
                        VALUES(%s,%s,'process_job',%s::jsonb,%s,%s,%s)""",
-                    (f"outbox-{uuid.uuid4()}", lease.job_id, json.dumps({"job_id": lease.job_id}), lease.trace_id, retry_at, instant),
+                    (
+                        f"outbox-{uuid.uuid4()}",
+                        lease.job_id,
+                        json.dumps({"job_id": lease.job_id}),
+                        lease.trace_id,
+                        retry_at,
+                        instant,
+                    ),
                 )
             else:
                 self._audit_preview(cursor, lease, "preview.failed", instant)
@@ -475,7 +570,9 @@ class PostgresWorkerRepository:
         finally:
             cursor.close()
 
-    def _cancel_preview_locked(self, cursor: Any, row: dict[str, Any], instant: datetime, trace_id: str) -> None:
+    def _cancel_preview_locked(
+        self, cursor: Any, row: dict[str, Any], instant: datetime, trace_id: str
+    ) -> None:
         cursor.execute(
             """UPDATE processing_jobs SET state='cancelled',failure=NULL,lease_owner=NULL,lease_token_hash=NULL,
                  lease_expires_at=NULL,updated_at=%s WHERE job_id=%s""",
@@ -485,16 +582,30 @@ class PostgresWorkerRepository:
             "UPDATE editor_documents SET preview_state='cancelled',updated_at=%s WHERE document_id=%s AND workspace_id=%s",
             (instant, row["document_id"], row["workspace_id"]),
         )
-        self._event(cursor, str(row["job_id"]), "preview.cancelled", "cancelled", 0, instant, trace_id)
+        self._event(
+            cursor, str(row["job_id"]), "preview.cancelled", "cancelled", 0, instant, trace_id
+        )
 
-    def _audit_preview(self, cursor: Any, lease: LeasedPreviewJob, action: str, instant: datetime) -> None:
+    def _audit_preview(
+        self, cursor: Any, lease: LeasedPreviewJob, action: str, instant: datetime
+    ) -> None:
         cursor.execute(
             """INSERT INTO audit_events(audit_event_id,workspace_id,actor_id,action,resource_kind,resource_id,occurred_at,trace_id)
                VALUES(%s,%s,%s,%s,'editor_document',%s,%s,%s)""",
-            (f"audit-{uuid.uuid4()}", lease.workspace_id, lease.actor_id, action, lease.document_id, instant, lease.trace_id),
+            (
+                f"audit-{uuid.uuid4()}",
+                lease.workspace_id,
+                lease.actor_id,
+                action,
+                lease.document_id,
+                instant,
+                lease.trace_id,
+            ),
         )
 
-    def _zero_usage_preview(self, cursor: Any, lease: LeasedPreviewJob, event_kind: str, instant: datetime) -> None:
+    def _zero_usage_preview(
+        self, cursor: Any, lease: LeasedPreviewJob, event_kind: str, instant: datetime
+    ) -> None:
         usage_id = f"usage-{uuid.uuid4()}"
         cursor.execute(
             """INSERT INTO usage_events(usage_event_id,workspace_id,actor_id,event_kind,customer_amount,credit_debit,currency,occurred_at)
@@ -503,7 +614,16 @@ class PostgresWorkerRepository:
         )
         cursor.execute(
             "INSERT INTO usage_admin_dimensions(usage_event_id,dimensions) VALUES(%s,%s::jsonb)",
-            (usage_id, json.dumps({"resource_kind": "editor_document", "operation": event_kind, "job_id": lease.job_id})),
+            (
+                usage_id,
+                json.dumps(
+                    {
+                        "resource_kind": "editor_document",
+                        "operation": event_kind,
+                        "job_id": lease.job_id,
+                    }
+                ),
+            ),
         )
 
     def start(self, lease: LeasedIntakeJob, now: datetime | None = None) -> None:

@@ -209,7 +209,12 @@ def test_gcs_worker_derivative_write_is_conditional_and_idempotent() -> None:
     assert blob.metadata == {"ipw-sha256": digest, "ipw-zone": "derivative"}
     assert blob.calls[0] == (
         "upload",
-        {"content_type": "image/png", "if_generation_match": 0, "checksum": "crc32c", "timeout": 60},
+        {
+            "content_type": "image/png",
+            "if_generation_match": 0,
+            "checksum": "crc32c",
+            "timeout": 60,
+        },
     )
     blob.fail_upload = True
     second = store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
@@ -285,8 +290,8 @@ def test_local_worker_storage_writes_digest_bound_derivatives(tmp_path: Path) ->
 
     assert first.data == second.data == data
     assert first.generation == second.generation == digest
+    different = b"different-preview"
     with pytest.raises(RuntimeError, match="collision"):
-        different = b"different-preview"
         store.write_derivative(
             ref,
             data=different,

@@ -6,8 +6,8 @@ these models and must never be persisted as the editable source of truth.
 
 from __future__ import annotations
 
-from enum import StrEnum
 import re
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -230,8 +230,16 @@ class EditableMaskRecord(EditorContractModel):
                 raise ValueError("shape masks require a normalized rect or ellipse path")
             if self.object_reference_id is not None:
                 raise ValueError("shape masks cannot carry an object reference")
-            values = [float(value) for value in self.path_data[self.path_data.index("(") + 1 : -1].split(",")]
-            if values[2] <= 0 or values[3] <= 0 or values[0] + values[2] > 1 or values[1] + values[3] > 1:
+            values = [
+                float(value)
+                for value in self.path_data[self.path_data.index("(") + 1 : -1].split(",")
+            ]
+            if (
+                values[2] <= 0
+                or values[3] <= 0
+                or values[0] + values[2] > 1
+                or values[1] + values[3] > 1
+            ):
                 raise ValueError("shape mask bounds must stay inside the target layer")
         return self
 
@@ -256,11 +264,11 @@ class VectorLayerData(EditorContractModel):
 
     @model_validator(mode="after")
     def _internal_path_is_safe(self) -> VectorLayerData:
-        if self.path_data is not None:
-            if len(self.path_data) > 20_000 or not re.fullmatch(
-                r"[MmLlHhVvCcSsQqTtAaZz0-9eE+.,\s-]+", self.path_data
-            ):
-                raise ValueError("vector path uses unsupported commands or markup")
+        if self.path_data is not None and (
+            len(self.path_data) > 20_000
+            or not re.fullmatch(r"[MmLlHhVvCcSsQqTtAaZz0-9eE+.,\s-]+", self.path_data)
+        ):
+            raise ValueError("vector path uses unsupported commands or markup")
         return self
 
 
@@ -422,8 +430,13 @@ class EditorDocumentSnapshot(EditorContractModel):
         for layer in self.layers:
             if layer.parent_layer_id is not None:
                 parent = layers_by_id[layer.parent_layer_id]
-                if parent.artboard_id != layer.artboard_id or parent.layer_type is not LayerType.GROUP:
-                    raise ValueError("parent and child must share an artboard and the parent must be a group")
+                if (
+                    parent.artboard_id != layer.artboard_id
+                    or parent.layer_type is not LayerType.GROUP
+                ):
+                    raise ValueError(
+                        "parent and child must share an artboard and the parent must be a group"
+                    )
             visited = {layer.layer_id}
             parent_id = layer.parent_layer_id
             while parent_id is not None:
@@ -456,7 +469,10 @@ class EditorDocumentSnapshot(EditorContractModel):
                     raise ValueError("raster shared asset references must exist")
                 layer_mask_ids = layer.raster.mask_ids
             elif layer.vector is not None:
-                if layer.vector.shared_asset_id is not None and layer.vector.shared_asset_id not in asset_ids:
+                if (
+                    layer.vector.shared_asset_id is not None
+                    and layer.vector.shared_asset_id not in asset_ids
+                ):
                     raise ValueError("vector shared asset references must exist")
                 layer_mask_ids = layer.vector.mask_ids
             else:
@@ -499,6 +515,8 @@ class EditorDocumentRecord(EditorContractModel):
     created_by_actor_id: SlugId
     created_at: NonEmptyStr
     updated_at: NonEmptyStr
+
+
 class EditorOperationKind(StrEnum):
     LAYER_ADD = "layer.add"
     LAYER_UPDATE = "layer.update"

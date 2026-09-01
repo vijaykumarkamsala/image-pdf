@@ -33,12 +33,14 @@ def grant_member(connection: Any, workspace_id: str, actor_id: str, role: str) -
     cursor = connection.cursor()
     try:
         cursor.execute(
-            "INSERT INTO actors(actor_id,display_name,created_at) VALUES(%s,%s,now()) ON CONFLICT(actor_id) DO NOTHING",
+            "INSERT INTO actors(actor_id,display_name,created_at) VALUES(%s,%s,now()) "
+            "ON CONFLICT(actor_id) DO NOTHING",
             (actor_id, "Recovery 2D collaborator"),
         )
         cursor.execute(
             """INSERT INTO memberships(membership_id,workspace_id,actor_id,role,created_at)
-               VALUES(%s,%s,%s,%s,now()) ON CONFLICT(workspace_id,actor_id) DO UPDATE SET role=excluded.role""",
+               VALUES(%s,%s,%s,%s,now()) ON CONFLICT(workspace_id,actor_id)
+               DO UPDATE SET role=excluded.role""",
             (f"membership-{secrets.token_hex(12)}", workspace_id, actor_id, role),
         )
         connection.commit()
@@ -59,15 +61,17 @@ def evidence(connection: Any, workspace_id: str, document_id: str) -> dict[str, 
                FROM usage_events WHERE workspace_id=%s""",
             (workspace_id,),
         )
-        usage_count, amount, credits = cursor.fetchone()
+        usage_count, amount, credit_debit = cursor.fetchone()
         cursor.execute(
-            """SELECT count(*),coalesce(max(width),0),coalesce(max(height),0),bool_and(authoritative=false)
+            """SELECT count(*),coalesce(max(width),0),coalesce(max(height),0),
+                      bool_and(authoritative=false)
                FROM preview_provenance WHERE document_id=%s""",
             (document_id,),
         )
         preview_count, preview_width, preview_height, previews_non_authoritative = cursor.fetchone()
         cursor.execute(
-            "SELECT state,kind,attempt,progress_percent FROM processing_jobs WHERE document_id=%s ORDER BY created_at",
+            "SELECT state,kind,attempt,progress_percent FROM processing_jobs "
+            "WHERE document_id=%s ORDER BY created_at",
             (document_id,),
         )
         jobs = [
@@ -75,8 +79,10 @@ def evidence(connection: Any, workspace_id: str, document_id: str) -> dict[str, 
             for row in cursor.fetchall()
         ]
         cursor.execute(
-            """SELECT count(*),bool_and(outbox.state='dispatched'),coalesce(sum(outbox.delivery_attempts),0)
-               FROM job_outbox outbox JOIN processing_jobs job USING(job_id) WHERE job.document_id=%s""",
+            """SELECT count(*),bool_and(outbox.state='dispatched'),
+                      coalesce(sum(outbox.delivery_attempts),0)
+               FROM job_outbox outbox JOIN processing_jobs job USING(job_id)
+               WHERE job.document_id=%s""",
             (document_id,),
         )
         outbox_count, outbox_dispatched, delivery_attempts = cursor.fetchone()
@@ -84,7 +90,8 @@ def evidence(connection: Any, workspace_id: str, document_id: str) -> dict[str, 
             """SELECT source.sha256,bool_and(preview.source_sha256=source.sha256)
                FROM editor_documents document
                JOIN source_versions version ON version.source_version_id=document.source_version_id
-               JOIN object_references source ON source.object_reference_id=version.object_reference_id
+               JOIN object_references source
+                 ON source.object_reference_id=version.object_reference_id
                LEFT JOIN preview_provenance preview ON preview.document_id=document.document_id
                WHERE document.document_id=%s GROUP BY source.sha256""",
             (document_id,),
@@ -94,7 +101,7 @@ def evidence(connection: Any, workspace_id: str, document_id: str) -> dict[str, 
             "audit_count": audit_count,
             "usage_count": int(usage_count),
             "customer_amount": int(amount),
-            "credit_debit": int(credits),
+            "credit_debit": int(credit_debit),
             "preview_count": int(preview_count),
             "preview_max_width": int(preview_width),
             "preview_max_height": int(preview_height),
@@ -125,7 +132,16 @@ def main() -> None:
     try:
         if args.command == "grant-member":
             grant_member(connection, args.workspace_id, args.actor_id, args.role)
-            print(json.dumps({"state": "granted", "workspace_id": args.workspace_id, "actor_id": args.actor_id, "role": args.role}))
+            print(
+                json.dumps(
+                    {
+                        "state": "granted",
+                        "workspace_id": args.workspace_id,
+                        "actor_id": args.actor_id,
+                        "role": args.role,
+                    }
+                )
+            )
         else:
             print(json.dumps(evidence(connection, args.workspace_id, args.document_id)))
     finally:
