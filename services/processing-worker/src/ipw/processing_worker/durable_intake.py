@@ -11,7 +11,7 @@ from google.api_core import exceptions as google_exceptions
 
 from ipw.inspection import InspectionLimits, MalwareScanner, inspect_bytes
 from ipw.processing_worker.repository import JobBusyError, LeasedIntakeJob
-from ipw.storage import ObjectZone, PrivateObjectRef, WorkerPrivateObjectStore
+from ipw.storage import IntakePrivateObjectStore, ObjectZone, PrivateObjectRef
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ class DurableIntakeProcessor:
     def __init__(
         self,
         repository: IntakeJobRepository,
-        objects: WorkerPrivateObjectStore,
+        objects: IntakePrivateObjectStore,
         scanner: MalwareScanner,
         *,
         worker_id: str,

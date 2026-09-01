@@ -17,22 +17,28 @@ from ipw.storage.boundary import (
 )
 from ipw.storage.private import (
     GcsWorkerPrivateObjectStore,
+    IntakePrivateObjectStore,
     LocalWorkerPrivateObjectStore,
+    PreviewPrivateObjectStore,
     PrivateObjectSnapshot,
+    WorkerObjectReader,
     WorkerPrivateObjectStore,
 )
 
 __all__ = [
     "GcsWorkerPrivateObjectStore",
     "ImmutableOriginalStore",
+    "IntakePrivateObjectStore",
     "LocalWorkerPrivateObjectStore",
     "ObjectReader",
     "ObjectWriter",
     "ObjectZone",
+    "PreviewPrivateObjectStore",
     "PrivateObjectRef",
     "PrivateObjectSnapshot",
     "QuarantineStore",
     "StoredObject",
     "UploadWriteResult",
+    "WorkerObjectReader",
     "WorkerPrivateObjectStore",
 ]

@@ -21,7 +21,7 @@ class PrivateObjectSnapshot:
     data: bytes
 
 
-class WorkerPrivateObjectStore(Protocol):
+class WorkerObjectReader(Protocol):
     def read(
         self,
         ref: PrivateObjectRef,
@@ -30,6 +30,8 @@ class WorkerPrivateObjectStore(Protocol):
         max_bytes: int,
     ) -> PrivateObjectSnapshot: ...
 
+
+class IntakePrivateObjectStore(WorkerObjectReader, Protocol):
     def promote(
         self,
         source: PrivateObjectRef,
@@ -41,6 +43,8 @@ class WorkerPrivateObjectStore(Protocol):
 
     def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None: ...
 
+
+class PreviewPrivateObjectStore(WorkerObjectReader, Protocol):
     def write_derivative(
         self,
         ref: PrivateObjectRef,
@@ -49,6 +53,10 @@ class WorkerPrivateObjectStore(Protocol):
         media_type: str,
         sha256: str,
     ) -> PrivateObjectSnapshot: ...
+
+
+class WorkerPrivateObjectStore(IntakePrivateObjectStore, PreviewPrivateObjectStore, Protocol):
+    """Complete worker storage capability implemented by production adapters."""
 
 
 def _immutable_key(owner_scope: str, sha256: str) -> str:

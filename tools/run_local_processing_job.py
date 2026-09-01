@@ -47,7 +47,8 @@ def consume_local_dispatch(database_url: str, job_id: str) -> tuple[str, str]:
         if row[2] == "pending":
             cursor.execute(
                 """UPDATE job_outbox SET state='dispatching',lease_owner=%s,
-                   lease_expires_at=now()+interval '30 seconds',delivery_attempts=delivery_attempts+1
+                   lease_expires_at=now()+interval '30 seconds',
+                   delivery_attempts=delivery_attempts+1
                    WHERE outbox_id=%s AND state='pending'""",
                 (worker_id, row[0]),
             )
@@ -90,22 +91,32 @@ def main() -> None:
             trace_id=outbox_trace_id or args.trace_id,
         )
         if kind == "file_intake_inspection":
-            processor = DurableIntakeProcessor(
+            intake_processor = DurableIntakeProcessor(
                 repository,
                 objects,
                 DeterministicMalwareScanner(),
                 worker_id="recovery-2d-local-intake",
             )
+            outcome = intake_processor.process(message)
         elif kind == "preview_generation":
-            processor = DurablePreviewProcessor(
+            preview_processor = DurablePreviewProcessor(
                 repository,
                 objects,
                 worker_id="recovery-2d-local-preview",
             )
+            outcome = preview_processor.process(message)
         else:
             raise RuntimeError(f"unsupported local acceptance job kind: {kind}")
-        outcome = processor.process(message)
-        print(json.dumps({"job_id": outcome.job_id, "outbox_id": outbox_id, "kind": kind, "state": outcome.state}))
+        print(
+            json.dumps(
+                {
+                    "job_id": outcome.job_id,
+                    "outbox_id": outbox_id,
+                    "kind": kind,
+                    "state": outcome.state,
+                }
+            )
+        )
         if outcome.state not in {"succeeded", "already_terminal"}:
             raise RuntimeError(f"local worker did not complete the job: {outcome.state}")
     finally:

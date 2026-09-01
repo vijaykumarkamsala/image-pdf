@@ -10,8 +10,8 @@ from ipw.contracts.editor import (
     ArtboardOrientation,
     ArtboardRecord,
     ArtboardUnit,
-    EditorDocumentSnapshot,
     EditableMaskRecord,
+    EditorDocumentSnapshot,
     IntendedUseKind,
     IntendedUseMetadata,
     LayerRecord,
@@ -19,11 +19,11 @@ from ipw.contracts.editor import (
     LayerType,
     MaskKind,
     PreviewProvenance,
+    RichTextLayerData,
+    RichTextRun,
     ShapeKind,
     ShapeLayerData,
     ShapePoint,
-    RichTextLayerData,
-    RichTextRun,
     VectorLayerData,
 )
 
@@ -98,11 +98,19 @@ def test_preview_contract_cannot_become_authoritative() -> None:
             preview_id="preview-001",
             document_id="document-001",
             document_version_id="version-001",
-            renderer_name="fabric",
-            renderer_version="7.4.0",
-            snapshot_sha256="a" * 64,
+            source_version_id="source-version-001",
+            object_reference_id="object-reference-001",
+            job_id="job-001",
+            trace_id="trace-001",
+            processor_name="pillow",
+            processor_version="12.0.0",
+            zoom_level="workspace",
+            source_sha256="a" * 64,
+            sha256="b" * 64,
             width=600,
             height=400,
+            colour_decision="converted to sRGB",
+            metadata_decision="source metadata omitted",
             authoritative=cast(Any, True),
             created_at="2026-08-31T00:00:00.000Z",
         )
@@ -110,9 +118,7 @@ def test_preview_contract_cannot_become_authoritative() -> None:
 
 def test_native_semantics_reject_misleading_geometry_and_ranges() -> None:
     with pytest.raises(ValidationError, match="orientation"):
-        ArtboardRecord(
-            **{**artboard().model_dump(), "orientation": ArtboardOrientation.PORTRAIT}
-        )
+        ArtboardRecord(**{**artboard().model_dump(), "orientation": ArtboardOrientation.PORTRAIT})
     with pytest.raises(ValidationError, match="exactly two"):
         ShapeLayerData(shape=ShapeKind.LINE, points=(ShapePoint(x=0, y=0),))
     with pytest.raises(ValidationError, match="unsupported commands"):

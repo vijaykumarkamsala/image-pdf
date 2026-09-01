@@ -13,7 +13,7 @@ from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 from ipw.contracts import StudioEditableMediaType
 from ipw.processing_worker.durable_intake import DispatchMessage, WorkerOutcome
 from ipw.processing_worker.repository import JobBusyError
-from ipw.storage import ObjectZone, PrivateObjectRef, WorkerPrivateObjectStore
+from ipw.storage import ObjectZone, PreviewPrivateObjectStore, PrivateObjectRef
 
 MAX_COMPRESSED_BYTES = 100 * 1024 * 1024
 MAX_DECODED_PIXELS = 100_000_000
@@ -62,17 +62,31 @@ class PreviewDerivative:
 
 
 class PreviewJobRepository(Protocol):
-    def claim_preview(self, *, job_id: str, worker_id: str, lease_token: str, trace_id: str) -> LeasedPreviewJob | None: ...
+    def claim_preview(
+        self, *, job_id: str, worker_id: str, lease_token: str, trace_id: str
+    ) -> LeasedPreviewJob | None: ...
     def start_preview(self, lease: LeasedPreviewJob) -> None: ...
     def heartbeat_preview(self, lease: LeasedPreviewJob) -> None: ...
     def cancellation_requested_preview(self, lease: LeasedPreviewJob) -> bool: ...
-    def checkpoint_preview(self, lease: LeasedPreviewJob, key: str, payload: dict[str, Any]) -> None: ...
-    def complete_preview(self, lease: LeasedPreviewJob, derivatives: tuple[PreviewDerivative, ...]) -> None: ...
-    def fail_preview(self, lease: LeasedPreviewJob, *, code: str, message: str, retryable: bool) -> str: ...
+    def checkpoint_preview(
+        self, lease: LeasedPreviewJob, key: str, payload: dict[str, Any]
+    ) -> None: ...
+    def complete_preview(
+        self, lease: LeasedPreviewJob, derivatives: tuple[PreviewDerivative, ...]
+    ) -> None: ...
+    def fail_preview(
+        self, lease: LeasedPreviewJob, *, code: str, message: str, retryable: bool
+    ) -> str: ...
 
 
 class DurablePreviewProcessor:
-    def __init__(self, repository: PreviewJobRepository, objects: WorkerPrivateObjectStore, *, worker_id: str) -> None:
+    def __init__(
+        self,
+        repository: PreviewJobRepository,
+        objects: PreviewPrivateObjectStore,
+        *,
+        worker_id: str,
+    ) -> None:
         self._repository = repository
         self._objects = objects
         self._worker_id = worker_id
@@ -92,7 +106,9 @@ class DurablePreviewProcessor:
         try:
             self._repository.start_preview(lease)
             self._cancel_guard(lease)
-            source = PrivateObjectRef(lease.workspace_id, lease.source_object_key, ObjectZone.IMMUTABLE)
+            source = PrivateObjectRef(
+                lease.workspace_id, lease.source_object_key, ObjectZone.IMMUTABLE
+            )
             snapshot = self._objects.read(source, generation="", max_bytes=MAX_COMPRESSED_BYTES)
             if len(snapshot.data) != lease.source_byte_size:
                 raise ValueError("immutable source byte count does not match its source version")
@@ -102,11 +118,16 @@ class DurablePreviewProcessor:
             self._repository.checkpoint_preview(
                 lease,
                 "preview-rendered",
-                {"source_sha256": lease.source_sha256, "derivatives": [item.sha256 for item in derivatives]},
+                {
+                    "source_sha256": lease.source_sha256,
+                    "derivatives": [item.sha256 for item in derivatives],
+                },
             )
             self._cancel_guard(lease)
             for derivative in derivatives:
-                ref = PrivateObjectRef(lease.workspace_id, derivative.object_key, ObjectZone.DERIVATIVE)
+                ref = PrivateObjectRef(
+                    lease.workspace_id, derivative.object_key, ObjectZone.DERIVATIVE
+                )
                 self._objects.write_derivative(
                     ref,
                     data=derivative.data,
@@ -115,13 +136,17 @@ class DurablePreviewProcessor:
                 )
             self._repository.complete_preview(lease, derivatives)
             return WorkerOutcome("succeeded", lease.job_id)
-        except PreviewCancelled:
+        except PreviewCancelledError:
             return WorkerOutcome("cancelled", lease.job_id)
         except (ValueError, UnidentifiedImageError, Image.DecompressionBombError) as error:
-            state = self._repository.fail_preview(lease, code="preview-source-unsafe", message=str(error), retryable=False)
+            state = self._repository.fail_preview(
+                lease, code="preview-source-unsafe", message=str(error), retryable=False
+            )
             return WorkerOutcome(state, lease.job_id)
         except (TimeoutError, ConnectionError, OSError) as error:
-            state = self._repository.fail_preview(lease, code="preview-temporary-failure", message=str(error), retryable=True)
+            state = self._repository.fail_preview(
+                lease, code="preview-temporary-failure", message=str(error), retryable=True
+            )
             return WorkerOutcome(state, lease.job_id)
 
     def _render(self, lease: LeasedPreviewJob, data: bytes) -> tuple[PreviewDerivative, ...]:
@@ -144,14 +169,19 @@ class DurablePreviewProcessor:
             profile = opened.info.get("icc_profile")
             if profile:
                 try:
-                    working = ImageCms.profileToProfile(
+                    converted = ImageCms.profileToProfile(
                         upright.convert("RGB"),
                         ImageCms.ImageCmsProfile(io.BytesIO(profile)),
                         ImageCms.createProfile("sRGB"),
                         outputMode="RGB",
                     )
+                    if converted is None:
+                        raise ValueError("embedded colour profile conversion returned no image")
+                    working = converted
                 except ImageCms.PyCMSError as error:
-                    raise ValueError("embedded colour profile could not be interpreted safely") from error
+                    raise ValueError(
+                        "embedded colour profile could not be interpreted safely"
+                    ) from error
                 colour_decision = "embedded ICC profile converted to sRGB"
             else:
                 working = upright.convert("RGB")
@@ -186,9 +216,14 @@ class DurablePreviewProcessor:
     def _cancel_guard(self, lease: LeasedPreviewJob) -> None:
         self._repository.heartbeat_preview(lease)
         if self._repository.cancellation_requested_preview(lease):
-            self._repository.fail_preview(lease, code="preview-cancelled", message="Preview preparation was cancelled", retryable=False)
-            raise PreviewCancelled()
+            self._repository.fail_preview(
+                lease,
+                code="preview-cancelled",
+                message="Preview preparation was cancelled",
+                retryable=False,
+            )
+            raise PreviewCancelledError()
 
 
-class PreviewCancelled(RuntimeError):
+class PreviewCancelledError(RuntimeError):
     pass

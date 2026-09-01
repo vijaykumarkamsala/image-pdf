@@ -6,7 +6,11 @@ import io
 from PIL import Image
 
 from ipw.processing_worker.durable_intake import DispatchMessage
-from ipw.processing_worker.preview import DurablePreviewProcessor, LeasedPreviewJob, PreviewDerivative
+from ipw.processing_worker.preview import (
+    DurablePreviewProcessor,
+    LeasedPreviewJob,
+    PreviewDerivative,
+)
 from ipw.storage import ObjectZone, PrivateObjectRef, PrivateObjectSnapshot
 
 
@@ -37,13 +41,19 @@ class Repository:
     def cancellation_requested_preview(self, _lease: LeasedPreviewJob) -> bool:
         return self.cancelled
 
-    def checkpoint_preview(self, _lease: LeasedPreviewJob, key: str, payload: dict[str, object]) -> None:
+    def checkpoint_preview(
+        self, _lease: LeasedPreviewJob, key: str, payload: dict[str, object]
+    ) -> None:
         self.checkpoints.append((key, payload))
 
-    def complete_preview(self, _lease: LeasedPreviewJob, derivatives: tuple[PreviewDerivative, ...]) -> None:
+    def complete_preview(
+        self, _lease: LeasedPreviewJob, derivatives: tuple[PreviewDerivative, ...]
+    ) -> None:
         self.completed = derivatives
 
-    def fail_preview(self, _lease: LeasedPreviewJob, *, code: str, message: str, retryable: bool) -> str:
+    def fail_preview(
+        self, _lease: LeasedPreviewJob, *, code: str, message: str, retryable: bool
+    ) -> str:
         self.failed = (code, message, retryable)
         return "failed"
 
@@ -53,13 +63,19 @@ class Objects:
         self.data = data
         self.writes: list[tuple[PrivateObjectRef, bytes, str]] = []
 
-    def read(self, ref: PrivateObjectRef, *, generation: str, max_bytes: int) -> PrivateObjectSnapshot:
+    def read(
+        self, ref: PrivateObjectRef, *, generation: str, max_bytes: int
+    ) -> PrivateObjectSnapshot:
         assert ref.zone is ObjectZone.IMMUTABLE
         assert generation == ""
         assert len(self.data) <= max_bytes
-        return PrivateObjectSnapshot(ref, hashlib.sha256(self.data).hexdigest(), "image/png", self.data)
+        return PrivateObjectSnapshot(
+            ref, hashlib.sha256(self.data).hexdigest(), "image/png", self.data
+        )
 
-    def write_derivative(self, ref: PrivateObjectRef, *, data: bytes, media_type: str, sha256: str) -> PrivateObjectSnapshot:
+    def write_derivative(
+        self, ref: PrivateObjectRef, *, data: bytes, media_type: str, sha256: str
+    ) -> PrivateObjectSnapshot:
         assert ref.zone is ObjectZone.DERIVATIVE
         assert hashlib.sha256(data).hexdigest() == sha256
         self.writes.append((ref, data, media_type))
@@ -69,12 +85,22 @@ class Objects:
 def leased_job(data: bytes, *, media_type: str = "image/png") -> LeasedPreviewJob:
     digest = hashlib.sha256(data).hexdigest()
     return LeasedPreviewJob(
-        job_id="job-preview-unit", document_id="document-preview-unit",
-        workspace_id="workspace-preview-unit", actor_id="actor-preview-unit",
-        source_version_id="source-preview-unit", document_version_id="version-preview-unit",
-        source_object_key=f"immutable/workspace-preview-unit/{digest}", source_sha256=digest,
-        source_media_type=media_type, source_byte_size=len(data), source_width=96, source_height=64,
-        lease_token_hash="a" * 64, trace_id="trace-preview-unit", attempt=1, max_attempts=3,
+        job_id="job-preview-unit",
+        document_id="document-preview-unit",
+        workspace_id="workspace-preview-unit",
+        actor_id="actor-preview-unit",
+        source_version_id="source-preview-unit",
+        document_version_id="version-preview-unit",
+        source_object_key=f"immutable/workspace-preview-unit/{digest}",
+        source_sha256=digest,
+        source_media_type=media_type,
+        source_byte_size=len(data),
+        source_width=96,
+        source_height=64,
+        lease_token_hash="a" * 64,
+        trace_id="trace-preview-unit",
+        attempt=1,
+        max_attempts=3,
     )
 
 
@@ -94,7 +120,8 @@ def test_preview_worker_generates_bounded_deterministic_zoom_derivatives() -> No
     assert len(objects.writes) == 2
     for item, (_, payload, media_type) in zip(repository.completed, objects.writes, strict=True):
         edge = 2048 if item.zoom_level == "workspace" else 512
-        assert item.width <= edge and item.height <= edge
+        assert item.width <= edge
+        assert item.height <= edge
         assert item.sha256 == hashlib.sha256(payload).hexdigest()
         assert media_type == "image/png"
         with Image.open(io.BytesIO(payload)) as rendered:

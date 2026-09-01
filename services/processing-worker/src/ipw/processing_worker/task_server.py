@@ -13,7 +13,11 @@ from typing import Protocol
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 
-from ipw.processing_worker.durable_intake import DispatchMessage, DurableIntakeProcessor
+from ipw.processing_worker.durable_intake import (
+    DispatchMessage,
+    DurableIntakeProcessor,
+    WorkerOutcome,
+)
 from ipw.processing_worker.preview import DurablePreviewProcessor
 from ipw.processing_worker.repository import PostgresWorkerRepository
 from ipw.storage import GcsWorkerPrivateObjectStore
@@ -26,7 +30,7 @@ class TaskIdentityVerifier(Protocol):
 
 
 class DurableJobProcessor(Protocol):
-    def process(self, message: DispatchMessage): ...
+    def process(self, message: DispatchMessage) -> WorkerOutcome: ...
 
 
 class DurableJobRouter:
@@ -40,7 +44,7 @@ class DurableJobRouter:
         self._intake = intake
         self._preview = preview
 
-    def process(self, message: DispatchMessage):
+    def process(self, message: DispatchMessage) -> WorkerOutcome:
         kind = self._repository.job_kind(message.job_id)
         if kind == "file_intake_inspection":
             return self._intake.process(message)

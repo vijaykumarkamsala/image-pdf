@@ -308,7 +308,7 @@ def test_internal_task_rejects_large_malformed_and_invalid_payloads() -> None:
             return WorkerOutcome(self.state, message.job_id)
 
     processor = Processor()
-    app = IntakeTaskApplication(Verifier(), processor)  # type: ignore[arg-type]
+    app = IntakeTaskApplication(Verifier(), processor)
     headers = {"x-cloudtasks-taskname": "projects/p/tasks/task-001"}
     assert app.handle(headers, b"x" * (16 * 1024 + 1)).status == 413
     assert app.handle(headers, b"not-json").status == 400
