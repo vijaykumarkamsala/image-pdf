@@ -157,6 +157,7 @@ export function ImageGraphicStudio() {
   const selectedRef = useRef<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<RendererViewport>({ zoom: 1, panX: 0, panY: 0 });
+  const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null } | null>(null);
   const [leftTab, setLeftTab] = useState("layers");
   const [rightTab, setRightTab] = useState("properties");
   const [activeArtboardId, setActiveArtboardId] = useState("");
@@ -171,6 +172,7 @@ export function ImageGraphicStudio() {
   const [saveAsProjectId, setSaveAsProjectId] = useState("");
   const [savingCopy, setSavingCopy] = useState(false);
   const [canForceTakeover, setCanForceTakeover] = useState(false);
+  const [layoutActorId, setLayoutActorId] = useState<string | null>(null);
   const [forceOpen, setForceOpen] = useState(false);
   const [forceReason, setForceReason] = useState("");
   const [takeoverPending, setTakeoverPending] = useState(false);
@@ -187,6 +189,7 @@ export function ImageGraphicStudio() {
       if (active) {
         setProjects(result.projects);
         setSources(sourceResult.sources);
+        setLayoutActorId(context.actor.actor_id);
         setCanForceTakeover(context.effective_permissions.some((permission) => permission.permission === "document.lease.takeover" && permission.allowed));
       }
     }).catch(() => undefined);
@@ -257,6 +260,7 @@ export function ImageGraphicStudio() {
       },
       onTransform: (layerId, transform) => commit({ kind: "layer.update", target_id: layerId, transform, properties: {} }),
       onViewport: setViewport,
+      onSnap: setSnapGuides,
     });
     renderer.setReadOnly(readOnly);
     rendererRef.current = renderer;
@@ -609,10 +613,10 @@ export function ImageGraphicStudio() {
       {saveState === "read-only" && <><Button size="compact" onClick={() => void requestTakeover()}>Request takeover</Button>{canForceTakeover && <Button size="compact" tone="danger" onClick={() => setForceOpen(true)}>Force takeover</Button>}</>}
     </div>{pendingCount > 0 && <details><summary>{pendingCount} pending {pendingCount === 1 ? "edit" : "edits"}</summary><p>Pending edits stay on this device for this signed-in account. Closing a browser tab can prevent a final lease release, but acknowledged server work is never removed.</p></details>}</div>}
     {takeoverRequest && <div className="studio-takeover-request" role="alert"><div><strong>{takeoverRequest.actorDisplayName} requested editing access</strong><span>{takeoverRequest.reason}</span></div><div><Button size="compact" onClick={() => void releaseForTakeover()}>Save and release</Button><Button size="compact" onClick={() => void denyTakeover("Current editor is continuing this session")}>Deny</Button></div></div>}
-    <PanelFramework mode="editor" panels={[
-      { id: "inspector", title: "Document", slot: "tool", children: leftPanel, canClose: false },
-      { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel, canClose: false },
-    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} />} />
+    <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
+      { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
+      { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
+    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} />} />
     <Dialog open={saveAsOpen} title="Save a copy" onClose={() => setSaveAsOpen(false)}>
       <form className="modal-form" onSubmit={(event) => void saveAs(event)}>
         <TextInput autoFocus label="Graphic name" maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
@@ -630,16 +634,20 @@ export function ImageGraphicStudio() {
   </main>;
 }
 
-function CanvasSurface({ canvasRef, surfaceRef, editor }: {
+function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   editor: DocumentReadModel;
+  viewport: RendererViewport;
+  snapGuides: { x: number | null; y: number | null } | null;
 }) {
   return <div className="studio-canvas-shell" ref={surfaceRef}>
     <div className="canvas-corner" aria-hidden="true" />
     <div className="canvas-ruler canvas-ruler-x" aria-hidden="true" />
     <div className="canvas-ruler canvas-ruler-y" aria-hidden="true" />
     <canvas ref={canvasRef} aria-label={`${editor.document.name} editable artboards`} />
+    {snapGuides?.x !== null && snapGuides?.x !== undefined && <span className="canvas-snap-guide guide-x" style={{ left: snapGuides.x * viewport.zoom + viewport.panX }} aria-hidden="true" />}
+    {snapGuides?.y !== null && snapGuides?.y !== undefined && <span className="canvas-snap-guide guide-y" style={{ top: snapGuides.y * viewport.zoom + viewport.panY }} aria-hidden="true" />}
     <span className="preview-evidence">Browser preview | Native document remains authoritative</span>
   </div>;
 }

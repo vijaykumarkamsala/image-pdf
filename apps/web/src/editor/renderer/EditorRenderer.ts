@@ -10,6 +10,7 @@ export interface EditorRendererCallbacks {
   onSelection(layerId: string | null): void;
   onTransform(layerId: string, transform: LayerTransform): void;
   onViewport(viewport: RendererViewport): void;
+  onSnap(guides: { x: number | null; y: number | null } | null): void;
 }
 
 export interface EditorRenderer {

@@ -6,6 +6,7 @@ import {
   defaultPanelLayout,
   fitPanel,
   PANEL_LAYOUT_KEY,
+  panelLayoutKey,
   persistPanelLayout,
   readPanelLayout,
   type PanelDock,
@@ -33,17 +34,31 @@ const POSITIONS: Array<{ id: PanelDock; label: string }> = [
 
 function viewport() { return { width: window.innerWidth, height: window.innerHeight }; }
 
-export function PanelFramework({ panels, center, mode = "harness" }: {
+export function PanelFramework({ panels, center, mode = "harness", profileKey }: {
   panels: PanelDefinition[];
   center?: ReactNode;
   mode?: "harness" | "editor";
+  profileKey?: string;
 }) {
-  const [layout, setLayout] = useState<PanelLayout>(() => readPanelLayout(localStorage, viewport()));
+  const storageKey = profileKey ? panelLayoutKey(profileKey) : mode === "harness" ? PANEL_LAYOUT_KEY : null;
+  const [layout, setLayout] = useState<PanelLayout>(() => storageKey ? readPanelLayout(localStorage, viewport(), storageKey) : defaultPanelLayout(viewport()));
   const [active, setActive] = useState(panels[0]?.id ?? "");
   const launchers = useRef<Record<string, HTMLButtonElement | null>>({});
   const focusAfterClose = useRef<string | null>(null);
+  const loadedStorageKey = useRef<string | null>(storageKey);
 
-  useEffect(() => persistPanelLayout(localStorage, layout), [layout]);
+  useEffect(() => {
+    loadedStorageKey.current = null;
+    setLayout(storageKey ? readPanelLayout(localStorage, viewport(), storageKey) : defaultPanelLayout(viewport()));
+  }, [storageKey]);
+  useEffect(() => {
+    if (!storageKey) return;
+    if (loadedStorageKey.current !== storageKey) {
+      loadedStorageKey.current = storageKey;
+      return;
+    }
+    persistPanelLayout(localStorage, layout, storageKey);
+  }, [layout, storageKey]);
   useEffect(() => {
     if (!focusAfterClose.current) return;
     launchers.current[focusAfterClose.current]?.focus();
@@ -72,13 +87,14 @@ export function PanelFramework({ panels, center, mode = "harness" }: {
   }
 
   function reset() {
-    localStorage.removeItem(PANEL_LAYOUT_KEY);
+    if (storageKey) localStorage.removeItem(storageKey);
     setLayout(defaultPanelLayout(viewport()));
     setActive(panels[0]?.id ?? "");
   }
 
   return <div className={`panel-framework panel-framework-${mode}`} role={mode === "harness" ? "main" : undefined} aria-label={mode === "editor" ? "Editor panels" : "Internal panel layout harness"}>
-    {mode === "harness" && <header className="panel-harness-header"><div><p className="eyebrow">Internal harness</p><h1>Panel framework</h1><p>Geometry, docking and persistence validation only.</p></div><Button onClick={reset}><RotateCcw aria-hidden="true" />Reset layout</Button></header>}
+    {mode === "harness" && <div className="panel-harness-header"><div><p className="eyebrow">Internal harness</p><h1>Panel framework</h1><p>Geometry, docking and persistence validation only.</p></div><Button onClick={reset}><RotateCcw aria-hidden="true" />Reset layout</Button></div>}
+    {mode === "editor" && <IconButton className="panel-layout-reset" label="Reset workspace" onClick={reset}><RotateCcw aria-hidden="true" /></IconButton>}
     <div className="panel-launchers" role="group" aria-label="Closed panels">{panels.map((panel) => layout.panels[panel.id]?.closed && <button type="button" className="ds-button ds-button-secondary ds-button-normal" key={panel.id} ref={(node) => { launchers.current[panel.id] = node; }} onClick={() => update(panel.id, { closed: false })}>Open {panel.title}</button>)}</div>
     <div className="panel-focus-switcher" role="group" aria-label="Focused panel">{mode === "editor" && <button type="button" aria-pressed={active === "__canvas"} onClick={() => setActive("__canvas")}>Canvas</button>}{panels.map((panel) => !layout.panels[panel.id]?.closed && <button type="button" aria-pressed={active === panel.id} key={panel.id} onClick={() => setActive(panel.id)}>{panel.title}</button>)}</div>
     <div className="panel-workbench" data-active-panel={active}>{panels.map((panel) => {
@@ -103,7 +119,7 @@ function PanelWindow({ definition, placement, active, update, close }: {
       : { width: placement.width };
 
   function dragStart(event: ReactPointerEvent<HTMLElement>) {
-    if (placement.dock !== "floating" || (event.target as HTMLElement).closest("button")) return;
+    if (placement.dock !== "floating" || placement.pinned || (event.target as HTMLElement).closest("button")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = { x: placement.x, y: placement.y, startX: event.clientX, startY: event.clientY };
   }
@@ -114,7 +130,7 @@ function PanelWindow({ definition, placement, active, update, close }: {
   }
 
   function keyboardMove(event: React.KeyboardEvent<HTMLElement>) {
-    if (placement.dock !== "floating" || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    if (placement.dock !== "floating" || placement.pinned || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     const x = event.key === "ArrowLeft" ? -10 : event.key === "ArrowRight" ? 10 : 0;
     const y = event.key === "ArrowUp" ? -10 : event.key === "ArrowDown" ? 10 : 0;
@@ -122,6 +138,7 @@ function PanelWindow({ definition, placement, active, update, close }: {
   }
 
   function resizeStart(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (placement.pinned) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     resize.current = { width: placement.width, height: placement.height, startX: event.clientX, startY: event.clientY };
   }
@@ -132,7 +149,7 @@ function PanelWindow({ definition, placement, active, update, close }: {
   }
 
   return <article className={`panel-window dock-${placement.dock}${active ? " is-active" : ""}${placement.collapsed ? " is-collapsed" : ""}`} style={style} aria-label={definition.title} data-panel-id={definition.id} data-slot={definition.slot}>
-    <header className="panel-window-header" tabIndex={0} onFocus={() => update({})} onKeyDown={keyboardMove} onPointerDown={dragStart} onPointerMove={dragMove} onPointerUp={() => { drag.current = null; }}>
+    <header className="panel-window-header" tabIndex={0} onFocus={() => update({})} onKeyDown={keyboardMove} onPointerDown={dragStart} onPointerMove={dragMove} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
       <Grip aria-hidden="true" /><strong>{definition.title}</strong>
       <div className="panel-window-actions">
         <Menu label="Panel position" items={POSITIONS.filter((item) => item.id !== "floating" || definition.canFloat !== false).map((item) => ({ ...item, selected: item.id === placement.dock }))} onSelect={(dock) => update({ dock: dock as PanelDock, collapsed: false })} />
@@ -142,7 +159,7 @@ function PanelWindow({ definition, placement, active, update, close }: {
       </div>
     </header>
     {!placement.collapsed && <div className="panel-window-content">{definition.children}</div>}
-    {placement.dock === "floating" && !placement.collapsed && <button type="button" className="panel-resize" aria-label="Resize panel" onPointerDown={resizeStart} onPointerMove={resizeMove} onPointerUp={() => { resize.current = null; }} />}
+    {placement.dock === "floating" && !placement.collapsed && <button type="button" className="panel-resize" aria-label="Resize panel" disabled={placement.pinned} onPointerDown={resizeStart} onPointerMove={resizeMove} onPointerUp={() => { resize.current = null; }} onPointerCancel={() => { resize.current = null; }} />}
   </article>;
 }
 

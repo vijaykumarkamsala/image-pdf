@@ -6,6 +6,7 @@ import {
   fitPanel,
   PANEL_LAYOUT_KEY,
   PANEL_LAYOUT_VERSION,
+  panelLayoutKey,
   parsePanelLayout,
   persistPanelLayout,
   readPanelLayout,
@@ -45,4 +46,21 @@ test("floating geometry is clamped to the active viewport", () => {
   assert.equal(fitted.height, 844);
   assert.equal(fitted.x, 0);
   assert.equal(fitted.y, 0);
+});
+
+test("production panel layouts are isolated by actor, workspace and editor profile", () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
+  };
+  const ownerKey = panelLayoutKey("actor-owner:workspace-a:image-graphic-studio");
+  const peerKey = panelLayoutKey("actor-peer:workspace-a:image-graphic-studio");
+  const owner = defaultPanelLayout(desktop);
+  owner.panels.inspector.dock = "floating";
+  persistPanelLayout(storage, owner, ownerKey);
+  assert.equal(readPanelLayout(storage, desktop, ownerKey).panels.inspector.dock, "floating");
+  assert.equal(readPanelLayout(storage, desktop, peerKey).panels.inspector.dock, "left");
+  assert.notEqual(ownerKey, peerKey);
 });

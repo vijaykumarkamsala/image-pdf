@@ -74,6 +74,7 @@ export class FabricEditorRenderer implements EditorRenderer {
       this.panning = false;
       this.lastPointer = null;
       if (this.canvas) this.canvas.selection = true;
+      this.callbacks?.onSnap(null);
     });
   }
 
@@ -389,6 +390,7 @@ export class FabricEditorRenderer implements EditorRenderer {
   }
 
   private modified(target: FabricObject | undefined) {
+    this.callbacks?.onSnap(null);
     if (!target || this.readOnly) return;
     const layer = this.layerByObject.get(target);
     if (!layer) return;
@@ -414,10 +416,18 @@ export class FabricEditorRenderer implements EditorRenderer {
     const offset = this.artboardOffset(layer.artboard_id);
     const unit = unitScale(artboard.unit);
     const threshold = 6 / this.viewport.zoom;
+    const sourceX = (target.left ?? offset.x) - offset.x;
+    const sourceY = (target.top ?? offset.y) - offset.y;
+    const snappedX = snapCoordinate(sourceX, [0, artboard.width * unit / 2, artboard.width * unit], threshold);
+    const snappedY = snapCoordinate(sourceY, [0, artboard.height * unit / 2, artboard.height * unit], threshold);
     target.set({
-      left: offset.x + snapCoordinate((target.left ?? offset.x) - offset.x, [0, artboard.width * unit / 2, artboard.width * unit], threshold),
-      top: offset.y + snapCoordinate((target.top ?? offset.y) - offset.y, [0, artboard.height * unit / 2, artboard.height * unit], threshold),
+      left: offset.x + snappedX,
+      top: offset.y + snappedY,
     });
+    this.callbacks?.onSnap(snappedX !== sourceX || snappedY !== sourceY ? {
+      x: snappedX !== sourceX ? offset.x + snappedX : null,
+      y: snappedY !== sourceY ? offset.y + snappedY : null,
+    } : null);
   }
 
   private selection(target: FabricObject | null) {

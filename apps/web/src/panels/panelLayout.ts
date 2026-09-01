@@ -1,6 +1,10 @@
 export const PANEL_LAYOUT_VERSION = 1;
 export const PANEL_LAYOUT_KEY = `ipw-panel-layout:v${PANEL_LAYOUT_VERSION}`;
 
+export function panelLayoutKey(profile: string): string {
+  return `${PANEL_LAYOUT_KEY}:${encodeURIComponent(profile)}`;
+}
+
 export type PanelDock = "left" | "right" | "bottom" | "floating";
 export type ReservedPanelSlot = "tool" | "conversation";
 
@@ -73,12 +77,12 @@ export function parsePanelLayout(raw: string | null, viewport: PanelViewport): P
   }
 }
 
-export function persistPanelLayout(storage: Pick<Storage, "setItem">, layout: PanelLayout): void {
-  storage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(layout));
+export function persistPanelLayout(storage: Pick<Storage, "setItem">, layout: PanelLayout, key = PANEL_LAYOUT_KEY): void {
+  storage.setItem(key, JSON.stringify(layout));
 }
 
-export function readPanelLayout(storage: Pick<Storage, "getItem" | "removeItem">, viewport: PanelViewport): PanelLayout {
-  const raw = storage.getItem(PANEL_LAYOUT_KEY);
+export function readPanelLayout(storage: Pick<Storage, "getItem" | "removeItem">, viewport: PanelViewport, key = PANEL_LAYOUT_KEY): PanelLayout {
+  const raw = storage.getItem(key);
   if (!raw) return defaultPanelLayout(viewport);
   try {
     const candidate = JSON.parse(raw) as Partial<PanelLayout>;
@@ -90,7 +94,7 @@ export function readPanelLayout(storage: Pick<Storage, "getItem" | "removeItem">
     // Corrupted local layout state is discarded below.
   }
   if (raw) {
-    storage.removeItem(PANEL_LAYOUT_KEY);
+    storage.removeItem(key);
   }
   return defaultPanelLayout(viewport);
 }

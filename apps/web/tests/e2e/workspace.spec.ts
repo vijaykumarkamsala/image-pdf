@@ -626,8 +626,15 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   await page.goto(`/w/${workspaceId}/studio/new`);
   await page.getByRole("button", { name: "Create graphic" }).click();
   await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  const documentId = new URL(page.url()).pathname.split("/")[4]!;
   await page.getByRole("button", { name: "Shape", exact: true }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const beforeKeyboard = await page.request.get(`/v1/workspaces/${workspaceId}/documents/${documentId}`).then((response) => response.json()) as any;
+  const keyboardSave = page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes(`/documents/${documentId}`));
+  await page.keyboard.press("ArrowRight");
+  await keyboardSave;
+  const afterKeyboard = await page.request.get(`/v1/workspaces/${workspaceId}/documents/${documentId}`).then((response) => response.json()) as any;
+  expect(afterKeyboard.editor.snapshot.layers[0].transform.x).toBe(beforeKeyboard.editor.snapshot.layers[0].transform.x + 1);
 
   const upperCanvas = page.locator(".upper-canvas");
   const bounds = await upperCanvas.boundingBox();
@@ -655,9 +662,21 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
     const canvas = await lowerCanvas.boundingBox();
     return { left: canvas!.x + painted.left, top: canvas!.y + painted.top, right: canvas!.x + painted.right, bottom: canvas!.y + painted.bottom };
   };
-  const shapeBounds = await paintedShape();
+  let shapeBounds = await paintedShape();
   await page.mouse.click((shapeBounds.left + shapeBounds.right) / 2, (shapeBounds.top + shapeBounds.bottom) / 2);
   await expect(page.locator(".layer-row.is-selected")).toContainText("Rectangle");
+  const position = afterKeyboard.editor.snapshot.layers[0].transform.x as number;
+  const zoom = Number((await page.locator(".zoom-value").textContent())?.replace("%", "")) / 100;
+  const snapStartX = (shapeBounds.left + shapeBounds.right) / 2;
+  const snapStartY = (shapeBounds.top + shapeBounds.bottom) / 2;
+  await page.mouse.move(snapStartX, snapStartY);
+  await page.mouse.down();
+  await page.mouse.move(snapStartX - position * zoom + 2, snapStartY, { steps: 6 });
+  await expect(page.locator(".canvas-snap-guide.guide-x")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".canvas-snap-guide.guide-x")).toHaveCount(0);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  shapeBounds = await paintedShape();
   await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2, (shapeBounds.top + shapeBounds.bottom) / 2);
   await page.mouse.down();
   await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2 + 40, (shapeBounds.top + shapeBounds.bottom) / 2 + 30, { steps: 6 });
@@ -714,13 +733,12 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   await page.getByRole("button", { name: /Rotate selected layer/ }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
-  const documentId = new URL(page.url()).pathname.split("/")[4]!;
   const model = await page.evaluate(async ({ workspaceId: id, documentId: document }) => {
     const response = await fetch(`/v1/workspaces/${id}/documents/${document}`);
     return response.json() as Promise<{ editor: { snapshot: { layers: Array<{ layer_type: string; transform: { x: number; y: number; width: number; height: number; scale_x: number; scale_y: number; rotation_degrees: number } }> } } }>;
   }, { workspaceId, documentId });
   const shape = model.editor.snapshot.layers.find((layer) => layer.layer_type === "shape")!;
-  expect(shape.transform.x).toBeGreaterThan(216);
+  expect(shape.transform.x).toBeGreaterThan(0);
   expect(shape.transform.y).toBeGreaterThan(388.8);
   expect(shape.transform.width * shape.transform.scale_x).toBeGreaterThan(320);
   expect(shape.transform.height * shape.transform.scale_y).toBeGreaterThan(220);
@@ -915,6 +933,67 @@ test("Studio tablet and phone layouts remain operable without horizontal overflo
     }).map((element) => ({ label: element.getAttribute("aria-label") ?? element.textContent, bounds: element.getBoundingClientRect().toJSON() })));
     expect(undersized).toEqual([]);
   }
+});
+
+test("Studio panels dock, float, move, resize, collapse, close, reopen, pin and reset per profile", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspace(page, "studio-panel-profile");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  const panel = page.locator('[data-panel-id="inspector"]');
+  await panel.getByRole("button", { name: "Panel position" }).click();
+  await page.getByRole("menuitem", { name: "Detach panel" }).click();
+  await expect(panel).toHaveClass(/dock-floating/);
+
+  const beforeMove = await panel.boundingBox();
+  const header = panel.locator(".panel-window-header");
+  const headerBounds = await header.boundingBox();
+  await page.mouse.move(headerBounds!.x + 40, headerBounds!.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(headerBounds!.x + 90, headerBounds!.y + 55, { steps: 5 });
+  await page.mouse.up();
+  const afterMove = await panel.boundingBox();
+  expect(afterMove!.x).toBeGreaterThan(beforeMove!.x);
+  expect(afterMove!.y).toBeGreaterThan(beforeMove!.y);
+
+  const resize = panel.getByRole("button", { name: "Resize panel" });
+  const beforeResize = await panel.boundingBox();
+  const resizeBounds = await resize.boundingBox();
+  await page.mouse.move(resizeBounds!.x + 12, resizeBounds!.y + 12);
+  await page.mouse.down();
+  await page.mouse.move(resizeBounds!.x + 44, resizeBounds!.y + 36, { steps: 4 });
+  await page.mouse.up();
+  const afterResize = await panel.boundingBox();
+  expect(afterResize!.width).toBeGreaterThan(beforeResize!.width);
+  expect(afterResize!.height).toBeGreaterThan(beforeResize!.height);
+
+  await panel.getByTitle("Collapse panel").click();
+  await expect(panel).toHaveClass(/is-collapsed/);
+  await panel.getByTitle("Expand panel").click();
+  await panel.getByTitle("Pin panel").click();
+  await expect(panel.getByTitle("Close panel")).toBeDisabled();
+  await expect(resize).toBeDisabled();
+  await panel.getByTitle("Unpin panel").click();
+  await panel.getByTitle("Close panel").click();
+  await page.getByRole("button", { name: "Open Document" }).click();
+  await expect(panel).toBeVisible();
+  await page.getByTitle("Reset workspace").click();
+  await expect(panel).toHaveClass(/dock-left/);
+
+  const scopedKeys = await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("ipw-panel-layout:v1:")));
+  expect(scopedKeys).toHaveLength(1);
+  expect(decodeURIComponent(scopedKeys[0]!)).toContain(`${workspaceId}:image-graphic-studio`);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.getByRole("button", { name: "Document", exact: true }).click();
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Panel position" })).toBeHidden();
+  const tablet = await panel.boundingBox();
+  expect(tablet!.x).toBeGreaterThanOrEqual(0);
+  expect(tablet!.x + tablet!.width).toBeLessThanOrEqual(768);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
 for (const viewport of [
