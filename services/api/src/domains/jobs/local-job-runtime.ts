@@ -15,7 +15,7 @@ export class LocalJobRuntime implements OnModuleInit, OnApplicationShutdown {
   ) {}
 
   onModuleInit(): void {
-    if (process.env["NODE_ENV"] === "production" || process.env["NODE_ENV"] === "test") return;
+    if (process.env["NODE_ENV"] === "production" || process.env["NODE_ENV"] === "test" || process.env["IPW_EXTERNAL_DETERMINISTIC_WORKER"] === "1") return;
     this.timer = setInterval(() => void this.tick(), 100);
     this.timer.unref();
   }

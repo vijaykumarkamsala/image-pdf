@@ -917,6 +917,52 @@ test("verified raster import remains linked while crop and adjustments autosave 
   await expect(page.getByText("Original source preserved.")).toBeVisible();
 });
 
+test("shared styles update linked objects and detached copies remain independent", async ({ page }) => {
+  await openWorkspace(page, "studio-shared-style");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const documentId = new URL(page.url()).pathname.split("/")[4]!;
+
+  await page.getByRole("tab", { name: "Layers" }).click();
+  const shapeRows = page.locator(".layer-row").filter({ hasText: "Rectangle" });
+  await expect(shapeRows).toHaveCount(2);
+  await shapeRows.nth(0).getByRole("button", { name: "Rectangle Shape" }).click();
+  await page.getByRole("tab", { name: "Properties" }).click();
+  await page.getByRole("button", { name: "Create linked style" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Layers" }).click();
+  await shapeRows.nth(1).getByRole("button", { name: "Rectangle Shape" }).click();
+  await page.getByRole("tab", { name: "Properties" }).click();
+  await page.getByRole("button", { name: "Link Rectangle style" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByLabel("Fill").fill("#cc2255");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  const linked = await page.request.get(`/v1/workspaces/${workspaceId}/documents/${documentId}`).then((response) => response.json()) as any;
+  const styleId = linked.editor.snapshot.shared_styles[0].shared_style_id;
+  expect(linked.editor.snapshot.shared_styles[0].properties.fill).toBe("#cc2255");
+  expect(linked.editor.snapshot.layers.filter((layer: any) => layer.shape).map((layer: any) => layer.shared_style_ids)).toEqual([[styleId], [styleId]]);
+
+  await page.getByRole("button", { name: "Detach appearance" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Layers" }).click();
+  await shapeRows.nth(0).getByRole("button", { name: "Rectangle Shape" }).click();
+  await page.getByRole("tab", { name: "Properties" }).click();
+  await page.getByLabel("Fill").fill("#22aa55");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  const detached = await page.request.get(`/v1/workspaces/${workspaceId}/documents/${documentId}`).then((response) => response.json()) as any;
+  const shapes = detached.editor.snapshot.layers.filter((layer: any) => layer.shape);
+  expect(detached.editor.snapshot.shared_styles[0].properties.fill).toBe("#22aa55");
+  expect(shapes.filter((layer: any) => layer.shared_style_ids.includes(styleId))).toHaveLength(1);
+  expect(shapes.find((layer: any) => !layer.shared_style_ids.includes(styleId)).shape.fill).toBe("#cc2255");
+});
+
 test("Studio tablet and phone layouts remain operable without horizontal overflow", async ({ page }) => {
   await openWorkspace(page, "studio-responsive");
   await page.goto(`${page.url()}/studio/new`);

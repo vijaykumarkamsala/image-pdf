@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.ts",
     "test:e2e": "playwright test",
+    "test:recovery2d": "playwright test --config playwright.recovery2d.config.ts",
     "test:panel-e2e": "playwright test --config playwright.panel.config.ts",
     "test:visual": "playwright test --grep @visual",
     "test:visual:update": "playwright test --grep @visual --update-snapshots",

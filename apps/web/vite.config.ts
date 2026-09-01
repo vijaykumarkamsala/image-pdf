@@ -6,6 +6,8 @@ import { renderProductTemplate, resolveProductName } from "./src/config/product.
 import { createProductManifest } from "./src/pwa/manifest.ts";
 import { PRODUCTION_SECURITY_HEADERS } from "./src/pwa/security.ts";
 
+const apiOrigin = process.env["IPW_API_ORIGIN"] ?? "http://127.0.0.1:8780";
+
 function productManifestPlugin(): Plugin {
   const productName = resolveProductName(process.env["VITE_PRODUCT_NAME"]);
   const manifest = JSON.stringify(createProductManifest({ productName }), null, 2);
@@ -39,13 +41,13 @@ export default defineConfig({
   plugins: [react(), productManifestPlugin()],
   server: {
     proxy: {
-      "/v1": "http://127.0.0.1:8780",
+      "/v1": apiOrigin,
     },
   },
   preview: {
     headers: PRODUCTION_SECURITY_HEADERS,
     proxy: {
-      "/v1": "http://127.0.0.1:8780",
+      "/v1": apiOrigin,
     },
   },
   build: {
