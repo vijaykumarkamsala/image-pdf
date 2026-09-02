@@ -52,6 +52,20 @@ async function assertCanvasPainted(page: Page) {
   expect(stats.colours).toBeGreaterThan(1);
 }
 
+async function canvasColourCount(page: Page, selector: ".lower-canvas" | ".upper-canvas", colour: [number, number, number], tolerance = 8) {
+  return page.locator(selector).evaluate((element: HTMLCanvasElement, expected) => {
+    const data = element.getContext("2d")!.getImageData(0, 0, element.width, element.height).data;
+    let count = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      if (Math.abs(data[index]! - expected.colour[0]) <= expected.tolerance
+        && Math.abs(data[index + 1]! - expected.colour[1]) <= expected.tolerance
+        && Math.abs(data[index + 2]! - expected.colour[2]) <= expected.tolerance
+        && data[index + 3]! > 0) count += 1;
+    }
+    return count;
+  }, { colour, tolerance });
+}
+
 async function shot(page: Page, name: string, canvas = true) {
   await expect(page.locator("body")).not.toContainText(/recovery/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -185,8 +199,72 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Shape", exact: true }).click();
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    const surface = page.locator(".studio-canvas-shell");
+    await expect(surface).toHaveAttribute("data-render-settled", "true");
+
+    const model = await page.evaluate(async ({ workspace }) => {
+      const documentId = location.pathname.split("/")[4];
+      return fetch(`/v1/workspaces/${workspace}/documents/${documentId}`).then((response) => response.json());
+    }, { workspace: workspaceId }) as any;
+    const artboard1 = model.editor.snapshot.artboards.find((artboard: any) => artboard.name === "Artboard 1");
+    const artboard2 = model.editor.snapshot.artboards.find((artboard: any) => artboard.name === "Artboard 2");
+    const rectangle = model.editor.snapshot.layers.find((layer: any) => layer.name === "Rectangle");
+    expect({
+      activeArtboard: artboard2.name,
+      selectedKind: rectangle.shape.shape,
+      fill: rectangle.shape.fill,
+      width: rectangle.transform.width,
+      height: rectangle.transform.height,
+      belongsToActive: rectangle.artboard_id === artboard2.artboard_id,
+      fullyInside: rectangle.transform.x >= 0
+        && rectangle.transform.y >= 0
+        && rectangle.transform.x + rectangle.transform.width <= artboard2.width
+        && rectangle.transform.y + rectangle.transform.height <= artboard2.height,
+    }).toEqual({
+      activeArtboard: "Artboard 2",
+      selectedKind: "rectangle",
+      fill: "#3559e0",
+      width: 320,
+      height: 220,
+      belongsToActive: true,
+      fullyInside: true,
+    });
+
     await page.getByRole("tab", { name: "Artboards" }).click();
-    await expect(page.getByRole("list", { name: "Artboards" }).getByRole("button", { name: /Artboard 2/ })).toHaveAttribute("aria-pressed", "true");
+    const artboards = page.getByRole("list", { name: "Artboards" });
+    const firstArtboardButton = artboards.getByRole("button", { name: /Artboard 1/ });
+    const secondArtboardButton = artboards.getByRole("button", { name: /Artboard 2/ });
+
+    for (let switchIndex = 0; switchIndex < 2; switchIndex += 1) {
+      await firstArtboardButton.click();
+      await expect(firstArtboardButton).toHaveAttribute("aria-pressed", "true");
+      await expect(surface).toHaveAttribute("data-active-artboard-id", artboard1.artboard_id);
+      await expect(surface).toHaveAttribute("data-selected-layer-id", "");
+      await expect(surface).toHaveAttribute("data-fabric-active-layer-id", "");
+      await expect(surface).toHaveAttribute("data-selected-object-visible", "false");
+      await expect(surface).toHaveAttribute("data-selection-controls-visible", "false");
+
+      await secondArtboardButton.click();
+      await expect(secondArtboardButton).toHaveAttribute("aria-pressed", "true");
+      await expect(surface).toHaveAttribute("data-active-artboard-id", artboard2.artboard_id);
+      await page.getByRole("tab", { name: "Layers" }).click();
+      await page.locator(".layer-row").filter({ hasText: "Rectangle" }).getByRole("button", { name: "Rectangle Shape" }).click();
+      await expect(surface).toHaveAttribute("data-selected-layer-id", rectangle.layer_id);
+      await expect(surface).toHaveAttribute("data-selected-layer-artboard-id", artboard2.artboard_id);
+      await expect(surface).toHaveAttribute("data-fabric-active-layer-id", rectangle.layer_id);
+      await expect(surface).toHaveAttribute("data-fabric-active-artboard-id", artboard2.artboard_id);
+      await expect(surface).toHaveAttribute("data-selected-object-visible", "true");
+      await expect(surface).toHaveAttribute("data-selection-controls-visible", "true");
+      await page.getByRole("tab", { name: "Artboards" }).click();
+    }
+
+    await page.getByRole("tab", { name: "Properties" }).click();
+    await expect(page.locator(".property-heading").getByText("Rectangle", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("WIDTH", { exact: true })).toHaveValue(String(rectangle.transform.width));
+    await expect(page.getByLabel("HEIGHT", { exact: true })).toHaveValue(String(rectangle.transform.height));
+    await expect(page.getByLabel("Fill", { exact: true })).toHaveValue(rectangle.shape.fill);
+    expect(await canvasColourCount(page, ".lower-canvas", [53, 89, 224])).toBeGreaterThan(1_000);
+    await expect(secondArtboardButton).toHaveAttribute("aria-pressed", "true");
     await shot(page, `studio-state-multiple-artboards-1440x900-${theme}.png`);
   });
 

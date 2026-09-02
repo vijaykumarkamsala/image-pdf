@@ -14,7 +14,7 @@ import {
 } from "fabric";
 import type { EditableMaskRecord, EditorDocumentSnapshot, LayerRecord, LayerTransform, RichTextRun, SharedStyleRecord } from "ipw-contracts-ts/product";
 
-import type { EditorRenderer, EditorRendererCallbacks, RendererResult, RendererViewport } from "./EditorRenderer";
+import type { EditorRenderer, EditorRendererCallbacks, RendererResult, RendererSelectionState, RendererViewport } from "./EditorRenderer";
 import { renderedToLayerTransform, snapCoordinate } from "./coordinates";
 
 const ARTBOARD_MARGIN = 64;
@@ -167,14 +167,34 @@ export class FabricEditorRenderer implements EditorRenderer {
     else canvas.requestRenderAll();
   }
 
-  select(layerId: string | null): void {
+  select(layerId: string | null): RendererSelectionState {
     const canvas = this.requireCanvas();
-    if (!layerId) canvas.discardActiveObject();
-    else {
-      const object = this.objects.get(layerId);
-      if (object) canvas.setActiveObject(object);
-    }
+    const object = layerId ? this.objects.get(layerId) : undefined;
+    if (object) canvas.setActiveObject(object);
+    else canvas.discardActiveObject();
     canvas.requestRenderAll();
+    return this.selectionState();
+  }
+
+  selectionState(): RendererSelectionState {
+    const active = this.canvas?.getActiveObject();
+    const layer = active ? this.layerByObject.get(active) : undefined;
+    const artboard = this.snapshot?.artboards.find((item) => item.artboard_id === layer?.artboard_id);
+    if (!active || !layer || !artboard) return { layerId: null, artboardId: null, visible: false, controlsVisible: false };
+    const offset = this.artboardOffset(artboard.artboard_id);
+    const unit = unitScale(artboard.unit);
+    const bounds = active.getBoundingRect();
+    const insideArtboard = bounds.left >= offset.x
+      && bounds.top >= offset.y
+      && bounds.left + bounds.width <= offset.x + artboard.width * unit
+      && bounds.top + bounds.height <= offset.y + artboard.height * unit;
+    const visible = layer.visible !== false && active.visible !== false && insideArtboard && active.isOnScreen();
+    return {
+      layerId: layer.layer_id,
+      artboardId: layer.artboard_id,
+      visible,
+      controlsVisible: visible && active.selectable && active.hasBorders && active.hasControls,
+    };
   }
 
   setReadOnly(readOnly: boolean): void {
@@ -195,9 +215,9 @@ export class FabricEditorRenderer implements EditorRenderer {
     this.fitBounds(this.documentBounds());
   }
 
-  fitArtboard(artboardId: string): void {
+  fitArtboard(artboardId: string): boolean {
     const artboard = this.snapshot?.artboards.find((item) => item.artboard_id === artboardId);
-    if (!artboard) return;
+    if (!artboard) return false;
     const offset = this.artboardOffset(artboardId);
     this.fitBounds({
       left: offset.x - 32,
@@ -205,6 +225,7 @@ export class FabricEditorRenderer implements EditorRenderer {
       width: artboard.width * unitScale(artboard.unit) + 64,
       height: artboard.height * unitScale(artboard.unit) + 64,
     });
+    return true;
   }
 
   private fitBounds(bounds: { left: number; top: number; width: number; height: number }): void {

@@ -48,7 +48,7 @@ import { Button, Dialog, IconButton, InlineNotice, StatePanel, Tabs, TextInput, 
 import { PanelFramework } from "../panels/PanelFramework";
 import { workspacePath } from "../routes";
 import { FabricEditorRenderer } from "./renderer/FabricEditorRenderer";
-import type { EditorRenderer, RendererViewport } from "./renderer/EditorRenderer";
+import type { EditorRenderer, RendererSelectionState, RendererViewport } from "./renderer/EditorRenderer";
 import { useDurableEditorSession, type SaveState } from "./useDurableEditorSession";
 
 const PRESETS = [
@@ -56,6 +56,8 @@ const PRESETS = [
   { id: "presentation", label: "Presentation", detail: "1920 x 1080 px", width: 1920, height: 1080 },
   { id: "print", label: "A4 print", detail: "2480 x 3508 px", width: 2480, height: 3508 },
 ] as const;
+
+const EMPTY_RENDERER_SELECTION: RendererSelectionState = { layerId: null, artboardId: null, visible: false, controlsVisible: false };
 
 export function StudioStartPage() {
   const { workspaceId = "" } = useParams();
@@ -156,7 +158,9 @@ export function ImageGraphicStudio() {
   const rendererRef = useRef<EditorRenderer | null>(null);
   const renderRequestRef = useRef(0);
   const selectedRef = useRef<string | null>(null);
+  const activeArtboardRef = useRef("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rendererSelection, setRendererSelection] = useState<RendererSelectionState>(EMPTY_RENDERER_SELECTION);
   const [renderSettled, setRenderSettled] = useState(false);
   const [viewport, setViewport] = useState<RendererViewport>({ zoom: 1, panX: 0, panY: 0 });
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null } | null>(null);
@@ -230,13 +234,13 @@ export function ImageGraphicStudio() {
 
   useEffect(() => {
     if (!editor) return;
-    setActiveArtboardId((current) => editor.snapshot.artboards.some((item) => item.artboard_id === current)
-      ? current
-      : editor.snapshot.artboards[0]?.artboard_id ?? "");
-    if (selectedRef.current && !(editor.snapshot.layers ?? []).some((item) => item.layer_id === selectedRef.current)) {
-      selectedRef.current = null;
-      setSelectedId(null);
-    }
+    const activeId = editor.snapshot.artboards.some((item) => item.artboard_id === activeArtboardRef.current)
+      ? activeArtboardRef.current
+      : editor.snapshot.artboards[0]?.artboard_id ?? "";
+    activeArtboardRef.current = activeId;
+    setActiveArtboardId(activeId);
+    const selectedLayer = (editor.snapshot.layers ?? []).find((item) => item.layer_id === selectedRef.current);
+    if (selectedRef.current && (!selectedLayer || selectedLayer.artboard_id !== activeId)) clearSelection();
     setGroupSelection((current) => new Set([...current].filter((id) => (editor.snapshot.layers ?? []).some((item) => item.layer_id === id))));
   }, [editor]);
 
@@ -258,10 +262,17 @@ export function ImageGraphicStudio() {
         selectedRef.current = id;
         setSelectedId(id);
         const artboardId = editorRef.current?.snapshot.layers?.find((item) => item.layer_id === id)?.artboard_id;
-        if (artboardId) setActiveArtboardId(artboardId);
+        if (artboardId) {
+          activeArtboardRef.current = artboardId;
+          setActiveArtboardId(artboardId);
+        }
+        setRendererSelection(renderer.selectionState());
       },
       onTransform: (layerId, transform) => commit({ kind: "layer.update", target_id: layerId, transform, properties: {} }),
-      onViewport: setViewport,
+      onViewport: (next) => {
+        setViewport(next);
+        setRendererSelection(renderer.selectionState());
+      },
       onSnap: setSnapGuides,
     });
     renderer.setReadOnly(readOnly);
@@ -291,7 +302,17 @@ export function ImageGraphicStudio() {
       await renderer.whenSettled();
       if (!result.applied || request !== renderRequestRef.current || rendererRef.current !== renderer) return;
       renderer.setReadOnly(readOnly);
-      renderer.select(selectedRef.current);
+      const selectedLayer = (editor.snapshot.layers ?? []).find((item) => item.layer_id === selectedRef.current);
+      const selectedForActiveArtboard = selectedLayer?.artboard_id === activeArtboardRef.current ? selectedLayer.layer_id : null;
+      let appliedSelection = renderer.select(selectedForActiveArtboard);
+      if (selectedForActiveArtboard && !appliedSelection.visible && renderer.fitArtboard(activeArtboardRef.current)) {
+        appliedSelection = renderer.select(selectedForActiveArtboard);
+      }
+      setRendererSelection(appliedSelection);
+      if (selectedRef.current !== appliedSelection.layerId) {
+        selectedRef.current = appliedSelection.layerId;
+        setSelectedId(appliedSelection.layerId);
+      }
       setRenderSettled(true);
     })
       .catch((reason: unknown) => {
@@ -315,6 +336,49 @@ export function ImageGraphicStudio() {
       const current = editorRef.current!;
       replaceServer({ ...current, document: response.history.document, snapshot: response.history.snapshot });
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : `${direction} failed`); }
+  }
+
+  function clearSelection() {
+    const rendererState = rendererRef.current?.select(null) ?? EMPTY_RENDERER_SELECTION;
+    selectedRef.current = null;
+    setSelectedId(null);
+    setRendererSelection(rendererState);
+  }
+
+  function activateArtboard(artboardId: string) {
+    const selectedLayer = (editorRef.current?.snapshot.layers ?? []).find((item) => item.layer_id === selectedRef.current);
+    if (selectedLayer && selectedLayer.artboard_id !== artboardId) clearSelection();
+    activeArtboardRef.current = artboardId;
+    setActiveArtboardId(artboardId);
+    const renderer = rendererRef.current;
+    if (renderer?.fitArtboard(artboardId)) {
+      setRendererSelection(renderer.selectionState());
+    }
+  }
+
+  function selectLayer(layerId: string) {
+    const layer = (editorRef.current?.snapshot.layers ?? []).find((item) => item.layer_id === layerId);
+    if (!layer) {
+      clearSelection();
+      return;
+    }
+    if (selectedRef.current && selectedRef.current !== layerId) clearSelection();
+    activeArtboardRef.current = layer.artboard_id;
+    setActiveArtboardId(layer.artboard_id);
+    selectedRef.current = layerId;
+    setSelectedId(layerId);
+    const renderer = rendererRef.current;
+    let rendererState = renderer?.select(layerId) ?? EMPTY_RENDERER_SELECTION;
+    if (renderer && !rendererState.visible && renderer.fitArtboard(layer.artboard_id)) rendererState = renderer.select(layerId);
+    setRendererSelection(rendererState);
+    if (renderSettled && rendererState.layerId !== layerId) clearSelection();
+  }
+
+  function preparePendingSelection(layerId: string) {
+    setRenderSettled(false);
+    setRendererSelection(rendererRef.current?.select(null) ?? EMPTY_RENDERER_SELECTION);
+    selectedRef.current = layerId;
+    setSelectedId(layerId);
   }
 
   function activeArtboard() {
@@ -346,8 +410,7 @@ export function ImageGraphicStudio() {
       shape: { shape, fill: shape === "line" ? null : "#3559e0", stroke: shape === "line" ? "#3559e0" : null, stroke_width: shape === "line" ? 4 : 0, corner_radius: shape === "rectangle" ? 12 : 0, points },
       group: null, extension_payload: {},
     };
-    selectedRef.current = id;
-    setSelectedId(id);
+    preparePendingSelection(id);
     commit({ kind: "layer.add", target_id: id, layer, properties: {} });
   }
 
@@ -363,8 +426,7 @@ export function ImageGraphicStudio() {
       vector: { shared_asset_id: null, sanitised_svg_object_reference_id: null, compatibility_report_id: null, path_data: "M 50 0 L 100 38 L 81 100 L 19 100 L 0 38 Z", fill: "#16a085", stroke: "#0f6f5f", stroke_width: 2, mask_ids: [] },
       rich_text: null, shape: null, group: null, extension_payload: {},
     };
-    selectedRef.current = id;
-    setSelectedId(id);
+    preparePendingSelection(id);
     commit({ kind: "layer.add", target_id: id, layer, properties: {} });
   }
 
@@ -382,8 +444,7 @@ export function ImageGraphicStudio() {
       rich_text: { text: "Your heading", runs: [], font_family: "system-ui", font_size: 52, color: "#162033", text_align: "left" },
       shape: null, group: null, extension_payload: {},
     };
-    selectedRef.current = id;
-    setSelectedId(id);
+    preparePendingSelection(id);
     commit({ kind: "layer.add", target_id: id, layer, properties: {} });
   }
 
@@ -393,9 +454,9 @@ export function ImageGraphicStudio() {
     const first = activeArtboard() ?? current.snapshot.artboards[0];
     const order = current.snapshot.artboards.length;
     const id = `artboard-${crypto.randomUUID()}`;
-    selectedRef.current = null;
-    setSelectedId(null);
-    rendererRef.current?.select(null);
+    clearSelection();
+    activeArtboardRef.current = id;
+    setActiveArtboardId(id);
     commit({
       kind: "artboard.add",
       artboard: {
@@ -405,7 +466,6 @@ export function ImageGraphicStudio() {
       },
       properties: {},
     });
-    setActiveArtboardId(id);
   }
 
   function groupSelected() {
@@ -427,8 +487,7 @@ export function ImageGraphicStudio() {
       properties: {},
     });
     setGroupSelection(new Set());
-    selectedRef.current = id;
-    setSelectedId(id);
+    preparePendingSelection(id);
   }
 
   function ungroupSelected() {
@@ -562,9 +621,7 @@ export function ImageGraphicStudio() {
         event.preventDefault();
         rendererRef.current?.zoomBy(0.8);
       } else if (event.key === "Escape") {
-        selectedRef.current = null;
-        setSelectedId(null);
-        rendererRef.current?.select(null);
+        clearSelection();
       } else if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
         event.preventDefault();
         if (!readOnly) commit({ kind: "layer.remove", target_id: selectedId, properties: {} });
@@ -607,8 +664,8 @@ export function ImageGraphicStudio() {
   </main>;
 
   const leftPanel = <Tabs label="Document panels" selected={leftTab} onSelect={setLeftTab} items={[
-    { id: "artboards", label: "Artboards", panel: <ArtboardsPanel snapshot={editor.snapshot} activeId={activeArtboardId} select={(id) => { setActiveArtboardId(id); rendererRef.current?.fitArtboard(id); }} add={addArtboard} mutate={commit} readOnly={readOnly} /> },
-    { id: "layers", label: "Layers", panel: <LayersPanel snapshot={editor.snapshot} selectedId={selectedId} groupSelection={groupSelection} toggleGroup={(id) => setGroupSelection((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} select={(id) => { selectedRef.current = id; setSelectedId(id); const artboardId = editor.snapshot.layers?.find((item) => item.layer_id === id)?.artboard_id; if (artboardId) setActiveArtboardId(artboardId); rendererRef.current?.select(id); }} mutate={commit} readOnly={readOnly} /> },
+    { id: "artboards", label: "Artboards", panel: <ArtboardsPanel snapshot={editor.snapshot} activeId={activeArtboardId} select={activateArtboard} add={addArtboard} mutate={commit} readOnly={readOnly} /> },
+    { id: "layers", label: "Layers", panel: <LayersPanel snapshot={editor.snapshot} selectedId={selectedId} groupSelection={groupSelection} toggleGroup={(id) => setGroupSelection((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} select={selectLayer} mutate={commit} readOnly={readOnly} /> },
     { id: "assets", label: "Assets", panel: <AssetsPanel editor={editor} sources={sources} addingAssetId={addingAssetId} add={addAsset} compatibility={compatibility} readOnly={readOnly} /> },
     { id: "history", label: "History", panel: <HistoryPanel editor={editor} versionName={versionName} setVersionName={setVersionName} save={() => void nameVersion()} restore={(id) => void restore(id)} readOnly={readOnly} /> },
   ]} />;
@@ -635,7 +692,7 @@ export function ImageGraphicStudio() {
     <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
       { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
       { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
-    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} />} />
+    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} />} />
     <Dialog open={saveAsOpen} title="Save a copy" onClose={() => setSaveAsOpen(false)}>
       <form className="modal-form" onSubmit={(event) => void saveAs(event)}>
         <TextInput autoFocus label="Graphic name" maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
@@ -653,15 +710,26 @@ export function ImageGraphicStudio() {
   </main>;
 }
 
-function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled }: {
+function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled, activeArtboardId, selectedLayer, rendererSelection }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   editor: DocumentReadModel;
   viewport: RendererViewport;
   snapGuides: { x: number | null; y: number | null } | null;
   renderSettled: boolean;
+  activeArtboardId: string;
+  selectedLayer: LayerRecord | null;
+  rendererSelection: RendererSelectionState;
 }) {
-  return <div className="studio-canvas-shell" ref={surfaceRef} data-render-settled={renderSettled ? "true" : "false"}>
+  return <div className="studio-canvas-shell" ref={surfaceRef}
+    data-render-settled={renderSettled ? "true" : "false"}
+    data-active-artboard-id={activeArtboardId}
+    data-selected-layer-id={selectedLayer?.layer_id ?? ""}
+    data-selected-layer-artboard-id={selectedLayer?.artboard_id ?? ""}
+    data-fabric-active-layer-id={rendererSelection.layerId ?? ""}
+    data-fabric-active-artboard-id={rendererSelection.artboardId ?? ""}
+    data-selected-object-visible={rendererSelection.visible ? "true" : "false"}
+    data-selection-controls-visible={rendererSelection.controlsVisible ? "true" : "false"}>
     <div className="canvas-corner" aria-hidden="true" />
     <div className="canvas-ruler canvas-ruler-x" aria-hidden="true" />
     <div className="canvas-ruler canvas-ruler-y" aria-hidden="true" />
