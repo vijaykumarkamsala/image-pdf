@@ -187,9 +187,15 @@ class DurableImageExportProcessor:
                         operations=lease.operations,
                         profile=target.profile,
                     )
+                    extension = {
+                        "jpeg": "jpg",
+                        "png": "png",
+                        "webp": "webp",
+                        "tiff": "tif",
+                    }[str(target.profile["format"])]
                     key = (
                         f"derivative/{lease.workspace_id}/exports/"
-                        f"{lease.export_request_id}/{target.output_id}/{target.filename}"
+                        f"{lease.export_request_id}/{target.output_id}/result.{extension}"
                     )
                     stored_snapshot = self._objects.write_derivative(
                         PrivateObjectRef(lease.workspace_id, key, ObjectZone.DERIVATIVE),

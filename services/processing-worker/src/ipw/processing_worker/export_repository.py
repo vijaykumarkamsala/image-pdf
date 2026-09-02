@@ -880,8 +880,13 @@ class PostgresImageExportWorkerRepository:
         for asset in snapshot.get("shared_assets", []):
             if asset.get("kind") != "raster":
                 continue
+            source_version_id = asset.get("source_version_id")
+            asset_original_id = asset.get("asset_original_id")
+            if not source_version_id or not asset_original_id:
+                raise RuntimeError("native document raster source identity is incomplete")
             cursor.execute(
-                """SELECT object.object_key,object.storage_generation,object.sha256,
+                """SELECT source.object_reference_id,
+                          object.object_key,object.storage_generation,object.sha256,
                           object.media_type,object.byte_size,facts.width,facts.height,
                           facts.storage_generation,facts.source_sha256,facts.media_type,
                           facts.byte_size,facts.malware_scan_state
@@ -892,19 +897,21 @@ class PostgresImageExportWorkerRepository:
                    JOIN source_inspection_facts facts
                      ON facts.source_version_id=source.source_version_id
                     AND facts.workspace_id=source.workspace_id
+                    AND facts.asset_original_id=source.asset_original_id
                     AND facts.object_reference_id=source.object_reference_id
                    WHERE source.workspace_id=%s AND source.source_version_id=%s
-                     AND source.object_reference_id=%s""",
+                     AND source.asset_original_id=%s""",
                 (
                     workspace_id,
-                    asset.get("source_version_id"),
-                    asset.get("object_reference_id"),
+                    source_version_id,
+                    asset_original_id,
                 ),
             )
             row = cursor.fetchone()
             if row is None:
                 raise RuntimeError("native document references an unverified raster source")
             (
+                object_reference_id,
                 key,
                 generation,
                 digest,
@@ -918,8 +925,10 @@ class PostgresImageExportWorkerRepository:
                 facts_byte_size,
                 scan_state,
             ) = row
+            snapshot_reference_id = asset.get("object_reference_id")
             if (
-                generation != facts_generation
+                (snapshot_reference_id is not None and snapshot_reference_id != object_reference_id)
+                or generation != facts_generation
                 or digest != facts_digest
                 or media_type != facts_media_type
                 or int(byte_size) != int(facts_byte_size)

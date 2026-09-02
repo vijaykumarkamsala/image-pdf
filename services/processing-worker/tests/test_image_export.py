@@ -388,6 +388,8 @@ def test_durable_export_isolates_output_failure_and_zip_is_reproducible() -> Non
     assert outcome.state == "succeeded"
     assert repository.states == {"output-png": "succeeded", "output-16bit": "failed"}
     completed = repository.completed[0]
+    assert completed.object_key.endswith("/output-png/result.png")
+    assert "export.png" not in completed.object_key
     repository.bundle_lease = LeasedExportBundleJob(
         "job-bundle",
         "bundle-export",
