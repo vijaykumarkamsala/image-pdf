@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   CopyPlus,
+  Download,
   Eye,
   EyeOff,
   FlipHorizontal2,
@@ -22,6 +23,7 @@ import {
   Redo2,
   RotateCw,
   Save,
+  Sparkles,
   Shapes,
   Type,
   Undo2,
@@ -50,6 +52,10 @@ import { workspacePath } from "../routes";
 import { FabricEditorRenderer } from "./renderer/FabricEditorRenderer";
 import type { EditorRenderer, RendererSelectionState, RendererViewport } from "./renderer/EditorRenderer";
 import { useDurableEditorSession, type SaveState } from "./useDurableEditorSession";
+import { EnhancementWorkspace, type ComparisonSelection } from "./EnhancementWorkspace";
+import { ExportCenter } from "./ExportCenter";
+import { ComparisonWorkspace } from "./ComparisonWorkspace";
+import { sampleCanvasHistogram } from "./comparisonModel";
 
 const PRESETS = [
   { id: "social", label: "Social post", detail: "1080 x 1080 px", width: 1080, height: 1080 },
@@ -186,6 +192,9 @@ export function ImageGraphicStudio() {
   const [previewActionBusy, setPreviewActionBusy] = useState(false);
   const [previewRetryable, setPreviewRetryable] = useState(false);
   const [previewFailure, setPreviewFailure] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [comparison, setComparison] = useState<ComparisonSelection | null>(null);
+  const [comparisonImage, setComparisonImage] = useState("");
   const previewState = editor?.document.preview_state ?? "not_required";
   const editorReady = editor !== null && (previewState === "not_required" || previewState === "ready");
 
@@ -671,10 +680,15 @@ export function ImageGraphicStudio() {
   ]} />;
   const rightPanel = <Tabs label="Tool panels" selected={rightTab} onSelect={setRightTab} items={[
     { id: "properties", label: "Properties", panel: <PropertiesPanel snapshot={editor.snapshot} layer={selected} update={updateLayer} mutate={commit} readOnly={readOnly} /> },
+    { id: "enhance", label: "Enhance", panel: <EnhancementWorkspace workspaceId={workspaceId} editor={editor} readOnly={readOnly} onCompare={(selection) => {
+      try { setComparisonImage(canvasRef.current?.toDataURL("image/png") ?? api.documentSourceUrl(workspaceId, documentId)); }
+      catch { setComparisonImage(api.documentSourceUrl(workspaceId, documentId)); }
+      setComparison(selection);
+    }} onOpenExport={() => setExportOpen(true)} /> },
     { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addVectorPath={addVectorPath} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} ungroupSelected={ungroupSelected} groupCount={groupSelection.size} saveAs={openSaveAs} fit={() => rendererRef.current?.fit()} focusCanvas={() => surfaceRef.current?.querySelector<HTMLElement>(".upper-canvas")?.focus()} selected={selected} update={updateLayer} readOnly={readOnly} /> },
   ]} />;
 
-  return <main className="studio" data-testid="image-graphic-studio">
+  return <main className={`studio${comparison ? " is-comparing" : ""}`} data-testid="image-graphic-studio">
     <div className="studio-command-bar" role="toolbar" aria-label="Editor commands">
       <Tooltip label="Back to Home"><IconButton label="Back to Home" onClick={() => navigate(workspacePath(workspaceId))}><ArrowLeft aria-hidden="true" /></IconButton></Tooltip>
       <div className="studio-document-title"><h1 title={editor.document.name}>{editor.document.name}</h1><span>{editor.snapshot.artboards.length} {editor.snapshot.artboards.length === 1 ? "artboard" : "artboards"}</span></div>
@@ -682,6 +696,7 @@ export function ImageGraphicStudio() {
       <div className="studio-command-group" role="group" aria-label="History"><IconButton label="Undo" disabled={readOnly || pendingCount > 0} onClick={() => void history("undo")}><Undo2 aria-hidden="true" /></IconButton><IconButton label="Redo" disabled={readOnly || pendingCount > 0} onClick={() => void history("redo")}><Redo2 aria-hidden="true" /></IconButton><IconButton label={readOnly ? "Save independent copy" : "Save as"} disabled={!editor} onClick={openSaveAs}><CopyPlus aria-hidden="true" /></IconButton></div>
       <div className="studio-command-group add-tools" role="group" aria-label="Add"><Button size="compact" disabled={readOnly} onClick={addText}><Type aria-hidden="true" />Text</Button><Button size="compact" disabled={readOnly} onClick={() => addShape()}><Shapes aria-hidden="true" />Shape</Button><Button size="compact" disabled={readOnly} onClick={addArtboard}><Plus aria-hidden="true" />Artboard</Button></div>
       <div className="studio-command-group" role="group" aria-label="Zoom"><IconButton label="Zoom out" onClick={() => rendererRef.current?.zoomBy(0.8)}><ZoomOut aria-hidden="true" /></IconButton><span className="zoom-value">{Math.round(viewport.zoom * 100)}%</span><IconButton label="Zoom in" onClick={() => rendererRef.current?.zoomBy(1.25)}><ZoomIn aria-hidden="true" /></IconButton><IconButton label="Fit artboards" onClick={() => rendererRef.current?.fit()}><Maximize2 aria-hidden="true" /></IconButton></div>
+      <div className="studio-command-group studio-output-tools" role="group" aria-label="Enhancement and export"><Button size="compact" aria-label="Enhance" aria-pressed={rightTab === "enhance"} onClick={() => setRightTab("enhance")}><Sparkles aria-hidden="true" /><span>Enhance</span></Button><Button size="compact" tone="primary" aria-label="Export" onClick={() => setExportOpen(true)}><Download aria-hidden="true" /><span>Export</span></Button></div>
     </div>
     {message && <div className="studio-message" role="alert"><span>{message}</span><div className="studio-message-actions">
       {(saveState === "failed" || saveState === "offline") && pendingCount > 0 && <Button size="compact" onClick={retryPending}>Retry now</Button>}
@@ -692,7 +707,13 @@ export function ImageGraphicStudio() {
     <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
       { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
       { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
-    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} />} />
+    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} comparison={comparison ? <ComparisonWorkspace selection={comparison} sourceUrl={api.documentSourceUrl(workspaceId, documentId)} currentImage={comparisonImage || api.documentSourceUrl(workspaceId, documentId)} histogram={sampleCanvasHistogram(canvasRef.current)} onMode={(mode) => setComparison((current) => current ? { ...current, mode } : current)} onClose={() => setComparison(null)} /> : null} />} />
+    <ExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} prepareDocument={async () => {
+      await flushPending();
+      const current = await api.document(workspaceId, documentId);
+      replaceServer(current.editor);
+      return current.editor;
+    }} />
     <Dialog open={saveAsOpen} title="Save a copy" onClose={() => setSaveAsOpen(false)}>
       <form className="modal-form" onSubmit={(event) => void saveAs(event)}>
         <TextInput autoFocus label="Graphic name" maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
@@ -710,7 +731,7 @@ export function ImageGraphicStudio() {
   </main>;
 }
 
-function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled, activeArtboardId, selectedLayer, rendererSelection }: {
+function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled, activeArtboardId, selectedLayer, rendererSelection, comparison }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   editor: DocumentReadModel;
@@ -720,6 +741,7 @@ function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, re
   activeArtboardId: string;
   selectedLayer: LayerRecord | null;
   rendererSelection: RendererSelectionState;
+  comparison: React.ReactNode;
 }) {
   return <div className="studio-canvas-shell" ref={surfaceRef}
     data-render-settled={renderSettled ? "true" : "false"}
@@ -737,6 +759,7 @@ function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, re
     {snapGuides?.x !== null && snapGuides?.x !== undefined && <span className="canvas-snap-guide guide-x" style={{ left: snapGuides.x * viewport.zoom + viewport.panX }} aria-hidden="true" />}
     {snapGuides?.y !== null && snapGuides?.y !== undefined && <span className="canvas-snap-guide guide-y" style={{ top: snapGuides.y * viewport.zoom + viewport.panY }} aria-hidden="true" />}
     <span className="preview-evidence">Browser preview | Native document remains authoritative</span>
+    {comparison}
   </div>;
 }
 
