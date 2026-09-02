@@ -74,9 +74,16 @@ class Objects:
         )
 
     def write_derivative(
-        self, ref: PrivateObjectRef, *, data: bytes, media_type: str, sha256: str
+        self,
+        ref: PrivateObjectRef,
+        *,
+        data: bytes,
+        media_type: str,
+        sha256: str,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> PrivateObjectSnapshot:
         assert ref.zone is ObjectZone.DERIVATIVE
+        assert len(data) <= max_bytes
         assert hashlib.sha256(data).hexdigest() == sha256
         self.writes.append((ref, data, media_type))
         return PrivateObjectSnapshot(ref, sha256, media_type, data)

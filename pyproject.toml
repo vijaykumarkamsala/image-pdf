@@ -239,6 +239,7 @@ omit = [
   # real-PostgreSQL integration gate. It is not counted as uncovered merely
   # because the deterministic unit suite intentionally has no database.
   "*/processing_worker/repository.py",
+  "*/processing_worker/export_repository.py",
 ]
 
 [tool.coverage.report]

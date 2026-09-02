@@ -281,7 +281,10 @@ class ImageOperation(EnhancementContractModel):
     def _parse_parameters_for_kind(cls, value: object) -> object:
         if not isinstance(value, dict):
             return value
-        kind = ImageOperationKind(value.get("kind"))
+        raw_kind = value.get("kind")
+        if not isinstance(raw_kind, str):
+            raise ValueError("operation kind is required")
+        kind = ImageOperationKind(raw_kind)
         parsed = dict(value)
         parsed["parameters"] = _PARAMETER_MODELS[kind].model_validate(value.get("parameters"))
         return parsed

@@ -7,8 +7,11 @@ from pydantic import ValidationError
 
 from ipw.contracts.enhancement import (
     ExportOutputProfile,
+    ExportPurpose,
+    ImageExportFormat,
     ImageOperation,
     ProcessingRecipeRecord,
+    ResamplingScaleParameters,
 )
 
 
@@ -78,6 +81,7 @@ def test_recipe_order_and_identifiers_are_stable() -> None:
 
 def test_standard_resampling_is_truthfully_labelled() -> None:
     value = operation("resampling_scale", {"scale": 4})
+    assert isinstance(value.parameters, ResamplingScaleParameters)
     assert "not AI reconstruction" in value.parameters.label
 
 
@@ -86,8 +90,8 @@ def test_export_capabilities_fail_closed() -> None:
         ExportOutputProfile(
             profile_id="profile-web",
             name="Web JPEG",
-            purpose="web",
-            format="jpeg",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.JPEG,
             alpha_behavior="preserve",
         )
 
@@ -95,7 +99,7 @@ def test_export_capabilities_fail_closed() -> None:
         ExportOutputProfile(
             profile_id="profile-webp",
             name="WebP",
-            purpose="web",
-            format="webp",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.WEBP,
             bit_depth=16,
         )
