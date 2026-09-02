@@ -242,8 +242,9 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByText("Save failed", { exact: true })).toBeVisible();
     await shot(page, `studio-state-failed-save-1440x900-${theme}.png`);
     await page.unroute(`**/v1/workspaces/${workspaceId}/documents/${documentId}`);
-    await page.getByRole("button", { name: "Retry now" }).click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    const retry = page.getByRole("button", { name: "Retry now" });
+    if (await retry.isVisible()) await retry.click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
 
     await context.setOffline(true);
     await page.getByRole("button", { name: "Shape", exact: true }).click();

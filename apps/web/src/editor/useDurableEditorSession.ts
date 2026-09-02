@@ -318,6 +318,12 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
 
   const commit = useCallback((mutation: EditorMutation) => {
     if (!leaseRef.current || saveStateRef.current === "read-only" || saveStateRef.current === "conflict") return;
+    const queuedState: SaveState = navigator.onLine ? "saving" : "offline";
+    saveStateRef.current = queuedState;
+    if (mountedRef.current) {
+      setSaveState(queuedState);
+      setMessage(navigator.onLine ? null : "Your edits are stored on this device and will sync when you reconnect.");
+    }
     const write = journalWritesRef.current.then(async () => {
       const current = editorRef.current;
       const server = serverRef.current;
@@ -341,7 +347,7 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
       pendingRef.current.push(persisted);
       publish(serverRef.current, pendingRef.current);
       if (mountedRef.current) {
-        setSaveState(navigator.onLine ? "saving" : "offline");
+        setSaveState(queuedState);
         setMessage(navigator.onLine ? null : "Your edits are stored on this device and will sync when you reconnect.");
       }
       void drain();

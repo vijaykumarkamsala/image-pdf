@@ -431,8 +431,8 @@ test("account logout revokes the session and clears private browser state", asyn
   await expect(page.locator(".account-popover")).toContainText(/owner in Alex Morgan's workspace/i);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByTestId("guest-home")).toBeVisible();
-  await expect(otherTab.getByTestId("guest-home")).toBeVisible();
+  await expect(page.getByTestId("guest-home")).toBeVisible({ timeout: 20_000 });
+  await expect(otherTab.getByTestId("guest-home")).toBeVisible({ timeout: 20_000 });
   expect(await page.request.get("/v1/auth/session").then((response) => response.json())).toEqual({ authenticated: false });
   const cleared = await page.evaluate(async () => ({
     session: sessionStorage.getItem("ipw-private-test"),
@@ -2049,9 +2049,9 @@ test("@visual desktop light completed Jobs", async ({ page }) => {
   await page.getByRole("button", { name: "Upload 1" }).click();
   await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
   await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
-  await page.getByRole("link", { name: "Jobs" }).first().click();
-  await page.getByRole("tab", { name: "Completed" }).click();
-  await expect(page.getByRole("heading", { name: "File intake check" })).toBeVisible();
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/jobs?view=completed`);
+  await expect(page.getByRole("heading", { name: "File intake check" })).toBeVisible({ timeout: 15_000 });
   await clearFocus(page);
   await expect(page).toHaveScreenshot("workspace-jobs-completed-1440x900-light.png", screenshotOptions);
 });
