@@ -1,7 +1,7 @@
 # Recovery 2D: Image & Graphic Studio Foundation
 
-**Status:** Corrective implementation and deterministic verification complete
-locally; product-owner approval remains open
+**Status:** Final bounded acceptance corrections implemented and deterministically
+verified locally; product-owner approval remains open
 
 **Branch:** `recovery/2d-image-graphic-studio-foundation`
 
@@ -10,12 +10,16 @@ locally; product-owner approval remains open
 
 **Original Recovery 2D record:** `c2c75160b5e68069e6eec00f7d0af36313827081`
 
-**Corrective implementation before this amended record:**
-`0fd14fd` (`test(web): align Studio accessibility and visual evidence`)
+**Prior corrected record:**
+`277f678` (`docs: correct Recovery 2D completion record`)
+
+**Final acceptance implementation before this amended record:** `ff53653`,
+`dfa9277`, `63b5523` and `851dc37`
 
 **Authority:** The approved Recovery 2D prompt, the Product V2 Consolidated
-Implementation Authority and the accepted independent-audit corrective prompt
-dated 1 September 2026
+Implementation Authority, the accepted independent-audit corrective prompt
+dated 1 September 2026 and the final bounded acceptance-correction prompt dated
+2 September 2026
 
 ## Correction history and verdict
 
@@ -40,9 +44,25 @@ Ten corrective commits resolve those findings before this amended record:
 10. `0fd14fd` - fix native-document empty-list semantics and reconcile reviewed
     responsive visual evidence.
 
-Corrected local verdict: the bounded Recovery 2D scope is implemented and
-verified. It is not approval for production release, final export, advanced
-professional-format import, live providers or a later recovery sequence.
+The next acceptance audit identified five narrower gaps: real-repository lease
+security evidence, durable cross-tab journal ordering, authoritative source
+facts for preview eligibility, asynchronous renderer races and save-drain/lease
+release coordination. Four additional implementation commits resolve those
+findings:
+
+1. `ff53653` - bind previews to immutable inspection facts and prove lease
+   isolation against PostgreSQL.
+2. `dfa9277` - allocate durable journal sequence numbers and coordinate one
+   authoritative save drain.
+3. `63b5523` - settle only the latest renderer generation and correct the
+   multiple-artboard visual proof.
+4. `851dc37` - expose queued editor saves synchronously and stabilize the full
+   ordered browser gate without weakening assertions.
+
+Final local verdict: the bounded Recovery 2D scope and these five acceptance
+corrections are implemented and verified. This is not approval for production
+release, final export, advanced professional-format import, live providers or a
+later recovery sequence.
 
 ## Customer outcome
 
@@ -147,7 +167,7 @@ Save As and preview generation do not mutate or recompress the source.
 
 ## Persistence, transactions and API
 
-Recovery 2D uses three additive migrations:
+Recovery 2D uses four additive migrations:
 
 - `0014_recovery_2d_native_documents.sql` creates documents, append-only
   versions/operations, bounded history, leases and compatibility reports.
@@ -155,6 +175,9 @@ Recovery 2D uses three additive migrations:
   takeover state and corrective constraints compatible with existing data.
 - `0016_recovery_2d_preview_jobs.sql` adds preview job targets, append-only
   preview provenance and derivative references.
+- `0017_recovery_2d_acceptance_integrity.sql` preserves immutable provider
+  generation, stores append-only inspected source facts and binds preview
+  provenance to authoritative inspected dimensions and storage generation.
 
 Migration runners take a PostgreSQL advisory lock. Repository commands use
 transactions and per-idempotency advisory locks. Document mutation, operation,
@@ -184,18 +207,25 @@ Request, denial, expiry, release and force transitions are durable and audited.
 ## Durable autosave and collaboration behavior
 
 The browser stores an ordered pending-operation journal in IndexedDB, scoped by
-actor, workspace and document. Entries contain native operations, base version
-and revision, operation ID, idempotency key and trace context. They never contain
-credentials, signed URLs or source bytes. Failed saves retry with bounded
-exponential backoff and explicit Retry, reload current, Save As recovered copy
-and review/reapply choices.
+actor, workspace and document. A per-scope sequence is allocated atomically in
+the same IndexedDB transaction as each entry, so equal timestamps and competing
+tabs cannot reorder operations. Entries contain native operations, base version
+and revision, operation ID, idempotency key and trace context. Legacy entries
+are upgraded deterministically only when base continuity is unambiguous;
+ambiguous or divergent histories fail safe for explicit recovery. Journal data
+never contains credentials, signed URLs or source bytes. Failed saves retry with
+bounded exponential backoff and explicit Retry, reload current, Save As
+recovered copy and review/reapply choices.
 
-Pending operations replay after refresh/reconnect only after actor/workspace
-validation. They are not silently discarded. Normal close drains acknowledged
-saves before releasing the lease where browser lifetime permits; the UI
-truthfully explains unavoidable browser-close limits. Heartbeat is independent
-of edits. BroadcastChannel plus a storage-event fallback coordinates tabs, and
-same-actor tabs cannot silently reuse or replace each other's token. Logout and
+Pending operations replay by durable sequence and base continuity after
+refresh/reconnect only after actor/workspace validation. They are not silently
+discarded. All callers share one in-flight drain promise. Normal close waits for
+acknowledged saves before releasing the lease where browser lifetime permits;
+failed drains preserve recoverable entries and rely on safe lease expiry rather
+than releasing unsent work. Release is issued at most once. Heartbeat is
+independent of edits and continues during a drain. BroadcastChannel plus a
+storage-event fallback coordinates tabs, and same-actor tabs cannot silently
+reuse or replace each other's token. Logout and
 retention cleanup clear private journals and the cross-tab logout regression is
 covered.
 
@@ -225,18 +255,27 @@ progress, retry, cancellation and failure states and can be left/reopened while
 work continues. It does not request or decode the full source before a safe
 preview is ready.
 
-The Python processor verifies immutable byte count and SHA-256 before decode,
-supports at most 100 MiB compressed, 100,000,000 decoded pixels and a 50,000 px
-dimension, and applies Pillow's decompression-bomb boundary. It emits PNG
+The Python processor requires an append-only inspection record bound to the
+exact workspace, `AssetOriginal`, `SourceVersion`, object reference, SHA-256 and
+provider storage generation. It rejects missing, mismatched, unverified or
+dimensionless facts; document/artboard dimensions never determine source
+eligibility. The processor then verifies immutable byte count and SHA-256 before
+decode, supports at most 100 MiB compressed, 100,000,000 decoded pixels and a
+50,000 px dimension, and applies Pillow's decompression-bomb boundary. It emits PNG
 workspace (maximum edge 2,048) and thumbnail (maximum edge 512) derivatives
 through the object-storage abstraction. Each append-only provenance record
-links source/document versions, processor/version, dimensions, color and
+links source/document versions, processor/version, authoritative inspected
+source dimensions and generation, output dimensions, color and
 metadata decisions, checksums, object reference, job/trace IDs and creation
 time, and is explicitly non-authoritative.
 
 ## Renderer and professional workspace
 
-Fabric readiness is awaited before state capture. The adapter renders approved
+Fabric readiness is awaited before state capture. Each render receives a
+generation and abort token. Superseded asset work is cancelled or ignored, and
+only the latest snapshot, active artboard and selection may update the canvas.
+Disposed renderers cannot publish state, and a deterministic settled signal is
+used by interactions and screenshot capture. The adapter renders approved
 raster adjustments/crop, rich-text runs and font fallback, rectangle/ellipse/
 line/polygon, internal paths, masks, clipping and group hierarchy. Artboards
 clip their content and new content targets the active artboard. Source delivery
@@ -276,11 +315,23 @@ identity. Loading and empty states are explicit.
 | No real React to NestJS to PostgreSQL acceptance journey | Resolved | `recovery2d.real.spec.ts` on fresh PostgreSQL 17.11 and deterministic providers |
 | Eight generic baselines did not cover required states | Resolved | 44 reviewed state baselines plus 8 inherited responsive baselines |
 
+## Final acceptance resolution matrix
+
+| Final finding | Resolution | Evidence |
+| --- | --- | --- |
+| Lease takeover isolation lacked service/repository proof | Resolved | `ff53653`; parameterized `DocumentsService` tests use the PostgreSQL repository and cover cross-workspace known IDs, captured/stale tokens, unauthorized force, replay and simultaneous takeover without metadata disclosure |
+| Journal ordering depended on wall-clock time | Resolved | `dfa9277`; atomic per-scope IndexedDB sequence allocation, deterministic legacy handling and browser tests for equal timestamps, tabs, refresh, reconnect, conflict, divergent redo and logout |
+| Preview eligibility trusted document dimensions | Resolved | `ff53653`; migration 0017, immutable inspection facts, worker fail-closed joins and PostgreSQL tests for forged artboards plus missing/mismatched facts |
+| Asynchronous Fabric work could publish stale state | Resolved | `63b5523`; generation/abort handling, latest-only publication, disposal guard, settled signal and repeated dark/pending-render browser tests |
+| Cleanup could race an existing save drain | Resolved | `dfa9277`, `851dc37`; shared drain promise, synchronous queued state, acknowledged-save-before-release, failed-journal preservation and single-release browser tests |
+
 ## Exact changed-file inventory
 
 The original eight Recovery 2D commits changed the paths recorded by
-`git diff --name-status 1cdba82..c2c7516`. The seven corrective implementation
-commits and this amended record add or change these exact responsibility scopes:
+`git diff --name-status 1cdba82..c2c7516`. The first-audit correction commits
+and prior amended record changed the responsibility scopes below. The final
+acceptance corrections add the exact paths recorded by
+`git diff --name-status 277f678..851dc37`.
 
 ### Contracts and generated artifacts
 
@@ -293,6 +344,7 @@ commits and this amended record add or change these exact responsibility scopes:
 
 - `services/api/migrations/0015_recovery_2d_corrective_foundation.sql`
 - `services/api/migrations/0016_recovery_2d_preview_jobs.sql`
+- `services/api/migrations/0017_recovery_2d_acceptance_integrity.sql`
 - `services/api/src/domains/documents/` controller, service, types,
   memory/PostgreSQL repositories, model and format policy
 - affected experience/job/intake/storage composition under
@@ -302,8 +354,9 @@ commits and this amended record add or change these exact responsibility scopes:
 
 ### Browser editor
 
-- `apps/web/src/editor/` durable session, journal, tab coordinator, native
-  operations, renderer boundary and Fabric adapter
+- `apps/web/src/editor/` durable session, atomic journal, shared single-flight
+  drain, tab coordinator, native operations, renderer boundary and Fabric
+  adapter
 - affected `apps/web/src/App.tsx`, API client, operational experience,
   panel framework/layout and `styles.css`
 - web unit tests and `apps/web/tests/e2e/workspace.spec.ts`
@@ -313,6 +366,11 @@ commits and this amended record add or change these exact responsibility scopes:
 - `services/processing-worker/src/ipw/processing_worker/{preview,repository,task_server}.py`
 - preview and PostgreSQL worker tests under `services/processing-worker/tests/`
 - `packages/storage/src/ipw/storage/{boundary,private}.py` and storage tests
+
+Final acceptance also changes intake/object-generation persistence and
+inspection-fact propagation in the API and Python worker, plus their focused
+PostgreSQL and storage tests. It does not alter customer source identity or use
+artboard dimensions as source facts.
 
 ### Real-stack and visual evidence
 
@@ -332,40 +390,41 @@ deployment file was moved, promoted or integrated.
 
 ## Verification record
 
-Executed locally without `.env`, credentials, customer files, cloud calls,
-model/font downloads or live providers:
+Executed on final implementation commit `851dc37` without `.env`, credentials,
+customer files, cloud calls, model/font downloads or live providers:
 
-- Real-stack acceptance: one complete production-preview browser journey passed
-  against fresh PostgreSQL 17.11 in approximately two minutes. It traversed
-  React -> NestJS -> migrations/repositories -> private local object storage ->
-  PostgreSQL outbox -> deterministic Python intake/preview workers. No
-  PostgreSQL acceptance test was skipped.
-- Real-stack database evidence: three jobs succeeded at 100% (two intake, one
-  preview); the preview outbox dispatched exactly once; two non-authoritative
-  derivatives were recorded at or below 2,048 px; provenance source hashes
-  matched the immutable source; audit and usage existed; customer amount and
-  credit debit were zero.
-- Studio state visuals: 6 Playwright tests passed in comparison mode, producing
-  44 exact light/dark state comparisons at `maxDiffPixelRatio: 0`.
-- Focused semantic browser proof: shared-style propagation and independent
-  detach passed.
-- Web unit tests: 33 passed, 0 failed.
-- Fresh-database prerequisite: migrations ran alone against PostgreSQL 17.11;
-  no test record was seeded before the aggregate run.
-- Complete repository verification: all 18 `tools/check.py` gates passed. This
-  included 1,787 Python tests passed with one intentional host-path skip, 155
-  TypeScript tests passed with no skips, 89 Playwright tests passed, 198 Python
-  source files strict-typechecked, both contract-drift gates, schema drift,
-  goldens, fixtures, licence register and model-weight verification.
-- The sole Python skip is the libvips-unavailable branch because libvips is
-  installed on this host; that branch remains covered on CI.
-- Full visual comparison: all 49 tagged visual tests passed without update mode
-  across 87 reviewed baselines. Accessibility and horizontal-overflow checks
-  are part of those journeys.
-- Final real-stack acceptance: 1 Playwright journey passed in 1.2 minutes at
-  current HEAD.
+- `python tools/check.py`: all 18 canonical gates passed. Gate durations were
+  format 0.4s, lint 0.4s, types 3.5s, tests 303.4s, fixture integrity 1.2s,
+  fixture reproducibility 0.4s, inspection 0.3s, TypeScript contract 1.1s,
+  product contract 1.6s, canonical artifacts 0.9s, TypeScript typecheck/build
+  28.0s, TypeScript tests 27.7s, web Playwright 433.7s, goldens 3.0s, schema
+  drift 2.0s, licence 1.6s, model weights 2.0s and workspace manifest 1.2s.
+- The canonical web gate passed all 96 Playwright tests in full-suite order.
+  Web unit tests passed 35/35. Accessibility, keyboard, pointer, horizontal
+  overflow, 44 px targets and zero-tolerance visual comparisons remained in
+  the full gate.
+- Fresh PostgreSQL database `ipw_2d_final_20260902` ran all 17 migrations on
+  PostgreSQL 17.11. API PostgreSQL integration passed 4/4 with zero skips,
+  including the real repository/service lease matrix. Python intake/preview
+  integration passed 7/7 with zero skips.
+- The lease matrix covered cross-workspace known document ID, captured token,
+  stale cross-workspace token, same-workspace stale token, unauthorized force,
+  no metadata disclosure, replay and simultaneous takeover. PostgreSQL row
+  locks and persisted lease state remained authoritative.
+- The real production-preview journey passed 1/1 against fresh database
+  `ipw_2d_realstack_20260902`: React -> NestJS -> PostgreSQL -> transactional
+  outbox -> deterministic Python intake/preview workers. PostgreSQL remained
+  authoritative after dispatch; no database acceptance test was skipped.
+- Focused journal, drain and renderer race tests passed both independently and
+  in full-suite order. The prior desktop-dark semantic case passed three
+  consecutive repetitions. The pending-render interaction and renderer
+  disposal cases passed without sleeps or relaxed pixel thresholds.
+- One environment-conditional Python skip remains in the canonical aggregate:
+  the libvips-unavailable branch cannot execute when libvips is installed on
+  this host. Fresh PostgreSQL and real-stack acceptance had no skips.
 - `npm audit` and `npm audit --omit=dev` each reported the same two Moderate
-  transitive findings documented below; no override or audit fix was applied.
+  transitive `uuid <11.1.1` findings through the approved Google provider
+  dependency chain. No forced override or audit fix was applied.
 
 ## Visual baseline inventory and accepted pixels
 
@@ -401,11 +460,21 @@ Original-resolution inspection confirmed nonblank dark/phone canvases, bounded
 panels, visible state messaging, no horizontal overflow and no incoherent
 overlap.
 
+The final acceptance pass intentionally updated only these two existing files:
+
+- `studio-state-multiple-artboards-1440x900-light.png` - 7,892 pixels differ.
+- `studio-state-multiple-artboards-1440x900-dark.png` - 7,891 pixels differ.
+
+Both changes show Artboard 2 as active and place the edited rectangle on
+Artboard 2. The former stale Artboard 1 selection handles are gone while the
+Properties panel still identifies the rectangle. All other reviewed baselines
+remain unchanged, and comparison continues at zero pixel tolerance.
+
 ## Requirement matrix
 
 | Requirement | Corrected result | Evidence or boundary |
 | --- | --- | --- |
-| A. Native document model | Delivered for supported initial types | Contract 1.17.0, 75 schemas, migrations 0014-0016 and semantic validators |
+| A. Native document model | Delivered for supported initial types | Contract 1.17.0, 75 schemas, migrations 0014-0017 and semantic validators |
 | B. Non-destructive editing | Delivered | Immutable source/hash proof, native crop/adjustment/mask/style data and derivative provenance |
 | C. History, versions and autosave | Delivered | IndexedDB journal, bounded history, named versions, forward restore, conflict/replay tests |
 | D. Concurrency boundary | Delivered | Tenant-safe leases, heartbeat/grace, read-only, request/deny/release/force and audit |
@@ -439,15 +508,18 @@ overlap.
 
 1. Create a dedicated rollback branch and stop local API, web, worker and
    PostgreSQL processes.
-2. Revert this amended record, then corrective commits in reverse order:
-   `0fd14fd`, `73e2d4d`, `f7e1628`, `f9e797b`, `568a6fe`, `aef9653`,
-   `af39b15`, `88c3089`, `5f01012` and `a99a115`.
+2. Revert this amended record, then final acceptance commits in reverse order:
+   `851dc37`, `63b5523`, `dfa9277` and `ff53653`. If reverting all audit
+   corrections, continue with `277f678`, `0fd14fd`, `73e2d4d`, `f7e1628`,
+   `f9e797b`, `568a6fe`, `aef9653`, `af39b15`, `88c3089`, `5f01012` and
+   `a99a115`.
 3. If the entire Recovery 2D scope must be removed, continue reverting the
    original Recovery 2D commits through `7ee9a44`. Do not rewrite approved
    Recovery 2C history.
 4. Roll application code back before any separately approved data action.
-   Migrations 0014-0016 contain additive document/version/audit/provenance
-   evidence; do not drop data without retention and rollback approval.
+   Migrations 0014-0017 contain additive document/version/audit/provenance and
+   immutable source-inspection evidence; do not drop data without retention and
+   rollback approval.
 5. Rebuild generated contracts from the restored Python authority, clear only
    Recovery 2D public build/test artifacts and rerun the Recovery 2C contract,
    PostgreSQL and complete repository gates.
@@ -465,7 +537,7 @@ Original Recovery 2D commits:
 7. `8abf37f` - enforce renderer/runtime and dependency-licence boundaries.
 8. `c2c7516` - record the original completion claim later rejected by audit.
 
-Corrective commits:
+First-audit corrective commits:
 
 9. `a99a115` - secure native document transactions.
 10. `5f01012` - make autosave and leases durable.
@@ -477,7 +549,15 @@ Corrective commits:
 16. `f7e1628` - satisfy strict processing-worker capability boundaries.
 17. `73e2d4d` - restore complete Python quality gates.
 18. `0fd14fd` - align Studio accessibility and visual evidence.
-19. The commit containing this amended completion record.
+19. `277f678` - correct the first-audit Recovery 2D completion record.
+
+Final acceptance commits:
+
+20. `ff53653` - bind preview facts and prove lease isolation.
+21. `dfa9277` - sequence recovery and drain editor saves.
+22. `63b5523` - settle only the latest Studio render.
+23. `851dc37` - expose queued editor saves deterministically.
+24. The commit containing this final amended completion record.
 
 Recovery 2D remains local and paused for product-owner review. Nothing was
 pushed, merged or deployed, and no later recovery sequence was started.
