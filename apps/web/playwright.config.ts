@@ -33,14 +33,14 @@ export default defineConfig({
       },
       port: 8780,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 180_000,
     },
     {
       command: "npm run build --workspace ipw-web && npm run preview --workspace ipw-web -- --host 127.0.0.1 --port 4173",
       cwd: "../..",
       port: 4173,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 180_000,
     },
   ],
 });

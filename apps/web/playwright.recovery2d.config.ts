@@ -40,7 +40,7 @@ export default defineConfig({
       },
       port: 8782,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 180_000,
     },
     {
       command: "npm run build --workspace ipw-web && npm run preview --workspace ipw-web -- --host 127.0.0.1 --port 4175",
@@ -48,7 +48,7 @@ export default defineConfig({
       env: { ...process.env, IPW_API_ORIGIN: "http://127.0.0.1:8782" },
       port: 4175,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 180_000,
     },
   ],
 });

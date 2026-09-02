@@ -4,6 +4,26 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_SCHEMA_VERSION, type ProcessingJobRecord } from "ipw-contracts-ts/product";
+import { transformWithOxc } from "vite";
+
+const repositoryRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
+let editorJournalBridge: Promise<string> | null = null;
+
+async function installEditorJournalTestBridge(page: Page) {
+  editorJournalBridge ??= transformWithOxc(
+    `${readFileSync(resolve(repositoryRoot, "apps/web/src/editor/editorJournal.ts"), "utf8")}
+globalThis.__ipwEditorJournalTest = { appendPendingOperation, clearEditorJournals, listPendingOperations };`,
+    "editorJournal.ts",
+    { lang: "ts" },
+  ).then((result) => result.code);
+  const bridge = await editorJournalBridge;
+  await page.route("**/__ipw-tests/editor-journal.js", (route) => route.fulfill({
+    contentType: "text/javascript",
+    body: bridge,
+  }));
+  await page.addScriptTag({ type: "module", url: "/__ipw-tests/editor-journal.js" });
+  await page.waitForFunction(() => "__ipwEditorJournalTest" in globalThis);
+}
 
 async function identify(page: Page, suffix: string, theme: "light" | "dark" = "light") {
   const id = `actor-${suffix}`;
@@ -376,6 +396,25 @@ test("duplicate guest tabs recover from server state without sharing credentials
 
 test("account logout revokes the session and clears private browser state", async ({ page, context }) => {
   await openWorkspace(page, "logout");
+  await installEditorJournalTestBridge(page);
+  await page.evaluate(async () => {
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    await journal.appendPendingOperation({
+      actorId: "actor-logout",
+      workspaceId: "workspace-logout",
+      documentId: "document-logout",
+      journalId: "journal-logout",
+      operationId: "document-operation-logout",
+      baseDocumentVersionId: "document-version-logout",
+      baseRevision: 0,
+      idempotencyKey: "editor-idempotency-logout",
+      traceId: "trace-logout",
+      mutation: { kind: "document.rename", target_id: null, properties: {} },
+      createdAt: "2026-09-01T00:00:00.000Z",
+      attempts: 0,
+      nextAttemptAt: 0,
+    });
+  });
   const otherTab = await context.newPage();
   await otherTab.goto(page.url());
   await expect(otherTab.getByTestId("workspace-home")).toBeVisible();
@@ -402,6 +441,15 @@ test("account logout revokes the session and clears private browser state", asyn
   expect(cleared).toMatchObject({ session: null, local: null, theme: "light" });
   expect(cleared.caches).toEqual(["ipw-shell-2c-v2"]);
   expect(cleared.caches.some((name) => name.startsWith("ipw-private-"))).toBe(false);
+  expect(await page.evaluate(async () => new Promise<number>((resolveCount, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const count = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
+      count.onerror = () => reject(count.error);
+      count.onsuccess = () => resolveCount(count.result);
+    };
+  }))).toBe(0);
 });
 
 test("guest upload has no detectable accessibility violations", async ({ page }) => {
@@ -788,7 +836,7 @@ test("failed autosave remains durable across refresh and replays after reconnect
   await expect(page.getByText("Save failed", { exact: true })).toBeVisible();
   await expect(page.getByText("1 pending edit", { exact: true })).toBeVisible();
   expect(await page.evaluate(async () => new Promise<number>((resolve, reject) => {
-    const open = indexedDB.open("ipw-editor-journal-v1", 1);
+    const open = indexedDB.open("ipw-editor-journal-v1");
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const request = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
@@ -803,7 +851,7 @@ test("failed autosave remains durable across refresh and replays after reconnect
   await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" })).toBeVisible();
   expect(await page.evaluate(async () => new Promise<number>((resolve, reject) => {
-    const open = indexedDB.open("ipw-editor-journal-v1", 1);
+    const open = indexedDB.open("ipw-editor-journal-v1");
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const request = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
@@ -811,6 +859,321 @@ test("failed autosave remains durable across refresh and replays after reconnect
       request.onsuccess = () => resolve(request.result);
     };
   }))).toBe(0);
+});
+
+test("editor journal sequences equal-time and cross-tab edits atomically and fails divergent replay safely", async ({ page, context }) => {
+  test.slow();
+  await page.goto("/guest/upload");
+  await installEditorJournalTestBridge(page);
+  const equalTime = await page.evaluate(async () => {
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    await journal.clearEditorJournals();
+    const makeEntry = (journalId: string, baseRevision: number) => ({
+      actorId: "actor-journal",
+      workspaceId: "workspace-journal",
+      documentId: "document-equal-time",
+      journalId,
+      operationId: `operation-${journalId}`,
+      baseDocumentVersionId: "version-journal",
+      baseRevision,
+      idempotencyKey: `idempotency-${journalId}`,
+      traceId: `trace-${journalId}`,
+      mutation: { kind: "document.rename", target_id: null, properties: {} },
+      createdAt: "2026-09-01T12:34:56.789Z",
+      attempts: 0,
+      nextAttemptAt: 0,
+    });
+    await Promise.all([
+      journal.appendPendingOperation(makeEntry("journal-equal-1", 10)),
+      journal.appendPendingOperation(makeEntry("journal-equal-2", 11)),
+    ]);
+    return journal.listPendingOperations({
+      actorId: "actor-journal",
+      workspaceId: "workspace-journal",
+      documentId: "document-equal-time",
+    });
+  });
+  expect(equalTime.map((entry: any) => [entry.journalId, entry.sequence, entry.baseRevision])).toEqual([
+    ["journal-equal-1", 1, 10],
+    ["journal-equal-2", 2, 11],
+  ]);
+
+  await page.reload();
+  await installEditorJournalTestBridge(page);
+  expect(await page.evaluate(async () => {
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    const entries = await journal.listPendingOperations({
+      actorId: "actor-journal",
+      workspaceId: "workspace-journal",
+      documentId: "document-equal-time",
+    });
+    return entries.map((entry: any) => entry.sequence);
+  })).toEqual([1, 2]);
+
+  const peer = await context.newPage();
+  await peer.goto("/guest/upload");
+  await installEditorJournalTestBridge(peer);
+  const appendFromTab = (target: Page, journalId: string) => target.evaluate(async (id) => {
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    return journal.appendPendingOperation({
+      actorId: "actor-journal",
+      workspaceId: "workspace-journal",
+      documentId: "document-cross-tab",
+      journalId: id,
+      operationId: `operation-${id}`,
+      baseDocumentVersionId: "version-cross-tab",
+      baseRevision: 20,
+      idempotencyKey: `idempotency-${id}`,
+      traceId: `trace-${id}`,
+      mutation: { kind: "document.rename", target_id: null, properties: {} },
+      createdAt: "2026-09-01T12:34:56.789Z",
+      attempts: 0,
+      nextAttemptAt: 0,
+    });
+  }, journalId);
+  await Promise.all([
+    appendFromTab(page, "journal-tab-a"),
+    appendFromTab(peer, "journal-tab-b"),
+  ]);
+  const crossTab = await page.evaluate(async () => new Promise<any[]>((resolveEntries, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const database = open.result;
+      const request = database.transaction("pending-operations", "readonly").objectStore("pending-operations").getAll();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        database.close();
+        resolveEntries(request.result.filter((entry: any) => entry.documentId === "document-cross-tab"));
+      };
+    };
+  }));
+  expect(crossTab).toHaveLength(2);
+  expect(crossTab.map((entry) => entry.sequence).sort()).toEqual([1, 2]);
+  expect(new Set(crossTab.map((entry) => entry.journalId))).toEqual(new Set(["journal-tab-a", "journal-tab-b"]));
+  expect(await page.evaluate(async () => {
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    try {
+      await journal.listPendingOperations({
+        actorId: "actor-journal",
+        workspaceId: "workspace-journal",
+        documentId: "document-cross-tab",
+      });
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  })).toMatch(/divergent durable sequence or base revision continuity/);
+  await peer.close();
+
+  await page.evaluate(async () => new Promise<void>((resolveDelete, reject) => {
+    const deletion = indexedDB.deleteDatabase("ipw-editor-journal-v1");
+    deletion.onerror = () => reject(deletion.error);
+    deletion.onsuccess = () => resolveDelete();
+  }));
+  await page.evaluate(async () => new Promise<void>((resolveLegacy, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1", 1);
+    open.onerror = () => reject(open.error);
+    open.onupgradeneeded = () => {
+      const store = open.result.createObjectStore("pending-operations", { keyPath: "journalId" });
+      store.createIndex("scope", ["actorId", "workspaceId", "documentId"], { unique: false });
+    };
+    open.onsuccess = () => {
+      const transaction = open.result.transaction("pending-operations", "readwrite");
+      const store = transaction.objectStore("pending-operations");
+      const makeLegacy = (journalId: string, baseRevision: number) => ({
+        actorId: "actor-legacy",
+        workspaceId: "workspace-legacy",
+        documentId: "document-legacy",
+        journalId,
+        operationId: `operation-${journalId}`,
+        baseDocumentVersionId: "version-legacy",
+        baseRevision,
+        idempotencyKey: `idempotency-${journalId}`,
+        traceId: `trace-${journalId}`,
+        mutation: { kind: "document.rename", target_id: null, properties: {} },
+        createdAt: "2026-09-01T12:34:56.789Z",
+        attempts: 0,
+        nextAttemptAt: 0,
+      });
+      store.add(makeLegacy("journal-legacy-2", 5));
+      store.add(makeLegacy("journal-legacy-1", 4));
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => { open.result.close(); resolveLegacy(); };
+    };
+  }));
+  const upgraded = await page.evaluate(async () => {
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    return journal.listPendingOperations({
+      actorId: "actor-legacy",
+      workspaceId: "workspace-legacy",
+      documentId: "document-legacy",
+    });
+  });
+  expect(upgraded.map((entry: any) => [entry.journalId, entry.sequence])).toEqual([
+    ["journal-legacy-1", 1],
+    ["journal-legacy-2", 2],
+  ]);
+
+  const ambiguous = await page.evaluate(async () => {
+    const open = await new Promise<IDBDatabase>((resolveOpen, reject) => {
+      const request = indexedDB.open("ipw-editor-journal-v1");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolveOpen(request.result);
+    });
+    const transaction = open.transaction("pending-operations", "readwrite");
+    const store = transaction.objectStore("pending-operations");
+    const legacy = (journalId: string, baseRevision: number) => ({
+      actorId: "actor-legacy",
+      workspaceId: "workspace-legacy",
+      documentId: "document-ambiguous",
+      journalId,
+      operationId: `operation-${journalId}`,
+      baseDocumentVersionId: "version-legacy",
+      baseRevision,
+      idempotencyKey: `idempotency-${journalId}`,
+      traceId: `trace-${journalId}`,
+      mutation: { kind: "document.rename", target_id: null, properties: {} },
+      createdAt: "2026-09-01T12:34:56.789Z",
+      attempts: 0,
+      nextAttemptAt: 0,
+    });
+    store.add(legacy("journal-ambiguous-1", 8));
+    store.add(legacy("journal-ambiguous-2", 10));
+    await new Promise<void>((resolveTransaction, reject) => {
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => resolveTransaction();
+    });
+    open.close();
+    const journal = (globalThis as any).__ipwEditorJournalTest;
+    let message: string | null = null;
+    try {
+      await journal.listPendingOperations({
+        actorId: "actor-legacy",
+        workspaceId: "workspace-legacy",
+        documentId: "document-ambiguous",
+      });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    return message;
+  });
+  expect(ambiguous).toMatch(/ambiguous base revisions and were left unchanged/);
+});
+
+test("editor unmount awaits the active save drain, permits heartbeat, and releases exactly once", async ({ page }) => {
+  await openWorkspace(page, "studio-drain-success");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  let acknowledgeSave!: () => void;
+  const saveAcknowledgement = new Promise<void>((resolveSave) => { acknowledgeSave = resolveSave; });
+  let saveStarted!: () => void;
+  const activeSave = new Promise<void>((resolveStarted) => { saveStarted = resolveStarted; });
+  let releases = 0;
+  await page.route("**/lease/release", async (route) => {
+    releases += 1;
+    await route.continue();
+  });
+  await page.route("**/v1/workspaces/*/documents/*", async (route) => {
+    const request = route.request();
+    if (request.method() === "PATCH") {
+      saveStarted();
+      await saveAcknowledgement;
+      await route.continue();
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await activeSave;
+  const heartbeat = await page.evaluate(async ({ workspace }) => {
+    const token = Object.entries(sessionStorage).find(([key]) => key.startsWith("ipw-editor-lease:"))?.[1];
+    const documentId = location.pathname.split("/")[4];
+    const csrf = document.cookie.split(";").map((part) => part.trim())
+      .find((part) => part.startsWith("ipw-csrf="))?.slice("ipw-csrf=".length);
+    const response = await fetch(`/v1/workspaces/${workspace}/documents/${documentId}/lease/heartbeat`, {
+      method: "POST",
+      headers: {
+        "idempotency-key": `editor-heartbeat-test-${crypto.randomUUID()}`,
+        "x-csrf-token": decodeURIComponent(csrf ?? ""),
+        "x-editor-lease": token ?? "",
+      },
+    });
+    return response.status;
+  }, { workspace: workspaceId });
+  expect(heartbeat).toBe(201);
+  await page.getByRole("button", { name: "Back to Home" }).click();
+  expect(releases).toBe(0);
+  acknowledgeSave();
+  await expect(page.getByTestId("workspace-home")).toBeVisible();
+  await expect.poll(() => releases).toBe(1);
+});
+
+test("failed save survives unmount without releasing its lease or duplicating recovery", async ({ page }) => {
+  await openWorkspace(page, "studio-drain-failure");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  let releases = 0;
+  await page.route("**/lease/release", async (route) => {
+    releases += 1;
+    await route.continue();
+  });
+  await page.route("**/v1/workspaces/*/documents/*", async (route) => {
+    const request = route.request();
+    if (request.method() === "PATCH") await route.abort("failed");
+    else await route.continue();
+  });
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.getByText("Save failed", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to Home" }).click();
+  await expect(page.getByTestId("workspace-home")).toBeVisible();
+  expect(releases).toBe(0);
+  expect(await page.evaluate(async () => new Promise<number>((resolveCount, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const count = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
+      count.onerror = () => reject(count.error);
+      count.onsuccess = () => resolveCount(count.result);
+    };
+  }))).toBe(1);
+});
+
+test("tab close preserves an unacknowledged edit without attempting lease release", async ({ page, context }) => {
+  await openWorkspace(page, "studio-drain-tab-close");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.goto(`/w/${workspaceId}/studio/new`);
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  let releases = 0;
+  await page.route("**/lease/release", async (route) => {
+    releases += 1;
+    await route.continue();
+  });
+  await page.route("**/v1/workspaces/*/documents/*", async (route) => {
+    const request = route.request();
+    if (request.method() === "PATCH") await route.abort("failed");
+    else await route.continue();
+  });
+  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await expect(page.getByText("Save failed", { exact: true })).toBeVisible();
+  const observer = await context.newPage();
+  await observer.goto("/guest/upload");
+  await page.close();
+  expect(releases).toBe(0);
+  expect(await observer.evaluate(async () => new Promise<number>((resolveCount, reject) => {
+    const open = indexedDB.open("ipw-editor-journal-v1");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const count = open.result.transaction("pending-operations", "readonly").objectStore("pending-operations").count();
+      count.onerror = () => reject(count.error);
+      count.onsuccess = () => resolveCount(count.result);
+    };
+  }))).toBe(1);
+  await observer.close();
 });
 
 test("autosave conflict offers explicit recovery without discarding pending work", async ({ page }) => {

@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertSafeJournalEntry, retryDelay, type PendingEditorOperation } from "../src/editor/editorJournal.ts";
+import {
+  assertReplayContinuity,
+  assertSafeJournalEntry,
+  retryDelay,
+  type PendingEditorOperation,
+} from "../src/editor/editorJournal.ts";
+import { SingleFlight } from "../src/editor/singleFlight.ts";
 
 function entry(): PendingEditorOperation {
   return {
     actorId: "actor-editor",
     workspaceId: "workspace-editor",
     documentId: "document-editor",
+    sequence: 1,
     journalId: "journal-editor",
     operationId: "document-operation-editor",
     baseDocumentVersionId: "document-version-editor",
@@ -34,6 +41,35 @@ test("editor recovery entries carry ordered replay identity without private tran
     () => assertSafeJournalEntry({ ...entry(), baseRevision: -1 }),
     /invalid base revision/,
   );
+});
+
+test("editor recovery replay follows durable sequence and base revision continuity", () => {
+  const first = entry();
+  const second = { ...entry(), journalId: "journal-editor-2", sequence: 2, baseRevision: 5 };
+  assert.doesNotThrow(() => assertReplayContinuity([first, second]));
+  assert.throws(
+    () => assertReplayContinuity([{ ...first, sequence: 3 }, second]),
+    /divergent durable sequence/,
+  );
+  assert.throws(
+    () => assertReplayContinuity([first, { ...second, baseRevision: 7 }]),
+    /base revision continuity/,
+  );
+});
+
+test("concurrent drain callers await one shared in-flight operation", async () => {
+  const coordinator = new SingleFlight<void>();
+  let release!: () => void;
+  let calls = 0;
+  const controlled = new Promise<void>((resolve) => { release = resolve; });
+  const first = coordinator.run(async () => { calls += 1; await controlled; });
+  const second = coordinator.run(async () => { calls += 1; });
+  assert.equal(first, second);
+  assert.equal(coordinator.inFlight, true);
+  release();
+  await Promise.all([first, second]);
+  assert.equal(calls, 1);
+  assert.equal(coordinator.inFlight, false);
 });
 
 test("editor save retry uses bounded exponential backoff", () => {

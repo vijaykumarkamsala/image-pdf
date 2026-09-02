@@ -9,10 +9,12 @@ import {
   removePendingOperation,
   retryDelay,
   updatePendingOperation,
+  type NewPendingEditorOperation,
   type PendingEditorOperation,
 } from "./editorJournal";
 import { EditorTabCoordinator } from "./editorTabs";
 import { applyOptimisticMutation } from "./nativeOperations";
+import { SingleFlight } from "./singleFlight";
 
 export type SaveState = "saved" | "saving" | "offline" | "conflict" | "failed" | "read-only";
 
@@ -22,7 +24,9 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
   const actorIdRef = useRef("");
   const leaseRef = useRef("");
   const pendingRef = useRef<PendingEditorOperation[]>([]);
-  const drainingRef = useRef(false);
+  const drainFlightRef = useRef(new SingleFlight<void>());
+  const releaseFlightRef = useRef(new SingleFlight<boolean>());
+  const journalWritesRef = useRef<Promise<void>>(Promise.resolve());
   const retryTimerRef = useRef<number | null>(null);
   const acquireKeyRef = useRef(`editor-lease-${crypto.randomUUID()}`);
   const leaseStorageKeyRef = useRef("");
@@ -65,18 +69,18 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
   }, []);
 
   const scheduleDrain = useCallback((delay: number, drain: () => Promise<void>) => {
+    if (!mountedRef.current) return;
     if (retryTimerRef.current !== null) window.clearTimeout(retryTimerRef.current);
     retryTimerRef.current = window.setTimeout(() => void drain(), delay);
   }, []);
 
-  const drain = useCallback(async function drainQueue(): Promise<void> {
-    if (drainingRef.current || !leaseRef.current || pendingRef.current.length === 0) return;
-    if (!navigator.onLine) {
-      if (mountedRef.current) setSaveState("offline");
-      return;
-    }
-    drainingRef.current = true;
-    try {
+  const drain = useCallback(function drainQueue(): Promise<void> {
+    return drainFlightRef.current.run(async () => {
+      if (!leaseRef.current || pendingRef.current.length === 0) return;
+      if (!navigator.onLine) {
+        if (mountedRef.current) setSaveState("offline");
+        return;
+      }
       while (pendingRef.current.length > 0 && leaseRef.current && navigator.onLine) {
         const operation = pendingRef.current[0]!;
         const wait = operation.nextAttemptAt - Date.now();
@@ -143,10 +147,28 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
           return;
         }
       }
-    } finally {
-      drainingRef.current = false;
-    }
+    });
   }, [documentId, publish, scheduleDrain, workspaceId]);
+
+  const flushPending = useCallback(async () => {
+    await journalWritesRef.current;
+    await drain();
+  }, [drain]);
+
+  const releaseLeaseAfterDrain = useCallback(async () => {
+    await flushPending();
+    if (pendingRef.current.length > 0 || !leaseRef.current) return false;
+    return releaseFlightRef.current.run(async () => {
+      const token = leaseRef.current;
+      if (!token || pendingRef.current.length > 0) return false;
+      await api.releaseDocumentLease(workspaceId, documentId, token);
+      if (leaseRef.current === token) {
+        leaseRef.current = "";
+        if (leaseStorageKeyRef.current) sessionStorage.removeItem(leaseStorageKeyRef.current);
+      }
+      return true;
+    });
+  }, [documentId, flushPending, workspaceId]);
 
   const acquire = useCallback(async () => {
     try {
@@ -236,23 +258,18 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
       unsubscribeRelease();
       if (retryTimerRef.current !== null) window.clearTimeout(retryTimerRef.current);
       void (async () => {
-        await drain();
+        await flushPending();
         if (unloadingRef.current) {
           tabRef.current?.dispose();
           tabRef.current = null;
           return;
         }
-        const token = leaseRef.current;
-        if (token && pendingRef.current.length === 0) {
-          await api.releaseDocumentLease(workspaceId, documentId, token).catch(() => undefined);
-          leaseRef.current = "";
-          if (leaseStorageKeyRef.current) sessionStorage.removeItem(leaseStorageKeyRef.current);
-        }
+        await releaseLeaseAfterDrain().catch(() => false);
         tabRef.current?.dispose();
         tabRef.current = null;
       })();
     };
-  }, [acquire, documentId, drain, publish, workspaceId]);
+  }, [acquire, documentId, flushPending, publish, releaseLeaseAfterDrain, workspaceId]);
 
   useEffect(() => {
     if (!leaseHeld) return;
@@ -301,33 +318,40 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
 
   const commit = useCallback((mutation: EditorMutation) => {
     if (!leaseRef.current || saveStateRef.current === "read-only" || saveStateRef.current === "conflict") return;
-    const current = editorRef.current;
-    const server = serverRef.current;
-    if (!current || !server || !actorIdRef.current) return;
-    const operation: PendingEditorOperation = {
-      actorId: actorIdRef.current,
-      workspaceId,
-      documentId,
-      journalId: `journal-${crypto.randomUUID()}`,
-      operationId: `document-operation-${crypto.randomUUID()}`,
-      baseDocumentVersionId: server.document.current_version_id,
-      baseRevision: current.snapshot.revision,
-      idempotencyKey: `editor-mutation-${crypto.randomUUID()}`,
-      traceId: createTraceId(),
-      mutation: structuredClone(mutation),
-      createdAt: new Date().toISOString(),
-      attempts: 0,
-      nextAttemptAt: 0,
-    };
-    void appendPendingOperation(operation).then(() => {
-      pendingRef.current.push(operation);
+    const write = journalWritesRef.current.then(async () => {
+      const current = editorRef.current;
+      const server = serverRef.current;
+      if (!current || !server || !actorIdRef.current || !leaseRef.current) return;
+      const operation: NewPendingEditorOperation = {
+        actorId: actorIdRef.current,
+        workspaceId,
+        documentId,
+        journalId: `journal-${crypto.randomUUID()}`,
+        operationId: `document-operation-${crypto.randomUUID()}`,
+        baseDocumentVersionId: server.document.current_version_id,
+        baseRevision: current.snapshot.revision,
+        idempotencyKey: `editor-mutation-${crypto.randomUUID()}`,
+        traceId: createTraceId(),
+        mutation: structuredClone(mutation),
+        createdAt: new Date().toISOString(),
+        attempts: 0,
+        nextAttemptAt: 0,
+      };
+      const persisted = await appendPendingOperation(operation);
+      pendingRef.current.push(persisted);
       publish(serverRef.current, pendingRef.current);
-      setSaveState(navigator.onLine ? "saving" : "offline");
-      setMessage(navigator.onLine ? null : "Your edits are stored on this device and will sync when you reconnect.");
+      if (mountedRef.current) {
+        setSaveState(navigator.onLine ? "saving" : "offline");
+        setMessage(navigator.onLine ? null : "Your edits are stored on this device and will sync when you reconnect.");
+      }
       void drain();
-    }).catch((reason: unknown) => {
-      setSaveState("failed");
-      setMessage(reason instanceof Error ? reason.message : "This edit could not enter durable recovery");
+    });
+    journalWritesRef.current = write.then(() => undefined, () => undefined);
+    void write.catch((reason: unknown) => {
+      if (mountedRef.current) {
+        setSaveState("failed");
+        setMessage(reason instanceof Error ? reason.message : "This edit could not enter durable recovery");
+      }
     });
   }, [documentId, drain, publish, workspaceId]);
 
@@ -367,19 +391,14 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
   }, [documentId, workspaceId]);
 
   const releaseForTakeover = useCallback(async () => {
-    await drain();
-    if (pendingRef.current.length || !leaseRef.current) return false;
-    const token = leaseRef.current;
-    await api.releaseDocumentLease(workspaceId, documentId, token);
-    leaseRef.current = "";
-    if (leaseStorageKeyRef.current) sessionStorage.removeItem(leaseStorageKeyRef.current);
+    if (!await releaseLeaseAfterDrain()) return false;
     setLeaseHeld(false);
     setTakeoverRequest(null);
     setSaveState("read-only");
     setMessage("Your saved work is secure. Editing access was released to the requester.");
     tabRef.current?.release();
     return true;
-  }, [documentId, drain, workspaceId]);
+  }, [releaseLeaseAfterDrain]);
 
   const reapplyPending = useCallback(async () => {
     const current = await api.document(workspaceId, documentId);
@@ -412,7 +431,7 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
     commit,
     replaceServer,
     adoptLease,
-    flushPending: drain,
+    flushPending,
     retryPending,
     reloadCurrent,
     reapplyPending,
