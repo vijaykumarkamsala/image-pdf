@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
+from ipw.contracts.enhancement import ENHANCEMENT_SCHEMA_EXPORTS
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
 
 
@@ -347,6 +348,8 @@ class UploadSessionState(StrEnum):
 class ProcessingJobKind(StrEnum):
     FILE_INTAKE_INSPECTION = "file_intake_inspection"
     PREVIEW_GENERATION = "preview_generation"
+    IMAGE_EXPORT = "image_export"
+    EXPORT_BUNDLE = "export_bundle"
 
 
 class StudioEditableMediaType(StrEnum):
@@ -581,6 +584,8 @@ class ProcessingJobRecord(ProductKernelContractModel):
     guest_session_id: SlugId | None = None
     upload_session_id: SlugId | None = None
     document_id: SlugId | None = None
+    export_request_id: SlugId | None = None
+    bundle_id: SlugId | None = None
     state: ProcessingJobState
     attempt: int = Field(ge=0)
     max_attempts: int = Field(ge=1)
@@ -606,7 +611,23 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
         )
-        if not (intake or preview):
+        image_export = (
+            self.kind == ProcessingJobKind.IMAGE_EXPORT
+            and self.document_id is not None
+            and self.export_request_id is not None
+            and self.bundle_id is None
+            and self.upload_session_id is None
+            and self.owner_kind == UploadOwnerKind.ACTOR
+        )
+        bundle = (
+            self.kind == ProcessingJobKind.EXPORT_BUNDLE
+            and self.document_id is None
+            and self.export_request_id is not None
+            and self.bundle_id is not None
+            and self.upload_session_id is None
+            and self.owner_kind == UploadOwnerKind.ACTOR
+        )
+        if not (intake or preview or image_export or bundle):
             raise ValueError("processing job target must match its kind")
         return self
 
@@ -796,3 +817,4 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
 }
 
 PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)
+PRODUCT_SCHEMA_EXPORTS.update(ENHANCEMENT_SCHEMA_EXPORTS)

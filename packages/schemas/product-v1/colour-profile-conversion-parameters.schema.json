@@ -1,0 +1,38 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/colour-profile-conversion-parameters.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "black_point_compensation": {
+      "default": true,
+      "title": "Black Point Compensation",
+      "type": "boolean"
+    },
+    "rendering_intent": {
+      "default": "perceptual",
+      "enum": [
+        "perceptual",
+        "relative_colorimetric"
+      ],
+      "title": "Rendering Intent",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.18.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "target_profile": {
+      "default": "srgb",
+      "enum": [
+        "preserve",
+        "srgb",
+        "display-p3"
+      ],
+      "title": "Target Profile",
+      "type": "string"
+    }
+  },
+  "title": "ColourProfileConversionParameters",
+  "type": "object"
+}

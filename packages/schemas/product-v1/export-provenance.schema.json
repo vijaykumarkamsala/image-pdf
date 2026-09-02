@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "MetadataPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "preserve_camera": {
+          "default": false,
+          "title": "Preserve Camera",
+          "type": "boolean"
+        },
+        "preserve_capture_time": {
+          "default": false,
+          "title": "Preserve Capture Time",
+          "type": "boolean"
+        },
+        "preserve_copyright": {
+          "default": true,
+          "title": "Preserve Copyright",
+          "type": "boolean"
+        },
+        "preserve_description": {
+          "default": false,
+          "title": "Preserve Description",
+          "type": "boolean"
+        },
+        "preserve_location": {
+          "const": false,
+          "default": false,
+          "title": "Preserve Location",
+          "type": "boolean"
+        },
+        "remove_embedded_thumbnails": {
+          "const": true,
+          "default": true,
+          "title": "Remove Embedded Thumbnails",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.18.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "MetadataPolicy",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/export-provenance.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "deterministic": {
+      "title": "Deterministic",
+      "type": "boolean"
+    },
+    "document_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Id",
+      "type": "string"
+    },
+    "document_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Version Id",
+      "type": "string"
+    },
+    "job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "metadata_policy": {
+      "$ref": "#/$defs/MetadataPolicy"
+    },
+    "output_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Output Id",
+      "type": "string"
+    },
+    "output_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Output Sha256",
+      "type": "string"
+    },
+    "parameters_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Parameters Sha256",
+      "type": "string"
+    },
+    "processor_name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Processor Name",
+      "type": "string"
+    },
+    "processor_version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Processor Version",
+      "type": "string"
+    },
+    "provenance_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Provenance Id",
+      "type": "string"
+    },
+    "recipe_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Recipe Id",
+      "type": "string"
+    },
+    "recipe_version": {
+      "minimum": 1,
+      "title": "Recipe Version",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": "1.18.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_version_ids": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "title": "Source Version Ids",
+      "type": "array"
+    },
+    "trace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "provenance_id",
+    "output_id",
+    "workspace_id",
+    "document_id",
+    "document_version_id",
+    "source_version_ids",
+    "recipe_id",
+    "recipe_version",
+    "processor_name",
+    "processor_version",
+    "deterministic",
+    "parameters_sha256",
+    "output_sha256",
+    "metadata_policy",
+    "trace_id",
+    "job_id",
+    "created_at"
+  ],
+  "title": "ExportProvenance",
+  "type": "object"
+}
