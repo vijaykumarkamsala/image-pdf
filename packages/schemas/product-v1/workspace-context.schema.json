@@ -169,7 +169,14 @@
         "document.read",
         "document.edit",
         "document.version",
-        "document.lease.takeover"
+        "document.lease.takeover",
+        "recipe.create",
+        "recipe.read",
+        "recipe.update",
+        "export.create",
+        "export.read",
+        "export.cancel",
+        "export.retry"
       ],
       "title": "Permission",
       "type": "string"

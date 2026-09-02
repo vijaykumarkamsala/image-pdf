@@ -330,6 +330,7 @@
     },
     "ImageOperationKind": {
       "enum": [
+        "orientation_normalize",
         "crop",
         "rotate",
         "flip",
@@ -410,6 +411,33 @@
         }
       },
       "title": "NoiseReductionParameters",
+      "type": "object"
+    },
+    "OrientationNormalizeParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "apply_exactly_once": {
+          "const": true,
+          "default": true,
+          "title": "Apply Exactly Once",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.18.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_orientation": {
+          "maximum": 8,
+          "minimum": 2,
+          "title": "Source Orientation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_orientation"
+      ],
+      "title": "OrientationNormalizeParameters",
       "type": "object"
     },
     "ResamplingAlgorithm": {
@@ -708,6 +736,9 @@
     },
     "parameters": {
       "anyOf": [
+        {
+          "$ref": "#/$defs/OrientationNormalizeParameters"
+        },
         {
           "$ref": "#/$defs/CropParameters"
         },

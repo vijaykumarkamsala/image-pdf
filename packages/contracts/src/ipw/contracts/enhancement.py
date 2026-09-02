@@ -22,6 +22,7 @@ class EnhancementContractModel(ContractModel):
 
 
 class ImageOperationKind(StrEnum):
+    ORIENTATION_NORMALIZE = "orientation_normalize"
     CROP = "crop"
     ROTATE = "rotate"
     FLIP = "flip"
@@ -55,6 +56,11 @@ class CropParameters(EnhancementContractModel):
         if self.right <= self.left or self.bottom <= self.top:
             raise ValueError("crop must have positive area")
         return self
+
+
+class OrientationNormalizeParameters(EnhancementContractModel):
+    source_orientation: int = Field(ge=2, le=8)
+    apply_exactly_once: Literal[True] = True
 
 
 class RotateParameters(EnhancementContractModel):
@@ -216,7 +222,8 @@ class ResamplingScaleParameters(EnhancementContractModel):
 
 
 OperationParameters = (
-    CropParameters
+    OrientationNormalizeParameters
+    | CropParameters
     | RotateParameters
     | FlipParameters
     | ResizeParameters
@@ -239,6 +246,7 @@ OperationParameters = (
 
 
 _PARAMETER_MODELS: dict[ImageOperationKind, type[EnhancementContractModel]] = {
+    ImageOperationKind.ORIENTATION_NORMALIZE: OrientationNormalizeParameters,
     ImageOperationKind.CROP: CropParameters,
     ImageOperationKind.ROTATE: RotateParameters,
     ImageOperationKind.FLIP: FlipParameters,
@@ -318,6 +326,12 @@ class RecommendationEvidenceKind(StrEnum):
     HEURISTIC = "heuristic"
 
 
+class RecommendationTargetKind(StrEnum):
+    PROCESSING_OPERATION = "processing_operation"
+    METADATA_POLICY = "metadata_policy"
+    OUTPUT_WARNING = "output_warning"
+
+
 class RecommendationEvidence(EnhancementContractModel):
     kind: RecommendationEvidenceKind
     explanation: NonEmptyStr
@@ -328,8 +342,20 @@ class SafeRecommendation(EnhancementContractModel):
     title: NonEmptyStr
     explanation: NonEmptyStr
     evidence: tuple[RecommendationEvidence, ...]
-    operation: ImageOperation
+    target_kind: RecommendationTargetKind
+    operation: ImageOperation | None = None
+    metadata_policy: MetadataPolicy | None = None
     state: Literal["proposed", "accepted", "declined"] = "proposed"
+
+    @model_validator(mode="after")
+    def _target_has_matching_action(self) -> SafeRecommendation:
+        processing = self.target_kind is RecommendationTargetKind.PROCESSING_OPERATION
+        metadata = self.target_kind is RecommendationTargetKind.METADATA_POLICY
+        if processing != (self.operation is not None):
+            raise ValueError("processing recommendation requires exactly one operation")
+        if metadata != (self.metadata_policy is not None):
+            raise ValueError("metadata recommendation requires exactly one metadata policy")
+        return self
 
 
 class RecommendationSet(EnhancementContractModel):

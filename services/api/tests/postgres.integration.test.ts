@@ -11,6 +11,7 @@ import { PostgresGuestHandoffRepository } from "../src/domains/intake/guest-hand
 import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
 import { PostgresExperienceRepository } from "../src/domains/experience/postgres-experience.repository.js";
 import { PostgresDocumentRepository } from "../src/domains/documents/postgres-document.repository.js";
+import { PostgresImageExportRepository } from "../src/domains/exports/postgres-image-export.repository.js";
 import { DocumentsService } from "../src/domains/documents/documents.service.js";
 import { IdentityBoundary } from "../src/domains/identity/identity.service.js";
 import type { AuthRepository } from "../src/domains/identity/auth.types.js";
@@ -861,6 +862,152 @@ test(
       assert.deepEqual(handoffNotifications.rows, [{ kind: "guest_handoff_completed", resource_id: handedOff.fileId }]);
     } finally {
       await repository.close();
+    }
+  },
+);
+
+test(
+  "PostgreSQL 17 persists recipes, recommendations and atomic image export jobs",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    const pool = new Pool({ connectionString, max: 8 });
+    const runtime = new DeterministicRuntimeValues("2026-09-02T08:00:00.000Z");
+    for (let index = 0; index < 6000; index += 1) runtime.id("export-seed");
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    const exports = new PostgresImageExportRepository(pool, runtime);
+    try {
+      await runMigrations(pool);
+      const owner = await product.bootstrap(context("actor-export-pg", "export-bootstrap-pg", "session.bootstrap", {}));
+      const outsider = await product.bootstrap(context("actor-export-outsider-pg", "export-outsider-bootstrap-pg", "session.bootstrap", {}));
+      const workspaceId = owner.workspace.workspace_id;
+      const created = await documents.create(
+        context("actor-export-pg", "export-document-pg", "document.create", { workspaceId }),
+        {
+          workspaceId,
+          defaultFilesId: owner.defaultFiles.default_files_id,
+          name: "PostgreSQL export artboard",
+          intendedUse: "digital",
+          intendedUseLabel: "Digital design",
+          width: 640,
+          height: 360,
+        },
+      );
+      const documentId = created.value.document.document_id;
+      const recipeInput = {
+        workspaceId,
+        documentId,
+        name: "PostgreSQL clean-up",
+        operations: [{
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          operation_id: "operation-export-pg",
+          kind: "contrast" as const,
+          order: 0,
+          enabled: true,
+          parameters: { schema_version: PRODUCT_SCHEMA_VERSION, amount: 8 },
+        }],
+      };
+      const recipe = await exports.createRecipe(
+        context("actor-export-pg", "export-recipe-pg", "recipe.save", recipeInput),
+        recipeInput,
+      );
+      const recipeReplay = await exports.createRecipe(
+        context("actor-export-pg", "export-recipe-pg", "recipe.save", recipeInput),
+        recipeInput,
+      );
+      assert.equal(recipeReplay.replayed, true);
+      assert.equal(recipeReplay.value.recipe_id, recipe.value.recipe_id);
+
+      const recommendationInput = {
+        workspaceId,
+        documentId,
+        documentVersionId: created.value.document.current_version_id,
+        intendedOutcome: "digital" as const,
+      };
+      const recommendations = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-pg", "recommendations.request", recommendationInput),
+        recommendationInput,
+      );
+      assert.equal(recommendations.value.no_correction_needed, true);
+      assert.equal(recommendations.value.recommendations.length, 0);
+      const preview = await exports.preview("actor-export-pg", workspaceId, documentId, recipe.value, "side_by_side");
+      assert.equal(preview.width, 640);
+      assert.equal(preview.height, 360);
+
+      const submitInput = {
+        workspaceId,
+        documentId,
+        documentVersionId: created.value.document.current_version_id,
+        recipeId: recipe.value.recipe_id,
+        recipeVersion: recipe.value.version,
+        outputs: [{
+          artboardId: created.value.snapshot.artboards[0].artboard_id,
+          filename: "postgres-export.png",
+          profile: {
+            schema_version: PRODUCT_SCHEMA_VERSION,
+            profile_id: "profile-export-pg",
+            name: "PostgreSQL PNG",
+            purpose: "web" as const,
+            format: "png" as const,
+            width: 320,
+            height: 180,
+            percentage: null,
+            physical_width: null,
+            physical_height: null,
+            physical_unit: null,
+            ppi: null,
+            fit: "contain" as const,
+            quality: null,
+            lossless: false,
+            resampling_algorithm: "lanczos" as const,
+            colour_profile: "srgb" as const,
+            bit_depth: 8 as const,
+            alpha_behavior: "preserve" as const,
+            background: null,
+            metadata_policy: {
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              preserve_copyright: true,
+              preserve_description: false,
+              preserve_capture_time: false,
+              preserve_camera: false,
+              preserve_location: false as const,
+              remove_embedded_thumbnails: true as const,
+            },
+            chroma_subsampling: null,
+            filename_template: "{document}-{artboard}-{profile}",
+            collision_behavior: "suffix" as const,
+          },
+        }],
+      };
+      const submitted = await exports.submit(
+        context("actor-export-pg", "export-submit-pg", "export.submit", submitInput),
+        submitInput,
+      );
+      const replay = await exports.submit(
+        context("actor-export-pg", "export-submit-pg", "export.submit", submitInput),
+        submitInput,
+      );
+      assert.equal(replay.replayed, true);
+      assert.equal(replay.value.job_id, submitted.value.job_id);
+      assert.equal(await exports.get("actor-export-outsider-pg", outsider.workspace.workspace_id, submitted.value.export_request_id), null);
+      const durable = await pool.query(
+        `SELECT job.kind,job.state,outbox.state AS outbox_state,output.state AS output_state
+         FROM processing_jobs job JOIN job_outbox outbox USING(job_id)
+         JOIN image_export_outputs output ON output.export_request_id=job.export_request_id
+         WHERE job.job_id=$1`,
+        [submitted.value.job_id],
+      );
+      assert.deepEqual(durable.rows, [{ kind: "image_export", state: "queued", outbox_state: "pending", output_state: "queued" }]);
+      const ledger = await pool.query(
+        "SELECT customer_amount,credit_debit FROM usage_events WHERE workspace_id=$1 AND event_kind='export.submitted'",
+        [workspaceId],
+      );
+      assert.equal(ledger.rowCount, 1);
+      assert.equal(Number(ledger.rows[0]!.customer_amount), 0);
+      assert.equal(ledger.rows[0]!.credit_debit, 0);
+    } finally {
+      await pool.end();
     }
   },
 );

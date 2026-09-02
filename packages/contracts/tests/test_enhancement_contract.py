@@ -27,6 +27,7 @@ def operation(kind: str, parameters: dict[str, Any], order: int = 0) -> ImageOpe
 @pytest.mark.parametrize(
     ("kind", "parameters"),
     [
+        ("orientation_normalize", {"source_orientation": 6}),
         ("crop", {"left": 0, "top": 0, "right": 1, "bottom": 1}),
         ("rotate", {"degrees": 90}),
         ("flip", {"horizontal": True}),

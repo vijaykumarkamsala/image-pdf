@@ -426,11 +426,11 @@ export interface ImageOperation {
   kind: ImageOperationKind;
   order: number;
   enabled?: boolean;
-  parameters: CropParameters | RotateParameters | FlipParameters | ResizeParameters | ExposureBrightnessParameters | ContrastParameters | HighlightsShadowsParameters | WhiteBalanceParameters | TintParameters | SaturationVibranceParameters | GammaParameters | LevelsParameters | CurvesParameters | GrayscaleParameters | UnsharpMaskParameters | NoiseReductionParameters | ColourProfileConversionParameters | AlphaBackgroundParameters | ResamplingScaleParameters;
+  parameters: OrientationNormalizeParameters | CropParameters | RotateParameters | FlipParameters | ResizeParameters | ExposureBrightnessParameters | ContrastParameters | HighlightsShadowsParameters | WhiteBalanceParameters | TintParameters | SaturationVibranceParameters | GammaParameters | LevelsParameters | CurvesParameters | GrayscaleParameters | UnsharpMaskParameters | NoiseReductionParameters | ColourProfileConversionParameters | AlphaBackgroundParameters | ResamplingScaleParameters;
 }
 
-export type ImageOperationKind = "crop" | "rotate" | "flip" | "resize" | "exposure_brightness" | "contrast" | "highlights_shadows" | "white_balance_temperature" | "tint" | "saturation_vibrance" | "gamma" | "levels" | "curves" | "grayscale" | "unsharp_mask" | "noise_reduction" | "colour_profile_conversion" | "alpha_background" | "resampling_scale";
-export const ImageOperationKindValues: readonly ImageOperationKind[] = ["crop", "rotate", "flip", "resize", "exposure_brightness", "contrast", "highlights_shadows", "white_balance_temperature", "tint", "saturation_vibrance", "gamma", "levels", "curves", "grayscale", "unsharp_mask", "noise_reduction", "colour_profile_conversion", "alpha_background", "resampling_scale"] as const;
+export type ImageOperationKind = "orientation_normalize" | "crop" | "rotate" | "flip" | "resize" | "exposure_brightness" | "contrast" | "highlights_shadows" | "white_balance_temperature" | "tint" | "saturation_vibrance" | "gamma" | "levels" | "curves" | "grayscale" | "unsharp_mask" | "noise_reduction" | "colour_profile_conversion" | "alpha_background" | "resampling_scale";
+export const ImageOperationKindValues: readonly ImageOperationKind[] = ["orientation_normalize", "crop", "rotate", "flip", "resize", "exposure_brightness", "contrast", "highlights_shadows", "white_balance_temperature", "tint", "saturation_vibrance", "gamma", "levels", "curves", "grayscale", "unsharp_mask", "noise_reduction", "colour_profile_conversion", "alpha_background", "resampling_scale"] as const;
 
 export type ImportCompatibilityState = "compatible" | "limited" | "unsupported";
 export const ImportCompatibilityStateValues: readonly ImportCompatibilityState[] = ["compatible", "limited", "unsupported"] as const;
@@ -594,6 +594,12 @@ export interface NotificationRecord {
   read_at?: string | null;
 }
 
+export interface OrientationNormalizeParameters {
+  schema_version?: string;
+  source_orientation: number;
+  apply_exactly_once?: true;
+}
+
 export interface OutputSizeEstimate {
   schema_version?: string;
   minimum_bytes: number;
@@ -601,8 +607,8 @@ export interface OutputSizeEstimate {
   explanation: string;
 }
 
-export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover";
-export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover"] as const;
+export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover" | "recipe.create" | "recipe.read" | "recipe.update" | "export.create" | "export.read" | "export.cancel" | "export.retry";
+export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover", "recipe.create", "recipe.read", "recipe.update", "export.create", "export.read", "export.cancel", "export.retry"] as const;
 
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
@@ -681,6 +687,9 @@ export interface RecommendationEvidence {
 export type RecommendationEvidenceKind = "measured" | "heuristic";
 export const RecommendationEvidenceKindValues: readonly RecommendationEvidenceKind[] = ["measured", "heuristic"] as const;
 
+export type RecommendationTargetKind = "processing_operation" | "metadata_policy" | "output_warning";
+export const RecommendationTargetKindValues: readonly RecommendationTargetKind[] = ["processing_operation", "metadata_policy", "output_warning"] as const;
+
 export type ResamplingAlgorithm = "nearest" | "bilinear" | "bicubic" | "lanczos";
 export const ResamplingAlgorithmValues: readonly ResamplingAlgorithm[] = ["nearest", "bilinear", "bicubic", "lanczos"] as const;
 
@@ -739,7 +748,9 @@ export interface SafeRecommendation {
   title: string;
   explanation: string;
   evidence: RecommendationEvidence[];
-  operation: ImageOperation;
+  target_kind: RecommendationTargetKind;
+  operation?: ImageOperation | null;
+  metadata_policy?: MetadataPolicy | null;
   state?: "proposed" | "accepted" | "declined";
 }
 

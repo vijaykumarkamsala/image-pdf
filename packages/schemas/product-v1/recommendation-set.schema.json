@@ -352,6 +352,9 @@
         "parameters": {
           "anyOf": [
             {
+              "$ref": "#/$defs/OrientationNormalizeParameters"
+            },
+            {
               "$ref": "#/$defs/CropParameters"
             },
             {
@@ -428,6 +431,7 @@
     },
     "ImageOperationKind": {
       "enum": [
+        "orientation_normalize",
         "crop",
         "rotate",
         "flip",
@@ -494,6 +498,50 @@
       "title": "LevelsParameters",
       "type": "object"
     },
+    "MetadataPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "preserve_camera": {
+          "default": false,
+          "title": "Preserve Camera",
+          "type": "boolean"
+        },
+        "preserve_capture_time": {
+          "default": false,
+          "title": "Preserve Capture Time",
+          "type": "boolean"
+        },
+        "preserve_copyright": {
+          "default": true,
+          "title": "Preserve Copyright",
+          "type": "boolean"
+        },
+        "preserve_description": {
+          "default": false,
+          "title": "Preserve Description",
+          "type": "boolean"
+        },
+        "preserve_location": {
+          "const": false,
+          "default": false,
+          "title": "Preserve Location",
+          "type": "boolean"
+        },
+        "remove_embedded_thumbnails": {
+          "const": true,
+          "default": true,
+          "title": "Remove Embedded Thumbnails",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.18.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "MetadataPolicy",
+      "type": "object"
+    },
     "NoiseReductionParameters": {
       "additionalProperties": false,
       "properties": {
@@ -518,6 +566,33 @@
         }
       },
       "title": "NoiseReductionParameters",
+      "type": "object"
+    },
+    "OrientationNormalizeParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "apply_exactly_once": {
+          "const": true,
+          "default": true,
+          "title": "Apply Exactly Once",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.18.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_orientation": {
+          "maximum": 8,
+          "minimum": 2,
+          "title": "Source Orientation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_orientation"
+      ],
+      "title": "OrientationNormalizeParameters",
       "type": "object"
     },
     "RecommendationEvidence": {
@@ -551,6 +626,15 @@
         "heuristic"
       ],
       "title": "RecommendationEvidenceKind",
+      "type": "string"
+    },
+    "RecommendationTargetKind": {
+      "enum": [
+        "processing_operation",
+        "metadata_policy",
+        "output_warning"
+      ],
+      "title": "RecommendationTargetKind",
       "type": "string"
     },
     "ResamplingAlgorithm": {
@@ -743,8 +827,27 @@
           "title": "Explanation",
           "type": "string"
         },
+        "metadata_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetadataPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "operation": {
-          "$ref": "#/$defs/ImageOperation"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageOperation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "recommendation_id": {
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
@@ -766,6 +869,9 @@
           "title": "State",
           "type": "string"
         },
+        "target_kind": {
+          "$ref": "#/$defs/RecommendationTargetKind"
+        },
         "title": {
           "maxLength": 2048,
           "minLength": 1,
@@ -778,7 +884,7 @@
         "title",
         "explanation",
         "evidence",
-        "operation"
+        "target_kind"
       ],
       "title": "SafeRecommendation",
       "type": "object"

@@ -845,8 +845,9 @@ class PostgresWorkerRepository:
                     """INSERT INTO source_inspection_facts(
                          source_version_id,workspace_id,asset_original_id,object_reference_id,
                          source_sha256,storage_generation,media_type,byte_size,width,height,
-                         malware_scan_state,inspection_schema_version,inspected_at)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                         malware_scan_state,inspection_schema_version,inspected_at,orientation,
+                         has_alpha,bit_depth,has_icc_profile,sensitive_metadata)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)""",
                     (
                         source_id,
                         lease.workspace_id,
@@ -861,6 +862,11 @@ class PostgresWorkerRepository:
                         facts["malware_scan_state"],
                         facts["schema_version"],
                         instant,
+                        facts.get("orientation"),
+                        facts.get("has_alpha"),
+                        facts.get("bit_depth"),
+                        facts.get("has_icc_profile"),
+                        json.dumps(facts.get("sensitive_metadata", [])),
                     ),
                 )
                 cursor.execute(

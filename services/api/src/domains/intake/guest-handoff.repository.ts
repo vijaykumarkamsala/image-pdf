@@ -165,10 +165,16 @@ export class PostgresGuestHandoffRepository implements GuestHandoffRepository {
       const inspection = await client.query(
         `INSERT INTO source_inspection_facts(source_version_id,workspace_id,asset_original_id,object_reference_id,
          source_sha256,storage_generation,media_type,byte_size,width,height,malware_scan_state,
-         inspection_schema_version,inspected_at)
+         inspection_schema_version,inspected_at,orientation,has_alpha,bit_depth,has_icc_profile,
+         sensitive_metadata)
          SELECT $1,$2,$3,$4,$5::char(64),$6,$7,$8,
            (upload.source_facts->>'width')::integer,(upload.source_facts->>'height')::integer,
-           upload.source_facts->>'malware_scan_state',upload.source_facts->>'schema_version',$9
+           upload.source_facts->>'malware_scan_state',upload.source_facts->>'schema_version',$9,
+           NULLIF(upload.source_facts->>'orientation','')::integer,
+           NULLIF(upload.source_facts->>'has_alpha','')::boolean,
+           NULLIF(upload.source_facts->>'bit_depth','')::integer,
+           NULLIF(upload.source_facts->>'has_icc_profile','')::boolean,
+           COALESCE(upload.source_facts->'sensitive_metadata','[]'::jsonb)
          FROM upload_sessions upload WHERE upload.upload_session_id=$10 AND upload.state='ready'
            AND upload.source_facts->>'sha256'=$5::text`,
         [input.sourceVersionId, input.workspaceId, input.assetOriginalId, objectReferenceId,

@@ -101,6 +101,13 @@ class Permission(StrEnum):
     DOCUMENT_EDIT = "document.edit"
     DOCUMENT_VERSION = "document.version"
     DOCUMENT_LEASE_TAKEOVER = "document.lease.takeover"
+    RECIPE_CREATE = "recipe.create"
+    RECIPE_READ = "recipe.read"
+    RECIPE_UPDATE = "recipe.update"
+    EXPORT_CREATE = "export.create"
+    EXPORT_READ = "export.read"
+    EXPORT_CANCEL = "export.cancel"
+    EXPORT_RETRY = "export.retry"
 
 
 class PermissionOrigin(StrEnum):

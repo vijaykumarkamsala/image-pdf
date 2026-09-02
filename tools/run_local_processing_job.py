@@ -17,6 +17,11 @@ import pg8000.dbapi
 
 from ipw.inspection import DeterministicMalwareScanner
 from ipw.processing_worker.durable_intake import DispatchMessage, DurableIntakeProcessor
+from ipw.processing_worker.export_repository import PostgresImageExportWorkerRepository
+from ipw.processing_worker.image_export import (
+    DurableExportBundleProcessor,
+    DurableImageExportProcessor,
+)
 from ipw.processing_worker.preview import DurablePreviewProcessor
 from ipw.processing_worker.repository import PostgresWorkerRepository
 from ipw.storage import LocalWorkerPrivateObjectStore
@@ -81,6 +86,7 @@ def main() -> None:
         raise RuntimeError("IPW_TEST_DATABASE_URL and IPW_LOCAL_STORAGE_ROOT are required")
 
     repository = PostgresWorkerRepository.connect(database_url)
+    export_repository = PostgresImageExportWorkerRepository.connect(database_url)
     try:
         objects = LocalWorkerPrivateObjectStore(Path(storage_root))
         outbox_id, outbox_trace_id = consume_local_dispatch(database_url, args.job_id)
@@ -105,6 +111,20 @@ def main() -> None:
                 worker_id="recovery-2d-local-preview",
             )
             outcome = preview_processor.process(message)
+        elif kind == "image_export":
+            image_export_processor = DurableImageExportProcessor(
+                export_repository,
+                objects,
+                worker_id="recovery-2e-local-image-export",
+            )
+            outcome = image_export_processor.process(message)
+        elif kind == "export_bundle":
+            bundle_processor = DurableExportBundleProcessor(
+                export_repository,
+                objects,
+                worker_id="recovery-2e-local-export-bundle",
+            )
+            outcome = bundle_processor.process(message)
         else:
             raise RuntimeError(f"unsupported local acceptance job kind: {kind}")
         print(
@@ -120,6 +140,7 @@ def main() -> None:
         if outcome.state not in {"succeeded", "already_terminal"}:
             raise RuntimeError(f"local worker did not complete the job: {outcome.state}")
     finally:
+        export_repository.close()
         repository.close()
 
 

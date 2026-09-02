@@ -18,6 +18,11 @@ from ipw.processing_worker.durable_intake import (
     DurableIntakeProcessor,
     WorkerOutcome,
 )
+from ipw.processing_worker.export_repository import PostgresImageExportWorkerRepository
+from ipw.processing_worker.image_export import (
+    DurableExportBundleProcessor,
+    DurableImageExportProcessor,
+)
 from ipw.processing_worker.preview import DurablePreviewProcessor
 from ipw.processing_worker.repository import PostgresWorkerRepository
 from ipw.storage import GcsWorkerPrivateObjectStore
@@ -39,10 +44,14 @@ class DurableJobRouter:
         repository: PostgresWorkerRepository,
         intake: DurableIntakeProcessor,
         preview: DurablePreviewProcessor,
+        image_export: DurableImageExportProcessor,
+        export_bundle: DurableExportBundleProcessor,
     ) -> None:
         self._repository = repository
         self._intake = intake
         self._preview = preview
+        self._image_export = image_export
+        self._export_bundle = export_bundle
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
         kind = self._repository.job_kind(message.job_id)
@@ -50,6 +59,10 @@ class DurableJobRouter:
             return self._intake.process(message)
         if kind == "preview_generation":
             return self._preview.process(message)
+        if kind == "image_export":
+            return self._image_export.process(message)
+        if kind == "export_bundle":
+            return self._export_bundle.process(message)
         raise LookupError("processing job kind is not supported")
 
 
@@ -132,6 +145,7 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
     from ipw.inspection import production_malware_scanner
 
     repository = PostgresWorkerRepository.connect(env["IPW_DATABASE_URL"])
+    export_repository = PostgresImageExportWorkerRepository.connect(env["IPW_DATABASE_URL"])
     objects = GcsWorkerPrivateObjectStore(env["IPW_GCS_BUCKET"])
     intake = DurableIntakeProcessor(
         repository,
@@ -144,7 +158,17 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         objects,
         worker_id=env.get("HOSTNAME", "processing-worker"),
     )
-    processor = DurableJobRouter(repository, intake, preview)
+    image_export = DurableImageExportProcessor(
+        export_repository,
+        objects,
+        worker_id=env.get("HOSTNAME", "processing-worker"),
+    )
+    export_bundle = DurableExportBundleProcessor(
+        export_repository,
+        objects,
+        worker_id=env.get("HOSTNAME", "processing-worker"),
+    )
+    processor = DurableJobRouter(repository, intake, preview, image_export, export_bundle)
     verifier = GoogleOidcTaskIdentityVerifier(
         env["IPW_WORKER_OIDC_AUDIENCE"],
         env["IPW_CLOUD_TASKS_SERVICE_ACCOUNT"],
