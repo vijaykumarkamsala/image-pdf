@@ -154,8 +154,10 @@ export function ImageGraphicStudio() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<EditorRenderer | null>(null);
+  const renderRequestRef = useRef(0);
   const selectedRef = useRef<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [renderSettled, setRenderSettled] = useState(false);
   const [viewport, setViewport] = useState<RendererViewport>({ zoom: 1, panX: 0, panY: 0 });
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null } | null>(null);
   const [leftTab, setLeftTab] = useState("layers");
@@ -267,22 +269,36 @@ export function ImageGraphicStudio() {
     const observer = new ResizeObserver(([entry]) => renderer.resize(entry.contentRect.width, entry.contentRect.height));
     observer.observe(surface);
     renderer.resize(surface.clientWidth, surface.clientHeight);
-    return () => { observer.disconnect(); renderer.dispose(); rendererRef.current = null; };
+    return () => {
+      observer.disconnect();
+      renderRequestRef.current += 1;
+      renderer.dispose();
+      rendererRef.current = null;
+    };
   }, [commit, editorReady]);
 
   useEffect(() => rendererRef.current?.setReadOnly(readOnly), [readOnly]);
 
   useEffect(() => {
-    if (!editor || !rendererRef.current) return;
-    const selectedBeforeRender = selectedRef.current;
-    void rendererRef.current.render(
+    const renderer = rendererRef.current;
+    if (!editor || !renderer) return;
+    const request = ++renderRequestRef.current;
+    setRenderSettled(false);
+    void renderer.render(
       editor.snapshot,
       (sharedAssetId) => api.documentAssetSourceUrl(workspaceId, documentId, sharedAssetId),
-    ).then(() => {
-      rendererRef.current?.setReadOnly(readOnly);
-      rendererRef.current?.select(selectedBeforeRender);
+    ).then(async (result) => {
+      await renderer.whenSettled();
+      if (!result.applied || request !== renderRequestRef.current || rendererRef.current !== renderer) return;
+      renderer.setReadOnly(readOnly);
+      renderer.select(selectedRef.current);
+      setRenderSettled(true);
     })
-      .catch((reason: unknown) => setMessage(reason instanceof Error ? reason.message : "Preview could not be rendered"));
+      .catch((reason: unknown) => {
+        if (request === renderRequestRef.current && rendererRef.current === renderer) {
+          setMessage(reason instanceof Error ? reason.message : "Preview could not be rendered");
+        }
+      });
   }, [documentId, editor, readOnly, workspaceId]);
 
   const selected = useMemo(() => (editor?.snapshot.layers ?? []).find((item) => item.layer_id === selectedId) ?? null, [editor, selectedId]);
@@ -377,6 +393,9 @@ export function ImageGraphicStudio() {
     const first = activeArtboard() ?? current.snapshot.artboards[0];
     const order = current.snapshot.artboards.length;
     const id = `artboard-${crypto.randomUUID()}`;
+    selectedRef.current = null;
+    setSelectedId(null);
+    rendererRef.current?.select(null);
     commit({
       kind: "artboard.add",
       artboard: {
@@ -616,7 +635,7 @@ export function ImageGraphicStudio() {
     <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
       { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
       { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
-    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} />} />
+    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} />} />
     <Dialog open={saveAsOpen} title="Save a copy" onClose={() => setSaveAsOpen(false)}>
       <form className="modal-form" onSubmit={(event) => void saveAs(event)}>
         <TextInput autoFocus label="Graphic name" maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
@@ -634,14 +653,15 @@ export function ImageGraphicStudio() {
   </main>;
 }
 
-function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides }: {
+function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   editor: DocumentReadModel;
   viewport: RendererViewport;
   snapGuides: { x: number | null; y: number | null } | null;
+  renderSettled: boolean;
 }) {
-  return <div className="studio-canvas-shell" ref={surfaceRef}>
+  return <div className="studio-canvas-shell" ref={surfaceRef} data-render-settled={renderSettled ? "true" : "false"}>
     <div className="canvas-corner" aria-hidden="true" />
     <div className="canvas-ruler canvas-ruler-x" aria-hidden="true" />
     <div className="canvas-ruler canvas-ruler-y" aria-hidden="true" />

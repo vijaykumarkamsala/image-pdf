@@ -74,6 +74,8 @@ const screenshotOptions = {
 
 async function prepareVisualScreenshot(page: Page) {
   await expect(page.locator("body")).not.toContainText(/recovery/i);
+  const studioCanvas = page.locator(".studio-canvas-shell");
+  if (await studioCanvas.count()) await expect(studioCanvas).toHaveAttribute("data-render-settled", "true");
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     document: document.documentElement.scrollWidth,
@@ -1249,6 +1251,80 @@ test("native documents are discoverable, movable and reopen from customer naviga
   await defaultDocument.getByRole("button", { name: "Open" }).click();
   await expect(page).toHaveURL(documentUrl);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+});
+
+test("pending raster renders cannot overwrite the latest artboard, layer, or selection", async ({ page }) => {
+  test.slow();
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await openWorkspace(page, "studio-render-generation");
+  const workspaceId = new URL(page.url()).pathname.split("/")[2]!;
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  await page.locator('input[type="file"]').setInputFiles(resolve(repositoryRoot, "data/fixtures/images/synthetic-alpha-32.png"));
+  await page.getByRole("button", { name: /Upload 1 file/ }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 20_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("link", { name: "Files" }).first().click();
+  await page.locator(".file-card").filter({ hasText: "synthetic-alpha-32.png" }).getByRole("button", { name: "Create in Studio" }).click();
+  await page.getByLabel("Graphic name").fill("Generation race evidence");
+
+  let releaseSources!: () => void;
+  const sourceGate = new Promise<void>((resolveSource) => { releaseSources = resolveSource; });
+  let markSourceStarted!: () => void;
+  const sourceStarted = new Promise<void>((resolveStarted) => { markSourceStarted = resolveStarted; });
+  let sourceRequests = 0;
+  await page.route("**/documents/*/assets/*/source", async (route) => {
+    sourceRequests += 1;
+    markSourceStarted();
+    await sourceGate;
+    await route.continue().catch(() => undefined);
+  });
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
+  await sourceStarted;
+  await expect(page.locator(".studio-canvas-shell")).toHaveAttribute("data-render-settled", "false");
+  await page.getByRole("button", { name: "Artboard", exact: true }).click();
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" })).toBeVisible();
+  releaseSources();
+  await expect(page.locator(".studio-canvas-shell")).toHaveAttribute("data-render-settled", "true");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  expect(sourceRequests).toBeGreaterThanOrEqual(2);
+
+  await page.getByRole("tab", { name: "Artboards" }).click();
+  const secondArtboard = page.getByRole("list", { name: "Artboards" }).getByRole("button", { name: /Artboard 2/ });
+  await expect(secondArtboard).toHaveAttribute("aria-pressed", "true");
+  const model = await page.evaluate(async ({ workspace }) => {
+    const documentId = location.pathname.split("/")[4];
+    return fetch(`/v1/workspaces/${workspace}/documents/${documentId}`).then((response) => response.json());
+  }, { workspace: workspaceId }) as any;
+  const artboard2 = model.editor.snapshot.artboards.find((artboard: any) => artboard.name === "Artboard 2");
+  const rectangle = model.editor.snapshot.layers.find((layer: any) => layer.name === "Rectangle");
+  expect(rectangle.artboard_id).toBe(artboard2.artboard_id);
+  await page.getByRole("tab", { name: "Layers" }).click();
+  await expect(page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" })).toBeVisible();
+
+  await page.unroute("**/documents/*/assets/*/source");
+  let releaseDisposedSource!: () => void;
+  const disposedSourceGate = new Promise<void>((resolveSource) => { releaseDisposedSource = resolveSource; });
+  let markDisposedSourceStarted!: () => void;
+  const disposedSourceStarted = new Promise<void>((resolveStarted) => { markDisposedSourceStarted = resolveStarted; });
+  let markDisposedSourceFinished!: () => void;
+  const disposedSourceFinished = new Promise<void>((resolveFinished) => { markDisposedSourceFinished = resolveFinished; });
+  await page.route("**/documents/*/assets/*/source", async (route) => {
+    markDisposedSourceStarted();
+    await disposedSourceGate;
+    await route.continue().catch(() => undefined);
+    markDisposedSourceFinished();
+  });
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  await disposedSourceStarted;
+  await expect(page.locator(".studio-canvas-shell")).toHaveAttribute("data-render-settled", "false");
+  await page.getByRole("button", { name: "Back to Home" }).click();
+  await expect(page.getByTestId("workspace-home")).toBeVisible();
+  releaseDisposedSource();
+  await disposedSourceFinished;
+  expect(pageErrors).toEqual([]);
 });
 
 test("verified raster import remains linked while crop and adjustments autosave non-destructively", async ({ page }) => {

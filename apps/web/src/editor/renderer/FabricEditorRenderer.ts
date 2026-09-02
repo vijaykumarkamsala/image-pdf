@@ -14,7 +14,7 @@ import {
 } from "fabric";
 import type { EditableMaskRecord, EditorDocumentSnapshot, LayerRecord, LayerTransform, RichTextRun, SharedStyleRecord } from "ipw-contracts-ts/product";
 
-import type { EditorRenderer, EditorRendererCallbacks, RendererViewport } from "./EditorRenderer";
+import type { EditorRenderer, EditorRendererCallbacks, RendererResult, RendererViewport } from "./EditorRenderer";
 import { renderedToLayerTransform, snapCoordinate } from "./coordinates";
 
 const ARTBOARD_MARGIN = 64;
@@ -31,6 +31,8 @@ export class FabricEditorRenderer implements EditorRenderer {
   private lastPointer: { x: number; y: number } | null = null;
   private readOnly = false;
   private rendering = false;
+  private renderAbort: AbortController | null = null;
+  private settled: Promise<RendererResult> = Promise.resolve({ generation: 0, applied: false });
 
   mount(element: HTMLCanvasElement, callbacks: EditorRendererCallbacks): void {
     this.callbacks = callbacks;
@@ -78,9 +80,27 @@ export class FabricEditorRenderer implements EditorRenderer {
     });
   }
 
-  async render(snapshot: EditorDocumentSnapshot, assetSource?: string | ((sharedAssetId: string) => string)): Promise<void> {
-    const canvas = this.requireCanvas();
+  render(snapshot: EditorDocumentSnapshot, assetSource?: string | ((sharedAssetId: string) => string)): Promise<RendererResult> {
+    this.renderAbort?.abort();
+    const abort = new AbortController();
+    this.renderAbort = abort;
     const generation = ++this.generation;
+    const render = this.renderGeneration(generation, abort.signal, snapshot, assetSource);
+    this.settled = render;
+    return render;
+  }
+
+  whenSettled(): Promise<RendererResult> {
+    return this.settled;
+  }
+
+  private async renderGeneration(
+    generation: number,
+    signal: AbortSignal,
+    snapshot: EditorDocumentSnapshot,
+    assetSource?: string | ((sharedAssetId: string) => string),
+  ): Promise<RendererResult> {
+    const canvas = this.requireCanvas();
     this.rendering = true;
     try {
       const shouldFit = this.viewport.zoom === 1 && this.viewport.panX === 0 && this.viewport.panY === 0;
@@ -118,8 +138,8 @@ export class FabricEditorRenderer implements EditorRenderer {
           return artboardOrder || left.order - right.order || left.layer_id.localeCompare(right.layer_id);
         });
       for (const layer of layers) {
-        const object = await this.objectFor(layer, snapshot, assetSource);
-        if (generation !== this.generation) return;
+        const object = await this.objectFor(layer, snapshot, assetSource, signal);
+        if (signal.aborted || generation !== this.generation) return { generation, applied: false };
         if (!object) continue;
         const offset = this.artboardOffset(layer.artboard_id);
         this.configure(object, layer, offset, unitScale(snapshot.artboards.find((item) => item.artboard_id === layer.artboard_id)?.unit), true, snapshot.shared_styles ?? []);
@@ -131,6 +151,10 @@ export class FabricEditorRenderer implements EditorRenderer {
       canvas.requestRenderAll();
       if (shouldFit) this.fit();
       else this.applyViewport();
+      return { generation, applied: true };
+    } catch (error) {
+      if (signal.aborted || generation !== this.generation) return { generation, applied: false };
+      throw error;
     } finally {
       if (generation === this.generation) this.rendering = false;
     }
@@ -195,7 +219,10 @@ export class FabricEditorRenderer implements EditorRenderer {
   }
 
   dispose(): void {
+    this.renderAbort?.abort();
+    this.renderAbort = null;
     this.generation += 1;
+    this.rendering = false;
     this.canvas?.dispose();
     this.canvas = null;
     this.objects.clear();
@@ -205,6 +232,7 @@ export class FabricEditorRenderer implements EditorRenderer {
     layer: LayerRecord,
     snapshot: EditorDocumentSnapshot,
     assetSource?: string | ((sharedAssetId: string) => string),
+    signal?: AbortSignal,
   ): Promise<FabricObject | null> {
     const style = effectiveStyle(layer, snapshot.shared_styles ?? []);
     if (layer.layer_type === "shape" && layer.shape) {
@@ -250,7 +278,7 @@ export class FabricEditorRenderer implements EditorRenderer {
     }
     if (layer.layer_type === "raster_image" && layer.raster && assetSource) {
       const sourceUrl = typeof assetSource === "function" ? assetSource(layer.raster.shared_asset_id) : assetSource;
-      const response = await fetch(sourceUrl, { credentials: "same-origin", cache: "no-store" });
+      const response = await fetch(sourceUrl, { credentials: "same-origin", cache: "no-store", signal });
       if (!response.ok) throw new Error("The source preview could not be loaded");
       const blobUrl = URL.createObjectURL(await response.blob());
       try {
@@ -275,7 +303,8 @@ export class FabricEditorRenderer implements EditorRenderer {
         .filter((item) => item.parent_layer_id === layer.layer_id)
         .sort((left, right) => left.order - right.order || left.layer_id.localeCompare(right.layer_id));
       for (const childLayer of childLayers) {
-        const child = await this.objectFor(childLayer, snapshot, assetSource);
+        const child = await this.objectFor(childLayer, snapshot, assetSource, signal);
+        if (signal?.aborted) return null;
         if (!child) continue;
         this.configure(child, childLayer, { x: 0, y: 0 }, unitScale(snapshot.artboards.find((item) => item.artboard_id === layer.artboard_id)?.unit), false, snapshot.shared_styles ?? []);
         const maskId = childLayer.raster?.mask_ids?.[0] ?? childLayer.vector?.mask_ids?.[0];

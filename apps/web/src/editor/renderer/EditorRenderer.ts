@@ -13,9 +13,15 @@ export interface EditorRendererCallbacks {
   onSnap(guides: { x: number | null; y: number | null } | null): void;
 }
 
+export interface RendererResult {
+  generation: number;
+  applied: boolean;
+}
+
 export interface EditorRenderer {
   mount(element: HTMLCanvasElement, callbacks: EditorRendererCallbacks): void;
-  render(snapshot: EditorDocumentSnapshot, assetSource?: string | ((sharedAssetId: string) => string)): Promise<void>;
+  render(snapshot: EditorDocumentSnapshot, assetSource?: string | ((sharedAssetId: string) => string)): Promise<RendererResult>;
+  whenSettled(): Promise<RendererResult>;
   resize(width: number, height: number): void;
   select(layerId: string | null): void;
   setReadOnly(readOnly: boolean): void;

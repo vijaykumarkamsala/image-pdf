@@ -55,7 +55,10 @@ async function assertCanvasPainted(page: Page) {
 async function shot(page: Page, name: string, canvas = true) {
   await expect(page.locator("body")).not.toContainText(/recovery/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  if (canvas) await assertCanvasPainted(page);
+  if (canvas) {
+    await expect(page.locator(".studio-canvas-shell")).toHaveAttribute("data-render-settled", "true");
+    await assertCanvasPainted(page);
+  }
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await expect(page).toHaveScreenshot(name, screenshotOptions);
 }
@@ -69,10 +72,10 @@ async function uploadFixture(page: Page) {
 }
 
 for (const theme of ["light", "dark"] as const) {
-  test(`@visual @studio-state semantic and responsive evidence ${theme}`, async ({ page }) => {
+  test(`@visual @studio-state semantic and responsive evidence ${theme}`, async ({ page }, testInfo) => {
     test.slow();
     await page.setViewportSize({ width: 1440, height: 900 });
-    const workspaceId = await openWorkspace(page, `semantic-${theme}`, theme);
+    const workspaceId = await openWorkspace(page, `semantic-${theme}-${testInfo.repeatEachIndex}`, theme);
     const documentId = await createBlank(page, workspaceId, `Studio evidence ${theme}`);
 
     await shot(page, `studio-state-blank-1440x900-${theme}.png`);
@@ -90,10 +93,10 @@ for (const theme of ["light", "dark"] as const) {
 
     await page.getByRole("button", { name: "Artboard", exact: true }).click();
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Layers" }).click();
+    await page.locator(".layer-row").filter({ hasText: "Vector path" }).getByRole("button", { name: "Vector path Vector SVG" }).click();
     await page.getByRole("button", { name: "Shape", exact: true }).click();
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: "Artboards" }).click();
-    await shot(page, `studio-state-multiple-artboards-1440x900-${theme}.png`);
 
     await page.getByRole("button", { name: "Shape", exact: true }).click();
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
@@ -166,6 +169,25 @@ for (const theme of ["light", "dark"] as const) {
     }
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(documentId).toBeTruthy();
+  });
+
+  test(`@visual @studio-state multiple artboards keep the latest active canvas ${theme}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const workspaceId = await openWorkspace(page, `multiple-${theme}`, theme);
+    await createBlank(page, workspaceId, `Studio evidence ${theme}`);
+    await page.getByRole("button", { name: "Text", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "All Tools" }).click();
+    await page.getByRole("button", { name: /Vector path Add an editable internal path/ }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Properties" }).click();
+    await page.getByRole("button", { name: "Artboard", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Shape", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Artboards" }).click();
+    await expect(page.getByRole("list", { name: "Artboards" }).getByRole("button", { name: /Artboard 2/ })).toHaveAttribute("aria-pressed", "true");
+    await shot(page, `studio-state-multiple-artboards-1440x900-${theme}.png`);
   });
 
   test(`@visual @studio-state lease and save recovery evidence ${theme}`, async ({ page, context }) => {
