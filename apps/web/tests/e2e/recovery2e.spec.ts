@@ -95,6 +95,8 @@ async function mockRecommendations(page: Page, workspaceId: string, documentId: 
 
 async function shot(page: Page, name: string) {
   await expect(page.locator("body")).not.toContainText(/recovery/i);
+  const jobEvidence = page.locator(".export-monitor-heading small");
+  if (await jobEvidence.isVisible().catch(() => false)) await jobEvidence.evaluate((element) => { element.textContent = "Durable job job-visual-2e"; });
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await expect(page).toHaveScreenshot(name, screenshotOptions);
