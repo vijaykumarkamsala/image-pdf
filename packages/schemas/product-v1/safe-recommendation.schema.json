@@ -687,6 +687,7 @@
           "default": "lanczos"
         },
         "aspect_locked": {
+          "const": true,
           "default": true,
           "title": "Aspect Locked",
           "type": "boolean"
@@ -709,8 +710,7 @@
           "default": "contain",
           "enum": [
             "contain",
-            "cover",
-            "stretch"
+            "cover"
           ],
           "title": "Fit",
           "type": "string"

@@ -29,7 +29,6 @@ import type {
   DocumentVersionRecord,
   ImportCompatibilityReport,
   StudioSourceCandidate,
-  ComparisonMode,
   EnhancementPreview,
   ExportOutputProfile,
   ExportZipBundle,
@@ -37,6 +36,7 @@ import type {
   ImageOperation,
   IntendedOutcome,
   ProcessingRecipeRecord,
+  RecommendationDecision,
   RecommendationSet,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
@@ -142,6 +142,7 @@ export interface RecipeListResponse { schema_version: string; recipes: Processin
 export interface RecipeResponse { schema_version: string; recipe: ProcessingRecipeRecord; replayed: boolean }
 export interface RecommendationResponse { schema_version: string; recommendation_set: RecommendationSet; replayed: boolean }
 export interface EnhancementPreviewResponse { schema_version: string; preview: EnhancementPreview }
+export interface RecommendationDecisionResponse { schema_version: string; decisions: RecommendationDecision[]; replayed: boolean }
 export interface ExportListResponse { schema_version: string; exports: ImageExportRequestRecord[] }
 export interface ExportResponse { schema_version: string; export_request: ImageExportRequestRecord; replayed?: boolean }
 export interface ExportBundleResponse { schema_version: string; bundle: ExportZipBundle; replayed?: boolean }
@@ -637,12 +638,22 @@ export const api = {
       body: JSON.stringify({ document_version_id: documentVersionId, intended_outcome: intendedOutcome }),
     });
   },
-  requestEnhancementPreview(workspaceId: string, documentId: string, recipeId: string, recipeVersion: number, mode: ComparisonMode): Promise<EnhancementPreviewResponse> {
+  decideRecommendations(workspaceId: string, recommendationSetId: string, decisions: Array<{ recommendation_id: string; state: "accepted" | "declined" }>): Promise<RecommendationDecisionResponse> {
+    return request(`/workspaces/${workspaceId}/recommendation-sets/${recommendationSetId}/decisions`, {
+      method: "PATCH",
+      headers: { "idempotency-key": commandKey("recommendation-decisions") },
+      body: JSON.stringify({ decisions }),
+    });
+  },
+  requestEnhancementPreview(workspaceId: string, documentId: string, recipeId: string, recipeVersion: number, mode: "original" | "current" | "recommended", artboardId: string): Promise<EnhancementPreviewResponse> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/enhancement-previews`, {
       method: "POST",
       headers: { "idempotency-key": commandKey("enhancement-preview") },
-      body: JSON.stringify({ recipe_id: recipeId, recipe_version: recipeVersion, mode }),
+      body: JSON.stringify({ recipe_id: recipeId, recipe_version: recipeVersion, mode, artboard_id: artboardId }),
     });
+  },
+  enhancementPreview(workspaceId: string, previewId: string): Promise<EnhancementPreviewResponse> {
+    return request(`/workspaces/${workspaceId}/enhancement-previews/${previewId}`);
   },
   submitImageExport(workspaceId: string, documentId: string, input: {
     document_version_id: string;

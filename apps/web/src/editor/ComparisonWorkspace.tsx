@@ -1,17 +1,23 @@
-import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Eye, Grid2X2, Hand, Maximize2, SplitSquareHorizontal, X, ZoomIn } from "lucide-react";
-import type { ComparisonMode, HistogramSummary, ImageOperation } from "ipw-contracts-ts/product";
+import { useRef, useState } from "react";
+import { AlertTriangle, Check, Grid2X2, Hand, Maximize2, ShieldCheck, SplitSquareHorizontal, X, ZoomIn } from "lucide-react";
+import type { EnhancementPreview, HistogramSummary } from "ipw-contracts-ts/product";
 
+import { api } from "../boundaries/apiClient";
 import { Button, IconButton } from "../design-system";
-import type { ComparisonSelection } from "./EnhancementWorkspace";
-import { operationFilter } from "./comparisonModel";
+import type { ComparisonSelection, ComparisonViewMode } from "./EnhancementWorkspace";
 
-export function ComparisonWorkspace({ selection, sourceUrl, currentImage, histogram, onMode, onClose }: {
+const EMPTY_HISTOGRAM: HistogramSummary = {
+  red: Array.from({ length: 64 }, () => 0),
+  green: Array.from({ length: 64 }, () => 0),
+  blue: Array.from({ length: 64 }, () => 0),
+  shadow_clipping: false,
+  highlight_clipping: false,
+};
+
+export function ComparisonWorkspace({ workspaceId, selection, onMode, onClose }: {
+  workspaceId: string;
   selection: ComparisonSelection;
-  sourceUrl: string;
-  currentImage: string;
-  histogram: HistogramSummary;
-  onMode: (mode: ComparisonMode) => void;
+  onMode: (mode: ComparisonViewMode) => void;
   onClose: () => void;
 }) {
   const [zoom, setZoom] = useState(1);
@@ -19,27 +25,35 @@ export function ComparisonWorkspace({ selection, sourceUrl, currentImage, histog
   const [split, setSplit] = useState(50);
   const [holdingOriginal, setHoldingOriginal] = useState(false);
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
-  const currentFilter = useMemo(() => operationFilter(selection.operations), [selection.operations]);
-  const recommendedFilter = useMemo(() => operationFilter(selection.recommendedOperations ?? selection.operations), [selection]);
-  const mode = holdingOriginal ? "original" : selection.mode;
+  const mode: ComparisonViewMode = holdingOriginal ? "original" : selection.mode;
   const transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+  const recommendedAvailable = selection.previews.recommended !== null;
+  const evidencePreview = mode === "original"
+    ? selection.previews.original
+    : mode === "recommended"
+      ? selection.previews.recommended
+      : selection.previews.current;
+  const histogram = evidencePreview?.histogram ?? EMPTY_HISTOGRAM;
 
-  const image = (kind: "original" | "current" | "recommended", className = "") => <div className={`comparison-image ${className}`} data-comparison-image={kind}>
-    <img
-      src={kind === "original" ? sourceUrl : currentImage}
-      alt={`${kind} interactive preview`}
-      style={{ transform, filter: kind === "original" ? "none" : kind === "recommended" ? recommendedFilter : currentFilter }}
-      onError={(event) => { if (event.currentTarget.src !== currentImage) event.currentTarget.src = currentImage; }}
-    />
-    <span>{kind === "original" ? "Original" : kind === "current" ? "Current" : "Recommended"}</span>
-  </div>;
+  const image = (kind: keyof ComparisonSelection["previews"], className = "") => {
+    const preview = selection.previews[kind];
+    if (!preview) return null;
+    return <div className={`comparison-image ${className}`} data-comparison-image={kind} data-preview-id={preview.preview_id}>
+      <img
+        src={api.exportOutputDownloadUrl(workspaceId, preview.output_id)}
+        alt={`${previewLabel(kind)} registered preview`}
+        style={{ transform }}
+      />
+      <span>{previewLabel(kind)}</span>
+    </div>;
+  };
 
   return <section className="comparison-workspace" data-testid="comparison-workspace" data-mode={selection.mode}>
     <header className="comparison-toolbar">
       <div className="comparison-modes" role="group" aria-label="Comparison mode">
         <button type="button" aria-pressed={selection.mode === "original"} onClick={() => onMode("original")}>Original</button>
         <button type="button" aria-pressed={selection.mode === "current"} onClick={() => onMode("current")}>Current</button>
-        <button type="button" aria-pressed={selection.mode === "recommended"} onClick={() => onMode("recommended")}>Recommended</button>
+        <button type="button" disabled={!recommendedAvailable} aria-pressed={selection.mode === "recommended"} onClick={() => onMode("recommended")}>Recommended</button>
         <button type="button" aria-pressed={selection.mode === "split"} onClick={() => onMode("split")}><SplitSquareHorizontal aria-hidden="true" />Split</button>
         <button type="button" aria-pressed={selection.mode === "side_by_side"} onClick={() => onMode("side_by_side")}><Grid2X2 aria-hidden="true" />Side by side</button>
       </div>
@@ -60,7 +74,9 @@ export function ComparisonWorkspace({ selection, sourceUrl, currentImage, histog
     >
       {mode === "original" && image("original")}
       {mode === "current" && image("current")}
-      {mode === "recommended" && image("recommended")}
+      {mode === "recommended" && (recommendedAvailable
+        ? image("recommended")
+        : <div className="comparison-unavailable" role="status">No distinct recommended preview is available.</div>)}
       {mode === "side_by_side" && <div className="comparison-side-by-side">{image("original")}{image("current")}</div>}
       {mode === "split" && <div className="comparison-split">
         {image("original", "comparison-split-original")}
@@ -72,8 +88,8 @@ export function ComparisonWorkspace({ selection, sourceUrl, currentImage, histog
 
     <aside className="comparison-evidence" aria-label="Preview evidence">
       <div className="comparison-histogram">
-        <span><strong>Histogram</strong><small>Interactive preview sample</small></span>
-        <svg viewBox="0 0 64 36" role="img" aria-label="RGB histogram for the interactive preview">
+        <span><strong>Histogram</strong><small>{evidencePreview ? `Registered ${previewLabel(evidencePreview.mode).toLowerCase()} preview` : "No recommended preview"}</small></span>
+        <svg viewBox="0 0 64 36" role="img" aria-label={evidencePreview ? `RGB histogram for the ${previewLabel(evidencePreview.mode).toLowerCase()} preview` : "Empty histogram because no distinct recommended preview exists"}>
           <HistogramPath values={histogram.red} colour="var(--color-error)" />
           <HistogramPath values={histogram.green} colour="var(--color-success)" />
           <HistogramPath values={histogram.blue} colour="var(--color-brand)" />
@@ -83,15 +99,20 @@ export function ComparisonWorkspace({ selection, sourceUrl, currentImage, histog
         <span className={histogram.shadow_clipping ? "has-warning" : ""}>{histogram.shadow_clipping ? <AlertTriangle aria-hidden="true" /> : <Check aria-hidden="true" />}Shadow clipping {histogram.shadow_clipping ? "detected" : "not detected"}</span>
         <span className={histogram.highlight_clipping ? "has-warning" : ""}>{histogram.highlight_clipping ? <AlertTriangle aria-hidden="true" /> : <Check aria-hidden="true" />}Highlight clipping {histogram.highlight_clipping ? "detected" : "not detected"}</span>
       </div>
-      <div className="comparison-dimensions"><strong>{selection.preview.width} x {selection.preview.height} px</strong><span>Estimated output dimensions</span></div>
-      <div className="comparison-proxy"><Eye aria-hidden="true" /><span><strong>Interactive proxy</strong><small>Final pixels are rendered from the immutable source by the durable full-resolution worker.</small></span></div>
+      {evidencePreview && <div className="comparison-dimensions"><strong>{evidencePreview.width} x {evidencePreview.height} px</strong><span>Registered preview dimensions</span></div>}
+      <div className="comparison-proxy"><ShieldCheck aria-hidden="true" /><span><strong>Authoritative registered preview</strong><small>Rendered from the immutable document version by the durable export processor.</small></span></div>
+      {!recommendedAvailable && <p className="comparison-no-recommendation">No distinct recommended preview is available for this recipe.</p>}
     </aside>
 
     <footer className="comparison-footer">
       <Button type="button" className="hold-original" onPointerDown={() => setHoldingOriginal(true)} onPointerUp={() => setHoldingOriginal(false)} onPointerCancel={() => setHoldingOriginal(false)} onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") setHoldingOriginal(true); }} onKeyUp={() => setHoldingOriginal(false)}><Hand aria-hidden="true" />Press and hold Original</Button>
-      <span>Zoom and pan stay synchronized across views.</span>
+      <span>Zoom, pan and registration stay synchronized across views.</span>
     </footer>
   </section>;
+}
+
+function previewLabel(kind: EnhancementPreview["mode"]): string {
+  return kind === "original" ? "Original" : kind === "current" ? "Current" : "Recommended";
 }
 
 function HistogramPath({ values, colour }: { values: number[]; colour: string }) {

@@ -12,12 +12,12 @@ import {
   Trash2,
 } from "lucide-react";
 import type {
-  ComparisonMode,
   DocumentReadModel,
   EnhancementPreview,
   ImageOperation,
   ImageOperationKind,
   IntendedOutcome,
+  MetadataPolicy,
   RecommendationSet,
 } from "ipw-contracts-ts/product";
 
@@ -25,10 +25,13 @@ import { api } from "../boundaries/apiClient";
 import { Button, InlineNotice } from "../design-system";
 import {
   defaultOperation,
+  executableUiOperations,
   estimateDimensions,
   moveOperation,
+  neutralOperation,
   normalizeOrder,
   scaleRecommendedOperation,
+  semanticallyEqualOperations,
   summariseOperation,
   withFreshIdentity,
 } from "./enhancementModel";
@@ -61,26 +64,35 @@ const BASIC_KINDS: ImageOperationKind[] = [
   "white_balance_temperature", "saturation_vibrance",
 ];
 
-const ALL_KINDS = Object.keys(OPERATION_LABELS) as ImageOperationKind[];
+const ALL_KINDS = (Object.keys(OPERATION_LABELS) as ImageOperationKind[])
+  .filter((kind) => !["orientation_normalize", "colour_profile_conversion"].includes(kind));
+
+export type ComparisonViewMode = "original" | "current" | "recommended" | "split" | "side_by_side";
 
 export interface ComparisonSelection {
-  mode: ComparisonMode;
-  preview: EnhancementPreview;
-  operations: ImageOperation[];
-  recommendedOperations?: ImageOperation[];
+  mode: ComparisonViewMode;
+  previews: {
+    original: EnhancementPreview;
+    current: EnhancementPreview;
+    recommended: EnhancementPreview | null;
+  };
 }
 
 export function EnhancementWorkspace({
   workspaceId,
   editor,
+  activeArtboardId,
   readOnly,
   onCompare,
+  onMetadataPolicy,
   onOpenExport,
 }: {
   workspaceId: string;
   editor: DocumentReadModel;
+  activeArtboardId: string;
   readOnly: boolean;
   onCompare: (selection: ComparisonSelection) => void;
+  onMetadataPolicy: (policy: MetadataPolicy) => void;
   onOpenExport: () => void;
 }) {
   const [recipeId, setRecipeId] = useState<string | null>(null);
@@ -110,7 +122,7 @@ export function EnhancementWorkspace({
         if (current) {
           setRecipeId(current.recipe_id);
           setRecipeVersion(current.version);
-          setOperations(current.operations);
+          setOperations(executableUiOperations(current.operations));
         }
         applyRecommendationResponse(recommended.recommendation_set);
       } catch (reason) {
@@ -125,10 +137,14 @@ export function EnhancementWorkspace({
 
   const activeCount = operations.filter((item) => item.enabled !== false).length;
   const outputDimensions = useMemo(() => estimateDimensions(editor, operations), [editor, operations]);
+  const decidableRecommendations = recommendations?.recommendations.filter((item) => item.target_kind !== "output_warning") ?? [];
+  const hasProcessingRecommendation = decidableRecommendations.some((item) => item.target_kind === "processing_operation");
 
   function applyRecommendationResponse(value: RecommendationSet) {
     setRecommendations(value);
-    setSelectedRecommendations(new Set(value.recommendations.filter((item) => item.target_kind !== "output_warning").map((item) => item.recommendation_id)));
+    setSelectedRecommendations(new Set(value.recommendations
+      .filter((item) => item.target_kind !== "output_warning" && item.state !== "declined")
+      .map((item) => item.recommendation_id)));
   }
 
   async function refreshRecommendations(nextOutcome: IntendedOutcome | "") {
@@ -155,8 +171,8 @@ export function EnhancementWorkspace({
     setError(null);
     try {
       const response = recipeId
-        ? await api.updateProcessingRecipe(workspaceId, editor.document.document_id, recipeId, "Enhancement corrections", normalizeOrder(nextOperations))
-        : await api.createProcessingRecipe(workspaceId, editor.document.document_id, "Enhancement corrections", normalizeOrder(nextOperations));
+        ? await api.updateProcessingRecipe(workspaceId, editor.document.document_id, recipeId, "Enhancement corrections", executableUiOperations(nextOperations))
+        : await api.createProcessingRecipe(workspaceId, editor.document.document_id, "Enhancement corrections", executableUiOperations(nextOperations));
       setRecipeId(response.recipe.recipe_id);
       setRecipeVersion(response.recipe.version);
       setOperations(response.recipe.operations);
@@ -172,31 +188,72 @@ export function EnhancementWorkspace({
 
   async function acceptSelected() {
     if (!recommendations) return;
-    const accepted = recommendations.recommendations
+    const decidable = recommendations.recommendations.filter((item) => item.target_kind !== "output_warning");
+    const acceptedRecommendations = decidable.filter((item) => selectedRecommendations.has(item.recommendation_id));
+    const accepted = acceptedRecommendations
       .filter((item) => selectedRecommendations.has(item.recommendation_id) && item.operation)
       .map((item) => scaleRecommendedOperation(withFreshIdentity(item.operation!, operations.length), strength));
-    const existingKinds = new Set(operations.map((item) => item.kind));
-    const next = [...operations, ...accepted.filter((item) => !existingKinds.has(item.kind))];
-    await persist(next, accepted.length ? "Recommended corrections added for review" : "Metadata choices will be applied during export");
+    setBusy("save");
+    setError(null);
+    try {
+      if (decidable.length) {
+        await api.decideRecommendations(workspaceId, recommendations.recommendation_set_id, decidable.map((item) => ({
+          recommendation_id: item.recommendation_id,
+          state: selectedRecommendations.has(item.recommendation_id) ? "accepted" : "declined",
+        })));
+      }
+      const saved = await persist(mergeRecommendedOperations(operations, accepted), accepted.length
+        ? "Recommended corrections added for review"
+        : "Recommendation choices saved");
+      if (saved) {
+        const policy = acceptedRecommendations.find((item) => item.metadata_policy)?.metadata_policy;
+        if (policy) onMetadataPolicy(policy);
+      }
+    } catch (reason) {
+      setError(message(reason, "Recommendation choices could not be saved"));
+    } finally {
+      setBusy(null);
+    }
   }
 
-  async function compare(mode: ComparisonMode) {
+  async function compare(mode: ComparisonViewMode) {
     const currentRecipe = await persist(operations, "Corrections saved for comparison");
     if (!currentRecipe) return;
     setBusy("preview");
     setError(null);
     try {
-      const response = await api.requestEnhancementPreview(
-        workspaceId,
-        editor.document.document_id,
-        currentRecipe.recipe_id,
-        currentRecipe.version,
-        mode,
-      );
       const proposed = recommendations?.recommendations
         .filter((item) => selectedRecommendations.has(item.recommendation_id) && item.operation)
         .map((item, index) => scaleRecommendedOperation(withFreshIdentity(item.operation!, operations.length + index), strength)) ?? [];
-      onCompare({ mode, preview: response.preview, operations, recommendedOperations: [...operations, ...proposed] });
+      const recommendedOperations = mergeRecommendedOperations(operations, proposed);
+      const recommendedIsDistinct = !semanticallyEqualOperations(operations, recommendedOperations);
+      const recommendedRecipe = recommendedIsDistinct
+        ? await api.createProcessingRecipe(
+          workspaceId,
+          editor.document.document_id,
+          "Recommended comparison",
+          executableUiOperations(recommendedOperations),
+        )
+        : null;
+      const baseCreated = await Promise.all([
+        api.requestEnhancementPreview(workspaceId, editor.document.document_id, currentRecipe.recipe_id, currentRecipe.version, "original", activeArtboardId),
+        api.requestEnhancementPreview(workspaceId, editor.document.document_id, currentRecipe.recipe_id, currentRecipe.version, "current", activeArtboardId),
+      ]);
+      const [original, current] = await Promise.all(baseCreated.map((response) => waitForPreview(workspaceId, response.preview)));
+      let recommended: EnhancementPreview | null = null;
+      if (recommendedRecipe) {
+        const created = await api.requestEnhancementPreview(
+          workspaceId,
+          editor.document.document_id,
+          recommendedRecipe.recipe.recipe_id,
+          recommendedRecipe.recipe.version,
+          "recommended",
+          activeArtboardId,
+        );
+        const candidate = await waitForPreview(workspaceId, created.preview);
+        recommended = candidate.sha256 !== current.sha256 ? candidate : null;
+      }
+      onCompare({ mode, previews: { original, current, recommended } });
     } catch (reason) {
       setError(message(reason, "Comparison preview could not be prepared"));
     } finally {
@@ -245,8 +302,8 @@ export function EnhancementWorkspace({
           <span><strong>{item.title}</strong><small>{item.explanation}</small>{item.evidence.map((evidence) => <em key={`${item.recommendation_id}-${evidence.explanation}`}><span>{evidence.kind === "measured" ? "Measured" : "Heuristic"}</span>{evidence.explanation}</em>)}</span>
         </label>)}
       </div> : recommendations && <div className="empty-recommendation"><Check aria-hidden="true" /><span><strong>No automatic correction needed</strong><small>You can still add and review manual corrections.</small></span></div>}
-      <RangeField label="Recommendation strength" value={strength} min={10} max={100} unit="%" onChange={setStrength} />
-      <Button type="button" tone="primary" disabled={readOnly || busy !== null || !recommendations} onClick={() => void acceptSelected()}>Apply selected for review</Button>
+      {hasProcessingRecommendation && <RangeField label="Recommendation strength" value={strength} min={10} max={100} unit="%" onChange={setStrength} />}
+      {decidableRecommendations.length > 0 && <Button type="button" tone="primary" disabled={readOnly || busy !== null || !recommendations} onClick={() => void acceptSelected()}>Apply selected for review</Button>}
     </section>
 
     <section className="enhancement-section" aria-labelledby="corrections-heading">
@@ -279,7 +336,7 @@ export function EnhancementWorkspace({
         <Button type="button" size="compact" disabled={busy !== null} onClick={() => void compare("split")}><Eye aria-hidden="true" />Split view</Button>
         <Button type="button" size="compact" disabled={busy !== null} onClick={() => void compare("side_by_side")}>Side by side</Button>
       </div>
-      <p className="proxy-copy">The browser view is an interactive proxy. A durable worker renders the full-resolution derivative after confirmation.</p>
+      <p className="proxy-copy">Comparison images are registered, immutable previews rendered by the same durable processing semantics used for export.</p>
     </section>
 
     <Button type="button" tone="primary" className="enhancement-export-action" onClick={onOpenExport}><ChevronRight aria-hidden="true" />Choose output and export</Button>
@@ -295,7 +352,7 @@ function OperationCard({ operation, index, count, readOnly, update, move, remove
   move: (offset: number) => void;
   remove: () => void;
 }) {
-  const reset = () => update({ ...defaultOperation(operation.kind, operation.order), operation_id: operation.operation_id, enabled: operation.enabled });
+  const reset = () => update(neutralOperation(operation));
   return <details className="operation-card" open={index === 0}>
     <summary>
       <span className="operation-order">{index + 1}</span>
@@ -321,16 +378,19 @@ function OperationParameters({ operation, update }: { operation: ImageOperation;
   const numberValue = (name: string, fallback: number) => typeof parameters[name] === "number" ? Number(parameters[name]) : fallback;
   switch (operation.kind) {
     case "orientation_normalize":
-      return <SelectControl label="Source orientation" value={String(numberValue("source_orientation", 2))} options={[["2", "Mirrored"], ["3", "180 degrees"], ["4", "Mirrored 180"], ["5", "Mirrored 90"], ["6", "90 degrees"], ["7", "Mirrored 270"], ["8", "270 degrees"]]} onChange={(value) => set({ source_orientation: Number(value), apply_exactly_once: true })} />;
+      return <p className="operation-disclosure">Measured source orientation {numberValue("source_orientation", 2)} will be normalized exactly once.</p>;
     case "crop":
       return <><SelectControl label="Aspect" value={String(parameters["aspect_preset"] ?? "free")} options={[["free", "Free"], ["1:1", "Square 1:1"], ["4:3", "Classic 4:3"], ["3:2", "Photo 3:2"], ["16:9", "Widescreen 16:9"]]} onChange={(value) => set({ aspect_preset: value === "free" ? null : value })} /><div className="four-field-grid">{["left", "top", "right", "bottom"].map((name) => <NumberControl key={name} label={`${capitalize(name)} %`} value={Math.round(numberValue(name, ["left", "top"].includes(name) ? 0 : 1) * 100)} min={0} max={100} step={1} onChange={(value) => set({ [name]: value / 100 })} />)}</div></>;
     case "rotate":
       return <><RangeField label="Rotation" value={numberValue("degrees", 0)} min={-360} max={360} unit="deg" onChange={(value) => set({ degrees: value })} /><CheckboxControl label="Expand canvas to fit" checked={parameters["expand_canvas"] !== false} onChange={(value) => set({ expand_canvas: value })} /></>;
-    case "flip":
-      return <><CheckboxControl label="Flip horizontally" checked={parameters["horizontal"] === true} onChange={(value) => set({ horizontal: value })} /><CheckboxControl label="Flip vertically" checked={parameters["vertical"] === true} onChange={(value) => set({ vertical: value })} /></>;
+    case "flip": {
+      const horizontal = parameters["horizontal"] === true;
+      const vertical = parameters["vertical"] === true;
+      return <><CheckboxControl label="Flip horizontally" checked={horizontal} disabled={horizontal && !vertical} onChange={(value) => set({ horizontal: value })} /><CheckboxControl label="Flip vertically" checked={vertical} disabled={vertical && !horizontal} onChange={(value) => set({ vertical: value })} /></>;
+    }
     case "resize": {
       const mode = String(parameters["mode"] ?? "pixels");
-      return <><SelectControl label="Size mode" value={mode} options={[["pixels", "Pixels"], ["percent", "Percentage"], ["physical", "Physical dimensions"]]} onChange={(value) => set({ mode: value, width: value === "percent" ? 100 : 1920, height: value === "percent" ? 100 : 1080, physical_unit: value === "physical" ? "in" : null, ppi: value === "physical" ? 300 : null })} /><div className="two-field-grid"><NumberControl label="Width" value={numberValue("width", 1920)} min={0.001} max={100000} step={mode === "physical" ? 0.1 : 1} onChange={(value) => set({ width: value })} /><NumberControl label="Height" value={numberValue("height", 1080)} min={0.001} max={100000} step={mode === "physical" ? 0.1 : 1} onChange={(value) => set({ height: value })} /></div>{mode === "physical" && <div className="two-field-grid"><SelectControl label="Unit" value={String(parameters["physical_unit"] ?? "in")} options={[["in", "Inches"], ["mm", "Millimetres"], ["cm", "Centimetres"]]} onChange={(value) => set({ physical_unit: value })} /><NumberControl label="PPI" value={numberValue("ppi", 300)} min={1} max={9600} step={1} onChange={(value) => set({ ppi: value })} /></div>}<CheckboxControl label="Lock aspect ratio" checked={parameters["aspect_locked"] !== false} onChange={(value) => set({ aspect_locked: value })} /><SelectControl label="Fit" value={String(parameters["fit"] ?? "contain")} options={[["contain", "Contain"], ["cover", "Cover"], ["stretch", "Stretch"]]} onChange={(value) => set({ fit: value })} /><ResamplingControl parameters={parameters} set={set} /></>;
+      return <><SelectControl label="Size mode" value={mode} options={[["pixels", "Pixels"], ["percent", "Percentage"], ["physical", "Physical dimensions"]]} onChange={(value) => set({ mode: value, width: value === "percent" ? 100 : 1920, height: value === "percent" ? 100 : 1080, physical_unit: value === "physical" ? "in" : null, ppi: value === "physical" ? 300 : null, aspect_locked: true })} /><div className="two-field-grid"><NumberControl label="Width" value={numberValue("width", 1920)} min={0.001} max={12000} step={mode === "physical" ? 0.1 : 1} onChange={(value) => set({ width: value })} /><NumberControl label="Height" value={numberValue("height", 1080)} min={0.001} max={12000} step={mode === "physical" ? 0.1 : 1} onChange={(value) => set({ height: value })} /></div>{mode === "physical" && <div className="two-field-grid"><SelectControl label="Unit" value={String(parameters["physical_unit"] ?? "in")} options={[["in", "Inches"], ["mm", "Millimetres"], ["cm", "Centimetres"]]} onChange={(value) => set({ physical_unit: value })} /><NumberControl label="PPI" value={numberValue("ppi", 300)} min={1} max={9600} step={1} onChange={(value) => set({ ppi: value })} /></div>}<p className="operation-disclosure">Source proportions are preserved by the selected fit mode.</p><SelectControl label="Aspect preset" value={String(parameters["aspect_preset"] ?? "none")} options={[["none", "Source aspect"], ["1:1", "Square 1:1"], ["4:3", "Classic 4:3"], ["3:2", "Photo 3:2"], ["16:9", "Widescreen 16:9"]]} onChange={(value) => set({ aspect_preset: value === "none" ? null : value })} /><SelectControl label="Fit" value={String(parameters["fit"] ?? "contain")} options={[["contain", "Contain"], ["cover", "Cover"]]} onChange={(value) => set({ fit: value })} /><ResamplingControl parameters={parameters} set={set} /></>;
     }
     case "exposure_brightness": return <><RangeField label="Exposure" value={numberValue("exposure_ev", 0)} min={-5} max={5} step={0.1} unit=" EV" onChange={(value) => set({ exposure_ev: value })} /><RangeField label="Brightness" value={numberValue("brightness", 0)} min={-100} max={100} onChange={(value) => set({ brightness: value })} /></>;
     case "contrast": return <RangeField label="Contrast" value={numberValue("amount", 0)} min={-100} max={100} onChange={(value) => set({ amount: value })} />;
@@ -344,7 +404,7 @@ function OperationParameters({ operation, update }: { operation: ImageOperation;
     case "grayscale": return <SelectControl label="Method" value={String(parameters["method"] ?? "luminance")} options={[["luminance", "Luminance"], ["average", "Channel average"]]} onChange={(value) => set({ method: value })} />;
     case "unsharp_mask": return <><RangeField label="Radius" value={numberValue("radius", 1)} min={0.1} max={50} step={0.1} unit=" px" onChange={(value) => set({ radius: value })} /><RangeField label="Amount" value={numberValue("amount", 100)} min={0} max={500} unit="%" onChange={(value) => set({ amount: value })} /><RangeField label="Threshold" value={numberValue("threshold", 3)} min={0} max={255} onChange={(value) => set({ threshold: value })} /></>;
     case "noise_reduction": return <><RangeField label="Strength" value={numberValue("strength", 20)} min={0} max={100} onChange={(value) => set({ strength: value })} /><RangeField label="Preserve edges" value={numberValue("preserve_edges", 70)} min={0} max={100} onChange={(value) => set({ preserve_edges: value })} /></>;
-    case "colour_profile_conversion": return <><SelectControl label="Target profile" value={String(parameters["target_profile"] ?? "srgb")} options={[["preserve", "Preserve source profile"], ["srgb", "Convert to sRGB"], ["display-p3", "Display P3 (processor required)"]]} onChange={(value) => set({ target_profile: value })} /><SelectControl label="Rendering intent" value={String(parameters["rendering_intent"] ?? "perceptual")} options={[["perceptual", "Perceptual"], ["relative_colorimetric", "Relative colorimetric"]]} onChange={(value) => set({ rendering_intent: value })} /><CheckboxControl label="Black point compensation" checked={parameters["black_point_compensation"] !== false} onChange={(value) => set({ black_point_compensation: value })} /></>;
+    case "colour_profile_conversion": return <><SelectControl label="Target profile" value={String(parameters["target_profile"] ?? "srgb")} options={[["preserve", "Preserve source profile"], ["srgb", "Convert to sRGB"]]} onChange={(value) => set({ target_profile: value })} /><SelectControl label="Rendering intent" value={String(parameters["rendering_intent"] ?? "perceptual")} options={[["perceptual", "Perceptual"], ["relative_colorimetric", "Relative colorimetric"]]} onChange={(value) => set({ rendering_intent: value })} /><CheckboxControl label="Black point compensation" checked={parameters["black_point_compensation"] !== false} onChange={(value) => set({ black_point_compensation: value })} /></>;
     case "alpha_background": {
       const flatten = parameters["behavior"] === "flatten";
       return <><SelectControl label="Transparency" value={flatten ? "flatten" : "preserve"} options={[["preserve", "Preserve alpha"], ["flatten", "Flatten on a background"]]} onChange={(value) => set({ behavior: value, background: value === "flatten" ? "#FFFFFF" : null })} />{flatten && <label className="colour-control">Background<input type="color" value={String(parameters["background"] ?? "#FFFFFF")} onChange={(event) => set({ background: event.target.value.toUpperCase() })} /></label>}</>;
@@ -355,13 +415,18 @@ function OperationParameters({ operation, update }: { operation: ImageOperation;
 
 function CurveControls({ parameters, set }: { parameters: Record<string, unknown>; set: (patch: Record<string, unknown>) => void }) {
   const points = Array.isArray(parameters["points"]) ? parameters["points"] as Array<{ input: number; output: number }> : [{ input: 0, output: 0 }, { input: 0.5, output: 0.5 }, { input: 1, output: 1 }];
-  const change = (index: number, output: number) => set({ points: points.map((point, pointIndex) => pointIndex === index ? { ...point, output } : point) });
+  const change = (index: number, patch: Partial<{ input: number; output: number }>) => set({ points: points.map((point, pointIndex) => pointIndex === index ? { ...point, ...patch } : point) });
   const add = () => {
     const before = points.at(-2)!;
     const after = points.at(-1)!;
     set({ points: [...points.slice(0, -1), { input: (before.input + after.input) / 2, output: (before.output + after.output) / 2 }, after].sort((left, right) => left.input - right.input) });
   };
-  return <div className="curve-controls"><SelectControl label="Channel" value={String(parameters["channel"] ?? "rgb")} options={[["rgb", "RGB"], ["red", "Red"], ["green", "Green"], ["blue", "Blue"]]} onChange={(value) => set({ channel: value })} /><div className="curve-graph" aria-label="Editable curve control points">{points.map((point, index) => <label key={`${point.input}-${index}`}>{Math.round(point.input * 100)}<input aria-label={`Curve output at ${Math.round(point.input * 100)}`} type="number" min={0} max={100} value={Math.round(point.output * 100)} onChange={(event) => change(index, Number(event.target.value) / 100)} />{index > 0 && index < points.length - 1 && <button type="button" aria-label={`Remove curve point ${index + 1}`} onClick={() => set({ points: points.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 aria-hidden="true" /></button>}</label>)}</div><Button type="button" size="compact" disabled={points.length >= 32} onClick={add}>Add control point</Button></div>;
+  return <div className="curve-controls"><SelectControl label="Channel" value={String(parameters["channel"] ?? "rgb")} options={[["rgb", "RGB"], ["red", "Red"], ["green", "Green"], ["blue", "Blue"]]} onChange={(value) => set({ channel: value })} /><div className="curve-graph" aria-label="Editable curve control points">{points.map((point, index) => {
+    const endpoint = index === 0 || index === points.length - 1;
+    const minimum = index === 0 ? 0 : Math.ceil((points[index - 1]!.input + 0.01) * 100);
+    const maximum = index === points.length - 1 ? 100 : Math.floor((points[index + 1]!.input - 0.01) * 100);
+    return <div className="curve-point" key={`curve-point-${index}`}><NumberControl label={`Input ${index + 1}`} value={Math.round(point.input * 100)} min={minimum} max={maximum} step={1} disabled={endpoint} onChange={(value) => change(index, { input: value / 100 })} /><NumberControl label={`Output ${index + 1}`} value={Math.round(point.output * 100)} min={0} max={100} step={1} onChange={(value) => change(index, { output: value / 100 })} />{!endpoint && <button type="button" aria-label={`Remove curve point ${index + 1}`} onClick={() => set({ points: points.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 aria-hidden="true" /></button>}</div>;
+  })}</div><Button type="button" size="compact" disabled={points.length >= 32} onClick={add}>Add control point</Button></div>;
 }
 
 function ResamplingControl({ parameters, set }: { parameters: Record<string, unknown>; set: (patch: Record<string, unknown>) => void }) {
@@ -369,25 +434,59 @@ function ResamplingControl({ parameters, set }: { parameters: Record<string, unk
 }
 
 function RangeField({ label, value, min, max, step = 1, unit = "", onChange }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (value: number) => void }) {
-  return <label className="range-field"><span>{label}<output>{value}{unit}</output></span><input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
+  return <label className="range-field"><span>{label}<output>{formatControlValue(value, step)}{unit}</output></span><input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
-function NumberControl({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (value: number) => void }) {
-  return <label className="number-control">{label}<input type="number" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} /></label>;
+function NumberControl({ label, value, min, max, step, disabled = false, onChange }: { label: string; value: number; min: number; max: number; step: number; disabled?: boolean; onChange: (value: number) => void }) {
+  return <label className="number-control">{label}<input type="number" value={value} min={min} max={max} step={step} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
 function SelectControl({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
   return <label className="compact-field">{label}<select value={value} onChange={(event) => onChange(event.target.value)}>{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></label>;
 }
 
-function CheckboxControl({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className="checkbox-control"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />{label}</label>;
+function CheckboxControl({ label, checked, disabled = false, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
+  return <label className="checkbox-control"><input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />{label}</label>;
 }
 
 function toggleSet(current: Set<string>, id: string): Set<string> {
   const next = new Set(current);
   if (next.has(id)) next.delete(id); else next.add(id);
   return next;
+}
+
+function mergeRecommendedOperations(current: ImageOperation[], additions: ImageOperation[]): ImageOperation[] {
+  const result = structuredClone(current);
+  for (const addition of additions) {
+    const existing = result.findIndex((item) => item.kind === addition.kind);
+    if (existing >= 0) result[existing] = { ...addition, order: existing };
+    else result.push({ ...addition, order: result.length });
+  }
+  return normalizeOrder(result);
+}
+
+async function waitForPreview(workspaceId: string, initial: EnhancementPreview): Promise<EnhancementPreview> {
+  let preview = initial;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    if (preview.state === "succeeded") {
+      if (!preview.object_reference_id || !preview.sha256 || !preview.byte_size || !preview.histogram) {
+        throw new Error("The registered preview completed without verified output evidence");
+      }
+      return preview;
+    }
+    if (preview.state === "failed" || preview.state === "cancelled") {
+      throw new Error(preview.failure_message ?? `The ${preview.mode} preview could not be rendered`);
+    }
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 1_000));
+    preview = (await api.enhancementPreview(workspaceId, preview.preview_id)).preview;
+  }
+  throw new Error("The registered comparison previews did not finish within two minutes");
+}
+
+function formatControlValue(value: number, step: number): string {
+  if (Number.isInteger(value)) return String(value);
+  const precision = Math.min(4, Math.max(1, String(step).split(".")[1]?.length ?? 1));
+  return String(Number(value.toFixed(precision)));
 }
 
 function capitalize(value: string) { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }

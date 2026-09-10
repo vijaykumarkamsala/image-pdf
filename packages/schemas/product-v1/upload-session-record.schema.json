@@ -44,6 +44,17 @@
       "title": "MalwareScanState",
       "type": "string"
     },
+    "SourceColourModel": {
+      "description": "Header-verified source channel interpretation used for capability admission.",
+      "enum": [
+        "grayscale",
+        "rgb",
+        "cmyk",
+        "indexed"
+      ],
+      "title": "SourceColourModel",
+      "type": "string"
+    },
     "SourceFacts": {
       "additionalProperties": false,
       "properties": {
@@ -64,6 +75,17 @@
           "minimum": 1,
           "title": "Byte Size",
           "type": "integer"
+        },
+        "colour_model": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceColourModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "detected_media_type": {
           "maxLength": 2048,

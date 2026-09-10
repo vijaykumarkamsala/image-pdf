@@ -1,12 +1,14 @@
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import type {
   EnhancementPreview,
+  ExportOutputProfile,
   ExportOutputRecord,
   ExportZipBundle,
   ImageExportRequestRecord,
   ImageOperation,
   MetadataPolicy,
   ProcessingRecipeRecord,
+  RecommendationDecision,
   RecommendationSet,
   SafeRecommendation,
 } from "ipw-contracts-ts/product";
@@ -20,10 +22,13 @@ import type {
   ExportCommandResult,
   ExportDelivery,
   ImageExportRepository,
+  PreviewInput,
+  RecommendationDecisionInput,
   RecipeInput,
   RecommendationInput,
   SubmitExportInput,
 } from "./exports.types.js";
+import { assertExecutableExport, effectiveVisibleRasterAssetIds } from "./enhancement-validation.js";
 
 function instant(value: Date | string | null): string | null {
   return value === null ? null : value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -61,9 +66,64 @@ function output(row: QueryResultRow): ExportOutputRecord {
     width: row["width"] === null ? null : Number(row["width"]),
     height: row["height"] === null ? null : Number(row["height"]),
     media_type: row["media_type"] ? String(row["media_type"]) : null,
+    metadata_verified: row["metadata_verified"] === null ? null : Boolean(row["metadata_verified"]),
+    metadata_evidence: row["metadata_evidence"] as ExportOutputRecord["metadata_evidence"],
+    histogram: row["histogram"] as ExportOutputRecord["histogram"],
     failure_code: row["failure_code"] ? String(row["failure_code"]) : null,
     failure_message: row["failure_message"] ? String(row["failure_message"]) : null,
     completed_at: instant(row["completed_at"] as Date | string | null),
+  };
+}
+
+function recommendationSet(
+  row: QueryResultRow,
+  decisions: ReadonlyMap<string, SafeRecommendation["state"]> = new Map(),
+): RecommendationSet {
+  const recommendations = (row["recommendations"] as RecommendationSet["recommendations"]).map((item) => ({
+    ...item,
+    state: decisions.get(item.recommendation_id) ?? item.state,
+  }));
+  return {
+    schema_version: PRODUCT_SCHEMA_VERSION,
+    recommendation_set_id: String(row["recommendation_set_id"]),
+    workspace_id: String(row["workspace_id"]),
+    document_id: String(row["document_id"]),
+    document_version_id: String(row["document_version_id"]),
+    intended_outcome: row["intended_outcome"] as RecommendationSet["intended_outcome"],
+    intended_outcome_required: Boolean(row["intended_outcome_required"]),
+    source_facts_summary: row["source_facts_summary"] as RecommendationSet["source_facts_summary"],
+    recommendations,
+    no_correction_needed: Boolean(row["no_correction_needed"]),
+    created_at: instant(row["created_at"] as Date | string)!,
+  };
+}
+
+function enhancementPreview(row: QueryResultRow): EnhancementPreview {
+  return {
+    schema_version: PRODUCT_SCHEMA_VERSION,
+    preview_id: String(row["preview_id"]),
+    document_id: String(row["document_id"]),
+    document_version_id: String(row["document_version_id"]),
+    recipe_id: String(row["recipe_id"]),
+    recipe_version: Number(row["recipe_version"]),
+    mode: String(row["mode"]) as EnhancementPreview["mode"],
+    state: String(row["state"]) as EnhancementPreview["state"],
+    export_request_id: String(row["export_request_id"]),
+    output_id: String(row["output_id"]),
+    artboard_id: String(row["artboard_id"]),
+    proxy: false,
+    authoritative: true,
+    quality_label: "Authoritative registered preview rendered from the immutable document version",
+    width: Number(row["width"] ?? 1200),
+    height: Number(row["height"] ?? 900),
+    histogram: row["histogram"] as EnhancementPreview["histogram"],
+    object_reference_id: row["object_reference_id"] ? String(row["object_reference_id"]) : null,
+    sha256: row["sha256"] ? String(row["sha256"]) : null,
+    byte_size: row["byte_size"] === null ? null : Number(row["byte_size"]),
+    media_type: row["media_type"] ? String(row["media_type"]) : null,
+    failure_code: row["failure_code"] ? String(row["failure_code"]) : null,
+    failure_message: row["failure_message"] ? String(row["failure_message"]) : null,
+    created_at: instant(row["created_at"] as Date | string)!,
   };
 }
 
@@ -130,6 +190,24 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     return this.transaction(async (client) => {
       const replay = await this.replay<RecommendationSet>(client, context, input.workspaceId, "recommendations.request");
       if (replay) return { value: replay, replayed: true };
+      const identity = `${input.workspaceId}:${input.documentId}:${input.documentVersionId}:${input.intendedOutcome ?? "none"}`;
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`recommendations:${identity}`]);
+      const existing = await client.query(
+        `SELECT * FROM recommendation_sets WHERE workspace_id=$1 AND document_id=$2
+         AND document_version_id=$3 AND intended_outcome IS NOT DISTINCT FROM $4
+         ORDER BY created_at DESC LIMIT 1`,
+        [input.workspaceId, input.documentId, input.documentVersionId, input.intendedOutcome],
+      );
+      if (existing.rows[0]) {
+        const value = await this.readRecommendationSet(
+          client,
+          context.principal.actorId,
+          input.workspaceId,
+          existing.rows[0],
+        );
+        await this.remember(client, context, input.workspaceId, "recommendations.request", value.recommendation_set_id, value);
+        return { value, replayed: true };
+      }
       const factsResult = await client.query(
         `SELECT document.current_version_id,facts.width,facts.height,facts.orientation,
                 facts.has_alpha,facts.bit_depth,facts.has_icc_profile,facts.sensitive_metadata,
@@ -153,19 +231,7 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       if (width && height) summaries.push(`Measured source dimensions are ${width} by ${height} pixels.`);
       const orientation = facts["orientation"] === null ? null : Number(facts["orientation"]);
       if (orientation && orientation !== 1) {
-        recommendations.push(this.processingRecommendation(
-          "Normalize orientation",
-          "Apply the source orientation once so preview and export remain aligned.",
-          "The verified source contains an EXIF orientation transform.",
-          {
-            schema_version: PRODUCT_SCHEMA_VERSION,
-            operation_id: this.runtime.id("operation"),
-            kind: "orientation_normalize",
-            order: recommendations.length,
-            enabled: true,
-            parameters: { schema_version: PRODUCT_SCHEMA_VERSION, source_orientation: orientation, apply_exactly_once: true },
-          },
-        ));
+        summaries.push(`Measured EXIF orientation ${orientation} is normalized once during verified source decode.`);
       }
       const sensitive = Array.isArray(facts["sensitive_metadata"]) ? facts["sensitive_metadata"] as string[] : [];
       if (sensitive.length) {
@@ -232,41 +298,152 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     });
   }
 
-  async preview(
-    actorId: string,
-    workspaceId: string,
-    documentId: string,
-    value: ProcessingRecipeRecord,
-    mode: EnhancementPreview["mode"],
-  ): Promise<EnhancementPreview> {
-    const result = await this.pool.query(
-      `SELECT document.current_version_id,version.snapshot->'artboards'->0 AS artboard
-       FROM editor_documents document
-       JOIN memberships membership ON membership.workspace_id=document.workspace_id AND membership.actor_id=$1
-       JOIN document_versions version ON version.document_version_id=document.current_version_id
-       WHERE document.workspace_id=$2 AND document.document_id=$3`,
-      [actorId, workspaceId, documentId],
+  async decideRecommendations(context: CommandContext, input: RecommendationDecisionInput): Promise<ExportCommandResult<RecommendationDecision[]>> {
+    return this.transaction(async (client) => {
+      const replay = await this.replay<RecommendationDecision[]>(client, context, input.workspaceId, "recommendations.decide");
+      if (replay) return { value: replay, replayed: true };
+      const result = await client.query(
+        `SELECT recommendations FROM recommendation_sets recommendation
+         JOIN memberships membership ON membership.workspace_id=recommendation.workspace_id
+          AND membership.actor_id=$1
+         WHERE recommendation.workspace_id=$2 AND recommendation.recommendation_set_id=$3`,
+        [context.principal.actorId, input.workspaceId, input.recommendationSetId],
+      );
+      if (!result.rows[0]) throw new DomainError(404, "recommendation-set-not-found", "Recommendation set was not found");
+      const available = new Set(
+        ((result.rows[0]["recommendations"] as Array<{ recommendation_id?: string }>) ?? [])
+          .map((item) => item.recommendation_id)
+          .filter((value): value is string => Boolean(value)),
+      );
+      if (!input.decisions.length || input.decisions.some((item) => !available.has(item.recommendationId))) {
+        throw new DomainError(400, "recommendation-decision-invalid", "Every decision must reference this recommendation set");
+      }
+      const now = this.runtime.now();
+      const values: RecommendationDecision[] = [];
+      for (const decision of input.decisions) {
+        const value: RecommendationDecision = {
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          decision_id: this.runtime.id("recommendation-decision"),
+          workspace_id: input.workspaceId,
+          recommendation_set_id: input.recommendationSetId,
+          recommendation_id: decision.recommendationId,
+          actor_id: context.principal.actorId,
+          state: decision.state,
+          created_at: now,
+        };
+        await client.query(
+          `INSERT INTO recommendation_decisions(decision_id,workspace_id,recommendation_set_id,
+           recommendation_id,actor_id,state,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [value.decision_id, value.workspace_id, value.recommendation_set_id,
+            value.recommendation_id, value.actor_id, value.state, value.created_at],
+        );
+        values.push(value);
+      }
+      await this.evidence(client, context, input.workspaceId, "recommendations.decided", "recommendation_set", input.recommendationSetId);
+      await this.remember(client, context, input.workspaceId, "recommendations.decide", input.recommendationSetId, values);
+      return { value: values, replayed: false };
+    });
+  }
+
+  async createPreview(context: CommandContext, input: PreviewInput): Promise<ExportCommandResult<EnhancementPreview>> {
+    return this.transaction(async (client) => {
+      const replay = await this.replay<EnhancementPreview>(client, context, input.workspaceId, "enhancement-preview.create");
+      if (replay) return { value: replay, replayed: true };
+      const document = await this.requireDocument(client, context.principal.actorId, input.workspaceId, input.documentId);
+      const selectedRecipe = await this.getRecipe(context.principal.actorId, input.workspaceId, input.recipeId, input.recipeVersion ?? undefined);
+      if (!selectedRecipe || selectedRecipe.document_id !== input.documentId) {
+        throw new DomainError(404, "recipe-not-found", "Recipe was not found");
+      }
+      const snapshot = document["snapshot"] as { artboards?: Array<{ artboard_id: string; width: number; height: number }> };
+      const artboards = [...(snapshot.artboards ?? [])].sort((left, right) => left.artboard_id.localeCompare(right.artboard_id));
+      const artboardId = input.artboardId ?? artboards[0]?.artboard_id;
+      if (!artboardId || !artboards.some((item) => item.artboard_id === artboardId)) {
+        throw new DomainError(400, "export-artboard-invalid", "Choose an artboard from this document version");
+      }
+      const profile = {
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        profile_id: "profile-authoritative-preview",
+        preset_version: "recovery-2e-v1" as const,
+        name: "Authoritative preview",
+        purpose: "custom" as const,
+        format: "png" as const,
+        width: 1200,
+        height: 900,
+        percentage: null,
+        physical_width: null,
+        physical_height: null,
+        physical_unit: null,
+        ppi: null,
+        fit: "contain" as const,
+        quality: null,
+        lossless: true,
+        resampling_algorithm: "lanczos" as const,
+        colour_profile: "srgb" as const,
+        bit_depth: 8 as const,
+        alpha_behavior: "preserve" as const,
+        background: null,
+        metadata_policy: {
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          preserve_copyright: false,
+          preserve_description: false,
+          preserve_capture_time: false,
+          preserve_camera: false,
+          preserve_location: false as const,
+          remove_embedded_thumbnails: true as const,
+        },
+        chroma_subsampling: null,
+        filename_template: "preview",
+        collision_behavior: "fail" as const,
+      };
+      const previewOperations = input.mode === "original" ? [] : selectedRecipe.operations;
+      assertExecutableExport(snapshot, previewOperations, [{ artboardId, profile }]);
+      await this.assertSourceCapabilities(client, input.workspaceId, snapshot, [artboardId], [profile]);
+      const previewId = this.runtime.id("enhancement-preview");
+      const exportId = this.runtime.id("preview-export");
+      const outputId = this.runtime.id("preview-output");
+      const jobId = this.runtime.id("job");
+      const now = this.runtime.now();
+      await client.query(
+        `INSERT INTO image_export_requests(export_request_id,workspace_id,actor_id,document_id,
+         document_version_id,recipe_id,recipe_version,job_id,state,estimated_min_bytes,
+         estimated_max_bytes,estimate_explanation,request_kind,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',1024,6480000,$9,'enhancement_preview',$10,$10)`,
+        [exportId, input.workspaceId, context.principal.actorId, input.documentId,
+          document["current_version_id"], selectedRecipe.recipe_id, selectedRecipe.version, jobId,
+          "Authoritative preview is registered at a fixed 1200 by 900 comparison viewport.", now],
+      );
+      await client.query(
+        `INSERT INTO image_export_outputs(output_id,export_request_id,artboard_id,profile,state,
+         progress_percent,filename) VALUES ($1,$2,$3,$4,'queued',0,'preview.png')`,
+        [outputId, exportId, artboardId, JSON.stringify(profile)],
+      );
+      await client.query(
+        `INSERT INTO enhancement_previews(preview_id,workspace_id,actor_id,document_id,
+         document_version_id,recipe_id,recipe_version,mode,export_request_id,output_id,created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [previewId, input.workspaceId, context.principal.actorId, input.documentId,
+          document["current_version_id"], selectedRecipe.recipe_id, selectedRecipe.version,
+          input.mode, exportId, outputId, now],
+      );
+      await this.insertJob(client, context, {
+        jobId, kind: "image_export", workspaceId: input.workspaceId,
+        documentId: input.documentId, exportRequestId: exportId, bundleId: null, now,
+      });
+      await this.evidence(client, context, input.workspaceId, "enhancement-preview.queued", "enhancement_preview", previewId);
+      const value = await this.readPreview(client, input.workspaceId, previewId);
+      await this.remember(client, context, input.workspaceId, "enhancement-preview.create", previewId, value);
+      return { value, replayed: false };
+    });
+  }
+
+  async getPreview(actorId: string, workspaceId: string, previewId: string): Promise<EnhancementPreview | null> {
+    const allowed = await this.pool.query(
+      `SELECT 1 FROM enhancement_previews preview JOIN memberships membership
+       ON membership.workspace_id=preview.workspace_id AND membership.actor_id=$1
+       WHERE preview.workspace_id=$2 AND preview.preview_id=$3`,
+      [actorId, workspaceId, previewId],
     );
-    const row = result.rows[0];
-    if (!row || value.workspace_id !== workspaceId || value.document_id !== documentId) {
-      throw new DomainError(404, "document-not-found", "Document was not found");
-    }
-    const artboard = row["artboard"] as { width?: number; height?: number } | null;
-    return {
-      schema_version: PRODUCT_SCHEMA_VERSION,
-      preview_id: this.runtime.id("enhancement-preview"),
-      document_id: documentId,
-      document_version_id: String(row["current_version_id"]),
-      recipe_id: value.recipe_id,
-      recipe_version: value.version,
-      mode,
-      proxy: true,
-      quality_label: "Interactive proxy; final output is rendered by a durable worker",
-      width: Math.max(1, Math.round(artboard?.width ?? 1)),
-      height: Math.max(1, Math.round(artboard?.height ?? 1)),
-      histogram: null,
-      created_at: this.runtime.now(),
-    };
+    return allowed.rowCount ? this.readPreview(this.pool, workspaceId, previewId) : null;
   }
 
   async submit(context: CommandContext, input: SubmitExportInput): Promise<ExportCommandResult<ImageExportRequestRecord>> {
@@ -280,6 +457,14 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       const selectedRecipe = await this.getRecipe(context.principal.actorId, input.workspaceId, input.recipeId, input.recipeVersion);
       if (!selectedRecipe || selectedRecipe.document_id !== input.documentId) throw new DomainError(404, "recipe-not-found", "Recipe was not found");
       const snapshot = document["snapshot"] as { artboards?: Array<{ artboard_id: string; width: number; height: number }> };
+      assertExecutableExport(snapshot, selectedRecipe.operations, input.outputs);
+      await this.assertSourceCapabilities(
+        client,
+        input.workspaceId,
+        snapshot,
+        input.outputs.map((item) => item.artboardId),
+        input.outputs.map((item) => item.profile),
+      );
       const artboards = new Map((snapshot.artboards ?? []).map((item) => [item.artboard_id, item]));
       if (input.outputs.some((item) => !artboards.has(item.artboardId))) throw new DomainError(400, "export-artboard-invalid", "Every output must select an artboard in this document version");
       const exportId = this.runtime.id("export");
@@ -328,6 +513,7 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       `SELECT request.export_request_id FROM image_export_requests request
        JOIN memberships membership ON membership.workspace_id=request.workspace_id AND membership.actor_id=$1
        WHERE request.workspace_id=$2 AND ($3::text IS NULL OR request.document_id=$3)
+         AND request.request_kind='export'
        ORDER BY request.updated_at DESC,request.export_request_id DESC`,
       [actorId, workspaceId, documentId ?? null],
     );
@@ -356,7 +542,7 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       );
       const row = result.rows[0];
       if (!row) throw new DomainError(404, "export-not-found", "Export was not found");
-      if (!["completed", "failed", "cancelled"].includes(String(row["state"]))) {
+      if (!["completed", "partially_completed", "failed", "cancelled"].includes(String(row["state"]))) {
         const immediate = ["queued", "retry_wait"].includes(String(row["job_state"]));
         await client.query("UPDATE processing_jobs SET state=$1,updated_at=$2 WHERE job_id=$3", [immediate ? "cancelled" : "cancel_requested", this.runtime.now(), row["job_id"]]);
         if (immediate) {
@@ -377,6 +563,9 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       if (replay) return { value: replay, replayed: true };
       const current = await client.query("SELECT * FROM image_export_requests WHERE workspace_id=$1 AND export_request_id=$2 FOR UPDATE", [workspaceId, exportRequestId]);
       if (!current.rows[0]) throw new DomainError(404, "export-not-found", "Export was not found");
+      if (!["failed", "partially_completed"].includes(String(current.rows[0]["state"]))) {
+        throw new DomainError(409, "export-retry-unavailable", "Retry is available only after failed outputs reach a terminal state");
+      }
       const failed = await client.query("SELECT 1 FROM image_export_outputs WHERE export_request_id=$1 AND state='failed' LIMIT 1", [exportRequestId]);
       if (!failed.rowCount) throw new DomainError(409, "export-retry-unavailable", "No failed outputs are eligible for retry");
       const jobId = this.runtime.id("job");
@@ -415,7 +604,7 @@ export class PostgresImageExportRepository implements ImageExportRepository {
         [workspaceId, exportRequestId],
       );
       if (!completed.rowCount) throw new DomainError(409, "bundle-empty", "Complete at least one output before creating a ZIP");
-      if (completed.rowCount > 64 || completed.rows.reduce((sum, row) => sum + Number(row["byte_size"]), 0) > 1_073_741_824) {
+      if (completed.rowCount > 64 || completed.rows.reduce((sum, row) => sum + Number(row["byte_size"]), 0) > 96 * 1024 * 1024) {
         throw new DomainError(413, "bundle-limit-exceeded", "ZIP selection exceeds the safe file count or size limit");
       }
       const bundleId = this.runtime.id("bundle");
@@ -454,7 +643,8 @@ export class PostgresImageExportRepository implements ImageExportRepository {
 
   async delivery(actorId: string, workspaceId: string, outputId: string): Promise<ExportDelivery | null> {
     const result = await this.pool.query(
-      `SELECT object.object_key,output.byte_size,output.media_type,output.filename
+      `SELECT object.object_key,output.byte_size,output.media_type,output.filename,
+              output.sha256,object.storage_generation
        FROM image_export_outputs output JOIN image_export_requests request USING(export_request_id)
        JOIN memberships membership ON membership.workspace_id=request.workspace_id AND membership.actor_id=$1
        JOIN object_references object ON object.object_reference_id=output.object_reference_id AND object.workspace_id=request.workspace_id
@@ -462,22 +652,41 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       [actorId, workspaceId, outputId],
     );
     const row = result.rows[0];
-    return row ? { objectKey: String(row["object_key"]), byteSize: Number(row["byte_size"]), mediaType: String(row["media_type"]), filename: String(row["filename"]) } : null;
+    return row ? { objectKey: String(row["object_key"]), byteSize: Number(row["byte_size"]), mediaType: String(row["media_type"]), filename: String(row["filename"]), sha256: String(row["sha256"]), storageGeneration: String(row["storage_generation"]) } : null;
   }
 
   async bundleDelivery(actorId: string, workspaceId: string, bundleId: string): Promise<ExportDelivery | null> {
     const result = await this.pool.query(
-      `SELECT object.object_key,bundle.byte_size FROM export_bundles bundle
+      `SELECT object.object_key,bundle.byte_size,bundle.sha256,object.storage_generation FROM export_bundles bundle
        JOIN memberships membership ON membership.workspace_id=bundle.workspace_id AND membership.actor_id=$1
        JOIN object_references object ON object.object_reference_id=bundle.object_reference_id AND object.workspace_id=bundle.workspace_id
        WHERE bundle.workspace_id=$2 AND bundle.bundle_id=$3 AND bundle.state='succeeded' AND bundle.expires_at>now()`,
       [actorId, workspaceId, bundleId],
     );
     const row = result.rows[0];
-    return row ? { objectKey: String(row["object_key"]), byteSize: Number(row["byte_size"]), mediaType: "application/zip", filename: `export-${bundleId}.zip` } : null;
+    return row ? { objectKey: String(row["object_key"]), byteSize: Number(row["byte_size"]), mediaType: "application/zip", filename: `export-${bundleId}.zip`, sha256: String(row["sha256"]), storageGeneration: String(row["storage_generation"]) } : null;
   }
 
   async close(): Promise<void> { await this.pool.end(); }
+
+  private async readRecommendationSet(
+    client: Pool | PoolClient,
+    actorId: string,
+    workspaceId: string,
+    row: QueryResultRow,
+  ): Promise<RecommendationSet> {
+    const result = await client.query(
+      `SELECT DISTINCT ON (recommendation_id) recommendation_id,state
+       FROM recommendation_decisions
+       WHERE workspace_id=$1 AND recommendation_set_id=$2 AND actor_id=$3
+       ORDER BY recommendation_id,created_at DESC,decision_id DESC`,
+      [workspaceId, row["recommendation_set_id"], actorId],
+    );
+    return recommendationSet(row, new Map(result.rows.map((item) => [
+      String(item["recommendation_id"]),
+      String(item["state"]) as SafeRecommendation["state"],
+    ])));
+  }
 
   private async readExport(client: Pool | PoolClient, workspaceId: string, exportRequestId: string): Promise<ImageExportRequestRecord> {
     const [requestResult, outputsResult] = await Promise.all([
@@ -530,6 +739,20 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     };
   }
 
+  private async readPreview(client: Pool | PoolClient, workspaceId: string, previewId: string): Promise<EnhancementPreview> {
+    const result = await client.query(
+      `SELECT preview.*,output.state,output.artboard_id,output.object_reference_id,
+              output.sha256,output.byte_size,output.width,output.height,output.media_type,
+              output.histogram,output.failure_code,output.failure_message
+       FROM enhancement_previews preview
+       JOIN image_export_outputs output ON output.output_id=preview.output_id
+       WHERE preview.workspace_id=$1 AND preview.preview_id=$2`,
+      [workspaceId, previewId],
+    );
+    if (!result.rows[0]) throw new DomainError(404, "enhancement-preview-not-found", "Enhancement preview was not found");
+    return enhancementPreview(result.rows[0]);
+  }
+
   private async requireDocument(client: Pool | PoolClient, actorId: string, workspaceId: string, documentId: string): Promise<QueryResultRow> {
     const result = await client.query(
       `SELECT document.*,version.snapshot FROM editor_documents document
@@ -540,6 +763,81 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     );
     if (!result.rows[0]) throw new DomainError(404, "document-not-found", "Document was not found");
     return result.rows[0];
+  }
+
+  private async assertSourceCapabilities(
+    client: Pool | PoolClient,
+    workspaceId: string,
+    snapshotValue: unknown,
+    artboardIds: string[],
+    profiles: ExportOutputProfile[],
+  ): Promise<void> {
+    const snapshot = snapshotValue && typeof snapshotValue === "object" && !Array.isArray(snapshotValue)
+      ? snapshotValue as Record<string, unknown>
+      : {};
+    const sharedAssets = Array.isArray(snapshot["shared_assets"])
+      ? snapshot["shared_assets"] as Array<Record<string, unknown>>
+      : [];
+    const referencedAssetIds = effectiveVisibleRasterAssetIds(snapshot, artboardIds);
+    let totalBytes = 0;
+    let totalPixels = 0;
+    let referencedCount = 0;
+    for (const asset of sharedAssets.filter((item) => item["kind"] === "raster"
+      && referencedAssetIds.has(String(item["shared_asset_id"])))) {
+      const sourceVersionId = typeof asset["source_version_id"] === "string" ? asset["source_version_id"] : "";
+      const assetOriginalId = typeof asset["asset_original_id"] === "string" ? asset["asset_original_id"] : "";
+      if (!sourceVersionId || !assetOriginalId) {
+        throw new DomainError(422, "export-capability-unavailable", "A raster layer has incomplete immutable source identity");
+      }
+      const facts = await client.query(
+        `SELECT orientation,bit_depth,frame_count,width,height,byte_size,media_type,
+                has_icc_profile,colour_model FROM source_inspection_facts
+         WHERE workspace_id=$1 AND source_version_id=$2 AND asset_original_id=$3`,
+        [workspaceId, sourceVersionId, assetOriginalId],
+      );
+      const row = facts.rows[0];
+      if (!row) throw new DomainError(422, "export-capability-unavailable", "A raster layer has no bound inspection evidence");
+      const bitDepth = row["bit_depth"] == null ? null : Number(row["bit_depth"]);
+      if (bitDepth === null || bitDepth > 8) {
+        throw new DomainError(422, "export-capability-unavailable", "High-precision raster sources require a future approved processing path");
+      }
+      const frameCount = row["frame_count"] == null ? null : Number(row["frame_count"]);
+      if (frameCount !== 1) {
+        throw new DomainError(422, "export-capability-unavailable", "Animated raster sources are not executable as still-image exports in this build");
+      }
+      const width = row["width"] == null ? null : Number(row["width"]);
+      const height = row["height"] == null ? null : Number(row["height"]);
+      const byteSize = Number(row["byte_size"]);
+      if (!width || !height || !Number.isSafeInteger(byteSize) || byteSize < 1
+        || byteSize > 64 * 1024 * 1024 || width > 12_000 || height > 12_000
+        || width * height > 16_000_000) {
+        throw new DomainError(413, "export-source-capacity-exceeded", "A raster source exceeds the executable image processing limit");
+      }
+      if (!["image/jpeg", "image/png", "image/webp", "image/tiff"].includes(String(row["media_type"]))) {
+        throw new DomainError(422, "export-capability-unavailable", "A raster source format has no executable export decoder");
+      }
+      const colourModel = row["colour_model"] == null ? null : String(row["colour_model"]);
+      const hasIcc = row["has_icc_profile"] == null ? null : Boolean(row["has_icc_profile"]);
+      if (!colourModel || hasIcc === null) {
+        throw new DomainError(422, "export-capability-unavailable", "A raster source lacks complete colour inspection evidence");
+      }
+      if (colourModel === "cmyk" && !hasIcc) {
+        throw new DomainError(422, "export-capability-unavailable", "CMYK sources require a validated embedded ICC profile");
+      }
+      if (profiles.some((profile) => profile.colour_profile === "preserve")
+        && (!hasIcc || colourModel !== "rgb")) {
+        throw new DomainError(422, "export-capability-unavailable", "Source profile preservation requires one validated RGB ICC profile");
+      }
+      totalBytes += byteSize;
+      totalPixels += width * height;
+      referencedCount += 1;
+    }
+    if (referencedCount !== referencedAssetIds.size) {
+      throw new DomainError(422, "export-capability-unavailable", "A raster layer has no bound immutable source facts");
+    }
+    if (totalBytes > 64 * 1024 * 1024 || totalPixels > 16_000_000) {
+      throw new DomainError(413, "export-source-capacity-exceeded", "Combined raster sources exceed the executable image processing limit");
+    }
   }
 
   private async replay<T>(client: PoolClient, context: CommandContext, workspaceId: string, commandName: string): Promise<T | null> {
@@ -627,11 +925,19 @@ export class PostgresImageExportRepository implements ImageExportRepository {
   }
 
   private estimatePixels(width: number, height: number, profile: SubmitExportInput["outputs"][number]["profile"]): number {
-    if (profile.width && profile.height) return profile.width * profile.height;
+    if (profile.width || profile.height) {
+      const nextWidth = profile.width ?? Math.round(width * Number(profile.height) / height);
+      const nextHeight = profile.height ?? Math.round(height * Number(profile.width) / width);
+      return nextWidth * nextHeight;
+    }
     if (profile.percentage) return width * height * (profile.percentage / 100) ** 2;
-    if (profile.physical_width && profile.physical_height && profile.ppi && profile.physical_unit) {
+    if ((profile.physical_width || profile.physical_height) && profile.ppi && profile.physical_unit) {
       const factor = profile.physical_unit === "in" ? 1 : profile.physical_unit === "cm" ? 1 / 2.54 : 1 / 25.4;
-      return Math.ceil(profile.physical_width * factor * profile.ppi) * Math.ceil(profile.physical_height * factor * profile.ppi);
+      const requestedWidth = profile.physical_width ? Math.ceil(profile.physical_width * factor * profile.ppi) : null;
+      const requestedHeight = profile.physical_height ? Math.ceil(profile.physical_height * factor * profile.ppi) : null;
+      const nextWidth = requestedWidth ?? Math.round(width * Number(requestedHeight) / height);
+      const nextHeight = requestedHeight ?? Math.round(height * Number(requestedWidth) / width);
+      return nextWidth * nextHeight;
     }
     return width * height;
   }

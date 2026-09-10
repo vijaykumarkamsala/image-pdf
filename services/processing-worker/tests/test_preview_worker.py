@@ -88,6 +88,9 @@ class Objects:
         self.writes.append((ref, data, media_type))
         return PrivateObjectSnapshot(ref, sha256, media_type, data)
 
+    def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None:
+        del ref, generation
+
 
 def leased_job(data: bytes, *, media_type: str = "image/png") -> LeasedPreviewJob:
     digest = hashlib.sha256(data).hexdigest()
@@ -138,7 +141,7 @@ def test_preview_worker_generates_bounded_deterministic_zoom_derivatives() -> No
 
 def test_preview_worker_fails_closed_for_format_policy_drift() -> None:
     source = png()
-    repository = Repository(leased_job(source, media_type="image/tiff"))
+    repository = Repository(leased_job(source, media_type="image/gif"))
     objects = Objects(source)
 
     outcome = DurablePreviewProcessor(repository, objects, worker_id="worker-unit").process(

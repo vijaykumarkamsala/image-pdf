@@ -5,6 +5,7 @@ import type {
   ExportZipBundle,
   ImageExportRequestRecord,
   ProcessingRecipeRecord,
+  RecommendationDecision,
   RecommendationSet,
 } from "ipw-contracts-ts/product";
 
@@ -15,6 +16,8 @@ import type {
   ExportCommandResult,
   ExportDelivery,
   ImageExportRepository,
+  PreviewInput,
+  RecommendationDecisionInput,
   RecipeInput,
   RecommendationInput,
   SubmitExportInput,
@@ -24,8 +27,10 @@ export class MemoryImageExportRepository implements ImageExportRepository {
   readonly recordsMutationsAtomically = false;
   private readonly recipes = new Map<string, ProcessingRecipeRecord[]>();
   private readonly recommendations = new Map<string, RecommendationSet>();
+  private readonly recommendationDecisions = new Map<string, "accepted" | "declined">();
   private readonly exports = new Map<string, ImageExportRequestRecord>();
   private readonly bundles = new Map<string, ExportZipBundle>();
+  private readonly previews = new Map<string, EnhancementPreview>();
   private readonly commands = new Map<string, { hash: string; value: unknown }>();
 
   constructor(private readonly runtime: RuntimeValues) {}
@@ -66,6 +71,15 @@ export class MemoryImageExportRepository implements ImageExportRepository {
   async recommend(context: CommandContext, input: RecommendationInput): Promise<ExportCommandResult<RecommendationSet>> {
     const replay = this.replay<RecommendationSet>(context);
     if (replay) return replay;
+    const existing = [...this.recommendations.values()].find((item) => item.workspace_id === input.workspaceId
+      && item.document_id === input.documentId
+      && item.document_version_id === input.documentVersionId
+      && item.intended_outcome === input.intendedOutcome);
+    if (existing) {
+      const value = this.projectRecommendationDecisions(existing, context.principal.actorId);
+      this.remember(context, value);
+      return { value, replayed: true };
+    }
     const value: RecommendationSet = {
       schema_version: PRODUCT_SCHEMA_VERSION,
       recommendation_set_id: this.runtime.id("recommendations"),
@@ -84,31 +98,76 @@ export class MemoryImageExportRepository implements ImageExportRepository {
     return { value, replayed: false };
   }
 
-  async preview(
-    _actorId: string,
-    workspaceId: string,
-    documentId: string,
-    recipe: ProcessingRecipeRecord,
-    mode: EnhancementPreview["mode"],
-  ): Promise<EnhancementPreview> {
-    if (recipe.workspace_id !== workspaceId || recipe.document_id !== documentId) {
+  async decideRecommendations(context: CommandContext, input: RecommendationDecisionInput): Promise<ExportCommandResult<RecommendationDecision[]>> {
+    const replay = this.replay<RecommendationDecision[]>(context);
+    if (replay) return replay;
+    const set = this.recommendations.get(input.recommendationSetId);
+    if (!set || set.workspace_id !== input.workspaceId) throw new DomainError(404, "recommendation-set-not-found", "Recommendation set was not found");
+    const available = new Set(set.recommendations.map((item) => item.recommendation_id));
+    if (!input.decisions.length || input.decisions.some((item) => !available.has(item.recommendationId))) {
+      throw new DomainError(400, "recommendation-decision-invalid", "Every decision must reference this recommendation set");
+    }
+    const values = input.decisions.map((decision): RecommendationDecision => ({
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      decision_id: this.runtime.id("recommendation-decision"),
+      workspace_id: input.workspaceId,
+      recommendation_set_id: input.recommendationSetId,
+      recommendation_id: decision.recommendationId,
+      actor_id: context.principal.actorId,
+      state: decision.state,
+      created_at: this.runtime.now(),
+    }));
+    for (const value of values) {
+      this.recommendationDecisions.set(
+        `${value.recommendation_set_id}:${value.actor_id}:${value.recommendation_id}`,
+        value.state,
+      );
+    }
+    this.remember(context, values);
+    return { value: values, replayed: false };
+  }
+
+  async createPreview(context: CommandContext, input: PreviewInput): Promise<ExportCommandResult<EnhancementPreview>> {
+    const replay = this.replay<EnhancementPreview>(context);
+    if (replay) return replay;
+    const recipe = await this.getRecipe(context.principal.actorId, input.workspaceId, input.recipeId, input.recipeVersion ?? undefined);
+    if (!recipe || recipe.workspace_id !== input.workspaceId || recipe.document_id !== input.documentId) {
       throw new DomainError(404, "recipe-not-found", "Recipe was not found");
     }
-    return {
+    const value: EnhancementPreview = {
       schema_version: PRODUCT_SCHEMA_VERSION,
       preview_id: this.runtime.id("enhancement-preview"),
-      document_id: documentId,
+      document_id: input.documentId,
       document_version_id: "version-local-preview",
       recipe_id: recipe.recipe_id,
       recipe_version: recipe.version,
-      mode,
-      proxy: true,
-      quality_label: "Interactive proxy; final output is rendered by a durable worker",
+      mode: input.mode,
+      state: "failed",
+      export_request_id: this.runtime.id("preview-export"),
+      output_id: this.runtime.id("preview-output"),
+      artboard_id: input.artboardId ?? "artboard-local-preview",
+      proxy: false,
+      authoritative: true,
+      quality_label: "Authoritative registered preview rendered from the immutable document version",
       width: 1200,
-      height: 800,
+      height: 900,
       histogram: null,
+      object_reference_id: null,
+      sha256: null,
+      byte_size: null,
+      media_type: null,
+      failure_code: "durable-preview-required",
+      failure_message: "Authoritative previews require the PostgreSQL and worker runtime",
       created_at: this.runtime.now(),
     };
+    this.previews.set(value.preview_id, value);
+    this.remember(context, value);
+    return { value, replayed: false };
+  }
+
+  async getPreview(_actorId: string, workspaceId: string, previewId: string): Promise<EnhancementPreview | null> {
+    const value = this.previews.get(previewId);
+    return value && value.document_id && workspaceId ? value : null;
   }
 
   async submit(context: CommandContext, input: SubmitExportInput): Promise<ExportCommandResult<ImageExportRequestRecord>> {
@@ -170,7 +229,9 @@ export class MemoryImageExportRepository implements ImageExportRepository {
     if (replay) return replay;
     const value = await this.get("", workspaceId, exportRequestId);
     if (!value) throw new DomainError(404, "export-not-found", "Export was not found");
-    const updated = { ...value, state: "cancelled" as const, updated_at: this.runtime.now() };
+    const updated = ["completed", "partially_completed", "failed", "cancelled"].includes(value.state)
+      ? value
+      : { ...value, state: "cancelled" as const, updated_at: this.runtime.now() };
     this.exports.set(exportRequestId, updated);
     this.remember(context, updated);
     return { value: updated, replayed: false };
@@ -181,6 +242,10 @@ export class MemoryImageExportRepository implements ImageExportRepository {
     if (replay) return replay;
     const current = await this.get(context.principal.actorId, workspaceId, exportRequestId);
     if (!current) throw new DomainError(404, "export-not-found", "Export was not found");
+    if (!["failed", "partially_completed"].includes(current.state)
+      || !current.outputs.some((item) => item.state === "failed")) {
+      throw new DomainError(409, "export-retry-unavailable", "No terminal failed outputs are eligible for retry");
+    }
     const value = { ...current, state: "queued" as const, updated_at: this.runtime.now(), outputs: current.outputs.map((item) => item.state === "failed" ? { ...item, state: "queued" as const, progress_percent: 0 } : item) };
     this.exports.set(exportRequestId, value);
     this.remember(context, value);
@@ -218,6 +283,18 @@ export class MemoryImageExportRepository implements ImageExportRepository {
   async delivery(): Promise<ExportDelivery | null> { return null; }
   async bundleDelivery(): Promise<ExportDelivery | null> { return null; }
   async close(): Promise<void> {}
+
+  private projectRecommendationDecisions(value: RecommendationSet, actorId: string): RecommendationSet {
+    return {
+      ...value,
+      recommendations: value.recommendations.map((item) => ({
+        ...item,
+        state: this.recommendationDecisions.get(
+          `${value.recommendation_set_id}:${actorId}:${item.recommendation_id}`,
+        ) ?? item.state,
+      })),
+    };
+  }
 
   private replay<T>(context: CommandContext): ExportCommandResult<T> | null {
     const prior = this.commands.get(context.idempotencyKey);

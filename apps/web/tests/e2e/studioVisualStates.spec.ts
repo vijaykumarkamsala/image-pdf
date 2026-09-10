@@ -20,8 +20,10 @@ async function identify(page: Page, suffix: string, theme: "light" | "dark") {
 }
 
 async function openWorkspace(page: Page, suffix: string, theme: "light" | "dark") {
+  await page.context().setOffline(false);
   await identify(page, suffix, theme);
   await page.goto("/app");
+  expect(await page.evaluate(() => navigator.onLine)).toBe(true);
   await expect(page.getByTestId("workspace-home")).toBeVisible();
   return new URL(page.url()).pathname.split("/")[2]!;
 }

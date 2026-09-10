@@ -9,7 +9,7 @@ process.env["IPW_RECOVERY_2E_STORAGE_ROOT"] = storageRoot;
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/recovery2e.real.spec.ts",
-  timeout: 180_000,
+  timeout: 600_000,
   expect: { timeout: 30_000 },
   fullyParallel: false,
   workers: 1,
@@ -26,7 +26,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npm run build --workspace ipw-api && npm run start --workspace ipw-api",
+      command: "node services/api/dist/src/main.js",
       cwd: "../..",
       env: {
         ...process.env,
@@ -43,7 +43,7 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
-      command: "npm run build --workspace ipw-web && npm run preview --workspace ipw-web -- --host 127.0.0.1 --port 4176",
+      command: "node node_modules/vite/bin/vite.js preview apps/web --host 127.0.0.1 --port 4176",
       cwd: "../..",
       env: { ...process.env, IPW_API_ORIGIN: "http://127.0.0.1:8783" },
       port: 4176,

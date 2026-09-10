@@ -1,11 +1,17 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
 const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 const screenshotOptions = { animations: "disabled", caret: "hide", scale: "css", maxDiffPixelRatio: 0 } as const;
+const previewBytes = {
+  original: readFileSync(resolve(repoRoot, "data/fixtures/images/recovery2e/preview-original-1200x900.png")),
+  current: readFileSync(resolve(repoRoot, "data/fixtures/images/recovery2e/preview-current-1200x900.png")),
+};
 
 async function identify(page: Page, suffix: string, theme: "light" | "dark") {
   const actorId = `actor-enhancement-${suffix}`;
@@ -39,7 +45,7 @@ async function createImportedImage(page: Page, workspaceId: string, name: string
   return new URL(page.url()).pathname.split("/")[4]!;
 }
 
-async function mockRecommendations(page: Page, workspaceId: string, documentId: string) {
+async function routeProductionEquivalentRecommendations(page: Page, workspaceId: string, documentId: string) {
   await page.route(`**/v1/workspaces/${workspaceId}/documents/${documentId}/recommendations`, async (route) => {
     const body = route.request().postDataJSON() as { document_version_id: string; intended_outcome?: string | null };
     await route.fulfill({ json: {
@@ -53,44 +59,98 @@ async function mockRecommendations(page: Page, workspaceId: string, documentId: 
         document_version_id: body.document_version_id,
         intended_outcome: body.intended_outcome ?? null,
         intended_outcome_required: true,
-        source_facts_summary: ["Verified source: 32 x 32 px, PNG with transparency.", "Private metadata categories were detected during safe intake."],
+        source_facts_summary: [
+          "Measured source dimensions are 32 by 32 pixels.",
+          "No embedded ICC profile was detected; the source colour space is untagged.",
+        ],
         recommendations: [
           {
-            recommendation_id: "recommendation-contrast",
-            title: "Gently improve contrast",
-            explanation: "A conservative contrast adjustment can improve separation without inventing detail.",
-            evidence: [{ kind: "heuristic", explanation: "The decoded preview has a narrow middle-tone range." }],
-            target_kind: "processing_operation",
-            operation: { operation_id: "recommended-contrast", kind: "contrast", order: 0, enabled: true, parameters: { amount: 12 } },
-            metadata_policy: null,
-            state: "proposed",
-          },
-          {
-            recommendation_id: "recommendation-metadata",
-            title: "Remove private metadata on export",
-            explanation: "The original remains untouched while derivatives omit location and embedded thumbnails.",
-            evidence: [{ kind: "measured", explanation: "Intake detected metadata that is not required for the image pixels." }],
-            target_kind: "metadata_policy",
-            operation: null,
-            metadata_policy: { preserve_copyright: true, preserve_description: false, preserve_capture_time: false, preserve_camera: false, preserve_location: false, remove_embedded_thumbnails: true },
-            state: "proposed",
-          },
-          {
-            recommendation_id: "recommendation-size",
-            title: "Review the output size",
-            explanation: "Larger output uses standard resampling and does not recreate detail.",
-            evidence: [{ kind: "measured", explanation: "The verified source contains 1,024 pixels." }],
+            recommendation_id: "recommendation-alpha",
+            title: "Keep transparency where the format supports it",
+            explanation: "JPEG cannot preserve transparency and requires a confirmed background colour.",
+            evidence: [{ kind: "measured", explanation: "The verified source contains an alpha channel." }],
             target_kind: "output_warning",
             operation: null,
             metadata_policy: null,
             state: "proposed",
           },
+          {
+            recommendation_id: "recommendation-size",
+            title: "Review the intended output size",
+            explanation: "This source may be suitable for smaller digital outputs; larger sizes use standard resampling and do not recreate detail.",
+            evidence: [{ kind: "measured", explanation: "The measured source contains fewer than one million pixels." }],
+            target_kind: "output_warning", operation: null, metadata_policy: null, state: "proposed",
+          },
         ],
-        no_correction_needed: false,
+        no_correction_needed: true,
         created_at: "2026-09-02T09:00:00.000Z",
       },
     } });
   });
+}
+
+async function routeRegisteredVisualPreviews(page: Page, workspaceId: string, documentId: string) {
+  const outputById = new Map(Object.entries(previewBytes).map(([mode, bytes]) => [`preview-output-${mode}`, bytes]));
+  await page.route(`**/v1/workspaces/${workspaceId}/documents/${documentId}/enhancement-previews`, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    const body = route.request().postDataJSON() as {
+      recipe_id: string;
+      recipe_version: number;
+      mode: "original" | "current" | "recommended";
+      artboard_id: string;
+    };
+    if (body.mode === "recommended") {
+      await route.fulfill({ status: 422, json: { error: { code: "preview-not-distinct", message: "No distinct recommended recipe exists" } } });
+      return;
+    }
+    const bytes = previewBytes[body.mode];
+    const outputId = `preview-output-${body.mode}`;
+    await route.fulfill({ json: {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      replayed: false,
+      preview: {
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        preview_id: `registered-${body.mode}-preview`,
+        document_id: documentId,
+        document_version_id: "document-version-visual-2e",
+        recipe_id: body.recipe_id,
+        recipe_version: body.recipe_version,
+        mode: body.mode,
+        state: "succeeded",
+        export_request_id: `preview-export-${body.mode}`,
+        output_id: outputId,
+        artboard_id: body.artboard_id,
+        proxy: false,
+        authoritative: true,
+        quality_label: "Authoritative registered preview rendered from the immutable document version",
+        width: 1200,
+        height: 900,
+        histogram: visualHistogram(body.mode),
+        object_reference_id: `preview-object-${body.mode}`,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        byte_size: bytes.byteLength,
+        media_type: "image/png",
+        failure_code: null,
+        failure_message: null,
+        created_at: "2026-09-04T09:00:00.000Z",
+      },
+    } });
+  });
+  await page.route(`**/v1/workspaces/${workspaceId}/export-outputs/*/download`, async (route) => {
+    const outputId = new URL(route.request().url()).pathname.split("/").at(-2) ?? "";
+    const bytes = outputById.get(outputId);
+    if (!bytes) return route.continue();
+    await route.fulfill({ status: 200, contentType: "image/png", body: bytes });
+  });
+}
+
+function visualHistogram(mode: "original" | "current") {
+  const offset = mode === "original" ? 3 : 9;
+  const values = (phase: number) => Array.from({ length: 64 }, (_, index) => ((index * phase + offset) % 29) + 1);
+  return {
+    red: values(3), green: values(5), blue: values(7),
+    shadow_clipping: false, highlight_clipping: false,
+  };
 }
 
 async function shot(page: Page, name: string) {
@@ -118,15 +178,17 @@ test("@visual Recovery 2E enhancement, comparison, export and recovery states", 
   await page.setViewportSize({ width: 1440, height: 900 });
   const workspaceId = await openWorkspace(page, "desktop-light", "light");
   const documentId = await createImportedImage(page, workspaceId, "Campaign image enhancement");
-  await mockRecommendations(page, workspaceId, documentId);
+  await routeProductionEquivalentRecommendations(page, workspaceId, documentId);
+  await routeRegisteredVisualPreviews(page, workspaceId, documentId);
 
   await page.getByRole("tab", { name: "Enhance" }).click();
-  await expect(page.getByText("Gently improve contrast")).toBeVisible();
+  await expect(page.getByText("Keep transparency where the format supports it")).toBeVisible();
   await shot(page, "enhancement-recommendations-1440x900-light.png");
   await assertNewTargets(page, ".enhancement-workspace button, .enhancement-workspace select, .enhancement-workspace input[type=range]");
 
-  await page.getByRole("button", { name: "Apply selected for review" }).click();
-  await expect(page.getByText("Recommended corrections added for review")).toBeVisible();
+  await page.getByLabel("Correction to add").selectOption("contrast");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.locator(".operation-card").filter({ hasText: "Contrast" }).locator('input[type="range"]').fill("12");
   await page.getByLabel("Correction to add").selectOption("curves");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.locator(".operation-card").filter({ hasText: "Curves" }).locator("summary").click();
@@ -137,7 +199,10 @@ test("@visual Recovery 2E enhancement, comparison, export and recovery states", 
   await shot(page, "enhancement-comparison-split-1440x900-light.png");
   await page.getByTestId("comparison-workspace").getByRole("button", { name: "Side by side" }).click();
   await expect(page.getByTestId("comparison-workspace")).toHaveAttribute("data-mode", "side_by_side");
-  await expect(page.getByRole("img", { name: "RGB histogram for the interactive preview" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "RGB histogram for the current preview" })).toBeVisible();
+  await expect(page.locator('[data-comparison-image="original"]')).toHaveAttribute("data-preview-id", "registered-original-preview");
+  await expect(page.locator('[data-comparison-image="current"]')).toHaveAttribute("data-preview-id", "registered-current-preview");
+  await expect(page.getByRole("button", { name: "Recommended" })).toBeDisabled();
   await shot(page, "enhancement-comparison-side-by-side-1440x900-light.png");
   await page.getByRole("button", { name: "Close comparison" }).click();
 
@@ -195,9 +260,9 @@ test("@visual Recovery 2E dark and responsive review/export states", async ({ pa
   await page.setViewportSize({ width: 1440, height: 900 });
   const workspaceId = await openWorkspace(page, "responsive-dark", "dark");
   const documentId = await createImportedImage(page, workspaceId, "Responsive image review");
-  await mockRecommendations(page, workspaceId, documentId);
+  await routeProductionEquivalentRecommendations(page, workspaceId, documentId);
   await page.getByRole("tab", { name: "Enhance" }).click();
-  await expect(page.getByText("Gently improve contrast")).toBeVisible();
+  await expect(page.getByText("Keep transparency where the format supports it")).toBeVisible();
   await shot(page, "enhancement-recommendations-1440x900-dark.png");
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await shot(page, "export-center-1440x900-dark.png");
@@ -213,6 +278,15 @@ test("@visual Recovery 2E dark and responsive review/export states", async ({ pa
     if (await tools.isVisible()) await tools.click();
     await page.getByRole("tab", { name: "Enhance" }).click();
     await expect(page.getByTestId("enhancement-workspace")).toBeVisible();
+    const previewEvidenceIsTopmost = await page.locator(".preview-evidence").evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const topmost = document.elementFromPoint(
+        bounds.left + bounds.width / 2,
+        bounds.top + bounds.height / 2,
+      );
+      return topmost === element || element.contains(topmost);
+    });
+    expect(previewEvidenceIsTopmost).toBe(false);
     await shot(page, `enhancement-review-${viewport.label}-${viewport.width}x${viewport.height}-dark.png`);
     await page.getByRole("button", { name: "Export", exact: true }).click();
     await expect(page.getByTestId("export-center")).toBeVisible();

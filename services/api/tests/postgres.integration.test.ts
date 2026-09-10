@@ -931,9 +931,109 @@ test(
       );
       assert.equal(recommendations.value.no_correction_needed, true);
       assert.equal(recommendations.value.recommendations.length, 0);
-      const preview = await exports.preview("actor-export-pg", workspaceId, documentId, recipe.value, "side_by_side");
-      assert.equal(preview.width, 640);
-      assert.equal(preview.height, 360);
+
+      const concurrentRecommendationInput = { ...recommendationInput, intendedOutcome: null };
+      const [concurrentOne, concurrentTwo] = await Promise.all([
+        exports.recommend(
+          context("actor-export-pg", "export-recommendations-concurrent-one", "recommendations.request", concurrentRecommendationInput),
+          concurrentRecommendationInput,
+        ),
+        exports.recommend(
+          context("actor-export-pg", "export-recommendations-concurrent-two", "recommendations.request", concurrentRecommendationInput),
+          concurrentRecommendationInput,
+        ),
+      ]);
+      assert.equal(concurrentOne.value.recommendation_set_id, concurrentTwo.value.recommendation_set_id);
+
+      const recommendationSetId = `recommendations-${randomUUID()}`;
+      const recommendationId = `recommendation-${randomUUID()}`;
+      await pool.query(
+        `INSERT INTO recommendation_sets(recommendation_set_id,workspace_id,document_id,
+         document_version_id,intended_outcome,intended_outcome_required,source_facts_summary,
+         recommendations,no_correction_needed,created_at)
+         VALUES ($1,$2,$3,$4,'custom',false,$5,$6,true,$7)`,
+        [
+          recommendationSetId,
+          workspaceId,
+          documentId,
+          created.value.document.current_version_id,
+          JSON.stringify(["Measured source metadata requires an explicit export policy."]),
+          JSON.stringify([{
+            schema_version: PRODUCT_SCHEMA_VERSION,
+            recommendation_id: recommendationId,
+            title: "Remove private metadata on export",
+            explanation: "The original remains unchanged while approved derivatives remove private metadata.",
+            evidence: [{
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              kind: "measured",
+              explanation: "Immutable inspection facts identified private metadata.",
+            }],
+            target_kind: "metadata_policy",
+            operation: null,
+            metadata_policy: {
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              preserve_copyright: true,
+              preserve_description: false,
+              preserve_capture_time: false,
+              preserve_camera: false,
+              preserve_location: false,
+              remove_embedded_thumbnails: true,
+            },
+            state: "proposed",
+          }]),
+          "2026-09-02T08:00:00.000Z",
+        ],
+      );
+      const customInput = { ...recommendationInput, intendedOutcome: "custom" as const };
+      const custom = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-custom", "recommendations.request", customInput),
+        customInput,
+      );
+      assert.equal(custom.value.recommendations[0]?.state, "proposed");
+      const decisionInput = {
+        workspaceId,
+        recommendationSetId,
+        decisions: [{ recommendationId, state: "accepted" as const }],
+      };
+      await exports.decideRecommendations(
+        context("actor-export-pg", "export-recommendation-accept", "recommendations.decide", decisionInput),
+        decisionInput,
+      );
+      const refreshed = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-custom-refresh", "recommendations.request", customInput),
+        customInput,
+      );
+      assert.equal(refreshed.value.recommendations[0]?.state, "accepted");
+      const declineInput = {
+        workspaceId,
+        recommendationSetId,
+        decisions: [{ recommendationId, state: "declined" as const }],
+      };
+      await exports.decideRecommendations(
+        context("actor-export-pg", "export-recommendation-decline", "recommendations.decide", declineInput),
+        declineInput,
+      );
+      const declined = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-custom-declined", "recommendations.request", customInput),
+        customInput,
+      );
+      assert.equal(declined.value.recommendations[0]?.state, "declined");
+      const previewInput = {
+        workspaceId,
+        documentId,
+        recipeId: recipe.value.recipe_id,
+        recipeVersion: recipe.value.version,
+        mode: "current" as const,
+        artboardId: created.value.snapshot.artboards[0].artboard_id,
+      };
+      const preview = await exports.createPreview(
+        context("actor-export-pg", "export-preview-pg", "enhancement-preview.create", previewInput),
+        previewInput,
+      );
+      assert.equal(preview.value.width, 1200);
+      assert.equal(preview.value.height, 900);
+      assert.equal(preview.value.state, "queued");
+      assert.equal(preview.value.authoritative, true);
 
       const submitInput = {
         workspaceId,
@@ -959,7 +1059,7 @@ test(
             ppi: null,
             fit: "contain" as const,
             quality: null,
-            lossless: false,
+            lossless: true,
             resampling_algorithm: "lanczos" as const,
             colour_profile: "srgb" as const,
             bit_depth: 8 as const,
@@ -977,6 +1077,45 @@ test(
             chroma_subsampling: null,
             filename_template: "{document}-{artboard}-{profile}",
             collision_behavior: "suffix" as const,
+          },
+        }, {
+          artboardId: created.value.snapshot.artboards[0].artboard_id,
+          filename: "postgres-export-copy.png",
+          profile: {
+            ...{
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              profile_id: "profile-export-pg-copy",
+              name: "PostgreSQL PNG copy",
+              purpose: "web" as const,
+              format: "png" as const,
+              width: 640,
+              height: 360,
+              percentage: null,
+              physical_width: null,
+              physical_height: null,
+              physical_unit: null,
+              ppi: null,
+              fit: "contain" as const,
+              quality: null,
+              lossless: true,
+              resampling_algorithm: "lanczos" as const,
+              colour_profile: "srgb" as const,
+              bit_depth: 8 as const,
+              alpha_behavior: "preserve" as const,
+              background: null,
+              metadata_policy: {
+                schema_version: PRODUCT_SCHEMA_VERSION,
+                preserve_copyright: true,
+                preserve_description: false,
+                preserve_capture_time: false,
+                preserve_camera: false,
+                preserve_location: false as const,
+                remove_embedded_thumbnails: true as const,
+              },
+              chroma_subsampling: null,
+              filename_template: "{document}-{artboard}-{profile}",
+              collision_behavior: "suffix" as const,
+            },
           },
         }],
       };
@@ -998,7 +1137,10 @@ test(
          WHERE job.job_id=$1`,
         [submitted.value.job_id],
       );
-      assert.deepEqual(durable.rows, [{ kind: "image_export", state: "queued", outbox_state: "pending", output_state: "queued" }]);
+      assert.deepEqual(durable.rows, [
+        { kind: "image_export", state: "queued", outbox_state: "pending", output_state: "queued" },
+        { kind: "image_export", state: "queued", outbox_state: "pending", output_state: "queued" },
+      ]);
       const ledger = await pool.query(
         "SELECT customer_amount,credit_debit FROM usage_events WHERE workspace_id=$1 AND event_kind='export.submitted'",
         [workspaceId],
@@ -1006,6 +1148,101 @@ test(
       assert.equal(ledger.rowCount, 1);
       assert.equal(Number(ledger.rows[0]!.customer_amount), 0);
       assert.equal(ledger.rows[0]!.credit_debit, 0);
+
+      const outputRows = await pool.query(
+        "SELECT output_id FROM image_export_outputs WHERE export_request_id=$1 ORDER BY output_id",
+        [submitted.value.export_request_id],
+      );
+      const completedOutputId = String(outputRows.rows[0]!.output_id);
+      const failedOutputId = String(outputRows.rows[1]!.output_id);
+      const completedObjectId = `object-${randomUUID()}`;
+      await pool.query(
+        `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,
+         media_type,byte_size,created_at) VALUES ($1,$2,$3,$4,'image/png',128,$5)`,
+        [
+          completedObjectId,
+          workspaceId,
+          `derivative/${workspaceId}/retry-proof.png`,
+          "a".repeat(64),
+          "2026-09-02T08:01:00.000Z",
+        ],
+      );
+      const metadataEvidence = {
+        exif: "absent",
+        gps: "absent",
+        orientation: "absent",
+        xmp: "absent",
+        iptc: "absent",
+        comments: "absent",
+        maker_notes: "absent",
+        private_blocks: "absent",
+        software_device: "absent",
+        embedded_thumbnails: "absent",
+        icc_profiles: "assumed-srgb-and-tagged",
+      };
+      await pool.query(
+        `UPDATE image_export_outputs SET state='succeeded',progress_percent=100,
+         object_reference_id=$1,sha256=$2,byte_size=128,width=320,height=180,
+         media_type='image/png',metadata_verified=true,metadata_evidence=$3,completed_at=$4
+         WHERE output_id=$5`,
+        [completedObjectId, "a".repeat(64), metadataEvidence, "2026-09-02T08:01:00.000Z", completedOutputId],
+      );
+      await pool.query(
+        `UPDATE image_export_outputs SET state='failed',progress_percent=100,
+         failure_code='bounded-test-failure',failure_message='Bounded test failure'
+         WHERE output_id=$1`,
+        [failedOutputId],
+      );
+      await pool.query(
+        "UPDATE image_export_requests SET state='partially_completed' WHERE export_request_id=$1",
+        [submitted.value.export_request_id],
+      );
+      await pool.query(
+        "UPDATE processing_jobs SET state='failed',failure=$1 WHERE job_id=$2",
+        [{ code: "bounded-test-failure", message: "Bounded test failure", retryable: false }, submitted.value.job_id],
+      );
+      const terminalCancel = await exports.cancel(
+        context("actor-export-pg", "export-terminal-cancel", "export.cancel", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.equal(terminalCancel.value.state, "partially_completed");
+      const retried = await exports.retry(
+        context("actor-export-pg", "export-failed-retry", "export.retry", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.equal(retried.value.state, "queued");
+      assert.equal(retried.value.outputs.find((output) => output.output_id === completedOutputId)?.state, "succeeded");
+      assert.equal(retried.value.outputs.find((output) => output.output_id === failedOutputId)?.state, "queued");
+      const cancelled = await exports.cancel(
+        context("actor-export-pg", "export-retry-cancel", "export.cancel", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.equal(cancelled.value.state, "cancelled");
+      assert.equal(cancelled.value.outputs.find((output) => output.output_id === completedOutputId)?.state, "succeeded");
+      assert.equal(cancelled.value.outputs.find((output) => output.output_id === failedOutputId)?.state, "cancelled");
+      await assert.rejects(
+        exports.retry(
+          context("actor-export-pg", "export-cancelled-retry", "export.retry", {
+            workspaceId,
+            exportRequestId: submitted.value.export_request_id,
+          }),
+          workspaceId,
+          submitted.value.export_request_id,
+        ),
+        (error: unknown) => error instanceof DomainError && error.code === "export-retry-unavailable",
+      );
     } finally {
       await pool.end();
     }

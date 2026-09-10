@@ -1,4 +1,4 @@
-import type { HistogramSummary, ImageOperation } from "ipw-contracts-ts/product";
+import type { HistogramSummary } from "ipw-contracts-ts/product";
 
 export function sampleCanvasHistogram(canvas: HTMLCanvasElement | null): HistogramSummary {
   const bins = 64;
@@ -32,21 +32,3 @@ export function sampleCanvasHistogram(canvas: HTMLCanvasElement | null): Histogr
     return { red, green, blue, shadow_clipping: false, highlight_clipping: false };
   }
 }
-
-export function operationFilter(operations: ImageOperation[]): string {
-  let brightness = 100;
-  let contrast = 100;
-  let saturation = 100;
-  let grayscale = 0;
-  for (const operation of operations) {
-    if (operation.enabled === false) continue;
-    const parameters = operation.parameters as unknown as Record<string, unknown>;
-    if (operation.kind === "exposure_brightness") brightness *= Math.pow(2, Number(parameters["exposure_ev"] ?? 0)) * (1 + Number(parameters["brightness"] ?? 0) / 100);
-    if (operation.kind === "contrast") contrast *= 1 + Number(parameters["amount"] ?? 0) / 100;
-    if (operation.kind === "saturation_vibrance") saturation *= 1 + (Number(parameters["saturation"] ?? 0) + Number(parameters["vibrance"] ?? 0) * 0.5) / 100;
-    if (operation.kind === "grayscale") grayscale = 1;
-  }
-  return `brightness(${clamp(brightness, 10, 300)}%) contrast(${clamp(contrast, 10, 300)}%) saturate(${clamp(saturation, 0, 300)}%) grayscale(${grayscale})`;
-}
-
-function clamp(value: number, minimum: number, maximum: number) { return Math.max(minimum, Math.min(maximum, value)); }

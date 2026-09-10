@@ -39,6 +39,7 @@ import type {
   ImportCompatibilityReport,
   LayerRecord,
   LayerTransform,
+  MetadataPolicy,
   ProjectRecord,
   StudioSourceCandidate,
   VisualAdjustments,
@@ -55,7 +56,6 @@ import { useDurableEditorSession, type SaveState } from "./useDurableEditorSessi
 import { EnhancementWorkspace, type ComparisonSelection } from "./EnhancementWorkspace";
 import { ExportCenter } from "./ExportCenter";
 import { ComparisonWorkspace } from "./ComparisonWorkspace";
-import { sampleCanvasHistogram } from "./comparisonModel";
 
 const PRESETS = [
   { id: "social", label: "Social post", detail: "1080 x 1080 px", width: 1080, height: 1080 },
@@ -194,7 +194,7 @@ export function ImageGraphicStudio() {
   const [previewFailure, setPreviewFailure] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [comparison, setComparison] = useState<ComparisonSelection | null>(null);
-  const [comparisonImage, setComparisonImage] = useState("");
+  const [confirmedMetadataPolicy, setConfirmedMetadataPolicy] = useState<MetadataPolicy | undefined>();
   const previewState = editor?.document.preview_state ?? "not_required";
   const editorReady = editor !== null && (previewState === "not_required" || previewState === "ready");
 
@@ -680,11 +680,7 @@ export function ImageGraphicStudio() {
   ]} />;
   const rightPanel = <Tabs label="Tool panels" selected={rightTab} onSelect={setRightTab} items={[
     { id: "properties", label: "Properties", panel: <PropertiesPanel snapshot={editor.snapshot} layer={selected} update={updateLayer} mutate={commit} readOnly={readOnly} /> },
-    { id: "enhance", label: "Enhance", panel: <EnhancementWorkspace workspaceId={workspaceId} editor={editor} readOnly={readOnly} onCompare={(selection) => {
-      try { setComparisonImage(canvasRef.current?.toDataURL("image/png") ?? api.documentSourceUrl(workspaceId, documentId)); }
-      catch { setComparisonImage(api.documentSourceUrl(workspaceId, documentId)); }
-      setComparison(selection);
-    }} onOpenExport={() => setExportOpen(true)} /> },
+    { id: "enhance", label: "Enhance", panel: <EnhancementWorkspace workspaceId={workspaceId} editor={editor} activeArtboardId={activeArtboardId} readOnly={readOnly} onCompare={setComparison} onMetadataPolicy={setConfirmedMetadataPolicy} onOpenExport={() => setExportOpen(true)} /> },
     { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addVectorPath={addVectorPath} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} ungroupSelected={ungroupSelected} groupCount={groupSelection.size} saveAs={openSaveAs} fit={() => rendererRef.current?.fit()} focusCanvas={() => surfaceRef.current?.querySelector<HTMLElement>(".upper-canvas")?.focus()} selected={selected} update={updateLayer} readOnly={readOnly} /> },
   ]} />;
 
@@ -707,10 +703,18 @@ export function ImageGraphicStudio() {
     <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
       { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
       { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
-    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} comparison={comparison ? <ComparisonWorkspace selection={comparison} sourceUrl={api.documentSourceUrl(workspaceId, documentId)} currentImage={comparisonImage || api.documentSourceUrl(workspaceId, documentId)} histogram={sampleCanvasHistogram(canvasRef.current)} onMode={(mode) => setComparison((current) => current ? { ...current, mode } : current)} onClose={() => setComparison(null)} /> : null} />} />
-    <ExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} prepareDocument={async () => {
+    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} comparison={comparison ? <ComparisonWorkspace workspaceId={workspaceId} selection={comparison} onMode={(mode) => setComparison((current) => current ? { ...current, mode } : current)} onClose={() => setComparison(null)} /> : null} />} />
+    <ExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} initialMetadataPolicy={confirmedMetadataPolicy} prepareDocument={async () => {
       await flushPending();
-      const current = await api.document(workspaceId, documentId);
+      if (getPendingCount()) throw new Error("Finish saving this document before exporting.");
+      let current = await api.document(workspaceId, documentId);
+      const immutableVersion = current.editor.versions.find(
+        (version) => version.document_version_id === current.editor.document.current_version_id,
+      );
+      if (!immutableVersion || immutableVersion.revision !== current.editor.snapshot.revision) {
+        await api.createDocumentVersion(workspaceId, documentId, "Export checkpoint");
+        current = await api.document(workspaceId, documentId);
+      }
       replaceServer(current.editor);
       return current.editor;
     }} />

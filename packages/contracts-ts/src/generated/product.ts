@@ -88,9 +88,6 @@ export interface ColourProfileConversionParameters {
   black_point_compensation?: boolean;
 }
 
-export type ComparisonMode = "original" | "current" | "recommended" | "split" | "side_by_side";
-export const ComparisonModeValues: readonly ComparisonMode[] = ["original", "current", "recommended", "split", "side_by_side"] as const;
-
 export interface ContrastParameters {
   schema_version?: string;
   amount?: number;
@@ -288,6 +285,7 @@ export interface ErrorDetail {
 export interface ExportOutputProfile {
   schema_version?: string;
   profile_id: string;
+  preset_version?: "recovery-2e-v1";
   name: string;
   purpose: ExportPurpose;
   format: ImageExportFormat;
@@ -327,6 +325,9 @@ export interface ExportOutputRecord {
   width?: number | null;
   height?: number | null;
   media_type?: string | null;
+  metadata_verified?: boolean | null;
+  metadata_evidence?: MetadataDisposition | null;
+  histogram?: HistogramSummary | null;
   failure_code?: string | null;
   failure_message?: string | null;
   completed_at?: string | null;
@@ -562,6 +563,21 @@ export interface Membership {
   role: RolePreset;
 }
 
+export interface MetadataDisposition {
+  schema_version?: string;
+  exif: "preserved-approved-fields" | "removed" | "absent";
+  gps: "removed" | "absent";
+  orientation: "normalized" | "absent";
+  xmp: "removed" | "absent";
+  iptc: "removed" | "absent";
+  comments: "removed" | "absent";
+  maker_notes: "removed" | "absent";
+  private_blocks: "removed" | "absent";
+  software_device: "preserved-approved-fields" | "removed" | "absent";
+  embedded_thumbnails: "removed" | "absent";
+  icc_profiles: "converted-to-srgb" | "assumed-srgb-and-tagged" | "preserved";
+}
+
 export interface MetadataPolicy {
   schema_version?: string;
   preserve_copyright?: boolean;
@@ -710,9 +726,9 @@ export interface ResizeParameters {
   height: number;
   physical_unit?: "in" | "mm" | "cm" | null;
   ppi?: number | null;
-  aspect_locked?: boolean;
+  aspect_locked?: true;
   aspect_preset?: string | null;
-  fit?: "contain" | "cover" | "stretch";
+  fit?: "contain" | "cover";
   algorithm?: ResamplingAlgorithm;
 }
 
@@ -809,6 +825,10 @@ export interface SharedStyleRecord {
   properties?: Partial<Record<string, string | number | boolean | null>>;
 }
 
+/** Header-verified source channel interpretation used for capability admission. */
+export type SourceColourModel = "grayscale" | "rgb" | "cmyk" | "indexed";
+export const SourceColourModelValues: readonly SourceColourModel[] = ["grayscale", "rgb", "cmyk", "indexed"] as const;
+
 export interface SourceFacts {
   schema_version?: string;
   /** Lower-case hexadecimal SHA-256 digest. */
@@ -823,14 +843,15 @@ export interface SourceFacts {
   page_count?: number | null;
   has_alpha?: boolean | null;
   bit_depth?: number | null;
+  colour_model?: SourceColourModel | null;
   has_icc_profile?: boolean | null;
   sensitive_metadata?: string[];
   malware_scan_state: MalwareScanState;
 }
 
 /** Formats with one executable inspection, preview and browser-editing path. */
-export type StudioEditableMediaType = "image/jpeg" | "image/png" | "image/webp";
-export const StudioEditableMediaTypeValues: readonly StudioEditableMediaType[] = ["image/jpeg", "image/png", "image/webp"] as const;
+export type StudioEditableMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/tiff";
+export const StudioEditableMediaTypeValues: readonly StudioEditableMediaType[] = ["image/jpeg", "image/png", "image/webp", "image/tiff"] as const;
 
 export interface TintParameters {
   schema_version?: string;
@@ -1040,12 +1061,23 @@ export interface EnhancementPreview {
   document_version_id: string;
   recipe_id: string;
   recipe_version: number;
-  mode: ComparisonMode;
-  proxy?: true;
-  quality_label?: "Interactive proxy; final output is rendered by a durable worker";
+  mode: "original" | "current" | "recommended";
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  export_request_id: string;
+  output_id: string;
+  artboard_id: string;
+  proxy?: false;
+  authoritative?: true;
+  quality_label?: "Authoritative registered preview rendered from the immutable document version";
   width: number;
   height: number;
   histogram?: HistogramSummary | null;
+  object_reference_id?: string | null;
+  sha256?: string | null;
+  byte_size?: number | null;
+  media_type?: string | null;
+  failure_code?: string | null;
+  failure_message?: string | null;
   created_at: string;
 }
 
@@ -1072,6 +1104,7 @@ export interface ExportProvenance {
   /** Lower-case hexadecimal SHA-256 digest. */
   output_sha256: string;
   metadata_policy: MetadataPolicy;
+  metadata_evidence: MetadataDisposition;
   trace_id: string;
   job_id: string;
   created_at: string;
@@ -1251,6 +1284,17 @@ export interface ProjectList {
   schema_version?: string;
   projects: ProjectRecord[];
   collections?: Collection[];
+}
+
+export interface RecommendationDecision {
+  schema_version?: string;
+  decision_id: string;
+  workspace_id: string;
+  recommendation_set_id: string;
+  recommendation_id: string;
+  actor_id: string;
+  state: "accepted" | "declined";
+  created_at: string;
 }
 
 export interface RecommendationSet {

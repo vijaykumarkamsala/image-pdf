@@ -15,7 +15,8 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "test:recovery2e:real": "npm run build --workspace ipw-api && npm run build --workspace ipw-web && playwright test --config apps/web/playwright.recovery2e.config.ts"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

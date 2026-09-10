@@ -1,0 +1,62 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/recommendation-decision.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Actor Id",
+      "type": "string"
+    },
+    "created_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "decision_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "recommendation_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Recommendation Id",
+      "type": "string"
+    },
+    "recommendation_set_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Recommendation Set Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.18.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "accepted",
+        "declined"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "decision_id",
+    "workspace_id",
+    "recommendation_set_id",
+    "recommendation_id",
+    "actor_id",
+    "state",
+    "created_at"
+  ],
+  "title": "RecommendationDecision",
+  "type": "object"
+}

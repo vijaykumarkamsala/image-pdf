@@ -66,6 +66,12 @@ GATES: tuple[Gate, ...] = (
         "the POC-003 signature, bomb and orientation fixtures are byte-reproducible",
     ),
     Gate(
+        "recovery2e-fixtures",
+        [PY, "tools/make_recovery_2e_fixtures.py", "--check"],
+        "the rights-cleared JPEG, PNG, WebP, TIFF, ICC, metadata and high-resolution "
+        "fixtures are reproducible",
+    ),
+    Gate(
         "ts-contract-drift",
         [PY, "tools/generate_ts_contracts.py", "--check"],
         "the TypeScript contract still matches the JSON Schema",

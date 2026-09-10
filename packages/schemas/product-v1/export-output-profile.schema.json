@@ -269,6 +269,12 @@
       "default": null,
       "title": "Ppi"
     },
+    "preset_version": {
+      "const": "recovery-2e-v1",
+      "default": "recovery-2e-v1",
+      "title": "Preset Version",
+      "type": "string"
+    },
     "profile_id": {
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
       "title": "Profile Id",

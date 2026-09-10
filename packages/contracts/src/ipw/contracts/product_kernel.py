@@ -365,6 +365,7 @@ class StudioEditableMediaType(StrEnum):
     JPEG = "image/jpeg"
     PNG = "image/png"
     WEBP = "image/webp"
+    TIFF = "image/tiff"
 
 
 class StudioFormatCapability(ProductKernelContractModel):
@@ -419,6 +420,15 @@ class GuestSessionAuthorization(ProductKernelContractModel):
     guest_session: GuestSessionRecord
 
 
+class SourceColourModel(StrEnum):
+    """Header-verified source channel interpretation used for capability admission."""
+
+    GRAYSCALE = "grayscale"
+    RGB = "rgb"
+    CMYK = "cmyk"
+    INDEXED = "indexed"
+
+
 class SourceFacts(ProductKernelContractModel):
     sha256: Sha256Hex
     detected_media_type: NonEmptyStr
@@ -431,6 +441,7 @@ class SourceFacts(ProductKernelContractModel):
     page_count: int | None = Field(default=None, ge=1)
     has_alpha: bool | None = None
     bit_depth: int | None = Field(default=None, ge=1)
+    colour_model: SourceColourModel | None = None
     has_icc_profile: bool | None = None
     sensitive_metadata: tuple[NonEmptyStr, ...] = ()
     malware_scan_state: MalwareScanState

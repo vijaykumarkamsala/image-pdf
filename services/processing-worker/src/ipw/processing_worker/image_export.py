@@ -6,6 +6,9 @@ import hashlib
 import io
 import json
 import secrets
+import tempfile
+import threading
+import unicodedata
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -17,14 +20,28 @@ from ipw.processing_worker.enhancement_engine import (
     MAX_COMPRESSED_SOURCE_BYTES,
     MAX_OUTPUT_BYTES,
     DeterministicImageEngine,
+    ProcessingBudget,
+    ProcessingLimits,
     RenderedImage,
     VerifiedRasterAsset,
 )
 from ipw.processing_worker.repository import JobBusyError
 from ipw.storage import ObjectZone, PreviewPrivateObjectStore, PrivateObjectRef
 
-MAX_ZIP_BYTES = 1024 * 1024 * 1024
+MAX_ZIP_BYTES = 128 * 1024 * 1024
+MAX_ZIP_EXPANDED_BYTES = 96 * 1024 * 1024
 MAX_ZIP_ITEMS = 64
+MAX_ZIP_COMPRESSION_RATIO = 100
+ZIP_CHUNK_BYTES = 1024 * 1024
+WINDOWS_RESERVED_NAMES = {
+    "aux",
+    "clock$",
+    "con",
+    "nul",
+    "prn",
+    *(f"com{value}" for value in range(1, 10)),
+    *(f"lpt{value}" for value in range(1, 10)),
+}
 
 
 @dataclass(frozen=True)
@@ -38,6 +55,11 @@ class ExportAssetReference:
     byte_size: int
     width: int
     height: int
+    orientation: int | None = None
+    bit_depth: int | None = None
+    frame_count: int | None = None
+    has_icc_profile: bool | None = None
+    colour_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -154,13 +176,19 @@ class DurableImageExportProcessor:
         *,
         worker_id: str,
         engine: DeterministicImageEngine | None = None,
+        execution_lock: threading.Lock | None = None,
     ) -> None:
         self._repository = repository
         self._objects = objects
         self._worker_id = worker_id
         self._engine = engine or DeterministicImageEngine()
+        self._execution_lock = execution_lock or threading.Lock()
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
+        with self._execution_lock:
+            return self._process_locked(message)
+
+    def _process_locked(self, message: DispatchMessage) -> WorkerOutcome:
         try:
             lease = self._repository.claim_image_export(
                 job_id=message.job_id,
@@ -186,7 +214,11 @@ class DurableImageExportProcessor:
                         assets=assets,
                         operations=lease.operations,
                         profile=target.profile,
+                        budget=ProcessingBudget(
+                            checkpoint=lambda _stage: self._cancel_guard(lease)
+                        ),
                     )
+                    self._cancel_guard(lease)
                     extension = {
                         "jpeg": "jpg",
                         "png": "png",
@@ -195,7 +227,8 @@ class DurableImageExportProcessor:
                     }[str(target.profile["format"])]
                     key = (
                         f"derivative/{lease.workspace_id}/exports/"
-                        f"{lease.export_request_id}/{target.output_id}/result.{extension}"
+                        f"{lease.export_request_id}/{target.output_id}/"
+                        f"attempt-{lease.attempt}-{lease.lease_token_hash[:12]}/result.{extension}"
                     )
                     stored_snapshot = self._objects.write_derivative(
                         PrivateObjectRef(lease.workspace_id, key, ObjectZone.DERIVATIVE),
@@ -207,7 +240,15 @@ class DurableImageExportProcessor:
                     stored = StoredExportOutput(
                         target.output_id, key, stored_snapshot.generation, rendered
                     )
-                    self._repository.complete_export_output(lease, stored)
+                    try:
+                        self._cancel_guard(lease)
+                        self._repository.complete_export_output(lease, stored)
+                    except Exception:
+                        self._objects.delete(
+                            PrivateObjectRef(lease.workspace_id, key, ObjectZone.DERIVATIVE),
+                            generation=stored_snapshot.generation,
+                        )
+                        raise
                     self._repository.checkpoint_image_export(
                         lease,
                         f"output-{target.output_id}",
@@ -227,7 +268,25 @@ class DurableImageExportProcessor:
             )
         except ExportCancelledError:
             return WorkerOutcome("cancelled", lease.job_id)
-        except (TimeoutError, ConnectionError, OSError) as error:
+        except JobBusyError:
+            return WorkerOutcome("busy", lease.job_id)
+        except TimeoutError as error:
+            state = self._repository.fail_image_export(
+                lease,
+                code="export-resource-timeout",
+                message=str(error),
+                retryable=False,
+            )
+            return WorkerOutcome(state, lease.job_id)
+        except MemoryError as error:
+            state = self._repository.fail_image_export(
+                lease,
+                code="export-resource-memory",
+                message=str(error),
+                retryable=False,
+            )
+            return WorkerOutcome(state, lease.job_id)
+        except (ConnectionError, OSError) as error:
             state = self._repository.fail_image_export(
                 lease,
                 code="export-temporary-failure",
@@ -265,6 +324,11 @@ class DurableImageExportProcessor:
                 width=source.width,
                 height=source.height,
                 data=snapshot.data,
+                orientation=source.orientation,
+                bit_depth=source.bit_depth,
+                frame_count=source.frame_count,
+                has_icc_profile=source.has_icc_profile,
+                colour_model=source.colour_model,
             )
         return assets
 
@@ -287,12 +351,18 @@ class DurableExportBundleProcessor:
         objects: PreviewPrivateObjectStore,
         *,
         worker_id: str,
+        execution_lock: threading.Lock | None = None,
     ) -> None:
         self._repository = repository
         self._objects = objects
         self._worker_id = worker_id
+        self._execution_lock = execution_lock or threading.Lock()
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
+        with self._execution_lock:
+            return self._process_locked(message)
+
+    def _process_locked(self, message: DispatchMessage) -> WorkerOutcome:
         try:
             lease = self._repository.claim_export_bundle(
                 job_id=message.job_id,
@@ -307,7 +377,12 @@ class DurableExportBundleProcessor:
         try:
             self._repository.start_export_bundle(lease)
             self._cancel_guard(lease)
-            stored = self._build(lease)
+            budget = ProcessingBudget(
+                ProcessingLimits(max_seconds=90),
+                checkpoint=lambda _stage: self._cancel_guard(lease),
+            )
+            stored = self._build(lease, budget)
+            budget.check("bundle-write")
             snapshot = self._objects.write_derivative(
                 PrivateObjectRef(lease.workspace_id, stored.object_key, ObjectZone.DERIVATIVE),
                 data=stored.data,
@@ -315,20 +390,46 @@ class DurableExportBundleProcessor:
                 sha256=stored.sha256,
                 max_bytes=MAX_ZIP_BYTES,
             )
-            self._repository.complete_export_bundle(
-                lease,
-                StoredExportBundle(
-                    stored.object_key,
-                    snapshot.generation,
-                    stored.sha256,
-                    stored.byte_size,
-                    stored.data,
-                ),
-            )
+            try:
+                self._cancel_guard(lease)
+                self._repository.complete_export_bundle(
+                    lease,
+                    StoredExportBundle(
+                        stored.object_key,
+                        snapshot.generation,
+                        stored.sha256,
+                        stored.byte_size,
+                        stored.data,
+                    ),
+                )
+            except Exception:
+                self._objects.delete(
+                    PrivateObjectRef(lease.workspace_id, stored.object_key, ObjectZone.DERIVATIVE),
+                    generation=snapshot.generation,
+                )
+                raise
             return WorkerOutcome("succeeded", lease.job_id)
         except ExportCancelledError:
             return WorkerOutcome("cancelled", lease.job_id)
-        except (TimeoutError, ConnectionError, OSError) as error:
+        except JobBusyError:
+            return WorkerOutcome("busy", lease.job_id)
+        except TimeoutError as error:
+            state = self._repository.fail_export_bundle(
+                lease,
+                code="bundle-resource-timeout",
+                message=str(error),
+                retryable=False,
+            )
+            return WorkerOutcome(state, lease.job_id)
+        except MemoryError as error:
+            state = self._repository.fail_export_bundle(
+                lease,
+                code="bundle-resource-memory",
+                message=str(error),
+                retryable=False,
+            )
+            return WorkerOutcome(state, lease.job_id)
+        except (ConnectionError, OSError) as error:
             state = self._repository.fail_export_bundle(
                 lease,
                 code="bundle-temporary-failure",
@@ -345,30 +446,32 @@ class DurableExportBundleProcessor:
             )
             return WorkerOutcome(state, lease.job_id)
 
-    def _build(self, lease: LeasedExportBundleJob) -> StoredExportBundle:
+    def _build(
+        self, lease: LeasedExportBundleJob, budget: ProcessingBudget | None = None
+    ) -> StoredExportBundle:
+        active_budget = budget or ProcessingBudget(ProcessingLimits(max_seconds=90))
         if not lease.items or len(lease.items) > MAX_ZIP_ITEMS:
             raise ValueError("ZIP item count exceeds the approved limit")
         names: set[str] = set()
-        entries: list[tuple[BundleItem, bytes]] = []
-        total = 0
-        for item in sorted(lease.items, key=lambda value: (value.filename, value.output_id)):
+        entries: list[tuple[str, BundleItem]] = []
+        total = sum(item.byte_size for item in lease.items)
+        if total > MAX_ZIP_EXPANDED_BYTES:
+            raise ValueError("ZIP source bytes exceed the approved expanded-size limit")
+        for item in lease.items:
             name = self._safe_name(item.filename)
-            if name.casefold() in names:
-                raise ValueError("ZIP filenames are not unique")
-            names.add(name.casefold())
-            snapshot = self._objects.read(
-                PrivateObjectRef(lease.workspace_id, item.object_key, ObjectZone.DERIVATIVE),
-                generation=item.storage_generation,
-                max_bytes=MAX_OUTPUT_BYTES,
+            collision_key = unicodedata.normalize("NFKC", name).casefold()
+            if collision_key in names:
+                raise ValueError(
+                    "ZIP filenames collide after Unicode normalization and case folding"
+                )
+            names.add(collision_key)
+            entries.append((name, item))
+        entries.sort(
+            key=lambda value: (
+                unicodedata.normalize("NFKC", value[0]).casefold(),
+                value[1].output_id,
             )
-            if len(snapshot.data) != item.byte_size:
-                raise ValueError("ZIP source byte count changed")
-            if hashlib.sha256(snapshot.data).hexdigest() != item.sha256:
-                raise ValueError("ZIP source checksum changed")
-            total += len(snapshot.data)
-            if total > MAX_ZIP_BYTES:
-                raise ValueError("ZIP source bytes exceed the approved limit")
-            entries.append((item, snapshot.data))
+        )
         manifest = {
             "schema_version": "1.18.0",
             "bundle_id": lease.bundle_id,
@@ -377,41 +480,92 @@ class DurableExportBundleProcessor:
             "items": [
                 {
                     "output_id": item.output_id,
-                    "filename": item.filename,
+                    "filename": name,
                     "sha256": item.sha256,
                     "byte_size": item.byte_size,
                     "media_type": item.media_type,
                 }
-                for item, _ in entries
+                for name, item in entries
             ],
         }
-        output = io.BytesIO()
-        with zipfile.ZipFile(
-            output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
-        ) as archive:
-            for item, data in entries:
-                archive.writestr(self._info(self._safe_name(item.filename)), data)
-            archive.writestr(
-                self._info("manifest.json"),
-                json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode(),
-            )
-        data = output.getvalue()
+        with tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024) as output:
+            with zipfile.ZipFile(
+                output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
+            ) as archive:
+                for name, item in entries:
+                    active_budget.check(f"bundle-member:{item.output_id}")
+                    snapshot = self._objects.read(
+                        PrivateObjectRef(
+                            lease.workspace_id, item.object_key, ObjectZone.DERIVATIVE
+                        ),
+                        generation=item.storage_generation,
+                        max_bytes=MAX_OUTPUT_BYTES,
+                    )
+                    if len(snapshot.data) != item.byte_size:
+                        raise ValueError("ZIP source byte count changed")
+                    if hashlib.sha256(snapshot.data).hexdigest() != item.sha256:
+                        raise ValueError("ZIP source checksum changed")
+                    with archive.open(self._info(name), "w") as member:
+                        for offset in range(0, len(snapshot.data), ZIP_CHUNK_BYTES):
+                            active_budget.check(f"bundle-chunk:{item.output_id}")
+                            member.write(snapshot.data[offset : offset + ZIP_CHUNK_BYTES])
+                archive.writestr(
+                    self._info("manifest.json"),
+                    json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode(),
+                )
+            output.seek(0, io.SEEK_END)
+            output_size = output.tell()
+            if output_size < 1 or output_size > MAX_ZIP_BYTES:
+                raise ValueError("ZIP output exceeds the approved limit")
+            output.seek(0)
+            data = output.read(MAX_ZIP_BYTES + 1)
         if not data or len(data) > MAX_ZIP_BYTES:
             raise ValueError("ZIP output exceeds the approved limit")
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             archive_names = archive.namelist()
-            if archive_names[-1] != "manifest.json" or len(archive_names) != len(entries) + 1:
+            if archive_names[-1] != "manifest.json" or len(archive_names) != len(lease.items) + 1:
                 raise ValueError("ZIP verification failed")
-            if any(info.file_size > MAX_OUTPUT_BYTES for info in archive.infolist()):
-                raise ValueError("ZIP entry exceeds the approved limit")
-        digest = hashlib.sha256(data).hexdigest()
+            expanded = 0
+            expected = dict(entries)
+            for info in archive.infolist():
+                expanded += info.file_size
+                if info.file_size > MAX_OUTPUT_BYTES:
+                    raise ValueError("ZIP entry exceeds the approved limit")
+                if (
+                    info.filename != "manifest.json"
+                    and info.file_size > 1024
+                    and info.file_size / max(1, info.compress_size) > MAX_ZIP_COMPRESSION_RATIO
+                ):
+                    raise ValueError("ZIP compression ratio exceeds the approved limit")
+                if info.filename != "manifest.json":
+                    expected_item = expected.get(info.filename)
+                    if expected_item is None:
+                        raise ValueError("ZIP contains an undeclared entry")
+                    member_digest = hashlib.sha256()
+                    read_size = 0
+                    with archive.open(info, "r") as member:
+                        while chunk := member.read(ZIP_CHUNK_BYTES):
+                            active_budget.check(f"bundle-verify:{expected_item.output_id}")
+                            read_size += len(chunk)
+                            if read_size > expected_item.byte_size:
+                                raise ValueError("ZIP member exceeds its declared byte count")
+                            member_digest.update(chunk)
+                    if (
+                        read_size != expected_item.byte_size
+                        or member_digest.hexdigest() != expected_item.sha256
+                    ):
+                        raise ValueError("ZIP member failed checksum verification")
+            if expanded > MAX_ZIP_EXPANDED_BYTES + 64 * 1024:
+                raise ValueError("ZIP expanded bytes exceed the approved limit")
+        bundle_sha256 = hashlib.sha256(data).hexdigest()
         return StoredExportBundle(
             object_key=(
                 f"derivative/{lease.workspace_id}/exports/"
-                f"{lease.export_request_id}/bundles/{lease.bundle_id}.zip"
+                f"{lease.export_request_id}/bundles/{lease.bundle_id}/"
+                f"attempt-{lease.attempt}-{lease.lease_token_hash[:12]}.zip"
             ),
-            storage_generation=digest,
-            sha256=digest,
+            storage_generation=bundle_sha256,
+            sha256=bundle_sha256,
             byte_size=len(data),
             data=data,
         )
@@ -429,16 +583,26 @@ class DurableExportBundleProcessor:
 
     @staticmethod
     def _safe_name(value: str) -> str:
+        normalized = unicodedata.normalize("NFC", value)
+        compatibility = unicodedata.normalize("NFKC", normalized)
+        stem = compatibility.rsplit(".", 1)[0].rstrip(" .").casefold()
+        confusable_separators = {"\u2044", "\u2215", "\u29f8", "\ufe68"}
         if (
-            not value
-            or len(value) > 240
+            not normalized
+            or len(normalized.encode("utf-8")) > 240
             or "/" in value
             or "\\" in value
-            or value in {".", ".."}
-            or any(ord(character) < 32 for character in value)
+            or any(character in value for character in confusable_separators)
+            or "/" in compatibility
+            or "\\" in compatibility
+            or ":" in compatibility
+            or normalized in {".", ".."}
+            or normalized.endswith((".", " "))
+            or stem in WINDOWS_RESERVED_NAMES
+            or any(unicodedata.category(character) in {"Cc", "Cf"} for character in normalized)
         ):
             raise ValueError("ZIP filename is unsafe")
-        return value
+        return normalized
 
     @staticmethod
     def _info(filename: str) -> zipfile.ZipInfo:

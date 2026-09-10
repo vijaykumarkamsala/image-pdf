@@ -846,8 +846,9 @@ class PostgresWorkerRepository:
                          source_version_id,workspace_id,asset_original_id,object_reference_id,
                          source_sha256,storage_generation,media_type,byte_size,width,height,
                          malware_scan_state,inspection_schema_version,inspected_at,orientation,
-                         has_alpha,bit_depth,has_icc_profile,sensitive_metadata)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)""",
+                         has_alpha,bit_depth,has_icc_profile,sensitive_metadata,frame_count,
+                         colour_model)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s)""",
                     (
                         source_id,
                         lease.workspace_id,
@@ -867,6 +868,8 @@ class PostgresWorkerRepository:
                         facts.get("bit_depth"),
                         facts.get("has_icc_profile"),
                         json.dumps(facts.get("sensitive_metadata", [])),
+                        facts.get("frame_count"),
+                        facts.get("colour_model"),
                     ),
                 )
                 cursor.execute(

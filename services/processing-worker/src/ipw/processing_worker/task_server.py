@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -153,20 +154,24 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         production_malware_scanner(env),
         worker_id=env.get("HOSTNAME", "processing-worker"),
     )
+    heavy_execution_lock = threading.Lock()
     preview = DurablePreviewProcessor(
         repository,
         objects,
         worker_id=env.get("HOSTNAME", "processing-worker"),
+        execution_lock=heavy_execution_lock,
     )
     image_export = DurableImageExportProcessor(
         export_repository,
         objects,
         worker_id=env.get("HOSTNAME", "processing-worker"),
+        execution_lock=heavy_execution_lock,
     )
     export_bundle = DurableExportBundleProcessor(
         export_repository,
         objects,
         worker_id=env.get("HOSTNAME", "processing-worker"),
+        execution_lock=heavy_execution_lock,
     )
     processor = DurableJobRouter(repository, intake, preview, image_export, export_bundle)
     verifier = GoogleOidcTaskIdentityVerifier(

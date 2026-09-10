@@ -98,9 +98,9 @@ class ResizeParameters(EnhancementContractModel):
     height: float = Field(gt=0, le=100_000)
     physical_unit: Literal["in", "mm", "cm"] | None = None
     ppi: int | None = Field(default=None, ge=1, le=9_600)
-    aspect_locked: bool = True
+    aspect_locked: Literal[True] = True
     aspect_preset: NonEmptyStr | None = None
-    fit: Literal["contain", "cover", "stretch"] = "contain"
+    fit: Literal["contain", "cover"] = "contain"
     algorithm: ResamplingAlgorithm = ResamplingAlgorithm.LANCZOS
 
     @model_validator(mode="after")
@@ -374,6 +374,16 @@ class RecommendationSet(EnhancementContractModel):
     created_at: NonEmptyStr
 
 
+class RecommendationDecision(EnhancementContractModel):
+    decision_id: SlugId
+    workspace_id: SlugId
+    recommendation_set_id: SlugId
+    recommendation_id: SlugId
+    actor_id: SlugId
+    state: Literal["accepted", "declined"]
+    created_at: NonEmptyStr
+
+
 class ComparisonMode(StrEnum):
     ORIGINAL = "original"
     CURRENT = "current"
@@ -390,20 +400,45 @@ class HistogramSummary(EnhancementContractModel):
     highlight_clipping: bool
 
 
+class MetadataDisposition(EnhancementContractModel):
+    exif: Literal["preserved-approved-fields", "removed", "absent"]
+    gps: Literal["removed", "absent"]
+    orientation: Literal["normalized", "absent"]
+    xmp: Literal["removed", "absent"]
+    iptc: Literal["removed", "absent"]
+    comments: Literal["removed", "absent"]
+    maker_notes: Literal["removed", "absent"]
+    private_blocks: Literal["removed", "absent"]
+    software_device: Literal["preserved-approved-fields", "removed", "absent"]
+    embedded_thumbnails: Literal["removed", "absent"]
+    icc_profiles: Literal["converted-to-srgb", "assumed-srgb-and-tagged", "preserved"]
+
+
 class EnhancementPreview(EnhancementContractModel):
     preview_id: SlugId
     document_id: SlugId
     document_version_id: SlugId
     recipe_id: SlugId
     recipe_version: int = Field(ge=1)
-    mode: ComparisonMode
-    proxy: Literal[True] = True
-    quality_label: Literal["Interactive proxy; final output is rendered by a durable worker"] = (
-        "Interactive proxy; final output is rendered by a durable worker"
-    )
+    mode: Literal["original", "current", "recommended"]
+    state: Literal["queued", "running", "succeeded", "failed", "cancelled"]
+    export_request_id: SlugId
+    output_id: SlugId
+    artboard_id: SlugId
+    proxy: Literal[False] = False
+    authoritative: Literal[True] = True
+    quality_label: Literal[
+        "Authoritative registered preview rendered from the immutable document version"
+    ] = "Authoritative registered preview rendered from the immutable document version"
     width: int = Field(ge=1)
     height: int = Field(ge=1)
     histogram: HistogramSummary | None = None
+    object_reference_id: SlugId | None = None
+    sha256: Sha256Hex | None = None
+    byte_size: int | None = Field(default=None, ge=1)
+    media_type: str | None = None
+    failure_code: str | None = None
+    failure_message: str | None = None
     created_at: NonEmptyStr
 
 
@@ -435,6 +470,7 @@ class MetadataPolicy(EnhancementContractModel):
 
 class ExportOutputProfile(EnhancementContractModel):
     profile_id: SlugId
+    preset_version: Literal["recovery-2e-v1"] = "recovery-2e-v1"
     name: NonEmptyStr
     purpose: ExportPurpose
     format: ImageExportFormat
@@ -485,6 +521,10 @@ class ExportOutputProfile(EnhancementContractModel):
             self.physical_unit is None or self.ppi is None
         ):
             raise ValueError("physical output requires unit and PPI")
+        if self.format is ImageExportFormat.WEBP and (
+            self.physical_width is not None or self.physical_height is not None
+        ):
+            raise ValueError("WebP does not carry approved physical-resolution metadata")
         return self
 
 
@@ -510,6 +550,9 @@ class ExportOutputRecord(EnhancementContractModel):
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
     media_type: str | None = None
+    metadata_verified: bool | None = None
+    metadata_evidence: MetadataDisposition | None = None
+    histogram: HistogramSummary | None = None
     failure_code: str | None = None
     failure_message: str | None = None
     completed_at: str | None = None
@@ -559,6 +602,7 @@ class ExportProvenance(EnhancementContractModel):
     parameters_sha256: Sha256Hex
     output_sha256: Sha256Hex
     metadata_policy: MetadataPolicy
+    metadata_evidence: MetadataDisposition
     trace_id: SlugId
     job_id: SlugId
     created_at: NonEmptyStr
@@ -598,9 +642,11 @@ ENHANCEMENT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
     "image-export-request-record": ImageExportRequestRecord,
     "image-operation": ImageOperation,
     "metadata-policy": MetadataPolicy,
+    "metadata-disposition": MetadataDisposition,
     "output-size-estimate": OutputSizeEstimate,
     "processing-recipe-record": ProcessingRecipeRecord,
     "recommendation-set": RecommendationSet,
+    "recommendation-decision": RecommendationDecision,
     "safe-recommendation": SafeRecommendation,
     "zip-manifest-item": ZipManifestItem,
 }

@@ -30,6 +30,44 @@ def deterministic_id(prefix: str, value: str) -> str:
     return f"{prefix}-{uuid.uuid5(uuid.NAMESPACE_URL, f'ipw:{prefix}:{value}')}"
 
 
+def effectively_visible_raster_ids(
+    snapshot: dict[str, Any], selected_artboard_ids: set[str]
+) -> set[str]:
+    layers = [
+        layer
+        for layer in snapshot.get("layers", [])
+        if str(layer.get("artboard_id")) in selected_artboard_ids
+    ]
+    by_id = {str(layer.get("layer_id")): layer for layer in layers}
+
+    def visible(layer: dict[str, Any]) -> bool:
+        current: dict[str, Any] | None = layer
+        visited: set[str] = set()
+        while current is not None:
+            if not current.get("visible", True):
+                return False
+            layer_id = str(current.get("layer_id", ""))
+            if not layer_id or layer_id in visited:
+                raise RuntimeError("native document contains a cyclic layer hierarchy")
+            visited.add(layer_id)
+            parent_id = current.get("parent_layer_id")
+            if parent_id is None:
+                return True
+            current = by_id.get(str(parent_id))
+            if current is None:
+                raise RuntimeError("native document layer parent is outside the selected artboard")
+        return False
+
+    result = {
+        str((layer.get("raster") or {}).get("shared_asset_id"))
+        for layer in layers
+        if layer.get("layer_type") == "raster_image" and visible(layer)
+    }
+    if "" in result or "None" in result:
+        raise RuntimeError("native document raster source identity is incomplete")
+    return result
+
+
 class PostgresImageExportWorkerRepository:
     def __init__(self, connection: DatabaseConnection) -> None:
         self._connection = connection
@@ -67,7 +105,7 @@ class PostgresImageExportWorkerRepository:
             cursor.execute(
                 """SELECT job.*,request.document_id,request.document_version_id,
                           request.recipe_id,request.recipe_version,request.state AS request_state,
-                          recipe.operations,version.snapshot
+                          recipe.operations,version.snapshot,preview.mode AS preview_mode
                    FROM processing_jobs job
                    JOIN image_export_requests request
                      ON request.export_request_id=job.export_request_id
@@ -79,6 +117,8 @@ class PostgresImageExportWorkerRepository:
                    JOIN document_versions version
                      ON version.document_version_id=request.document_version_id
                     AND version.document_id=request.document_id
+                   LEFT JOIN enhancement_previews preview
+                     ON preview.export_request_id=request.export_request_id
                    WHERE job.job_id=%s AND job.kind='image_export'
                    FOR UPDATE OF job,request""",
                 (job_id,),
@@ -108,7 +148,12 @@ class PostgresImageExportWorkerRepository:
                 for item in cursor.fetchall()
             )
             snapshot = self._json(row["snapshot"])
-            assets = self._verified_assets(cursor, str(row["workspace_id"]), snapshot)
+            assets = self._verified_assets(
+                cursor,
+                str(row["workspace_id"]),
+                snapshot,
+                {output.artboard_id for output in outputs},
+            )
             self._connection.commit()
             return LeasedImageExportJob(
                 job_id=job_id,
@@ -119,7 +164,11 @@ class PostgresImageExportWorkerRepository:
                 document_version_id=str(row["document_version_id"]),
                 recipe_id=str(row["recipe_id"]),
                 recipe_version=int(row["recipe_version"]),
-                operations=list(self._json_array(row["operations"])),
+                operations=(
+                    []
+                    if row.get("preview_mode") == "original"
+                    else list(self._json_array(row["operations"]))
+                ),
                 snapshot=snapshot,
                 assets=assets,
                 outputs=outputs,
@@ -215,7 +264,11 @@ class PostgresImageExportWorkerRepository:
         try:
             cursor.execute("BEGIN")
             self._require_running(cursor, lease.job_id, lease.lease_token_hash)
-            object_id = deterministic_id("export-object", stored.output_id)
+            object_id = deterministic_id(
+                "export-object",
+                f"{stored.output_id}:{stored.object_key}:{stored.storage_generation}:"
+                f"{stored.rendered.sha256}",
+            )
             cursor.execute(
                 """INSERT INTO object_references(object_reference_id,workspace_id,object_key,
                    sha256,media_type,byte_size,storage_generation,created_at)
@@ -247,7 +300,8 @@ class PostgresImageExportWorkerRepository:
             cursor.execute(
                 """UPDATE image_export_outputs SET state='succeeded',progress_percent=100,
                    object_reference_id=%s,sha256=%s,byte_size=%s,width=%s,height=%s,
-                   media_type=%s,failure_code=NULL,failure_message=NULL,completed_at=%s
+                   media_type=%s,metadata_verified=%s,metadata_evidence=%s::jsonb,
+                   histogram=%s::jsonb,failure_code=NULL,failure_message=NULL,completed_at=%s
                    WHERE output_id=%s AND export_request_id=%s AND state='running'""",
                 (
                     object_id,
@@ -256,6 +310,9 @@ class PostgresImageExportWorkerRepository:
                     stored.rendered.width,
                     stored.rendered.height,
                     stored.rendered.media_type,
+                    stored.rendered.metadata_verified,
+                    json.dumps(stored.rendered.metadata_evidence, sort_keys=True),
+                    json.dumps(stored.rendered.histogram, sort_keys=True),
                     instant,
                     stored.output_id,
                     lease.export_request_id,
@@ -268,9 +325,9 @@ class PostgresImageExportWorkerRepository:
                 """INSERT INTO export_provenance(provenance_id,output_id,workspace_id,
                    document_id,document_version_id,source_version_ids,recipe_id,recipe_version,
                    processor_name,processor_version,deterministic,parameters_sha256,output_sha256,
-                   metadata_policy,metadata_verified,trace_id,job_id,created_at)
+                   metadata_policy,metadata_verified,metadata_evidence,trace_id,job_id,created_at)
                    VALUES(%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,true,%s,%s,%s::jsonb,
-                          %s,%s,%s,%s)
+                          %s,%s::jsonb,%s,%s,%s)
                    ON CONFLICT(output_id) DO NOTHING""",
                 (
                     deterministic_id("provenance", stored.output_id),
@@ -287,6 +344,7 @@ class PostgresImageExportWorkerRepository:
                     stored.rendered.sha256,
                     json.dumps(target.profile.get("metadata_policy", {})),
                     stored.rendered.metadata_verified,
+                    json.dumps(stored.rendered.metadata_evidence, sort_keys=True),
                     lease.trace_id,
                     lease.job_id,
                     instant,
@@ -308,18 +366,23 @@ class PostgresImageExportWorkerRepository:
         message: str,
     ) -> None:
         cursor = self._connection.cursor()
-        cursor.execute(
-            """UPDATE image_export_outputs SET state='failed',progress_percent=100,
-               failure_code=%s,failure_message=%s
-               WHERE output_id=%s AND export_request_id=%s AND state='running'""",
-            (code[:100], message[:500], output_id, lease.export_request_id),
-        )
-        if cursor.rowcount != 1:
+        try:
+            cursor.execute("BEGIN")
+            self._require_running(cursor, lease.job_id, lease.lease_token_hash)
+            cursor.execute(
+                """UPDATE image_export_outputs SET state='failed',progress_percent=100,
+                   failure_code=%s,failure_message=%s
+                   WHERE output_id=%s AND export_request_id=%s AND state='running'""",
+                (code[:100], message[:500], output_id, lease.export_request_id),
+            )
+            if cursor.rowcount != 1:
+                raise JobBusyError("export output changed before failure was recorded")
+            self._connection.commit()
+        except Exception:
             self._connection.rollback()
+            raise
+        finally:
             cursor.close()
-            raise JobBusyError("export output changed before failure was recorded")
-        self._connection.commit()
-        cursor.close()
 
     def checkpoint_image_export(
         self,
@@ -649,7 +712,10 @@ class PostgresImageExportWorkerRepository:
         try:
             cursor.execute("BEGIN")
             self._require_running(cursor, lease.job_id, lease.lease_token_hash)
-            object_id = deterministic_id("bundle-object", lease.bundle_id)
+            object_id = deterministic_id(
+                "bundle-object",
+                f"{lease.bundle_id}:{stored.object_key}:{stored.storage_generation}:{stored.sha256}",
+            )
             cursor.execute(
                 """INSERT INTO object_references(object_reference_id,workspace_id,object_key,
                    sha256,media_type,byte_size,storage_generation,created_at)
@@ -843,10 +909,41 @@ class PostgresImageExportWorkerRepository:
         if not eligible:
             raise JobBusyError("job is not eligible for a new export lease")
         if int(row["attempt"]) >= int(row["max_attempts"]):
-            cursor.execute(
-                "UPDATE processing_jobs SET state='failed',updated_at=%s WHERE job_id=%s",
-                (instant, row["job_id"]),
+            failure = json.dumps(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "code": "job-attempts-exhausted",
+                    "message": "The durable job exhausted its approved attempts",
+                    "retryable": False,
+                }
             )
+            cursor.execute(
+                """UPDATE processing_jobs SET state='failed',failure=%s::jsonb,
+                   lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=%s
+                   WHERE job_id=%s""",
+                (failure, instant, row["job_id"]),
+            )
+            if row["kind"] == "image_export":
+                cursor.execute(
+                    """UPDATE image_export_outputs SET state='failed',progress_percent=100,
+                       failure_code='job-attempts-exhausted',
+                       failure_message='The durable export exhausted its approved attempts'
+                       WHERE export_request_id=%s AND state IN ('queued','running')""",
+                    (row["export_request_id"],),
+                )
+                cursor.execute(
+                    """UPDATE image_export_requests SET state=CASE
+                         WHEN EXISTS(SELECT 1 FROM image_export_outputs
+                           WHERE export_request_id=%s AND state='succeeded')
+                         THEN 'partially_completed' ELSE 'failed' END,updated_at=%s
+                       WHERE export_request_id=%s""",
+                    (row["export_request_id"], instant, row["export_request_id"]),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE export_bundles SET state='failed' WHERE bundle_id=%s",
+                    (row["bundle_id"],),
+                )
             return False
         cursor.execute(
             """UPDATE processing_jobs SET state='leased',attempt=attempt+1,lease_owner=%s,
@@ -874,11 +971,19 @@ class PostgresImageExportWorkerRepository:
         return True
 
     def _verified_assets(
-        self, cursor: Any, workspace_id: str, snapshot: dict[str, Any]
+        self,
+        cursor: Any,
+        workspace_id: str,
+        snapshot: dict[str, Any],
+        selected_artboard_ids: set[str],
     ) -> tuple[ExportAssetReference, ...]:
         result: list[ExportAssetReference] = []
+        referenced_asset_ids = effectively_visible_raster_ids(snapshot, selected_artboard_ids)
         for asset in snapshot.get("shared_assets", []):
-            if asset.get("kind") != "raster":
+            if (
+                asset.get("kind") != "raster"
+                or str(asset.get("shared_asset_id")) not in referenced_asset_ids
+            ):
                 continue
             source_version_id = asset.get("source_version_id")
             asset_original_id = asset.get("asset_original_id")
@@ -887,9 +992,10 @@ class PostgresImageExportWorkerRepository:
             cursor.execute(
                 """SELECT source.object_reference_id,
                           object.object_key,object.storage_generation,object.sha256,
-                          object.media_type,object.byte_size,facts.width,facts.height,
+                          object.media_type,object.byte_size,facts.width,facts.height,facts.orientation,
                           facts.storage_generation,facts.source_sha256,facts.media_type,
-                          facts.byte_size,facts.malware_scan_state
+                          facts.byte_size,facts.malware_scan_state,facts.bit_depth,
+                          facts.frame_count,facts.has_icc_profile,facts.colour_model
                    FROM source_versions source
                    JOIN object_references object
                      ON object.object_reference_id=source.object_reference_id
@@ -919,11 +1025,16 @@ class PostgresImageExportWorkerRepository:
                 byte_size,
                 width,
                 height,
+                orientation,
                 facts_generation,
                 facts_digest,
                 facts_media_type,
                 facts_byte_size,
                 scan_state,
+                bit_depth,
+                frame_count,
+                has_icc_profile,
+                colour_model,
             ) = row
             snapshot_reference_id = asset.get("object_reference_id")
             if (
@@ -935,6 +1046,10 @@ class PostgresImageExportWorkerRepository:
                 or scan_state != "clean"
                 or width is None
                 or height is None
+                or bit_depth is None
+                or frame_count is None
+                or has_icc_profile is None
+                or colour_model is None
             ):
                 raise RuntimeError("native document source facts no longer match storage")
             result.append(
@@ -948,8 +1063,15 @@ class PostgresImageExportWorkerRepository:
                     int(byte_size),
                     int(width),
                     int(height),
+                    None if orientation is None else int(orientation),
+                    int(bit_depth),
+                    int(frame_count),
+                    bool(has_icc_profile),
+                    str(colour_model),
                 )
             )
+        if referenced_asset_ids != {item.shared_asset_id for item in result}:
+            raise RuntimeError("native document references an unavailable verified raster source")
         return tuple(result)
 
     def _heartbeat(self, job_id: str, token_hash: str, now: datetime | None = None) -> None:

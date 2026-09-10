@@ -1,16 +1,5 @@
 {
   "$defs": {
-    "ComparisonMode": {
-      "enum": [
-        "original",
-        "current",
-        "recommended",
-        "split",
-        "side_by_side"
-      ],
-      "title": "ComparisonMode",
-      "type": "string"
-    },
     "HistogramSummary": {
       "additionalProperties": false,
       "properties": {
@@ -70,6 +59,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "artboard_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Artboard Id",
+      "type": "string"
+    },
+    "authoritative": {
+      "const": true,
+      "default": true,
+      "title": "Authoritative",
+      "type": "boolean"
+    },
+    "byte_size": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Byte Size"
+    },
     "created_at": {
       "maxLength": 2048,
       "minLength": 1,
@@ -85,6 +98,35 @@
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
       "title": "Document Version Id",
       "type": "string"
+    },
+    "export_request_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Export Request Id",
+      "type": "string"
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Code"
+    },
+    "failure_message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Message"
     },
     "height": {
       "minimum": 1,
@@ -102,8 +144,44 @@
       ],
       "default": null
     },
+    "media_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Media Type"
+    },
     "mode": {
-      "$ref": "#/$defs/ComparisonMode"
+      "enum": [
+        "original",
+        "current",
+        "recommended"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "object_reference_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Object Reference Id"
+    },
+    "output_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Output Id",
+      "type": "string"
     },
     "preview_id": {
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
@@ -111,14 +189,14 @@
       "type": "string"
     },
     "proxy": {
-      "const": true,
-      "default": true,
+      "const": false,
+      "default": false,
       "title": "Proxy",
       "type": "boolean"
     },
     "quality_label": {
-      "const": "Interactive proxy; final output is rendered by a durable worker",
-      "default": "Interactive proxy; final output is rendered by a durable worker",
+      "const": "Authoritative registered preview rendered from the immutable document version",
+      "default": "Authoritative registered preview rendered from the immutable document version",
       "title": "Quality Label",
       "type": "string"
     },
@@ -137,6 +215,31 @@
       "title": "Schema Version",
       "type": "string"
     },
+    "sha256": {
+      "anyOf": [
+        {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "State",
+      "type": "string"
+    },
     "width": {
       "minimum": 1,
       "title": "Width",
@@ -150,6 +253,10 @@
     "recipe_id",
     "recipe_version",
     "mode",
+    "state",
+    "export_request_id",
+    "output_id",
+    "artboard_id",
     "width",
     "height",
     "created_at"

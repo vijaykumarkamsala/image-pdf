@@ -2,8 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ImageOperationKind } from "ipw-contracts-ts/product";
 
-import { defaultOperation, moveOperation, normalizeOrder } from "../src/editor/enhancementModel.ts";
-import { operationFilter, sampleCanvasHistogram } from "../src/editor/comparisonModel.ts";
+import {
+  defaultOperation,
+  executableUiOperations,
+  moveOperation,
+  neutralOperation,
+  normalizeOrder,
+  semanticallyEqualOperations,
+} from "../src/editor/enhancementModel.ts";
+import { sampleCanvasHistogram } from "../src/editor/comparisonModel.ts";
 
 const kinds: ImageOperationKind[] = [
   "orientation_normalize", "crop", "rotate", "flip", "resize",
@@ -31,16 +38,30 @@ test("operation reordering is immutable and normalizes the persisted order", () 
   assert.deepEqual(normalizeOrder(source).map((item) => item.order), [0, 1, 2]);
 });
 
-test("comparison filter ignores disabled operations and never claims reconstructed detail", () => {
-  const brightness = defaultOperation("exposure_brightness", 0);
-  brightness.parameters = { exposure_ev: 1, brightness: 10 };
-  const contrast = defaultOperation("contrast", 1);
-  contrast.parameters = { amount: 40 };
-  contrast.enabled = false;
-  const filter = operationFilter([brightness, contrast]);
-  assert.match(filter, /brightness\(220/);
-  assert.match(filter, /contrast\(100/);
-  assert.doesNotMatch(filter, /ai|reconstruct/i);
+test("unavailable recipe controls cannot be serialized by the customer UI", () => {
+  const operations = [
+    defaultOperation("orientation_normalize", 0),
+    defaultOperation("contrast", 1),
+    defaultOperation("colour_profile_conversion", 2),
+  ];
+  const executable = executableUiOperations(operations);
+  assert.deepEqual(executable.map((item) => item.kind), ["contrast"]);
+  assert.deepEqual(executable.map((item) => item.order), [0]);
+});
+
+test("reset is neutral and semantic comparison ignores generated identities", () => {
+  for (const kind of kinds) {
+    const operation = defaultOperation(kind, 0);
+    const reset = neutralOperation(operation);
+    if (["orientation_normalize", "flip", "resize", "grayscale", "colour_profile_conversion", "resampling_scale"].includes(kind)) {
+      assert.equal(reset.enabled, false, `${kind} must reset by disabling its effect`);
+    }
+    if (kind === "unsharp_mask") assert.equal((reset.parameters as { amount: number }).amount, 0);
+    if (kind === "noise_reduction") assert.equal((reset.parameters as { strength: number }).strength, 0);
+  }
+  const left = defaultOperation("contrast", 0);
+  const right = { ...structuredClone(left), operation_id: "operation-another" };
+  assert.equal(semanticallyEqualOperations([left], [right]), true);
 });
 
 test("histogram sampling fails closed to an empty non-clipping result", () => {

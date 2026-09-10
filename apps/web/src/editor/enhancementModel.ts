@@ -1,5 +1,10 @@
 import type { DocumentReadModel, ImageOperation, ImageOperationKind } from "ipw-contracts-ts/product";
 
+export const UNAVAILABLE_UI_OPERATION_KINDS = new Set<ImageOperationKind>([
+  "orientation_normalize",
+  "colour_profile_conversion",
+]);
+
 export function defaultOperation(kind: ImageOperationKind, order: number): ImageOperation {
   const parameters: Record<ImageOperationKind, Record<string, unknown>> = {
     orientation_normalize: { source_orientation: 2, apply_exactly_once: true },
@@ -34,6 +39,20 @@ export function defaultOperation(kind: ImageOperationKind, order: number): Image
 
 export function normalizeOrder(operations: ImageOperation[]): ImageOperation[] {
   return operations.map((operation, order) => ({ ...operation, order }));
+}
+
+export function executableUiOperations(operations: ImageOperation[]): ImageOperation[] {
+  return normalizeOrder(operations.filter((operation) => !UNAVAILABLE_UI_OPERATION_KINDS.has(operation.kind)));
+}
+
+export function semanticallyEqualOperations(left: ImageOperation[], right: ImageOperation[]): boolean {
+  const project = (operations: ImageOperation[]) => normalizeOrder(operations).map((operation) => ({
+    kind: operation.kind,
+    order: operation.order,
+    enabled: operation.enabled,
+    parameters: operation.parameters,
+  }));
+  return JSON.stringify(project(left)) === JSON.stringify(project(right));
 }
 
 export function moveOperation(operations: ImageOperation[], from: number, to: number): ImageOperation[] {
@@ -98,6 +117,23 @@ export function summariseOperation(operation: ImageOperation): string {
   if (operation.kind === "rotate") return `${parameters["degrees"]} degrees`;
   if (operation.kind === "crop") return parameters["aspect_preset"] ? String(parameters["aspect_preset"]) : "Free crop";
   return "Editable correction";
+}
+
+export function neutralOperation(operation: ImageOperation): ImageOperation {
+  const reset = defaultOperation(operation.kind, operation.order);
+  const parameters = reset.parameters as unknown as Record<string, unknown>;
+  const disabledKinds = new Set<ImageOperationKind>([
+    "orientation_normalize", "flip", "resize", "grayscale", "colour_profile_conversion",
+    "resampling_scale",
+  ]);
+  if (operation.kind === "unsharp_mask") parameters["amount"] = 0;
+  if (operation.kind === "noise_reduction") parameters["strength"] = 0;
+  return {
+    ...reset,
+    operation_id: operation.operation_id,
+    enabled: !disabledKinds.has(operation.kind),
+    parameters: parameters as ImageOperation["parameters"],
+  };
 }
 
 function physicalPixels(value: number, unit: string, ppi: number) {

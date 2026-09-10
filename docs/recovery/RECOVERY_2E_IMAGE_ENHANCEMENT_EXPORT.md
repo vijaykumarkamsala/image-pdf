@@ -1,7 +1,7 @@
 # Recovery 2E: Image Enhancement and Export
 
-**Status:** Complete locally; paused for product-owner review
-**Date:** 2 September 2026
+**Status:** Corrective-complete locally; paused for product-owner review
+**Date:** 10 September 2026
 **Branch:** `recovery/2e-image-enhancement-export`
 **Approved baseline:** `origin/recovery/2d-image-graphic-studio-foundation`
 at `7a7b239f16361a307d7239f8ae6de32d355591f4`
@@ -21,6 +21,12 @@ versioned recipes, idempotency, audit, zero-charge usage and result delivery.
 PostgreSQL is authoritative for recipes, jobs, outputs and provenance. The Python
 processing worker reads generation-bound immutable sources from private storage,
 renders each requested output independently and registers verified derivatives.
+
+The production-correctness pass replaces CSS comparison approximations with
+registered worker previews; enforces one native geometry interpretation; makes
+unsupported controls unavailable before submission; executes ICC-aware sRGB and
+validated CMYK input conversion; verifies completed metadata bytes; fences worker
+completion by lease token; and hardens private downloads and deterministic ZIPs.
 
 No legacy, benchmark, POC, PDF, vector-processing or model runtime was promoted
 into the production path. Originals, `AssetOriginal` identity and `SourceVersion`
@@ -44,10 +50,11 @@ reported outside the commit itself to avoid a self-referential hash.
 ### Contracts and generated artifacts
 
 `packages/contracts/src/ipw/contracts/enhancement.py` is the source of truth for
-20 operation kinds, recipes, recommendations, proxy comparison, output profiles,
-export requests, outputs, provenance and ZIP bundles. Product contract version
-`1.18.0` is generated into JSON Schema under `packages/schemas/product-v1/` and
-TypeScript in `packages/contracts-ts/src/generated/product.ts`.
+20 operation kinds, recipes, recommendations and durable decisions, registered
+comparison previews, output profiles, metadata evidence, export requests,
+outputs, provenance and ZIP bundles. Product contract version `1.18.0` is
+generated into JSON Schema under `packages/schemas/product-v1/` and TypeScript
+in `packages/contracts-ts/src/generated/product.ts`.
 
 The contracts make order, enabled state, parameters, recipe/version identity,
 immutable source identity, output state, checksums and zero charging explicit.
@@ -63,15 +70,20 @@ result lookup and authorised streaming download.
 
 Migration `0018_recovery_2e_enhancement_exports.sql` adds versioned recipes,
 recommendation sets, export requests, independent outputs, provenance and ZIP
-bundle state. It extends authoritative source inspection facts without storing
-source or derivative bytes in PostgreSQL.
+bundle state. Corrective migration
+`0019_recovery_2e_production_correctness.sql` adds source frame/colour evidence,
+logical recommendation idempotency, append-only recommendation decisions,
+preview request identity and completed-byte metadata evidence. Earlier outputs
+without that evidence are retained but fail closed until regenerated.
 
 The stable routes are:
 
 - `GET|POST /workspaces/:workspaceId/documents/:documentId/recipes`
 - `PATCH /workspaces/:workspaceId/documents/:documentId/recipes/:recipeId`
 - `POST /workspaces/:workspaceId/documents/:documentId/recommendations`
+- `PATCH /workspaces/:workspaceId/recommendation-sets/:recommendationSetId/decisions`
 - `POST /workspaces/:workspaceId/documents/:documentId/enhancement-previews`
+- `GET /workspaces/:workspaceId/enhancement-previews/:previewId`
 - `POST /workspaces/:workspaceId/documents/:documentId/exports`
 - `GET /workspaces/:workspaceId/exports`
 - `GET /workspaces/:workspaceId/exports/:exportRequestId`

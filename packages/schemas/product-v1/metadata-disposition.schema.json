@@ -1,0 +1,118 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/metadata-disposition.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "comments": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Comments",
+      "type": "string"
+    },
+    "embedded_thumbnails": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Embedded Thumbnails",
+      "type": "string"
+    },
+    "exif": {
+      "enum": [
+        "preserved-approved-fields",
+        "removed",
+        "absent"
+      ],
+      "title": "Exif",
+      "type": "string"
+    },
+    "gps": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Gps",
+      "type": "string"
+    },
+    "icc_profiles": {
+      "enum": [
+        "converted-to-srgb",
+        "assumed-srgb-and-tagged",
+        "preserved"
+      ],
+      "title": "Icc Profiles",
+      "type": "string"
+    },
+    "iptc": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Iptc",
+      "type": "string"
+    },
+    "maker_notes": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Maker Notes",
+      "type": "string"
+    },
+    "orientation": {
+      "enum": [
+        "normalized",
+        "absent"
+      ],
+      "title": "Orientation",
+      "type": "string"
+    },
+    "private_blocks": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Private Blocks",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.18.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "software_device": {
+      "enum": [
+        "preserved-approved-fields",
+        "removed",
+        "absent"
+      ],
+      "title": "Software Device",
+      "type": "string"
+    },
+    "xmp": {
+      "enum": [
+        "removed",
+        "absent"
+      ],
+      "title": "Xmp",
+      "type": "string"
+    }
+  },
+  "required": [
+    "exif",
+    "gps",
+    "orientation",
+    "xmp",
+    "iptc",
+    "comments",
+    "maker_notes",
+    "private_blocks",
+    "software_device",
+    "embedded_thumbnails",
+    "icc_profiles"
+  ],
+  "title": "MetadataDisposition",
+  "type": "object"
+}

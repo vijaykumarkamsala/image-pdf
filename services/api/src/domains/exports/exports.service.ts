@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { Inject, Injectable, type OnApplicationShutdown } from "@nestjs/common";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
-import type { ComparisonMode, IntendedOutcome, Permission } from "ipw-contracts-ts/product";
+import type { IntendedOutcome, Permission } from "ipw-contracts-ts/product";
 
 import { DomainError, requireId, requireText } from "../../kernel/errors.js";
 import { PRODUCT_REPOSITORY, type CommandContext, type ProductKernelRepository } from "../../kernel/product.types.js";
@@ -13,11 +14,12 @@ import { IMAGE_EXPORT_REPOSITORY, type ImageExportRepository } from "./exports.t
 
 type Headers = Record<string, string | string[] | undefined>;
 type Body = Record<string, unknown>;
+type PreviewMode = "original" | "current" | "recommended";
 
-const MODES = new Set<ComparisonMode>(["original", "current", "recommended", "split", "side_by_side"]);
+const MODES = new Set<PreviewMode>(["original", "current", "recommended"]);
 const OUTCOMES = new Set<IntendedOutcome>(["digital", "archival", "presentation", "custom"]);
 const OUTPUT_LIMIT = 64;
-const DELIVERY_LIMIT = 1_073_741_824;
+const DELIVERY_LIMIT = 128 * 1024 * 1024;
 
 @Injectable()
 export class ExportsService implements OnApplicationShutdown {
@@ -58,15 +60,61 @@ export class ExportsService implements OnApplicationShutdown {
     return { schema_version: PRODUCT_SCHEMA_VERSION, recommendation_set: result.value, replayed: result.replayed };
   }
 
+  async decideRecommendations(headers: Headers, workspaceId: string, recommendationSetId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "recipe.create");
+    const raw = body["decisions"];
+    if (!Array.isArray(raw) || raw.length < 1 || raw.length > 64) {
+      throw new DomainError(400, "recommendation-decision-invalid", "Provide between 1 and 64 recommendation decisions");
+    }
+    const decisions: Array<{ recommendationId: string; state: "accepted" | "declined" }> = raw.map((value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new DomainError(400, "recommendation-decision-invalid", "Each recommendation decision must be an object");
+      }
+      const item = value as Body;
+      const state = item["state"];
+      if (state !== "accepted" && state !== "declined") {
+        throw new DomainError(400, "recommendation-decision-invalid", "Decision state must be accepted or declined");
+      }
+      return { recommendationId: requireId(item["recommendation_id"], "recommendation id"), state };
+    });
+    if (new Set(decisions.map((item) => item.recommendationId)).size !== decisions.length) {
+      throw new DomainError(400, "recommendation-decision-invalid", "Each recommendation may be decided once per request");
+    }
+    const payload = {
+      workspaceId: access.workspaceId,
+      recommendationSetId: requireId(recommendationSetId, "recommendation set id"),
+      decisions,
+    };
+    const context = this.command(headers, access.principal, "recommendations.decide", payload);
+    const result = await this.exports.decideRecommendations(context, payload);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, decisions: result.value, replayed: result.replayed };
+  }
+
   async preview(headers: Headers, workspaceId: string, documentId: string, body: Body) {
-    const access = await this.access(headers, workspaceId, "recipe.read");
+    const access = await this.access(headers, workspaceId, "export.create");
     const id = await this.document(access.principal.actorId, access.workspaceId, documentId);
     const recipeId = requireId(body["recipe_id"], "recipe id");
     const version = optionalPositiveInteger(body["recipe_version"], "recipe version");
-    const selected = await this.exports.getRecipe(access.principal.actorId, access.workspaceId, recipeId, version ?? undefined);
-    if (!selected || selected.document_id !== id) throw new DomainError(404, "recipe-not-found", "Recipe was not found");
-    const mode = requireMode(body["mode"] ?? "current");
-    return { schema_version: PRODUCT_SCHEMA_VERSION, preview: await this.exports.preview(access.principal.actorId, access.workspaceId, id, selected, mode) };
+    const payload = {
+      workspaceId: access.workspaceId,
+      documentId: id,
+      recipeId,
+      recipeVersion: version,
+      mode: requireMode(body["mode"] ?? "current") as "original" | "current" | "recommended",
+      artboardId: body["artboard_id"] === undefined || body["artboard_id"] === null
+        ? null
+        : requireId(body["artboard_id"], "artboard id"),
+    };
+    const context = this.command(headers, access.principal, "enhancement-preview.create", payload);
+    const result = await this.exports.createPreview(context, payload);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, preview: result.value, replayed: result.replayed };
+  }
+
+  async getPreview(headers: Headers, workspaceId: string, previewId: string) {
+    const access = await this.access(headers, workspaceId, "recipe.read");
+    const value = await this.exports.getPreview(access.principal.actorId, access.workspaceId, requireId(previewId, "preview id"));
+    if (!value) throw new DomainError(404, "enhancement-preview-not-found", "Enhancement preview was not found");
+    return { schema_version: PRODUCT_SCHEMA_VERSION, preview: value };
   }
 
   async submit(headers: Headers, workspaceId: string, documentId: string, body: Body) {
@@ -185,12 +233,19 @@ export class ExportsService implements OnApplicationShutdown {
     return { schema_version: PRODUCT_SCHEMA_VERSION, recipe: result.value, replayed: result.replayed };
   }
 
-  private async readDelivery(workspaceId: string, value: { objectKey: string; byteSize: number; mediaType: string; filename: string }) {
+  private async readDelivery(workspaceId: string, value: { objectKey: string; byteSize: number; mediaType: string; filename: string; sha256: string; storageGeneration: string }) {
     if (!Number.isSafeInteger(value.byteSize) || value.byteSize < 1 || value.byteSize > DELIVERY_LIMIT) {
       throw new DomainError(413, "download-limit-exceeded", "This output exceeds the bounded API delivery limit");
     }
-    const bytes = await this.objects.read({ ownerScope: workspaceId, objectKey: value.objectKey, zone: "derivative" }, value.byteSize);
-    if (bytes.byteLength !== value.byteSize) throw new DomainError(409, "export-integrity-conflict", "Stored output size no longer matches its verified record");
+    let bytes: Uint8Array;
+    try {
+      bytes = await this.objects.read({ ownerScope: workspaceId, objectKey: value.objectKey, zone: "derivative", generation: value.storageGeneration }, value.byteSize);
+    } catch {
+      throw new DomainError(409, "export-integrity-conflict", "Stored output generation no longer matches its verified record");
+    }
+    if (bytes.byteLength !== value.byteSize || createHash("sha256").update(bytes).digest("hex") !== value.sha256) {
+      throw new DomainError(409, "export-integrity-conflict", "Stored output bytes no longer match their verified record");
+    }
     return { ...value, bytes };
   }
 
@@ -228,9 +283,9 @@ export class ExportsService implements OnApplicationShutdown {
   }
 }
 
-function requireMode(value: unknown): ComparisonMode {
-  if (typeof value !== "string" || !MODES.has(value as ComparisonMode)) throw new DomainError(400, "comparison-mode-invalid", "Comparison mode is not supported");
-  return value as ComparisonMode;
+function requireMode(value: unknown): PreviewMode {
+  if (typeof value !== "string" || !MODES.has(value as PreviewMode)) throw new DomainError(400, "comparison-mode-invalid", "Comparison mode is not supported");
+  return value as PreviewMode;
 }
 
 function requireOutcome(value: unknown): IntendedOutcome {

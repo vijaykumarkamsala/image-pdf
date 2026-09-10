@@ -30,9 +30,19 @@ export class ExportsController {
     return this.exports.recommendations(headers, workspaceId, documentId, body);
   }
 
+  @Patch("recommendation-sets/:recommendationSetId/decisions")
+  decideRecommendations(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("recommendationSetId") recommendationSetId: string, @Body() body: RequestBody) {
+    return this.exports.decideRecommendations(headers, workspaceId, recommendationSetId, body);
+  }
+
   @Post("documents/:documentId/enhancement-previews")
   preview(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string, @Body() body: RequestBody) {
     return this.exports.preview(headers, workspaceId, documentId, body);
+  }
+
+  @Get("enhancement-previews/:previewId")
+  getPreview(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("previewId") previewId: string) {
+    return this.exports.getPreview(headers, workspaceId, previewId);
   }
 
   @Post("documents/:documentId/exports")
@@ -73,17 +83,64 @@ export class ExportsController {
   @Get("export-outputs/:outputId/download")
   async outputDownload(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("outputId") outputId: string, @Res() response: Response) {
     const delivery = await this.exports.outputDownload(headers, workspaceId, outputId);
-    response.type(delivery.mediaType).setHeader("Content-Disposition", attachment(delivery.filename)).send(Buffer.from(delivery.bytes));
+    sendDelivery(response, headers, delivery);
   }
 
   @Get("export-bundles/:bundleId/download")
   async bundleDownload(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("bundleId") bundleId: string, @Res() response: Response) {
     const delivery = await this.exports.bundleDownload(headers, workspaceId, bundleId);
-    response.type(delivery.mediaType).setHeader("Content-Disposition", attachment(delivery.filename)).send(Buffer.from(delivery.bytes));
+    sendDelivery(response, headers, delivery);
   }
 }
 
-function attachment(filename: string): string {
-  const safe = filename.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 240);
-  return `attachment; filename="${safe}"`;
+export function attachment(filename: string): string {
+  const normalized = filename.normalize("NFC").replace(/[\0-\x1f\x7f\u202a-\u202e\u2066-\u2069]/gu, "_");
+  const safe = normalized.replace(/[^a-zA-Z0-9._ -]/g, "_").replace(/["\\]/g, "_").slice(0, 120) || "download";
+  const encoded = encodeURIComponent(normalized).replace(/['()*]/g, (value) => `%${value.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `attachment; filename="${safe}"; filename*=UTF-8''${encoded}`;
+}
+
+function sendDelivery(
+  response: Response,
+  headers: RequestHeaders,
+  delivery: { mediaType: string; filename: string; bytes: Uint8Array },
+): void {
+  const bytes = Buffer.from(delivery.bytes);
+  response
+    .type(delivery.mediaType)
+    .setHeader("Cache-Control", "private, no-store, max-age=0")
+    .setHeader("Pragma", "no-cache")
+    .setHeader("X-Content-Type-Options", "nosniff")
+    .setHeader("Accept-Ranges", "bytes")
+    .setHeader("Content-Disposition", attachment(delivery.filename));
+  const rawRange = Array.isArray(headers["range"]) ? headers["range"][0] : headers["range"];
+  if (!rawRange) {
+    response.setHeader("Content-Length", String(bytes.byteLength)).send(bytes);
+    return;
+  }
+  const range = parseRange(rawRange, bytes.byteLength);
+  if (!range) {
+    response.status(416).setHeader("Content-Range", `bytes */${bytes.byteLength}`).send();
+    return;
+  }
+  const selected = bytes.subarray(range.start, range.end + 1);
+  response
+    .status(206)
+    .setHeader("Content-Range", `bytes ${range.start}-${range.end}/${bytes.byteLength}`)
+    .setHeader("Content-Length", String(selected.byteLength))
+    .send(selected);
+}
+
+export function parseRange(value: string, size: number): { start: number; end: number } | null {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
+  if (!match || (!match[1] && !match[2]) || size < 1) return null;
+  if (!match[1]) {
+    const suffix = Number(match[2]);
+    if (!Number.isSafeInteger(suffix) || suffix < 1) return null;
+    return { start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(match[1]);
+  const end = match[2] ? Number(match[2]) : size - 1;
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= size || end < start) return null;
+  return { start, end: Math.min(end, size - 1) };
 }

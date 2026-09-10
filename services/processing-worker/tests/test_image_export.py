@@ -6,16 +6,24 @@ import hashlib
 import io
 import json
 import zipfile
+from collections.abc import Callable
 from copy import deepcopy
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from PIL import Image, ImageChops
+from tools.make_recovery_2e_fixtures import cmyk_jpeg, metadata_jpeg
 
+from ipw.inspection import inspect_bytes
 from ipw.processing_worker.durable_intake import DispatchMessage
 from ipw.processing_worker.enhancement_engine import (
+    CANONICAL_SRGB_PROFILE,
     DeterministicImageEngine,
+    ProcessingBudget,
+    ProcessingLimits,
     VerifiedRasterAsset,
+    _process_rss_bytes,
+    process_peak_rss_bytes,
 )
 from ipw.processing_worker.image_export import (
     BundleItem,
@@ -42,7 +50,7 @@ def source_png() -> bytes:
     return output.getvalue()
 
 
-def snapshot() -> dict[str, object]:
+def snapshot() -> dict[str, Any]:
     return {
         "schema_version": "1.18.0",
         "document_id": "document-export",
@@ -119,8 +127,8 @@ def profile(format_name: str = "png", *, bit_depth: int = 8) -> dict[str, object
         "width": 240,
         "height": 160,
         "fit": "contain",
-        "quality": 88,
-        "lossless": format_name == "webp",
+        "quality": 88 if format_name == "jpeg" else None,
+        "lossless": format_name in {"png", "webp", "tiff"},
         "resampling_algorithm": "lanczos",
         "colour_profile": "srgb",
         "bit_depth": bit_depth,
@@ -205,7 +213,34 @@ def verified_asset(data: bytes) -> VerifiedRasterAsset:
         24,
         16,
         data,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=False,
+        colour_model="rgb",
     )
+
+
+def native_profile() -> dict[str, object]:
+    value = profile("png")
+    value["width"] = None
+    value["height"] = None
+    return value
+
+
+def render_native(
+    document: dict[str, object],
+    *,
+    assets: dict[str, VerifiedRasterAsset] | None = None,
+) -> tuple[str, Image.Image]:
+    rendered = DeterministicImageEngine().render(
+        snapshot=document,
+        artboard_id="artboard-export",
+        assets=assets or {},
+        operations=[],
+        profile=native_profile(),
+    )
+    with Image.open(io.BytesIO(rendered.data)) as opened:
+        return rendered.sha256, opened.convert("RGBA").copy()
 
 
 @pytest.mark.parametrize("format_name", ["jpeg", "png", "webp", "tiff"])
@@ -253,7 +288,6 @@ def test_engine_executes_transform_colour_and_resampling_operations() -> None:
     transformed = engine._operations(
         source,
         [
-            {"kind": "orientation_normalize", "order": 0, "enabled": True, "parameters": {}},
             {"kind": "contrast", "order": 1, "enabled": False, "parameters": {"amount": 100}},
             {
                 "kind": "rotate",
@@ -403,7 +437,434 @@ def test_engine_output_sizing_covers_percentage_physical_aspect_and_fit() -> Non
     assert contained.getchannel("A").getpixel((0, 0)) == 255
 
 
-def test_engine_renders_groups_text_vectors_shapes_transforms_and_blends() -> None:
+def test_operation_neutral_states_disable_and_order_are_pixel_truthful() -> None:
+    engine = DeterministicImageEngine()
+    source = Image.new("RGBA", (24, 16))
+    for y in range(source.height):
+        for x in range(source.width):
+            source.putpixel((x, y), (20 + x * 7, 30 + y * 9, 40 + (x + y) * 4, 255))
+    neutral = [
+        {
+            "kind": "crop",
+            "order": 0,
+            "enabled": True,
+            "parameters": {"left": 0, "top": 0, "right": 1, "bottom": 1},
+        },
+        {
+            "kind": "rotate",
+            "order": 1,
+            "enabled": True,
+            "parameters": {"degrees": 0, "expand_canvas": True},
+        },
+        {
+            "kind": "exposure_brightness",
+            "order": 2,
+            "enabled": True,
+            "parameters": {"exposure_ev": 0, "brightness": 0},
+        },
+        {"kind": "contrast", "order": 3, "enabled": True, "parameters": {"amount": 0}},
+        {
+            "kind": "highlights_shadows",
+            "order": 4,
+            "enabled": True,
+            "parameters": {"highlights": 0, "shadows": 0},
+        },
+        {
+            "kind": "white_balance_temperature",
+            "order": 5,
+            "enabled": True,
+            "parameters": {"temperature_kelvin": 6500},
+        },
+        {"kind": "tint", "order": 6, "enabled": True, "parameters": {"amount": 0}},
+        {
+            "kind": "saturation_vibrance",
+            "order": 7,
+            "enabled": True,
+            "parameters": {"saturation": 0, "vibrance": 0},
+        },
+        {"kind": "gamma", "order": 8, "enabled": True, "parameters": {"gamma": 1}},
+        {
+            "kind": "levels",
+            "order": 9,
+            "enabled": True,
+            "parameters": {"black": 0, "white": 255, "midpoint": 1},
+        },
+        {
+            "kind": "curves",
+            "order": 10,
+            "enabled": True,
+            "parameters": {
+                "channel": "rgb",
+                "points": [{"input": 0, "output": 0}, {"input": 1, "output": 1}],
+            },
+        },
+        {
+            "kind": "unsharp_mask",
+            "order": 11,
+            "enabled": True,
+            "parameters": {"radius": 1, "amount": 0, "threshold": 3},
+        },
+        {
+            "kind": "noise_reduction",
+            "order": 12,
+            "enabled": True,
+            "parameters": {"strength": 0, "preserve_edges": 70},
+        },
+        {
+            "kind": "colour_profile_conversion",
+            "order": 13,
+            "enabled": True,
+            "parameters": {"target_profile": "srgb"},
+        },
+        {
+            "kind": "alpha_background",
+            "order": 14,
+            "enabled": True,
+            "parameters": {"behavior": "preserve", "background": None},
+        },
+    ]
+    neutral_difference = ImageChops.difference(source, engine._operations(source, neutral))
+    assert neutral_difference.convert("RGB").getbbox() is None
+    assert neutral_difference.getchannel("A").getbbox() is None
+
+    disabled = [{"kind": "contrast", "order": 0, "enabled": False, "parameters": {"amount": 100}}]
+    disabled_difference = ImageChops.difference(source, engine._operations(source, disabled))
+    assert disabled_difference.convert("RGB").getbbox() is None
+    assert disabled_difference.getchannel("A").getbbox() is None
+
+    exposure_then_levels = engine._operations(
+        source,
+        [
+            {
+                "kind": "exposure_brightness",
+                "order": 0,
+                "enabled": True,
+                "parameters": {"exposure_ev": 0.7, "brightness": 0},
+            },
+            {
+                "kind": "levels",
+                "order": 1,
+                "enabled": True,
+                "parameters": {"black": 24, "white": 220, "midpoint": 1.3},
+            },
+        ],
+    )
+    levels_then_exposure = engine._operations(
+        source,
+        [
+            {
+                "kind": "levels",
+                "order": 0,
+                "enabled": True,
+                "parameters": {"black": 24, "white": 220, "midpoint": 1.3},
+            },
+            {
+                "kind": "exposure_brightness",
+                "order": 1,
+                "enabled": True,
+                "parameters": {"exposure_ev": 0.7, "brightness": 0},
+            },
+        ],
+    )
+    assert (
+        ImageChops.difference(exposure_then_levels, levels_then_exposure).convert("RGB").getbbox()
+        is not None
+    )
+
+
+def test_crop_presets_and_denoise_edge_preservation_are_executable() -> None:
+    engine = DeterministicImageEngine()
+    source = Image.new("RGBA", (40, 20), "#3559E0")
+    square = engine._crop_operation(
+        source,
+        {"left": 0, "top": 0, "right": 1, "bottom": 1, "aspect_preset": "1:1"},
+    )
+    portrait = engine._crop_operation(
+        source,
+        {"left": 0, "top": 0, "right": 1, "bottom": 1, "aspect_preset": "3:2"},
+    )
+    assert square.size == (20, 20)
+    assert portrait.size == (30, 20)
+
+    noisy = Image.new("RGBA", (9, 9), "#808080")
+    noisy.putpixel((4, 4), (255, 0, 0, 255))
+    protected = engine._operations(
+        noisy,
+        [
+            {
+                "kind": "noise_reduction",
+                "order": 0,
+                "enabled": True,
+                "parameters": {"strength": 80, "preserve_edges": 100},
+            }
+        ],
+    )
+    smoothed = engine._operations(
+        noisy,
+        [
+            {
+                "kind": "noise_reduction",
+                "order": 0,
+                "enabled": True,
+                "parameters": {"strength": 80, "preserve_edges": 0},
+            }
+        ],
+    )
+    assert ImageChops.difference(noisy, protected).convert("RGB").getbbox() is None
+    assert smoothed.getpixel((4, 4)) != noisy.getpixel((4, 4))
+
+
+def tagged_png(mode: str = "RGB") -> bytes:
+    image = Image.new(mode, (24, 16), 128 if mode == "L" else (64, 128, 192))
+    output = io.BytesIO()
+    image.save(output, format="PNG", icc_profile=CANONICAL_SRGB_PROFILE)
+    return output.getvalue()
+
+
+def single_raster_document(width: int = 24, height: int = 16) -> dict[str, Any]:
+    document = deepcopy(snapshot())
+    document["artboards"][0].update(
+        {
+            "width": width,
+            "height": height,
+            "background": {"kind": "transparent", "color": None},
+        }
+    )
+    document["layers"] = [document["layers"][0]]
+    document["layers"][0]["transform"] = {
+        "x": 0,
+        "y": 0,
+        "width": width,
+        "height": height,
+    }
+    return document
+
+
+def test_icc_preserve_srgb_grayscale_and_untagged_paths_are_truthful() -> None:
+    engine = DeterministicImageEngine()
+    tagged = tagged_png()
+    tagged_asset = VerifiedRasterAsset(
+        "asset-raster",
+        "source-export",
+        hashlib.sha256(tagged).hexdigest(),
+        "image/png",
+        len(tagged),
+        24,
+        16,
+        tagged,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=True,
+        colour_model="rgb",
+    )
+    preserve = native_profile()
+    preserve["colour_profile"] = "preserve"
+    preserved = engine.render(
+        snapshot=single_raster_document(),
+        artboard_id="artboard-export",
+        assets={"asset-raster": tagged_asset},
+        operations=[],
+        profile=preserve,
+    )
+    assert preserved.metadata_evidence["icc_profiles"] == "preserved"
+    with Image.open(io.BytesIO(preserved.data)) as opened:
+        assert bytes(opened.info["icc_profile"]) == CANONICAL_SRGB_PROFILE
+
+    converted = engine.render(
+        snapshot=single_raster_document(),
+        artboard_id="artboard-export",
+        assets={"asset-raster": tagged_asset},
+        operations=[],
+        profile=native_profile(),
+    )
+    assert converted.metadata_evidence["icc_profiles"] == "converted-to-srgb"
+    with Image.open(io.BytesIO(converted.data)) as opened:
+        assert bytes(opened.info["icc_profile"]) == CANONICAL_SRGB_PROFILE
+
+    gray = tagged_png("L")
+    gray_asset = VerifiedRasterAsset(
+        "asset-raster",
+        "source-export",
+        hashlib.sha256(gray).hexdigest(),
+        "image/png",
+        len(gray),
+        24,
+        16,
+        gray,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=True,
+        colour_model="grayscale",
+    )
+    gray_srgb = engine.render(
+        snapshot=single_raster_document(),
+        artboard_id="artboard-export",
+        assets={"asset-raster": gray_asset},
+        operations=[],
+        profile=native_profile(),
+    )
+    assert gray_srgb.metadata_evidence["icc_profiles"] == "converted-to-srgb"
+    with pytest.raises(ValueError, match="validated RGB ICC"):
+        engine.render(
+            snapshot=single_raster_document(),
+            artboard_id="artboard-export",
+            assets={"asset-raster": gray_asset},
+            operations=[],
+            profile=preserve,
+        )
+
+    untagged = source_png()
+    untagged_result = engine.render(
+        snapshot=single_raster_document(),
+        artboard_id="artboard-export",
+        assets={"asset-raster": verified_asset(untagged)},
+        operations=[],
+        profile=native_profile(),
+    )
+    assert untagged_result.metadata_evidence["icc_profiles"] == "assumed-srgb-and-tagged"
+
+
+def test_cmyk_uses_littlecms_and_metadata_disposition_comes_from_output_bytes() -> None:
+    engine = DeterministicImageEngine()
+    cmyk = cmyk_jpeg()
+    cmyk_asset = VerifiedRasterAsset(
+        "asset-raster",
+        "source-cmyk",
+        hashlib.sha256(cmyk).hexdigest(),
+        "image/jpeg",
+        len(cmyk),
+        360,
+        240,
+        cmyk,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=True,
+        colour_model="cmyk",
+    )
+    converted = engine.render(
+        snapshot=single_raster_document(360, 240),
+        artboard_id="artboard-export",
+        assets={"asset-raster": cmyk_asset},
+        operations=[
+            {
+                "operation_id": "operation-cmyk-conversion",
+                "kind": "colour_profile_conversion",
+                "order": 0,
+                "enabled": True,
+                "parameters": {
+                    "target_profile": "srgb",
+                    "rendering_intent": "relative_colorimetric",
+                    "black_point_compensation": False,
+                },
+            }
+        ],
+        profile=native_profile(),
+    )
+    assert converted.metadata_evidence["icc_profiles"] == "converted-to-srgb"
+    with Image.open(io.BytesIO(converted.data)) as opened:
+        assert opened.mode == "RGBA"
+        assert bytes(opened.info["icc_profile"]) == CANONICAL_SRGB_PROFILE
+        assert cast(tuple[int, ...], opened.getpixel((100, 100)))[:3] == (222, 91, 148)
+
+    private = metadata_jpeg()
+    private_asset = VerifiedRasterAsset(
+        "asset-raster",
+        "source-private",
+        hashlib.sha256(private).hexdigest(),
+        "image/jpeg",
+        len(private),
+        320,
+        200,
+        private,
+        orientation=6,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=False,
+        colour_model="rgb",
+    )
+    cleaned = engine.render(
+        snapshot=single_raster_document(200, 320),
+        artboard_id="artboard-export",
+        assets={"asset-raster": private_asset},
+        operations=[],
+        profile=native_profile(),
+    )
+    assert cleaned.metadata_verified is True
+    assert cleaned.metadata_evidence == {
+        "exif": "removed",
+        "gps": "removed",
+        "orientation": "normalized",
+        "xmp": "removed",
+        "iptc": "removed",
+        "comments": "removed",
+        "maker_notes": "removed",
+        "private_blocks": "removed",
+        "software_device": "removed",
+        "embedded_thumbnails": "removed",
+        "icc_profiles": "assumed-srgb-and-tagged",
+    }
+    with Image.open(io.BytesIO(cleaned.data)) as opened:
+        assert opened.size == (200, 320)
+        assert opened.getexif().get(274, 1) == 1
+    inspected_cleaned = inspect_bytes(
+        cleaned.data,
+        display_name="cleaned.png",
+        expected_media_type="image/png",
+    )
+    assert inspected_cleaned.accepted is True
+    assert inspected_cleaned.facts is not None
+    assert inspected_cleaned.facts.orientation is None
+    assert inspected_cleaned.facts.sensitive_metadata == ()
+
+    webp_profile = profile("webp")
+    webp_profile["width"] = None
+    webp_profile["height"] = None
+    clean_webp = engine.render(
+        snapshot=single_raster_document(200, 320),
+        artboard_id="artboard-export",
+        assets={"asset-raster": private_asset},
+        operations=[],
+        profile=webp_profile,
+    )
+    inspected_webp = inspect_bytes(
+        clean_webp.data,
+        display_name="cleaned.webp",
+        expected_media_type="image/webp",
+    )
+    assert inspected_webp.accepted is True
+    assert inspected_webp.facts is not None
+    assert inspected_webp.facts.orientation is None
+    assert inspected_webp.facts.sensitive_metadata == ()
+
+
+def test_processing_budget_fails_at_elapsed_and_resident_limits() -> None:
+    times = iter((10.0, 10.1, 71.0))
+    elapsed = ProcessingBudget(
+        ProcessingLimits(max_seconds=60, max_rss_bytes=1024),
+        clock=lambda: next(times),
+        rss=lambda: 100,
+    )
+    elapsed.check("first")
+    with pytest.raises(TimeoutError, match="60 seconds"):
+        elapsed.check("second")
+
+    memory = ProcessingBudget(
+        ProcessingLimits(max_seconds=60, max_rss_bytes=1024),
+        clock=lambda: 20.0,
+        rss=lambda: 1025,
+    )
+    with pytest.raises(MemoryError, match="0 MiB"):
+        memory.check("decode")
+
+
+def test_process_memory_accounting_is_available_and_monotonic() -> None:
+    current = _process_rss_bytes()
+    peak = process_peak_rss_bytes()
+    assert current > 0
+    assert peak >= current
+
+
+def test_engine_renders_groups_vectors_shapes_transforms_and_blends() -> None:
     document = deepcopy(snapshot())
     document["shared_assets"] = []
     document["layers"] = [
@@ -414,13 +875,23 @@ def test_engine_renders_groups_text_vectors_shapes_transforms_and_blends() -> No
             "layer_type": "group",
             "order": 0,
             "visible": True,
-            "transform": {"x": 4, "y": 3, "width": 1, "height": 1},
+            "opacity": 0.8,
+            "blend_mode": "normal",
+            "transform": {
+                "x": 4,
+                "y": 3,
+                "width": 60,
+                "height": 30,
+                "scale_x": 1.2,
+                "scale_y": 1,
+                "rotation_degrees": 5,
+            },
         },
         {
-            "layer_id": "text-one",
+            "layer_id": "group-shape",
             "artboard_id": "artboard-export",
             "parent_layer_id": "group-one",
-            "layer_type": "rich_text",
+            "layer_type": "shape",
             "order": 0,
             "visible": True,
             "opacity": 0.8,
@@ -430,18 +901,17 @@ def test_engine_renders_groups_text_vectors_shapes_transforms_and_blends() -> No
                 "y": 2,
                 "width": 50,
                 "height": 20,
-                "scale_x": 1.2,
+                "scale_x": 1,
                 "scale_y": 1,
                 "rotation_degrees": 5,
-                "flip_x": True,
-                "flip_y": True,
+                "flip_x": False,
+                "flip_y": False,
             },
-            "rich_text": {
-                "text": "Verified export",
-                "font_family": "system-ui",
-                "font_size": 12,
-                "text_align": "justify",
-                "color": "#162033",
+            "shape": {
+                "shape": "rectangle",
+                "fill": "#3559E0",
+                "stroke": "#162033",
+                "stroke_width": 2,
             },
         },
         {
@@ -517,6 +987,186 @@ def test_engine_renders_groups_text_vectors_shapes_transforms_and_blends() -> No
         assert ImageChops.difference(base, candidate).convert("RGB").getbbox() is not None
 
 
+def test_internal_quadratic_and_cubic_vector_curves_change_rendered_pixels() -> None:
+    engine = DeterministicImageEngine()
+    common = {
+        "fill": None,
+        "stroke": "#3559E0",
+        "stroke_width": 4,
+    }
+    first = engine._vector_layer(
+        {**common, "path_data": "M 0 50 Q 40 0 80 50 C 100 80 120 20 150 50"},
+        180,
+        100,
+    )
+    second = engine._vector_layer(
+        {**common, "path_data": "M 0 50 Q 40 90 80 50 C 100 10 120 90 150 50"},
+        180,
+        100,
+    )
+    assert first.getbbox() is not None
+    assert second.getbbox() is not None
+    assert hashlib.sha256(first.tobytes()).digest() != hashlib.sha256(second.tobytes()).digest()
+
+
+def nested_group_document() -> dict[str, Any]:
+    document = deepcopy(snapshot())
+    document["shared_assets"] = []
+    document["artboards"][0]["background"] = {"kind": "transparent", "color": None}
+    document["layers"] = [
+        {
+            "layer_id": "group-root",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": None,
+            "layer_type": "group",
+            "order": 0,
+            "visible": True,
+            "opacity": 1,
+            "blend_mode": "normal",
+            "transform": {"x": 8, "y": 7, "width": 70, "height": 48},
+        },
+        {
+            "layer_id": "group-nested",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": "group-root",
+            "layer_type": "group",
+            "order": 0,
+            "visible": True,
+            "opacity": 1,
+            "blend_mode": "normal",
+            "transform": {"x": 6, "y": 5, "width": 42, "height": 30},
+        },
+        {
+            "layer_id": "shape-nested",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": "group-nested",
+            "layer_type": "shape",
+            "order": 0,
+            "visible": True,
+            "opacity": 1,
+            "blend_mode": "normal",
+            "transform": {"x": 4, "y": 3, "width": 24, "height": 16},
+            "shape": {"shape": "rectangle", "fill": "#3559E0", "stroke_width": 0},
+        },
+    ]
+    return document
+
+
+def test_native_nested_group_geometry_opacity_and_visibility_change_pixels() -> None:
+    baseline = nested_group_document()
+    baseline_sha, baseline_image = render_native(baseline)
+    assert cast(tuple[int, ...], baseline_image.getpixel((19, 16)))[:3] == (53, 89, 224)
+    assert cast(tuple[int, ...], baseline_image.getpixel((19, 16)))[3] == 255
+    assert cast(tuple[int, ...], baseline_image.getpixel((10, 10)))[3] == 0
+
+    variants: list[dict[str, object]] = []
+    translated = deepcopy(baseline)
+    translated["layers"][0]["transform"]["x"] = 20
+    variants.append(translated)
+    scaled = deepcopy(baseline)
+    scaled["layers"][1]["transform"]["scale_x"] = 1.4
+    scaled["layers"][1]["transform"]["scale_y"] = 1.2
+    variants.append(scaled)
+    rotated = deepcopy(baseline)
+    rotated["layers"][0]["transform"]["rotation_degrees"] = 19
+    variants.append(rotated)
+    translucent = deepcopy(baseline)
+    translucent["layers"][0]["opacity"] = 0.4
+    variants.append(translucent)
+    hidden = deepcopy(baseline)
+    hidden["layers"][0]["visible"] = False
+    variants.append(hidden)
+
+    rendered = [render_native(item) for item in variants]
+    assert len({baseline_sha, *(digest for digest, _ in rendered)}) == len(rendered) + 1
+    assert rendered[3][1].getchannel("A").getextrema()[1] in range(101, 103)
+    assert rendered[4][1].getchannel("A").getbbox() is None
+
+
+def test_native_mask_blend_order_and_artboard_clipping_are_authoritative() -> None:
+    data = source_png()
+    document = deepcopy(snapshot())
+    document["artboards"][0]["background"] = {"kind": "transparent", "color": None}
+    document["masks"] = [
+        {
+            "mask_id": "mask-left-half",
+            "artboard_id": "artboard-export",
+            "kind": "shape",
+            "path_data": "rect(0,0,0.5,1)",
+            "enabled": True,
+            "inverted": False,
+            "feather": 0,
+        }
+    ]
+    raster = document["layers"][0]
+    raster["raster"]["mask_ids"] = ["mask-left-half"]
+    shape = document["layers"][1]
+    shape["transform"] = {"x": 100, "y": 65, "width": 40, "height": 30}
+    masked_sha, masked = render_native(document, assets={"asset-raster": verified_asset(data)})
+    assert cast(tuple[int, ...], masked.getpixel((15, 20)))[3] > 0
+    assert cast(tuple[int, ...], masked.getpixel((70, 20)))[3] == 0
+    assert cast(tuple[int, ...], masked.getpixel((119, 79)))[3] > 0
+
+    unmasked = deepcopy(document)
+    unmasked["layers"][0]["raster"]["mask_ids"] = []
+    unmasked_sha, unmasked_image = render_native(
+        unmasked, assets={"asset-raster": verified_asset(data)}
+    )
+    assert unmasked_sha != masked_sha
+    assert cast(tuple[int, ...], unmasked_image.getpixel((70, 20)))[3] > 0
+
+    overlapped = deepcopy(unmasked)
+    overlapped["layers"][1]["transform"] = {"x": 20, "y": 18, "width": 50, "height": 36}
+    normal_sha, _ = render_native(overlapped, assets={"asset-raster": verified_asset(data)})
+    blended = deepcopy(overlapped)
+    blended["layers"][1]["blend_mode"] = "multiply"
+    multiply_sha, _ = render_native(blended, assets={"asset-raster": verified_asset(data)})
+    reordered = deepcopy(overlapped)
+    reordered["layers"][0]["order"] = 1
+    reordered["layers"][1]["order"] = 0
+    reordered_sha, _ = render_native(reordered, assets={"asset-raster": verified_asset(data)})
+    assert len({normal_sha, multiply_sha, reordered_sha}) == 3
+
+
+def test_native_hierarchy_rejects_cross_artboard_parent_cycles_and_duplicate_order() -> None:
+    engine = DeterministicImageEngine()
+    cross_artboard = nested_group_document()
+    cross_artboard["layers"][1]["artboard_id"] = "other-artboard"
+    with pytest.raises(ValueError, match="parent is outside"):
+        engine.render(
+            snapshot=cross_artboard,
+            artboard_id="artboard-export",
+            assets={},
+            operations=[],
+            profile=native_profile(),
+        )
+
+    cyclic = nested_group_document()
+    cyclic["layers"][0]["parent_layer_id"] = "group-nested"
+    cyclic["layers"][0]["order"] = 1
+    with pytest.raises(ValueError, match="cyclic"):
+        engine.render(
+            snapshot=cyclic,
+            artboard_id="artboard-export",
+            assets={},
+            operations=[],
+            profile=native_profile(),
+        )
+
+    duplicate_order = nested_group_document()
+    duplicate = deepcopy(duplicate_order["layers"][2])
+    duplicate["layer_id"] = "shape-duplicate"
+    duplicate_order["layers"].append(duplicate)
+    with pytest.raises(ValueError, match="sibling layer order"):
+        engine.render(
+            snapshot=duplicate_order,
+            artboard_id="artboard-export",
+            assets={},
+            operations=[],
+            profile=native_profile(),
+        )
+
+
 def source_jpeg_with_private_metadata() -> bytes:
     exif = Image.Exif()
     exif[274] = 6
@@ -544,6 +1194,11 @@ def test_engine_removes_gps_and_retains_only_selected_metadata_categories() -> N
         24,
         16,
         data,
+        orientation=6,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=False,
+        colour_model="rgb",
     )
     selected = profile("jpeg")
     selected["metadata_policy"] = {
@@ -563,7 +1218,8 @@ def test_engine_removes_gps_and_retains_only_selected_metadata_categories() -> N
     )
     with Image.open(io.BytesIO(rendered.data)) as opened:
         exif = opened.getexif()
-        assert exif[274] == 1
+        assert exif.get(274, 1) == 1
+        assert 274 not in exif
         assert exif[270] == "Customer description"
         assert exif[33432] == "Customer copyright"
         assert exif[36867] == "2026:09:02 09:00:00"
@@ -629,7 +1285,18 @@ def test_engine_rejects_raster_identity_dimension_crop_and_missing_asset() -> No
     with pytest.raises(ValueError, match="identity"):
         engine._raster_layer(
             VerifiedRasterAsset(
-                "asset-raster", "source-export", "0" * 64, "image/png", len(data), 24, 16, data
+                "asset-raster",
+                "source-export",
+                "0" * 64,
+                "image/png",
+                len(data),
+                24,
+                16,
+                data,
+                bit_depth=8,
+                frame_count=1,
+                has_icc_profile=False,
+                colour_model="rgb",
             ),
             {"crop": {}},
             20,
@@ -638,7 +1305,18 @@ def test_engine_rejects_raster_identity_dimension_crop_and_missing_asset() -> No
     with pytest.raises(ValueError, match="dimensions"):
         engine._raster_layer(
             VerifiedRasterAsset(
-                "asset-raster", "source-export", valid.sha256, "image/png", len(data), 25, 16, data
+                "asset-raster",
+                "source-export",
+                valid.sha256,
+                "image/png",
+                len(data),
+                25,
+                16,
+                data,
+                bit_depth=8,
+                frame_count=1,
+                has_icc_profile=False,
+                colour_model="rgb",
             ),
             {"crop": {}},
             20,
@@ -686,6 +1364,14 @@ class FakeStore:
         prior = self.values.setdefault(ref.object_key, data)
         assert prior == data
         return PrivateObjectSnapshot(ref, sha256, media_type, data)
+
+    def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None:
+        current = self.values.get(ref.object_key)
+        if current is None:
+            return
+        if generation is not None and hashlib.sha256(current).hexdigest() != generation:
+            raise RuntimeError("generation changed")
+        del self.values[ref.object_key]
 
 
 class FakeRepository:
@@ -772,6 +1458,10 @@ def export_lease(data: bytes) -> LeasedImageExportJob:
         len(data),
         24,
         16,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=False,
+        colour_model="rgb",
     )
     return LeasedImageExportJob(
         "job-export",
@@ -808,7 +1498,7 @@ def test_durable_export_isolates_output_failure_and_zip_is_reproducible() -> Non
     assert outcome.state == "succeeded"
     assert repository.states == {"output-png": "succeeded", "output-16bit": "failed"}
     completed = repository.completed[0]
-    assert completed.object_key.endswith("/output-png/result.png")
+    assert completed.object_key.endswith("/output-png/attempt-1-lease-hash/result.png")
     assert "export.png" not in completed.object_key
     repository.bundle_lease = LeasedExportBundleJob(
         "job-bundle",
@@ -915,6 +1605,31 @@ class ChangedStore(FakeStore):
         return PrivateObjectSnapshot(ref, generation, "application/octet-stream", data)
 
 
+class CancelAfterWriteStore(FakeStore):
+    def __init__(self, source: bytes, cancel: Callable[[], None]) -> None:
+        super().__init__(source)
+        self._cancel = cancel
+
+    def write_derivative(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        data: bytes,
+        media_type: str,
+        sha256: str,
+        max_bytes: int = 16 * 1024 * 1024,
+    ) -> PrivateObjectSnapshot:
+        result = super().write_derivative(
+            ref,
+            data=data,
+            media_type=media_type,
+            sha256=sha256,
+            max_bytes=max_bytes,
+        )
+        self._cancel()
+        return result
+
+
 def completed_bundle_lease(
     completed: StoredExportOutput, *, filename: str = "export.png"
 ) -> LeasedExportBundleJob:
@@ -1000,6 +1715,21 @@ def test_durable_export_fails_closed_when_immutable_source_bytes_change() -> Non
     assert repository.export_failure is not None
     assert repository.export_failure[0] == "export-source-integrity-failed"
     assert repository.completed == []
+
+
+def test_cancellation_after_output_write_deletes_unregistered_generation() -> None:
+    data = source_png()
+    repository = OutcomeRepository(export_lease(data))
+    store = CancelAfterWriteStore(
+        data,
+        lambda: setattr(repository, "export_cancelled", True),
+    )
+    outcome = DurableImageExportProcessor(repository, store, worker_id="worker").process(
+        DispatchMessage("dispatch-export", "job-export", "trace-export")
+    )
+    assert outcome.state == "cancelled"
+    assert repository.completed == []
+    assert list(store.values) == ["immutable/workspace-export/source"]
 
 
 def test_bundle_processor_reports_busy_terminal_cancel_and_validation_failures() -> None:
@@ -1102,7 +1832,7 @@ def test_bundle_builder_rejects_empty_duplicate_and_changed_sources() -> None:
         1,
         3,
     )
-    with pytest.raises(ValueError, match="not unique"):
+    with pytest.raises(ValueError, match="normalization and case folding"):
         processor._build(duplicate)
 
     changed = LeasedExportBundleJob(
@@ -1130,3 +1860,94 @@ def test_bundle_builder_rejects_empty_duplicate_and_changed_sources() -> None:
     )
     with pytest.raises(ValueError, match="checksum"):
         processor._build(changed)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "../escape.png",
+        "..\\escape.png",
+        "/absolute.png",
+        "C:drive.png",
+        "CON.png",
+        "com1.TXT",
+        "name.",
+        "name ",
+        "fraction\u2044slash.png",
+        "control\u200bmark.png",
+        f"{'e' * 241}.png",
+    ],
+)
+def test_zip_filename_hardening_rejects_platform_and_unicode_hazards(
+    filename: str,
+) -> None:
+    with pytest.raises(ValueError, match="unsafe"):
+        DurableExportBundleProcessor._safe_name(filename)
+
+
+def test_zip_rejects_canonically_equivalent_names_and_high_compression_ratio() -> None:
+    data = b"0" * 4096
+    store = FakeStore(data)
+    digest = hashlib.sha256(data).hexdigest()
+    repository = OutcomeRepository(export_lease(source_png()))
+    processor = DurableExportBundleProcessor(repository, store, worker_id="worker")
+    equivalent = LeasedExportBundleJob(
+        "job-bundle",
+        "bundle",
+        "export-request",
+        "workspace-export",
+        "actor-export",
+        (
+            BundleItem(
+                "output-one",
+                "caf\u00e9.png",
+                "immutable/workspace-export/source",
+                digest,
+                digest,
+                len(data),
+                "image/png",
+            ),
+            BundleItem(
+                "output-two",
+                "cafe\u0301.png",
+                "immutable/workspace-export/source",
+                digest,
+                digest,
+                len(data),
+                "image/png",
+            ),
+        ),
+        "2026-09-09T00:00:00+00:00",
+        "lease",
+        "trace",
+        1,
+        3,
+    )
+    with pytest.raises(ValueError, match="normalization and case folding"):
+        processor._build(equivalent)
+
+    ratio = LeasedExportBundleJob(
+        "job-bundle",
+        "bundle",
+        "export-request",
+        "workspace-export",
+        "actor-export",
+        (
+            BundleItem(
+                "output-one",
+                "compressible.bin",
+                "immutable/workspace-export/source",
+                digest,
+                digest,
+                len(data),
+                "application/octet-stream",
+            ),
+        ),
+        "2026-09-09T00:00:00+00:00",
+        "lease",
+        "trace",
+        1,
+        3,
+    )
+    with pytest.raises(ValueError, match="compression ratio"):
+        processor._build(ratio)

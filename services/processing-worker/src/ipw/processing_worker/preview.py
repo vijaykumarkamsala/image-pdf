@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import secrets
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -12,16 +13,18 @@ from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
 from ipw.contracts import StudioEditableMediaType
 from ipw.processing_worker.durable_intake import DispatchMessage, WorkerOutcome
+from ipw.processing_worker.enhancement_engine import ProcessingBudget
 from ipw.processing_worker.repository import JobBusyError
 from ipw.storage import ObjectZone, PreviewPrivateObjectStore, PrivateObjectRef
 
 MAX_COMPRESSED_BYTES = 100 * 1024 * 1024
 MAX_DECODED_PIXELS = 100_000_000
 MAX_DIMENSION = 50_000
+MAX_PREVIEW_OUTPUT_BYTES = 16 * 1024 * 1024
 WORKSPACE_EDGE = 2_048
 THUMBNAIL_EDGE = 512
 PROCESSOR_NAME = "ipw-bounded-pillow-preview"
-PROCESSOR_VERSION = "1.0.0"
+PROCESSOR_VERSION = "1.1.0"
 EDITABLE_MEDIA_TYPES = frozenset(value.value for value in StudioEditableMediaType)
 Image.MAX_IMAGE_PIXELS = MAX_DECODED_PIXELS
 
@@ -87,12 +90,18 @@ class DurablePreviewProcessor:
         objects: PreviewPrivateObjectStore,
         *,
         worker_id: str,
+        execution_lock: threading.Lock | None = None,
     ) -> None:
         self._repository = repository
         self._objects = objects
         self._worker_id = worker_id
+        self._execution_lock = execution_lock or threading.Lock()
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
+        with self._execution_lock:
+            return self._process_locked(message)
+
+    def _process_locked(self, message: DispatchMessage) -> WorkerOutcome:
         try:
             lease = self._repository.claim_preview(
                 job_id=message.job_id,
@@ -104,7 +113,9 @@ class DurablePreviewProcessor:
             return WorkerOutcome("busy", message.job_id)
         if lease is None:
             return WorkerOutcome("already_terminal", message.job_id)
+        written: list[tuple[PrivateObjectRef, str]] = []
         try:
+            budget = ProcessingBudget(checkpoint=lambda _stage: self._cancel_guard(lease))
             self._repository.start_preview(lease)
             self._cancel_guard(lease)
             source = PrivateObjectRef(
@@ -119,7 +130,8 @@ class DurablePreviewProcessor:
                 raise ValueError("immutable source byte count does not match its source version")
             if hashlib.sha256(snapshot.data).hexdigest() != lease.source_sha256:
                 raise ValueError("immutable source checksum does not match its source version")
-            derivatives = self._render(lease, snapshot.data)
+            budget.check("preview-decode")
+            derivatives = self._render(lease, snapshot.data, budget)
             self._repository.checkpoint_preview(
                 lease,
                 "preview-rendered",
@@ -130,31 +142,50 @@ class DurablePreviewProcessor:
             )
             self._cancel_guard(lease)
             for derivative in derivatives:
+                budget.check(f"preview-write:{derivative.zoom_level}")
                 ref = PrivateObjectRef(
                     lease.workspace_id, derivative.object_key, ObjectZone.DERIVATIVE
                 )
-                self._objects.write_derivative(
+                stored = self._objects.write_derivative(
                     ref,
                     data=derivative.data,
                     media_type=derivative.media_type,
                     sha256=derivative.sha256,
+                    max_bytes=MAX_PREVIEW_OUTPUT_BYTES,
                 )
-            self._repository.complete_preview(lease, derivatives)
+                written.append((ref, stored.generation))
+            try:
+                self._repository.complete_preview(lease, derivatives)
+            except Exception:
+                self._cleanup(written)
+                raise
             return WorkerOutcome("succeeded", lease.job_id)
         except PreviewCancelledError:
+            self._cleanup(written)
             return WorkerOutcome("cancelled", lease.job_id)
         except (ValueError, UnidentifiedImageError, Image.DecompressionBombError) as error:
             state = self._repository.fail_preview(
                 lease, code="preview-source-unsafe", message=str(error), retryable=False
             )
+            self._cleanup(written)
             return WorkerOutcome(state, lease.job_id)
-        except (TimeoutError, ConnectionError, OSError) as error:
+        except (TimeoutError, MemoryError) as error:
+            state = self._repository.fail_preview(
+                lease, code="preview-resource-limit", message=str(error), retryable=False
+            )
+            self._cleanup(written)
+            return WorkerOutcome(state, lease.job_id)
+        except (ConnectionError, OSError) as error:
             state = self._repository.fail_preview(
                 lease, code="preview-temporary-failure", message=str(error), retryable=True
             )
+            self._cleanup(written)
             return WorkerOutcome(state, lease.job_id)
 
-    def _render(self, lease: LeasedPreviewJob, data: bytes) -> tuple[PreviewDerivative, ...]:
+    def _render(
+        self, lease: LeasedPreviewJob, data: bytes, budget: ProcessingBudget | None = None
+    ) -> tuple[PreviewDerivative, ...]:
+        active_budget = budget or ProcessingBudget()
         if lease.source_media_type not in EDITABLE_MEDIA_TYPES:
             raise ValueError("source format has no approved Studio preview path")
         with Image.open(io.BytesIO(data)) as opened:
@@ -164,7 +195,13 @@ class DurablePreviewProcessor:
                 raise ValueError("source dimension exceeds preview processor capacity")
             if opened.width * opened.height > MAX_DECODED_PIXELS:
                 raise ValueError("source pixels exceed preview processor capacity")
+            if int(getattr(opened, "n_frames", 1)) != 1:
+                raise ValueError("animated or multi-page image preview is unavailable")
+            if opened.mode in {"I", "F"} or opened.mode.startswith("I;16"):
+                raise ValueError("high-precision source preview is unavailable")
+            active_budget.check("preview-load")
             opened.load()
+            active_budget.check("preview-orientation")
             upright = ImageOps.exif_transpose(opened)
             alpha = (
                 upright.convert("RGBA").getchannel("A")
@@ -172,10 +209,12 @@ class DurablePreviewProcessor:
                 else None
             )
             profile = opened.info.get("icc_profile")
+            if upright.mode == "CMYK" and not profile:
+                raise ValueError("CMYK source preview requires an embedded ICC profile")
             if profile:
                 try:
                     converted = ImageCms.profileToProfile(
-                        upright.convert("RGB"),
+                        upright.convert("CMYK" if upright.mode == "CMYK" else "RGB"),
                         ImageCms.ImageCmsProfile(io.BytesIO(profile)),
                         ImageCms.createProfile("sRGB"),
                         outputMode="RGB",
@@ -196,6 +235,7 @@ class DurablePreviewProcessor:
             metadata_decision = "EXIF orientation applied; source metadata omitted from the proxy"
             rendered: list[PreviewDerivative] = []
             for level, edge in (("workspace", WORKSPACE_EDGE), ("thumbnail", THUMBNAIL_EDGE)):
+                active_budget.check(f"preview-resize:{level}")
                 proxy = working.copy()
                 proxy.thumbnail((edge, edge), Image.Resampling.LANCZOS)
                 output = io.BytesIO()
@@ -217,6 +257,13 @@ class DurablePreviewProcessor:
                 )
                 rendered.append(item)
             return tuple(rendered)
+
+    def _cleanup(self, written: list[tuple[PrivateObjectRef, str]]) -> None:
+        for ref, generation in reversed(written):
+            try:
+                self._objects.delete(ref, generation=generation)
+            except (OSError, RuntimeError):
+                continue
 
     def _cancel_guard(self, lease: LeasedPreviewJob) -> None:
         self._repository.heartbeat_preview(lease)

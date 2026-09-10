@@ -35,7 +35,7 @@ async function api() {
 
 async function json(response: Response): Promise<Json> { return await response.json() as Json; }
 
-test("recipes, safe recommendations, proxy comparison and durable image export are real API journeys", async () => {
+test("recipes, safe recommendations, fail-closed previews and durable image export are real API journeys", async () => {
   const server = await api();
   try {
     const bootstrap = await json(await server.request("/session/bootstrap", {
@@ -76,14 +76,18 @@ test("recipes, safe recommendations, proxy comparison and durable image export a
 
     const preview = await json(await server.request(`/workspaces/${workspaceId}/documents/${documentId}/enhancement-previews`, {
       method: "POST",
-      body: JSON.stringify({ recipe_id: saved.recipe.recipe_id, recipe_version: 1, mode: "split" }),
+      headers: { "idempotency-key": "export-preview" },
+      body: JSON.stringify({ recipe_id: saved.recipe.recipe_id, recipe_version: 1, mode: "current" }),
     }));
-    assert.equal(preview.preview.proxy, true);
-    assert.equal(preview.preview.quality_label, "Interactive proxy; final output is rendered by a durable worker");
+    assert.equal(preview.preview.proxy, false);
+    assert.equal(preview.preview.authoritative, true);
+    assert.equal(preview.preview.state, "failed");
+    assert.equal(preview.preview.failure_code, "durable-preview-required");
+    assert.equal(preview.preview.quality_label, "Authoritative registered preview rendered from the immutable document version");
 
     const profile = {
       profile_id: "profile-web", name: "Web PNG", purpose: "web", format: "png",
-      width: 320, height: 180, alpha_behavior: "preserve", bit_depth: 8,
+      width: 320, height: 180, alpha_behavior: "preserve", bit_depth: 8, lossless: true,
       metadata_policy: {}, collision_behavior: "suffix",
     };
     const exportOptions = {

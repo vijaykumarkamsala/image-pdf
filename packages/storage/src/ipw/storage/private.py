@@ -55,6 +55,8 @@ class PreviewPrivateObjectStore(WorkerObjectReader, Protocol):
         max_bytes: int = 16 * 1024 * 1024,
     ) -> PrivateObjectSnapshot: ...
 
+    def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None: ...
+
 
 class WorkerPrivateObjectStore(IntakePrivateObjectStore, PreviewPrivateObjectStore, Protocol):
     """Complete worker storage capability implemented by production adapters."""

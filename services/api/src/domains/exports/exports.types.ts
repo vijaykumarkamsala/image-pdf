@@ -6,6 +6,7 @@ import type {
   ImageOperation,
   IntendedOutcome,
   ProcessingRecipeRecord,
+  RecommendationDecision,
   RecommendationSet,
 } from "ipw-contracts-ts/product";
 
@@ -31,6 +32,21 @@ export interface RecommendationInput {
   intendedOutcome: IntendedOutcome | null;
 }
 
+export interface PreviewInput {
+  workspaceId: string;
+  documentId: string;
+  recipeId: string;
+  recipeVersion: number | null;
+  mode: "original" | "current" | "recommended";
+  artboardId: string | null;
+}
+
+export interface RecommendationDecisionInput {
+  workspaceId: string;
+  recommendationSetId: string;
+  decisions: Array<{ recommendationId: string; state: "accepted" | "declined" }>;
+}
+
 export interface SubmitExportInput {
   workspaceId: string;
   documentId: string;
@@ -45,6 +61,8 @@ export interface ExportDelivery {
   byteSize: number;
   mediaType: string;
   filename: string;
+  sha256: string;
+  storageGeneration: string;
 }
 
 export interface ImageExportRepository {
@@ -53,13 +71,9 @@ export interface ImageExportRepository {
   listRecipes(actorId: string, workspaceId: string, documentId: string): Promise<ProcessingRecipeRecord[]>;
   getRecipe(actorId: string, workspaceId: string, recipeId: string, version?: number): Promise<ProcessingRecipeRecord | null>;
   recommend(context: CommandContext, input: RecommendationInput): Promise<ExportCommandResult<RecommendationSet>>;
-  preview(
-    actorId: string,
-    workspaceId: string,
-    documentId: string,
-    recipe: ProcessingRecipeRecord,
-    mode: EnhancementPreview["mode"],
-  ): Promise<EnhancementPreview>;
+  decideRecommendations(context: CommandContext, input: RecommendationDecisionInput): Promise<ExportCommandResult<RecommendationDecision[]>>;
+  createPreview(context: CommandContext, input: PreviewInput): Promise<ExportCommandResult<EnhancementPreview>>;
+  getPreview(actorId: string, workspaceId: string, previewId: string): Promise<EnhancementPreview | null>;
   submit(context: CommandContext, input: SubmitExportInput): Promise<ExportCommandResult<ImageExportRequestRecord>>;
   list(actorId: string, workspaceId: string, documentId?: string): Promise<ImageExportRequestRecord[]>;
   get(actorId: string, workspaceId: string, exportRequestId: string): Promise<ImageExportRequestRecord | null>;
