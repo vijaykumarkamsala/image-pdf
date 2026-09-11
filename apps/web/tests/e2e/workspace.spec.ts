@@ -677,12 +677,14 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   await page.getByRole("button", { name: "Create graphic" }).click();
   await expect(page.getByTestId("image-graphic-studio")).toBeVisible();
   const documentId = new URL(page.url()).pathname.split("/")[4]!;
+  const waitForDocumentPatch = () => page.waitForResponse((response) =>
+    response.request().method() === "PATCH" && response.url().includes(`/documents/${documentId}`));
   await page.getByRole("button", { name: "Shape", exact: true }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   const beforeKeyboard = await page.request.get(`/v1/workspaces/${workspaceId}/documents/${documentId}`).then((response) => response.json()) as any;
-  const keyboardSave = page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes(`/documents/${documentId}`));
+  const keyboardSave = waitForDocumentPatch();
   await page.keyboard.press("ArrowRight");
-  await keyboardSave;
+  expect((await keyboardSave).ok()).toBe(true);
   const afterKeyboard = await page.request.get(`/v1/workspaces/${workspaceId}/documents/${documentId}`).then((response) => response.json()) as any;
   expect(afterKeyboard.editor.snapshot.layers[0].transform.x).toBe(beforeKeyboard.editor.snapshot.layers[0].transform.x + 1);
 
@@ -719,20 +721,27 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   const zoom = Number((await page.locator(".zoom-value").textContent())?.replace("%", "")) / 100;
   const snapStartX = (shapeBounds.left + shapeBounds.right) / 2;
   const snapStartY = (shapeBounds.top + shapeBounds.bottom) / 2;
+  const snapSave = waitForDocumentPatch();
   await page.mouse.move(snapStartX, snapStartY);
   await page.mouse.down();
   await page.mouse.move(snapStartX - position * zoom + 2, snapStartY, { steps: 6 });
   await expect(page.locator(".canvas-snap-guide.guide-x")).toBeVisible();
   await page.mouse.up();
+  expect((await snapSave).ok()).toBe(true);
   await expect(page.locator(".canvas-snap-guide.guide-x")).toHaveCount(0);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   shapeBounds = await paintedShape();
+  const moveSave = waitForDocumentPatch();
   await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2, (shapeBounds.top + shapeBounds.bottom) / 2);
   await page.mouse.down();
   await page.mouse.move((shapeBounds.left + shapeBounds.right) / 2 + 40, (shapeBounds.top + shapeBounds.bottom) / 2 + 30, { steps: 6 });
   await page.mouse.up();
+  expect((await moveSave).ok()).toBe(true);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.locator(".layer-row.is-selected")).toContainText("Rectangle");
+  const fillSave = waitForDocumentPatch();
   await page.getByLabel("Fill").fill("#22aa66");
+  expect((await fillSave).ok()).toBe(true);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.locator(".layer-row > button[aria-pressed]").filter({ hasText: "Rectangle" }).click();
   const visibleControls = page.locator(".lower-canvas, .upper-canvas");
@@ -774,13 +783,17 @@ test("Studio pointer selection, move, resize and rotation persist as native tran
   expect(controls.count).toBeGreaterThan(20);
   const resizeX = controls.x;
   const resizeY = controls.y;
+  const resizeSave = waitForDocumentPatch();
   await page.mouse.move(resizeX, resizeY);
   await page.mouse.down();
   await page.mouse.move(resizeX + 40, resizeY + 25, { steps: 6 });
   await page.mouse.up();
+  expect((await resizeSave).ok()).toBe(true);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "All Tools" }).click();
+  const rotateSave = waitForDocumentPatch();
   await page.getByRole("button", { name: /Rotate selected layer/ }).click();
+  expect((await rotateSave).ok()).toBe(true);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
   const model = await page.evaluate(async ({ workspaceId: id, documentId: document }) => {

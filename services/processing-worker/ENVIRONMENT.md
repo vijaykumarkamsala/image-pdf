@@ -58,7 +58,8 @@ from that process is combined with the remaining tests into one 90% report.
 ## Baseline changes
 
 Normal pull-request CI is read-only. The manual `update_linux_baselines` workflow
-input regenerates image fixtures, standard goldens and zero-tolerance Playwright
-screenshots inside the canonical image, reruns all authoritative gates, and
-uploads the results for human review. Baselines are committed only after that
-review. Windows neither authors nor approves canonical bytes.
+input regenerates image fixtures and their `FIXTURES.sha256` integrity lock,
+standard goldens and zero-tolerance Playwright screenshots inside the canonical
+image, reruns all authoritative gates, and uploads the results for human review.
+Baselines are committed only after that review. Windows neither authors nor
+approves canonical bytes.

@@ -56,19 +56,23 @@ jobs:
             data/goldens \
             data/fixtures/images/recovery2e \
             apps/web/tests/__screenshots__
+          sudo chown 10001:10001 data/fixtures/FIXTURES.sha256
           docker run --rm --network host --shm-size=2gb \
             -e IPW_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ipw_ci \
             -v "${{ github.workspace }}/data/goldens:/opt/ipw/data/goldens" \
             -v "${{ github.workspace }}/data/fixtures/images/recovery2e:/opt/ipw/data/fixtures/images/recovery2e" \
+            -v "${{ github.workspace }}/data/fixtures/FIXTURES.sha256:/opt/ipw/data/fixtures/FIXTURES.sha256" \
             -v "${{ github.workspace }}/apps/web/tests/__screenshots__:/opt/ipw/apps/web/tests/__screenshots__" \
             ipw-canonical-linux:${{ github.sha }} \
             sh -lc "python tools/make_recovery_2e_fixtures.py && \
+                    bench fixtures verify --write && \
                     python tools/make_goldens.py && \
                     npm run test:e2e --workspace ipw-web --silent -- --update-snapshots"
           sudo chown -R "$(id -u):$(id -g)" \
             data/goldens \
             data/fixtures/images/recovery2e \
             apps/web/tests/__screenshots__
+          sudo chown "$(id -u):$(id -g)" data/fixtures/FIXTURES.sha256
 
       - name: Run every authoritative gate
         if: ${{ ! (github.event_name == 'workflow_dispatch' && inputs.update_linux_baselines) }}
@@ -84,16 +88,19 @@ jobs:
             data/goldens \
             data/fixtures/images/recovery2e \
             apps/web/tests/__screenshots__
+          sudo chown 10001:10001 data/fixtures/FIXTURES.sha256
           docker run --rm --network host --shm-size=2gb \
             -e IPW_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ipw_ci \
             -v "${{ github.workspace }}/data/goldens:/opt/ipw/data/goldens:ro" \
             -v "${{ github.workspace }}/data/fixtures/images/recovery2e:/opt/ipw/data/fixtures/images/recovery2e:ro" \
+            -v "${{ github.workspace }}/data/fixtures/FIXTURES.sha256:/opt/ipw/data/fixtures/FIXTURES.sha256:ro" \
             -v "${{ github.workspace }}/apps/web/tests/__screenshots__:/opt/ipw/apps/web/tests/__screenshots__:ro" \
             ipw-canonical-linux:${{ github.sha }}
           sudo chown -R "$(id -u):$(id -g)" \
             data/goldens \
             data/fixtures/images/recovery2e \
             apps/web/tests/__screenshots__
+          sudo chown "$(id -u):$(id -g)" data/fixtures/FIXTURES.sha256
 
       - name: Upload Linux baselines for visual review
         if: always() && github.event_name == 'workflow_dispatch' && inputs.update_linux_baselines
@@ -104,6 +111,7 @@ jobs:
           retention-days: 7
           path: |
             data/goldens
+            data/fixtures/FIXTURES.sha256
             data/fixtures/images/recovery2e
             apps/web/tests/__screenshots__
 
