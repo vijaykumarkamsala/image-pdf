@@ -1,4 +1,4 @@
-# ruff: noqa: SLF001
+# ruff: noqa: SLF001, PT011
 
 from __future__ import annotations
 
@@ -8,13 +8,15 @@ import json
 import zipfile
 from collections.abc import Callable
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any, cast
 
 import pytest
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageFont
 from tools.make_recovery_2e_fixtures import cmyk_jpeg, metadata_jpeg
 
 from ipw.inspection import inspect_bytes
+from ipw.processing_worker import enhancement_engine
 from ipw.processing_worker.durable_intake import DispatchMessage
 from ipw.processing_worker.enhancement_engine import (
     CANONICAL_SRGB_PROFILE,
@@ -23,6 +25,7 @@ from ipw.processing_worker.enhancement_engine import (
     ProcessingBudget,
     ProcessingLimits,
     VerifiedRasterAsset,
+    _effectively_visible_layers,
     _process_rss_bytes,
     process_peak_rss_bytes,
 )
@@ -1221,9 +1224,7 @@ def test_native_text_shape_raster_group_mask_and_artboard_compose_deterministica
     assert cast(tuple[int, ...], first.getpixel((35, 35)))[:3] == (226, 74, 59)
     without_text = deepcopy(document)
     without_text["layers"][-1]["visible"] = False
-    without_text_sha, _ = render_native(
-        without_text, assets={"asset-raster": verified_asset(data)}
-    )
+    without_text_sha, _ = render_native(without_text, assets={"asset-raster": verified_asset(data)})
     assert without_text_sha != first_sha
 
 
@@ -1463,6 +1464,396 @@ def test_engine_rejects_raster_identity_dimension_crop_and_missing_asset() -> No
             assets={},
             operations=[],
             profile=profile(),
+        )
+
+
+def test_native_export_structural_guards_reject_unsupported_documents() -> None:
+    engine = DeterministicImageEngine()
+    board_id = "artboard-export"
+
+    def layer(
+        layer_id: str,
+        *,
+        kind: str = "shape",
+        parent: str | None = None,
+        order: int = 0,
+        **values: Any,
+    ) -> dict[str, Any]:
+        return {
+            "layer_id": layer_id,
+            "artboard_id": board_id,
+            "parent_layer_id": parent,
+            "layer_type": kind,
+            "order": order,
+            "visible": True,
+            "opacity": 1,
+            "blend_mode": "normal",
+            "transform": {"x": 0, "y": 0, "width": 10, "height": 10},
+            "shape": {"shape": "rectangle", "fill": "#ffffff"},
+            **values,
+        }
+
+    hidden_parent = layer("hidden", kind="group", visible=False)
+    visible_child = layer("child", parent="hidden")
+    assert _effectively_visible_layers({"layers": [hidden_parent, visible_child]}, board_id) == []
+    with pytest.raises(ValueError, match="cyclic"):
+        _effectively_visible_layers({"layers": [layer("self", parent="self")]}, board_id)
+    with pytest.raises(ValueError, match="outside"):
+        _effectively_visible_layers({"layers": [layer("orphan", parent="missing")]}, board_id)
+
+    with pytest.raises(ValueError, match="contract validation"):
+        engine.render(
+            snapshot=snapshot(),
+            artboard_id=board_id,
+            assets={},
+            operations=[{"kind": "not-an-operation"}],
+            profile=native_profile(),
+        )
+    with pytest.raises(ValueError, match="artboard is not present"):
+        engine.render(
+            snapshot={"artboards": [], "layers": []},
+            artboard_id=board_id,
+            assets={},
+            operations=[],
+            profile=native_profile(),
+        )
+
+    budget = ProcessingBudget(clock=lambda: 0, rss=lambda: 0)
+    canvas = Image.new("RGBA", (20, 20))
+    colour_settings = engine._colour_settings([], native_profile(), {})
+    hidden = layer("hidden-render", visible=False)
+    engine._render_layer(
+        canvas, hidden, {"hidden-render": hidden}, {}, 1, {}, colour_settings, budget
+    )
+    unidentified = layer("")
+    with pytest.raises(ValueError, match="unidentified"):
+        engine._render_layer(
+            canvas, unidentified, {"": unidentified}, {}, 1, {}, colour_settings, budget
+        )
+    unsupported = layer("unsupported", kind="external_object", shape=None)
+    with pytest.raises(ValueError, match="no approved"):
+        engine._render_layer(
+            canvas,
+            unsupported,
+            {"unsupported": unsupported},
+            {},
+            1,
+            {},
+            colour_settings,
+            budget,
+        )
+
+    transformed, _, _ = engine._transform_item(
+        Image.new("RGBA", (4, 3)),
+        {
+            "flip_x": True,
+            "flip_y": True,
+            "scale_x": 2,
+            "scale_y": 2,
+            "rotation_degrees": 0,
+        },
+        {"opacity": 1},
+    )
+    assert transformed.size == (8, 6)
+    with pytest.raises(ValueError, match="opacity"):
+        engine._transform_item(
+            Image.new("RGBA", (2, 2)),
+            {"scale_x": 1, "scale_y": 1, "rotation_degrees": 0},
+            {"opacity": 2},
+        )
+
+    structural_cases = (
+        {"layers": [layer("")]},
+        {"layers": [layer("parent"), layer("child", parent="parent", order=1)]},
+        {
+            "layers": [
+                layer("nonfinite", transform={"x": float("nan"), "y": 0, "width": 1, "height": 1})
+            ]
+        },
+        {"layers": [layer("empty", transform={"x": 0, "y": 0, "width": 0, "height": 1})]},
+        {
+            "layers": [
+                layer("scale", transform={"x": 0, "y": 0, "width": 1, "height": 1, "scale_x": 0})
+            ]
+        },
+        {
+            "layers": [
+                layer(
+                    "skew", transform={"x": 0, "y": 0, "width": 1, "height": 1, "skew_x_degrees": 1}
+                )
+            ]
+        },
+        {"layers": [layer("styled", shared_style_ids=["style-external"])]},
+        {
+            "layers": [
+                layer(
+                    "vector-external",
+                    kind="vector_svg",
+                    shape=None,
+                    vector={"shared_asset_id": "external"},
+                )
+            ]
+        },
+        {
+            "layers": [
+                layer(
+                    "vector-subpaths",
+                    kind="vector_svg",
+                    shape=None,
+                    vector={"path_data": "M 0 0 M 1 1"},
+                )
+            ]
+        },
+        {"layers": [], "masks": [{"mask_id": "", "artboard_id": board_id}]},
+        {
+            "layers": [
+                layer(
+                    "two-masks",
+                    kind="raster_image",
+                    shape=None,
+                    raster={"shared_asset_id": "asset", "mask_ids": ["one", "two"]},
+                )
+            ],
+            "masks": [
+                {"mask_id": "one", "artboard_id": board_id},
+                {"mask_id": "two", "artboard_id": board_id},
+            ],
+        },
+        {
+            "layers": [
+                layer(
+                    "missing-mask",
+                    kind="raster_image",
+                    shape=None,
+                    raster={"shared_asset_id": "asset", "mask_ids": ["missing"]},
+                )
+            ],
+            "masks": [],
+        },
+    )
+    for document in structural_cases:
+        with pytest.raises(ValueError):
+            engine._validate_snapshot(document, board_id)
+
+
+def test_profile_colour_and_mask_guards_cover_every_supported_boundary() -> None:
+    engine = DeterministicImageEngine()
+    data = source_png()
+    asset = verified_asset(data)
+    document = single_raster_document()
+
+    def rejected_profile(**changes: Any) -> None:
+        value = native_profile()
+        value.update(changes)
+        with pytest.raises(ValueError):
+            engine._validate_profile(document, "artboard-export", {"asset-raster": asset}, value)
+
+    rejected_profile(format="avif")
+    rejected_profile(format="png", lossless=False)
+    rejected_profile(format="jpeg", lossless=False, quality=None)
+    rejected_profile(format="webp", lossless=True, quality=80)
+    rejected_profile(format="webp", physical_width=1)
+    rejected_profile(fit="outside")
+
+    preserve_with_native = deepcopy(snapshot())
+    with pytest.raises(ValueError, match="one raster source"):
+        engine._validate_profile(
+            preserve_with_native,
+            "artboard-export",
+            {"asset-raster": replace(asset, has_icc_profile=True)},
+            {**native_profile(), "colour_profile": "preserve"},
+        )
+    solid_document = deepcopy(snapshot())
+    solid_document["layers"] = [solid_document["layers"][0]]
+    with pytest.raises(ValueError, match="transparent"):
+        engine._validate_profile(
+            solid_document,
+            "artboard-export",
+            {"asset-raster": replace(asset, has_icc_profile=True)},
+            {**native_profile(), "colour_profile": "preserve"},
+        )
+
+    def conversion(target: str = "srgb", order: int = 0, **parameters: Any) -> dict[str, Any]:
+        return {
+            "kind": "colour_profile_conversion",
+            "order": order,
+            "enabled": True,
+            "parameters": {"target_profile": target, **parameters},
+        }
+
+    colour_cases = (
+        ([conversion(), conversion(order=1)], native_profile(), {"one": asset}),
+        (
+            [
+                {"kind": "contrast", "order": 0, "enabled": True, "parameters": {}},
+                conversion(order=1),
+            ],
+            native_profile(),
+            {"one": asset},
+        ),
+        ([conversion("preserve")], native_profile(), {"one": asset}),
+        (
+            [conversion("display-p3")],
+            {**native_profile(), "colour_profile": "display-p3"},
+            {"one": asset},
+        ),
+        (
+            [conversion("unknown")],
+            {**native_profile(), "colour_profile": "unknown"},
+            {"one": asset},
+        ),
+        (
+            [conversion("preserve")],
+            {**native_profile(), "colour_profile": "preserve"},
+            {"one": asset, "two": replace(asset, shared_asset_id="two")},
+        ),
+        ([conversion(rendering_intent="unsupported")], native_profile(), {"one": asset}),
+    )
+    for recipe, output_profile, assets in colour_cases:
+        with pytest.raises(ValueError):
+            engine._colour_settings(recipe, output_profile, assets)
+
+    image = Image.new("RGBA", (10, 10), "#ffffff")
+    raster = {"raster": {"mask_ids": ["mask"]}}
+    with pytest.raises(ValueError, match="missing"):
+        engine._apply_masks(image, raster, {"masks": []})
+    disabled = {"mask_id": "mask", "enabled": False}
+    assert engine._apply_masks(image, raster, {"masks": [disabled]}).getbbox() == image.getbbox()
+    for mask in (
+        {"mask_id": "mask", "kind": "vector", "feather": 0},
+        {"mask_id": "mask", "kind": "shape", "feather": 0, "path_data": "M 0 0"},
+        {"mask_id": "mask", "kind": "shape", "feather": 0, "path_data": "rect(0,0,2,1)"},
+        {"mask_id": "mask", "kind": "shape", "feather": 0, "path_data": "rect(.1,.1,.1,.1)"},
+    ):
+        with pytest.raises(ValueError):
+            engine._apply_masks(Image.new("RGBA", (1, 1), "#ffffff"), raster, {"masks": [mask]})
+    masked = engine._apply_masks(
+        image,
+        raster,
+        {
+            "masks": [
+                {
+                    "mask_id": "mask",
+                    "kind": "shape",
+                    "feather": 0,
+                    "path_data": "ellipse(0,0,1,1)",
+                    "inverted": True,
+                }
+            ]
+        },
+    )
+    assert cast(tuple[int, ...], masked.getpixel((5, 5)))[3] == 0
+
+
+def test_raster_text_shape_vector_and_operation_guards_are_executable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = DeterministicImageEngine()
+    data = source_png()
+    asset = verified_asset(data)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(enhancement_engine, "MAX_COMPRESSED_SOURCE_BYTES", 1)
+        with pytest.raises(ValueError, match="byte capacity"):
+            engine._raster_layer(asset, {"crop": {}}, 10, 10)
+    for changed in (
+        {"bit_depth": None},
+        {"frame_count": 2},
+        {"colour_model": "unknown"},
+        {"colour_model": "cmyk", "has_icc_profile": False},
+        {"media_type": "image/jpeg"},
+        {"colour_model": "indexed"},
+        {"has_icc_profile": True},
+    ):
+        with pytest.raises(ValueError):
+            engine._raster_layer(replace(asset, **changed), {"crop": {}}, 10, 10)
+
+    private = metadata_jpeg()
+    private_asset = VerifiedRasterAsset(
+        "asset-raster",
+        "source-private",
+        hashlib.sha256(private).hexdigest(),
+        "image/jpeg",
+        len(private),
+        320,
+        200,
+        private,
+        orientation=6,
+        bit_depth=8,
+        frame_count=1,
+        has_icc_profile=False,
+        colour_model="rgb",
+    )
+    for orientation in (None, 3):
+        with pytest.raises(ValueError, match="orientation"):
+            engine._raster_layer(
+                replace(private_asset, orientation=orientation), {"crop": {}}, 10, 10
+            )
+
+    with pytest.raises(ValueError, match="shape geometry"):
+        engine._shape_layer({"shape": "rectangle", "stroke_width": float("nan")}, 10, 10)
+    with pytest.raises(ValueError, match="normalized bounds"):
+        engine._shape_layer(
+            {"shape": "line", "points": [{"x": -1, "y": 0}, {"x": 1, "y": 1}]},
+            10,
+            10,
+        )
+    for text in (
+        {"text": None},
+        {"text": "valid", "font_size": 0},
+        {"text": "valid", "color": "blue"},
+    ):
+        with pytest.raises(ValueError):
+            engine._validate_text(text)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(ImageFont, "load_default", lambda **_values: object())
+        with pytest.raises(RuntimeError, match="TrueType"):
+            engine._text_layer({"text": "valid"}, 20, 10)
+
+    for vector in (
+        {"path_data": "M 0 0 R 1 1"},
+        {"path_data": "M 0 0"},
+        {"path_data": "M 0 0 L 1e999 1"},
+        {"path_data": "M 0 0 L 1 1", "stroke_width": float("nan")},
+    ):
+        with pytest.raises(ValueError):
+            engine._vector_layer(vector, 10, 10)
+
+    image = Image.new("RGBA", (10, 8), "#ffffff")
+    with pytest.raises(ValueError, match="orientation normalization"):
+        engine._operations(
+            image,
+            [{"kind": "orientation_normalize", "parameters": {"source_orientation": 1}}],
+        )
+    rotated = engine._operations(
+        image,
+        [{"kind": "rotate", "parameters": {"degrees": 10, "expand_canvas": False}}],
+    )
+    assert rotated.size == image.size
+    with pytest.raises(ValueError, match="axis"):
+        engine._operations(image, [{"kind": "flip", "parameters": {}}])
+    assert (
+        engine._operations(
+            image, [{"kind": "flip", "parameters": {"horizontal": True, "vertical": True}}]
+        ).size
+        == image.size
+    )
+    assert (
+        engine._operations(image, [{"kind": "grayscale", "parameters": {"method": "average"}}]).mode
+        == "RGBA"
+    )
+    with pytest.raises(ValueError, match="grayscale"):
+        engine._operations(image, [{"kind": "grayscale", "parameters": {"method": "unsupported"}}])
+    with pytest.raises(ValueError, match="edge preservation"):
+        engine._operations(
+            image,
+            [
+                {
+                    "kind": "noise_reduction",
+                    "parameters": {"strength": 10, "preserve_edges": 101},
+                }
+            ],
         )
 
 

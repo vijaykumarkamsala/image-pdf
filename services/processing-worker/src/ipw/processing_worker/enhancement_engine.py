@@ -872,6 +872,8 @@ class DeterministicImageEngine:
         self._validate_text(text)
         font_size = self._bounded_dimension(float(text.get("font_size", 32)) * unit)
         font = ImageFont.load_default(size=font_size)
+        if not isinstance(font, ImageFont.FreeTypeFont):
+            raise RuntimeError("bundled standard font is not a deterministic TrueType font")
         font_bytes = getattr(font, "font_bytes", None)
         if (
             font.getname() != ("Aileron", "Regular")

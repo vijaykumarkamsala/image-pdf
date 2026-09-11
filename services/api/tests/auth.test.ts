@@ -114,6 +114,11 @@ test("developer identity is isolated behind server sessions and logout requires 
   const port = (app.getHttpServer() as { address(): { port: number } }).address().port;
   const base = `http://127.0.0.1:${port}/v1`;
   try {
+    const guestCreated = await fetch(`${base}/guest-sessions`, { method: "POST" });
+    assert.equal(guestCreated.status, 201);
+    const guestCookie = guestCreated.headers.getSetCookie().map((value) => value.split(";", 1)[0]).join("; ");
+    assert.equal((await fetch(`${base}/guest-sessions`, { method: "POST", headers: { cookie: guestCookie } })).status, 201);
+
     const created = await fetch(`${base}/auth/developer-session`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ actor_id: "actor-browser", display_name: "Browser Customer" }),

@@ -1226,6 +1226,15 @@ test(
         (await exports.delivery("actor-export-pg", workspaceId, completedOutputId))?.sha256,
         "a".repeat(64),
       );
+      const bundle = await exports.createBundle(
+        context("actor-export-pg", "export-bundle-pg", "export.bundle", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.deepEqual(bundle.value.items.map((item) => item.output_id), [completedOutputId]);
       await pool.query(
         "UPDATE image_export_requests SET state='partially_completed' WHERE export_request_id=$1",
         [submitted.value.export_request_id],

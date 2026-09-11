@@ -55,7 +55,7 @@ async function routeDeterministicOidcSignIn(page: Page, code: string) {
     await route.fulfill({
       status: 302,
       headers: {
-        location: `http://127.0.0.1:4173/v1/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state ?? "")}`,
+        location: `http://127.0.0.1:4174/v1/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state ?? "")}`,
       },
     });
   });

@@ -315,7 +315,11 @@ class TestEncoding:
 class TestOriginalPreservation:
     @engines
     def test_no_engine_operation_touches_a_source_file(self, engine: Any, tmp_path: Path) -> None:
-        before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        before = {
+            p.relative_to(FIXTURES).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in FIXTURES.rglob("*")
+            if p.is_file()
+        }
 
         image = engine.load(str(SMOOTH))
         engine.resize(image, 16, 16, "lanczos")
@@ -327,7 +331,11 @@ class TestOriginalPreservation:
         engine.flatten_alpha(engine.load(str(ALPHA)), "#000000")
         engine.save(image, str(tmp_path / "out.png"), "image/png", 95, optimise=True)
 
-        after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        after = {
+            p.relative_to(FIXTURES).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in FIXTURES.rglob("*")
+            if p.is_file()
+        }
         assert after == before
 
 

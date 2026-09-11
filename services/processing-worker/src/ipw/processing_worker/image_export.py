@@ -186,9 +186,9 @@ class DurableImageExportProcessor:
         self._worker_id = worker_id
         self._engine = engine or DeterministicImageEngine()
         self._execution_lock = execution_lock or threading.Lock()
-        self._budget_factory = budget_factory or (lambda checkpoint: ProcessingBudget(
-            checkpoint=checkpoint
-        ))
+        self._budget_factory = budget_factory or (
+            lambda checkpoint: ProcessingBudget(checkpoint=checkpoint)
+        )
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
         with self._execution_lock:

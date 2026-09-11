@@ -12,6 +12,9 @@ from ipw.contracts.product_kernel import (
     IntakeEvidenceLabel,
     IntakeSourceCategory,
     MalwareScanState,
+    ProcessingJobKind,
+    ProcessingJobRecord,
+    ProcessingJobState,
     SourceFacts,
     SourceVersionRecord,
     UploadConstraints,
@@ -220,3 +223,47 @@ def test_guest_contract_never_contains_a_persisted_token() -> None:
         expires_at="2026-08-30T01:00:00.000Z",
     )
     assert "token" not in guest.model_dump()
+
+
+def test_processing_job_kind_requires_its_exact_owned_target() -> None:
+    base = {
+        "job_id": "job-001",
+        "owner_kind": UploadOwnerKind.ACTOR,
+        "workspace_id": "workspace-001",
+        "actor_id": "actor-001",
+        "state": ProcessingJobState.QUEUED,
+        "attempt": 0,
+        "max_attempts": 3,
+        "progress_percent": 0,
+        "created_at": "2026-09-11T00:00:00Z",
+        "updated_at": "2026-09-11T00:00:00Z",
+    }
+    targets = (
+        {
+            "kind": ProcessingJobKind.FILE_INTAKE_INSPECTION,
+            "upload_session_id": "upload-001",
+        },
+        {"kind": ProcessingJobKind.PREVIEW_GENERATION, "document_id": "document-001"},
+        {
+            "kind": ProcessingJobKind.IMAGE_EXPORT,
+            "document_id": "document-001",
+            "export_request_id": "export-001",
+        },
+        {
+            "kind": ProcessingJobKind.EXPORT_BUNDLE,
+            "export_request_id": "export-001",
+            "bundle_id": "bundle-001",
+        },
+    )
+    for target in targets:
+        job = ProcessingJobRecord.model_validate({**base, **target})
+        assert job.kind is target["kind"]
+
+    with pytest.raises(ValidationError, match="target must match"):
+        ProcessingJobRecord.model_validate(
+            {
+                **base,
+                "kind": ProcessingJobKind.IMAGE_EXPORT,
+                "document_id": "document-001",
+            }
+        )

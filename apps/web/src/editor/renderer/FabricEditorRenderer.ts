@@ -554,11 +554,20 @@ function approvedFont(value: string | undefined): { family: string; compatible: 
   return { family: "IPW Standard", compatible: true };
 }
 
-async function loadStandardFont(): Promise<void> {
-  await document.fonts.load('400 32px "IPW Standard"');
-  if (!document.fonts.check('400 32px "IPW Standard"')) {
-    throw new Error("The bundled IPW Standard font could not be loaded");
+let standardFontLoad: Promise<void> | null = null;
+
+function loadStandardFont(): Promise<void> {
+  if (!standardFontLoad) {
+    standardFontLoad = (async () => {
+      const faces = await document.fonts.load('400 32px "IPW Standard"');
+      await document.fonts.ready;
+      if (!faces.some((face) => face.status === "loaded")) {
+        throw new Error("The bundled IPW Standard font could not be loaded");
+      }
+    })();
+    void standardFontLoad.catch(() => { standardFontLoad = null; });
   }
+  return standardFontLoad;
 }
 
 function richTextStyles(text: string, runs: RichTextRun[]) {

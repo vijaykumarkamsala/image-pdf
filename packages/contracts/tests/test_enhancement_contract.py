@@ -6,12 +6,26 @@ import pytest
 from pydantic import ValidationError
 
 from ipw.contracts.enhancement import (
+    AlphaBackgroundParameters,
+    CropParameters,
+    CurvePoint,
+    CurvesParameters,
     ExportOutputProfile,
     ExportPurpose,
+    FlipParameters,
     ImageExportFormat,
     ImageOperation,
+    LevelsParameters,
+    MetadataPolicy,
+    OutputSizeEstimate,
     ProcessingRecipeRecord,
+    RecommendationEvidence,
+    RecommendationEvidenceKind,
+    RecommendationTargetKind,
     ResamplingScaleParameters,
+    ResizeMode,
+    ResizeParameters,
+    SafeRecommendation,
 )
 
 
@@ -103,3 +117,149 @@ def test_export_capabilities_fail_closed() -> None:
             format=ImageExportFormat.WEBP,
             bit_depth=16,
         )
+
+
+def test_enhancement_contract_rejection_boundaries_are_executable() -> None:
+    invalid_calls = (
+        lambda: CropParameters(left=0.8, top=0, right=0.2, bottom=1),
+        lambda: FlipParameters(),
+        lambda: ResizeParameters(mode=ResizeMode.PHYSICAL, width=2, height=1),
+        lambda: ResizeParameters(mode=ResizeMode.PIXELS, width=200, height=100, physical_unit="in"),
+        lambda: LevelsParameters(black=200, white=100),
+        lambda: CurvesParameters(points=()),
+        lambda: CurvesParameters(
+            points=(
+                CurvePoint(input=0, output=0),
+                CurvePoint(input=0.8, output=1),
+                CurvePoint(input=0.4, output=0.5),
+                CurvePoint(input=1, output=1),
+            )
+        ),
+        lambda: CurvesParameters(
+            points=(CurvePoint(input=0.1, output=0), CurvePoint(input=1, output=1))
+        ),
+        lambda: AlphaBackgroundParameters(behavior="flatten"),
+        lambda: AlphaBackgroundParameters(behavior="preserve", background="#ffffff"),
+        lambda: OutputSizeEstimate(minimum_bytes=20, maximum_bytes=10, explanation="Invalid"),
+        lambda: ExportOutputProfile(
+            profile_id="profile-flat",
+            name="Flat PNG",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.PNG,
+            alpha_behavior="flatten",
+        ),
+        lambda: ExportOutputProfile(
+            profile_id="profile-chroma",
+            name="PNG chroma",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.PNG,
+            chroma_subsampling="4:4:4",
+        ),
+        lambda: ExportOutputProfile(
+            profile_id="profile-sizing",
+            name="Mixed sizing",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.PNG,
+            width=100,
+            percentage=50,
+        ),
+        lambda: ExportOutputProfile(
+            profile_id="profile-physical",
+            name="Physical PNG",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.PNG,
+            physical_width=2,
+        ),
+        lambda: ExportOutputProfile(
+            profile_id="profile-webp-physical",
+            name="Physical WebP",
+            purpose=ExportPurpose.WEB,
+            format=ImageExportFormat.WEBP,
+            physical_width=2,
+            physical_unit="in",
+            ppi=300,
+            lossless=True,
+        ),
+    )
+    for call in invalid_calls:
+        with pytest.raises(ValidationError):
+            call()
+
+    with pytest.raises(ValidationError, match="unsupported product contract version"):
+        FlipParameters(schema_version="1.18.0", horizontal=True)
+    with pytest.raises(ValidationError, match="operation kind is required"):
+        ImageOperation.model_validate({"operation_id": "op-no-kind", "order": 0, "parameters": {}})
+    with pytest.raises(ValidationError):
+        ImageOperation.model_validate("not-an-operation")
+
+
+def test_recommendations_require_exactly_the_matching_action() -> None:
+    evidence = (
+        RecommendationEvidence(
+            kind=RecommendationEvidenceKind.MEASURED,
+            explanation="Measured source evidence",
+        ),
+    )
+    base = {
+        "recommendation_id": "recommendation-1",
+        "title": "Recommendation",
+        "explanation": "An explicit action is required",
+        "evidence": evidence,
+    }
+    with pytest.raises(ValidationError, match="exactly one operation"):
+        SafeRecommendation.model_validate(
+            {**base, "target_kind": RecommendationTargetKind.PROCESSING_OPERATION}
+        )
+    with pytest.raises(ValidationError, match="exactly one metadata policy"):
+        SafeRecommendation.model_validate(
+            {**base, "target_kind": RecommendationTargetKind.METADATA_POLICY}
+        )
+    warning = SafeRecommendation.model_validate(
+        {**base, "target_kind": RecommendationTargetKind.OUTPUT_WARNING}
+    )
+    assert warning.operation is None
+    assert warning.metadata_policy is None
+    metadata = SafeRecommendation.model_validate(
+        {
+            **base,
+            "target_kind": RecommendationTargetKind.METADATA_POLICY,
+            "metadata_policy": MetadataPolicy(),
+        }
+    )
+    assert metadata.metadata_policy is not None
+
+
+def test_recipe_rejects_duplicate_identifiers_as_well_as_duplicate_order() -> None:
+    first = operation("contrast", {"amount": 4}, order=0)
+    duplicate_identifier = operation("gamma", {"gamma": 1.1}, order=1).model_copy(
+        update={"operation_id": first.operation_id}
+    )
+    with pytest.raises(ValidationError, match="unique"):
+        ProcessingRecipeRecord(
+            recipe_id="recipe-duplicate-id",
+            workspace_id="workspace-001",
+            document_id="document-001",
+            version=1,
+            name="Corrections",
+            operations=(first, duplicate_identifier),
+            created_by_actor_id="actor-001",
+            created_at="2026-09-02T00:00:00Z",
+            updated_at="2026-09-02T00:00:00Z",
+        )
+
+    valid = ProcessingRecipeRecord(
+        recipe_id="recipe-valid",
+        workspace_id="workspace-001",
+        document_id="document-001",
+        version=1,
+        name="Valid corrections",
+        operations=(first,),
+        created_by_actor_id="actor-001",
+        created_at="2026-09-02T00:00:00Z",
+        updated_at="2026-09-02T00:00:00Z",
+    )
+    assert valid.operations == (first,)
+    assert (
+        OutputSizeEstimate(minimum_bytes=10, maximum_bytes=20, explanation="Bounded").maximum_bytes
+        == 20
+    )

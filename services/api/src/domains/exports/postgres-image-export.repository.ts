@@ -597,7 +597,8 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       const replay = await this.replay<ExportZipBundle>(client, context, workspaceId, "export.bundle");
       if (replay) return { value: replay, replayed: true };
       const completed = await client.query(
-        `SELECT output_id,filename,sha256,byte_size FROM image_export_outputs output
+        `SELECT output.output_id,output.filename,output.sha256,output.byte_size
+         FROM image_export_outputs output
          JOIN image_export_requests request USING(export_request_id)
          JOIN export_provenance provenance
            ON provenance.workspace_id=output.workspace_id

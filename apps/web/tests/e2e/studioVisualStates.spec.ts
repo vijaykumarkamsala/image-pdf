@@ -323,8 +323,13 @@ for (const theme of ["light", "dark"] as const) {
     await shot(page, `studio-state-failed-save-1440x900-${theme}.png`);
     await page.unroute(`**/v1/workspaces/${workspaceId}/documents/${documentId}`);
     const retry = page.getByRole("button", { name: "Retry now" });
-    if (await retry.isVisible()) await retry.click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
+    const saved = page.getByText("Saved", { exact: true });
+    if (await retry.isVisible()) {
+      await retry.click({ timeout: 2_000 }).catch(async (error: unknown) => {
+        if (!(await saved.isVisible())) throw error;
+      });
+    }
+    await expect(saved).toBeVisible({ timeout: 15_000 });
 
     await context.setOffline(true);
     await page.getByRole("button", { name: "Shape", exact: true }).click();

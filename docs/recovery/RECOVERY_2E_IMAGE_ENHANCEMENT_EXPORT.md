@@ -1,9 +1,11 @@
 # Recovery 2E: Image Enhancement and Export
 
-**Status:** Corrective-complete locally; paused for product-owner review
-**Date:** 10 September 2026
-**Branch:** `recovery/2e-image-enhancement-export`
-**Approved baseline:** `origin/recovery/2d-image-graphic-studio-foundation`
+**Status:** Corrective implementation and verification complete locally
+**Date:** 11 September 2026
+**Branch:** `recovery/2e-image-enhancement-export-final`
+**Corrective safety checkpoint:** `recovery/2e-corrective-safety-20260910`
+at `83cf872b18e09b9a264aabc3029d8a960aa15d9b`
+**Approved Recovery 2D baseline:** `origin/recovery/2d-image-graphic-studio-foundation`
 at `7a7b239f16361a307d7239f8ae6de32d355591f4`
 **Authority:** The approved Recovery 2E prompt, the Product V2 Consolidated
 Implementation Authority, Recovery 0-2D records and accepted ADRs, in that
@@ -34,6 +36,8 @@ identity remain unchanged.
 
 ## Delivery commits
 
+The original Recovery 2E evidence chain is preserved:
+
 1. `37dcdd6` - define deterministic enhancement and export contracts.
 2. `d5ef4e0` - execute durable image exports.
 3. `e8e1d27` - deliver the web enhancement and export workflow.
@@ -42,8 +46,17 @@ identity remain unchanged.
 6. `a2cc72c` - prove the complete Recovery 2E real stack.
 7. `bbea819` - cover deterministic processing and export safety boundaries.
 
-The final documentation-only commit contains this completion record and is
-reported outside the commit itself to avoid a self-referential hash.
+The final corrective completion is exactly four local commits:
+
+1. `865d4c1` - Database and contract integrity.
+2. `36ae034` - Export budget and native text rendering.
+3. `e99cc96` - Responsive UI correction.
+4. `Verification and truthful completion record` - this record, the
+   demonstrated real-stack SQL repair and final verification evidence. Its hash
+   is reported in the handoff because a commit cannot contain its own hash.
+
+The corrective safety branch remains at `83cf872`; no history was amended,
+rebased, pushed or merged.
 
 ## Responsibility boundaries
 
@@ -52,9 +65,10 @@ reported outside the commit itself to avoid a self-referential hash.
 `packages/contracts/src/ipw/contracts/enhancement.py` is the source of truth for
 20 operation kinds, recipes, recommendations and durable decisions, registered
 comparison previews, output profiles, metadata evidence, export requests,
-outputs, provenance and ZIP bundles. Product contract version `1.18.0` is
-generated into JSON Schema under `packages/schemas/product-v1/` and TypeScript
-in `packages/contracts-ts/src/generated/product.ts`.
+outputs, provenance and ZIP bundles. Product contract version `1.19.0` is
+generated into 94 JSON Schemas under
+`packages/schemas/product-v1/` and TypeScript in
+`packages/contracts-ts/src/generated/product.ts`.
 
 The contracts make order, enabled state, parameters, recipe/version identity,
 immutable source identity, output state, checksums and zero charging explicit.
@@ -73,8 +87,13 @@ recommendation sets, export requests, independent outputs, provenance and ZIP
 bundle state. Corrective migration
 `0019_recovery_2e_production_correctness.sql` adds source frame/colour evidence,
 logical recommendation idempotency, append-only recommendation decisions,
-preview request identity and completed-byte metadata evidence. Earlier outputs
-without that evidence are retained but fail closed until regenerated.
+preview request identity and completed-byte metadata evidence. It also adds
+tenant-scoped relationship keys across documents, versions, recipes,
+recommendations, jobs, preview requests, export requests, outputs, provenance,
+bundles and object references. Historical successful rows are retained without
+inventing replacement evidence; delivery and ZIP selection fail closed unless
+the output and matching provenance both contain verified metadata evidence.
+Fresh PostgreSQL has 19 migrations, through `0019`.
 
 The stable routes are:
 
@@ -101,8 +120,24 @@ The stable routes are:
 applies EXIF orientation once, composites the selected native artboard, executes
 the enabled ordered recipe and encodes verified output bytes. The bounded engine
 records Pillow and LittleCMS behavior, exact version, parameters and deterministic
-status. ADR-0015 explains why bounded Pillow is used for Recovery 2E and keeps
-libvips streaming/tiled execution as a production scale gate.
+status. Full enhancement source decode, artboards, intermediates and outputs stay
+at the 16-million-pixel/12,000-edge boundary. One cooperative 60-second/768-MiB
+process-RSS budget starts before source reads and is shared across all outputs in
+the job. Durable preparation preview separately admits at most 100 million source
+pixels only to create bounded 2,048/512-pixel proxies. ADR-0015 records the
+cooperative/process-local architecture and keeps 8K+/libvips streaming or tiled
+execution as a future production capability gate.
+
+Standard native text now renders with `IPW Standard`, the exact CC0 Aileron
+0.102 limited-character Regular subset embedded in pinned Pillow 12.3.0 and
+materialised for the browser at SHA-256
+`69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143143169f`.
+Browser and worker validate the same font identity. Position, size, hexadecimal
+colour, opacity, rotation, artboard ownership and layer order use the native
+composition path. External fonts, non-empty text runs, unsupported glyphs,
+justification, advanced typography fields, shared text styles and unsupported
+vector constructs fail before enqueue or at the matching worker boundary; no
+font substitution is performed.
 
 `DurableImageExportProcessor` and `DurableExportBundleProcessor` claim PostgreSQL
 leases, heartbeat, checkpoint, observe cancellation, isolate per-output failure,
@@ -129,7 +164,9 @@ last successful export.
 Desktop keeps the native Studio canvas and dock framework. Tablet, intermediate
 and phone layouts reduce the professional surface to review, lightweight
 correction, preset selection, monitoring and download without horizontal
-overflow.
+overflow. At 768 x 1024, a tablet-only sticky export action is fully visible,
+keyboard-reachable immediately after the Configure step and retains the existing
+44-pixel minimum target. Smaller and desktop layouts are unchanged.
 
 ## Customer-usable enhancement matrix
 
@@ -197,6 +234,8 @@ The following are explicit capability gates:
   Recovery 2E.
 - libvips streaming/tiled scale evidence remains required before approving large
   production images beyond the bounded Pillow route.
+- Advanced typography, external fonts, complex runs and unsupported vector
+  constructs remain unavailable and fail closed.
 
 Size estimates are deliberately ranges and include customer-readable
 explanations; they do not claim byte precision before encoding.
@@ -236,6 +275,11 @@ cross-tenant output or bundle ID is not disclosed.
   rendering.
 - Compressed bytes, decoded pixels, dimensions, memory estimate, elapsed time,
   output bytes, output count and ZIP size are bounded.
+- One cooperative export-job budget includes immutable source reads and every
+  output; output count cannot reset the elapsed-time or process-RSS budget.
+- The separate 100-million-pixel preparation-preview admission ceiling only
+  produces bounded proxies and does not increase the 16-million-pixel full
+  enhancement limit.
 - NestJS and the browser never load authoritative full-resolution source bytes.
 - Corrupt images, decompression bombs, malformed recipes, unsafe metadata,
   unsupported profiles and resource exhaustion fail explicitly.
@@ -259,6 +303,13 @@ download. Private derivative keys are now opaque lowercase format paths;
 customer filenames remain in PostgreSQL and authorised `Content-Disposition`.
 The accepted final run proved both corrections without relaxing either boundary.
 
+The final corrective real-stack run then exposed an ambiguous unqualified
+`output_id` in the hardened output/provenance ZIP-selection join. The fourth
+corrective commit qualifies every selected output column and adds direct
+PostgreSQL coverage for creating a bundle only from a successful output with
+matching verified provenance. The focused regression and complete real-stack
+journey pass with that query.
+
 ## Test and integration evidence
 
 Focused contract, API, worker, web and visual tests cover operation/parameter
@@ -267,49 +318,67 @@ encoding, orientation, dimensions, alpha/ICC/bit-depth gates, metadata removal,
 partial failure, retry/cancel, ZIP determinism/security, idempotency, permissions,
 tenant isolation, audit, provenance, zero charging and refresh-safe monitoring.
 
-Final verification was executed without `.env`, credentials, customer uploads,
-cloud calls, model/font downloads or live providers:
+Final verification used no `.env`, credentials, customer data, live providers,
+model downloads or network-fetched fonts. The standard font is materialised from
+the installed, pinned Pillow artifact and checked by digest.
 
-- `python tools/check.py`: all 18 canonical gates passed. Durations were format
-  0.4s, lint 0.4s, types 2.3s, tests 218.4s, fixture integrity 1.4s, fixture
-  reproducibility 0.4s, inspection fixtures 0.3s, TypeScript contract drift
-  1.3s, product contract drift 2.5s, canonical vectors 1.3s, TypeScript
-  typecheck 26.8s, TypeScript tests 28.4s, web Playwright 430.4s, goldens 3.3s,
-  schema drift 2.4s, licence register 1.5s, model weights 2.2s and example
-  manifest 1.6s.
-- Python passed 1,828 tests at 90.07% branch-aware coverage. The deterministic
-  enhancement engine reached 96% and durable export processor 95%.
-- The canonical Python run reported eight environment-conditional skips: one
-  installed-libvips unavailable-path case and seven tests requiring an explicit
-  PostgreSQL URL. Those seven tests were separately executed against PostgreSQL
-  and all passed with zero skips.
-- Web component tests passed 39/39. The normal production-preview Playwright
-  suite passed all 98 cases in full-suite order, including accessibility,
-  keyboard, pointer, 44 px target, reduced-motion, horizontal-overflow and
-  zero-tolerance visual comparisons. No snapshot-update mode was used for the
-  accepted run.
-- Fresh database `ipw_2e_final_20260902` used PostgreSQL `17.11` and all 18
-  migrations. NestJS PostgreSQL integration passed 5/5 with zero skips. Python
-  intake/preview PostgreSQL integration passed 7/7 with zero skips; pg-mem was
-  not used as compatibility evidence.
-- The final real-stack test passed 1/1 in 2.0 minutes against fresh database
-  `ipw_2e_realstack_accepted_20260902`: React production preview -> NestJS ->
+- Fresh database `ipw_2e_final_evidence` used PostgreSQL `17.11`, began with zero
+  relations and applied all 19 migrations through `0019`. Both metadata
+  completion constraints and all inspected composite tenant/relationship
+  constraints are validated. NestJS PostgreSQL integration passed 5/5 and the
+  Python intake/preview/worker PostgreSQL integration passed 7/7, with zero
+  skips. A separate upgrade fixture proved an existing successful output remains
+  successful without fabricated evidence while new invalid writes fail closed.
+- Focused processor, native composition, preview-limit, contract and font
+  licence tests passed 58/58. They cover one budget before reads and across all
+  outputs, the exact 16-million-pixel edge, the distinct durable proxy ceiling,
+  supported text plus raster/shape/group/mask/artboard composition, and
+  fail-closed external/advanced text.
+- The complete NestJS test invocation passed 54 tests and reported five expected
+  PostgreSQL-environment skips; the same five PostgreSQL cases passed separately
+  with no skips. Web component tests passed 40/40. API and web TypeScript checks,
+  targeted Ruff, product/TypeScript contract drift, font drift and `git diff
+  --check` passed.
+- The complete Python affected gate passed 1,871 tests with eight expected
+  environment-conditional skips and 90.04% branch-aware coverage. The corrective
+  contract/native-export boundary tests raise coverage without lowering the 90%
+  policy or excluding production code; product-kernel processing-job targets are
+  fully covered and the deterministic enhancement engine reaches 93%.
+- The responsive zero-tolerance Playwright test passed 1/1 across desktop,
+  768 x 1024 tablet, 638 x 768 intermediate and 390 x 844 phone states. Its
+  tablet assertions prove full viewport containment, a minimum 44 x 44 target
+  and direct Tab-key reachability. Only
+  `export-center-tablet-768x1024-dark.png` changed.
+- The corrected final real-stack test passed 1/1 in 3.3 minutes against fresh
+  database `ipw_2e_realstack_final`: React production preview -> NestJS ->
   PostgreSQL -> transactional outbox -> deterministic private storage -> Python
   intake/image-export/ZIP workers -> authorised derivative and ZIP downloads.
-  Refresh reloaded the completed PostgreSQL state.
-- Real-stack output was a 128 x 128 WebP, 1,086 bytes, SHA-256
-  `41344aa4d8477727de1e454515098abe5108774695de9cebb40239483018d9a5`.
-  Provenance recorded processor `ipw-deterministic-pillow-image-export` version
-  `1.0.0`, deterministic true, metadata verified true and matching immutable
-  source identity. Outbox delivery count was one; both recorded usage events had
+  Refresh reloaded authoritative completed state, and the wider matrix exercised
+  multi-artboard/output isolation, cancellation and retry.
+- Its primary output is a 128 x 96 WebP, 1,718 bytes, SHA-256
+  `b8fe12cc7e17158287745251f1a8e259e994d7d6f67c333b9ddd39fb6a187a6b`.
+  Provenance records processor `ipw-deterministic-pillow-image-export` version
+  `1.1.0`, deterministic true, metadata verified true and matching immutable
+  source identity. Outbox delivery attempts are one; all recorded usage has
   customer amount and credit debit zero.
-- The asynchronous ZIP completed at 1,463 bytes with SHA-256
-  `1b598137782b572f79bda094d8493507c938b426d546777d483c1b6e3801ca53`.
-- The separately named workspace boundary gate passed 14/14. `git diff --check`
-  and seven referenced-document path checks passed.
-- `npm audit` and `npm audit --omit=dev` each reported the same two Moderate
-  transitive `uuid <11.1.1` findings through `gaxios`; both commands passed the
-  high-severity gate and no forced audit fix was applied.
+- Its asynchronous ZIP is 2,132 bytes, SHA-256
+  `0d262bb30df3890ed59e7a04a33c62ae744e95c16f8ef6be551ced47ec5c47a4`,
+  with succeeded state.
+- The first canonical `python tools/check.py` run exposed formatting, type,
+  fixture-directory hashing, Playwright port isolation and a transient golden
+  subprocess failure. Each demonstrated failure was repaired and its affected
+  gate passed before the permitted final canonical run.
+- The final canonical invocation completed all 20 gates: 18 passed in that
+  invocation. Its Python test body passed 1,862 tests with eight skips but the
+  coverage gate remained below the unchanged 90% floor; its Playwright gate
+  failed while starting the web server before running a browser test. A fresh
+  affected Python run reproduced 88.45%, after which focused contract and
+  native-export boundary tests raised the clean full result to 90.04% with
+  1,871 passes and eight skips. The affected Playwright gate then passed all
+  98 tests, including zero-tolerance visuals, on isolated port 4174. No third
+  canonical run was made, preserving the prompt's canonical-run limit. Taken
+  together, the 18 green final-canonical gates and the two green affected-gate
+  reruns cover every canonical gate without concealing the run chronology.
 
 ## Visual baseline inventory
 
@@ -333,11 +402,14 @@ Recovery 2E adds these 16 reviewed baselines under
 - `export-center-intermediate-638x768-dark.png`
 - `export-center-phone-390x844-dark.png`
 
-Eight existing Studio viewport baselines and the related Studio-state baselines
-were intentionally refreshed because the command bar now contains the primary
-Enhance and Export actions. Unrelated Home, Projects, Files, Jobs, intake and
-guest baselines were restored byte-for-byte after review. Comparison remains at
-zero pixel tolerance.
+The final corrective branch changes 25 reviewed baselines. The responsive
+correction changes only `export-center-tablet-768x1024-dark.png`; its accepted
+pixels show the complete tablet action. Deterministic font delivery independently
+changes eight Studio viewport/theme baselines and sixteen text-bearing
+Studio-state baselines because those tests create the now-supported `IPW
+Standard` layer. Blank Studio frames and unrelated Home, Projects, Files, Jobs,
+intake and guest baselines remain byte-identical. Comparison remains at zero
+pixel tolerance, and every changed baseline was inspected after generation.
 
 ## Requirement mapping
 
@@ -355,7 +427,7 @@ zero pixel tolerance.
 | J. Integrity/delivery | Delivered | tenant-scoped API, checksums, idempotency, zero charge and downloads |
 | K. Performance/safety | Delivered within explicit Pillow bounds | engine limits, private storage bounds and rejection tests |
 | L. Public API | Delivered | authenticated routes listed above use the same domain service as React |
-| M. Testing/evidence | Delivered | unit, PostgreSQL, real-stack, Playwright, visual and all 18 canonical gates |
+| M. Testing/evidence | Delivered | 18 final-canonical gates plus green affected reruns: Python 1,871/90.04%, Playwright 98/98, PostgreSQL and real-stack evidence |
 | N. Explicit boundaries | Preserved | no AI/PDF/print/cloud connector/billing/native/deployment delivery |
 
 ## Known limitations and release gates
@@ -372,7 +444,11 @@ zero pixel tolerance.
 - Final print-production approval, machine/material profiles and the quarantined
   custom PDF benchmark remain outside this delivery.
 - AI/model work remains blocked on separate licence, quality, security and model
-  approval. No model or font was downloaded.
+  approval. No model was downloaded. The only enabled standard font is the
+  locally materialised, digest-pinned CC0 Aileron subset; no external font was
+  downloaded or accepted.
+- Advanced typography, external fonts, non-empty rich-text runs, unsupported
+  glyphs and unsupported vector constructs remain fail-closed.
 - Batch orchestration across independent customer files remains deferred; the
   reusable recipe/export contracts support that later bounded delivery.
 
@@ -389,11 +465,12 @@ access.
 1. Stop local web, API, worker and PostgreSQL review processes.
 2. Create a dedicated rollback branch from this Recovery 2E HEAD; do not rewrite
    the approved Recovery 2D history.
-3. Revert the Recovery 2E commits in reverse order, including this record, then
-   `eff32f6`, `e8e1d27`, `d5ef4e0` and `37dcdd6`.
+3. Revert the four final corrective commits in reverse order, then revert the
+   preserved original Recovery 2E commits only if the entire feature is being
+   rolled back. Do not rewrite the safety checkpoint.
 4. Roll a Recovery 2E database back by restoring the pre-2E PostgreSQL backup or
-   provisioning a fresh database at migration 0017. Migration 0018 is additive,
-   but no destructive down migration is supplied.
+   provisioning a fresh database at migration 0017. Migrations 0018 and 0019 are
+   forward-only; no destructive down migration is supplied.
 5. Remove only uncommitted local Recovery 2E generated build/test objects through
    their owning tools. Do not delete immutable sources or approved screenshot
    baselines from Recovery 2D.

@@ -12,7 +12,7 @@ export default defineConfig({
   grepInvert: /internal panel harness/,
   snapshotPathTemplate: "{testDir}/../__screenshots__/{arg}{ext}",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: "http://127.0.0.1:4174",
     browserName: "chromium",
     colorScheme: "light",
     locale: "en-US",
@@ -36,9 +36,9 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
-      command: "npm run build --workspace ipw-web && npm run preview --workspace ipw-web -- --host 127.0.0.1 --port 4173",
+      command: "npm run build --workspace ipw-web && npm run preview --workspace ipw-web -- --host 127.0.0.1 --port 4174",
       cwd: "../..",
-      port: 4173,
+      port: 4174,
       reuseExistingServer: false,
       timeout: 180_000,
     },
