@@ -20,10 +20,14 @@ runs:
         -c requirements-dev.lock.txt
         -r requirements-dev.txt
         -e packages/contracts
+        -e packages/inspection
+        -e packages/jobs
+        -e packages/storage
         -e packages/processors
         -e packages/metrics
         -e packages/pdf
         -e packages/vector
         -e packages/licence-registry
+        -e services/processing-worker
         -e services/benchmark-runner
         -e services/workspace-api

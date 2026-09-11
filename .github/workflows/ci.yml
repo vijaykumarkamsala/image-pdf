@@ -49,6 +49,9 @@ jobs:
       - name: Install Node workspaces
         run: npm ci
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       # libvips is packaged on Linux; the Windows job exercises the
       # engine-unavailable path instead, which is itself worth testing.
       - name: Install libvips (Linux)
