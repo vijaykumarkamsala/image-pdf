@@ -9,7 +9,10 @@ comparison ultimately rests on.
 
 from __future__ import annotations
 
+import builtins
 import hashlib
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -431,6 +434,57 @@ class TestLibvipsProductionPaths:
                 95,
                 optimise=False,
             )
+
+
+class TestLibvipsRuntimePortability:
+    def test_runtime_finds_the_repository_from_the_installed_module(self) -> None:
+        import ipw.processors.standard.vips_runtime as runtime
+
+        assert runtime._repo_root() == REPO_ROOT  # noqa: SLF001 - direct loader boundary test
+
+    def test_windows_loader_prepends_the_pinned_dll_directory(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        import ipw.processors.standard.vips_runtime as runtime
+
+        native = tmp_path / "vips" / "bin"
+        native.mkdir(parents=True)
+        original_import = builtins.__import__
+
+        def import_without_pyvips(
+            name: str,
+            global_values: dict[str, Any] | None = None,
+            local_values: dict[str, Any] | None = None,
+            fromlist: tuple[str, ...] = (),
+            level: int = 0,
+        ) -> Any:
+            if name == "pyvips":
+                raise ImportError("native binding intentionally unavailable")
+            return original_import(name, global_values, local_values, fromlist, level)
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(runtime, "vips_bin_dir", lambda: native)
+        monkeypatch.setattr(builtins, "__import__", import_without_pyvips)
+        monkeypatch.setenv("PATH", "existing-path")
+        runtime.load_pyvips.cache_clear()
+        try:
+            assert runtime.load_pyvips() is None
+            assert os.environ["PATH"] == f"{native}{os.pathsep}existing-path"
+        finally:
+            runtime.load_pyvips.cache_clear()
+
+    def test_native_version_error_is_reported_as_unavailable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import ipw.processors.standard.vips_runtime as runtime
+
+        class BrokenVersion:
+            def version(self, _component: int) -> int:
+                raise RuntimeError("native version lookup failed")
+
+        monkeypatch.setattr(runtime, "load_pyvips", lambda: BrokenVersion())
+
+        assert runtime.libvips_version() is None
 
 
 class TestCmykIsAJpegMode:
