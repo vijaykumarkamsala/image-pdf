@@ -18,6 +18,7 @@ import struct
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from PIL import Image, ImageChops, ImageCms, ImageDraw, ImageEnhance
 
@@ -371,15 +372,85 @@ def manifest_payload(values: tuple[Fixture, ...]) -> bytes:
     return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
 
 
+def _metadata_value(value: object) -> object:
+    if isinstance(value, bytes):
+        return {"bytes": len(value), "sha256": hashlib.sha256(value).hexdigest()}
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_metadata_value(item) for item in value]
+    return repr(value)
+
+
+def decoded_signature(payload: bytes) -> dict[str, Any]:
+    """Describe decoded behavior without treating compressed bytes as portable."""
+
+    with Image.open(io.BytesIO(payload)) as opened:
+        opened.load()
+        return {
+            "format": opened.format,
+            "mode": opened.mode,
+            "size": list(opened.size),
+            "frames": int(getattr(opened, "n_frames", 1)),
+            "pixels_sha256": hashlib.sha256(opened.tobytes()).hexdigest(),
+            "metadata": {
+                key: _metadata_value(value)
+                for key, value in sorted(opened.info.items())
+                if key not in {"duration"}
+            },
+        }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="verify generated files")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="verify exact canonical bytes")
+    mode.add_argument(
+        "--compatibility",
+        action="store_true",
+        help="verify decoded pixels, dimensions, format and metadata",
+    )
     parser.add_argument("--repo-root", type=Path, default=repo_root_from_here())
     args = parser.parse_args(argv)
     directory = args.repo_root / "data" / "fixtures" / "images" / "recovery2e"
     values = fixtures()
     manifest = manifest_payload(values)
     outputs = [*((value.name, value.data) for value in values), ("manifest.json", manifest)]
+    if args.compatibility:
+        expected_manifest = directory / "manifest.json"
+        if not expected_manifest.is_file():
+            sys.stderr.write("Recovery 2E generated fixture manifest is missing\n")
+            return 1
+        committed = json.loads(expected_manifest.read_text(encoding="utf-8"))
+        entries = {entry["name"]: entry for entry in committed.get("fixtures", [])}
+        problems = 0
+        for value in values:
+            entry = entries.get(value.name)
+            path = directory / value.name
+            if not isinstance(entry, dict) or not path.is_file():
+                sys.stderr.write(f"Recovery 2E fixture is missing: {value.name}\n")
+                problems += 1
+                continue
+            canonical = path.read_bytes()
+            if len(canonical) != entry.get("byte_size") or hashlib.sha256(
+                canonical
+            ).hexdigest() != entry.get("sha256"):
+                sys.stderr.write(f"Recovery 2E fixture integrity failed: {value.name}\n")
+                problems += 1
+                continue
+            if decoded_signature(canonical) != decoded_signature(value.data):
+                sys.stderr.write(
+                    f"Recovery 2E decoded pixels, dimensions, format or metadata drifted: "
+                    f"{value.name}\n"
+                )
+                problems += 1
+            else:
+                sys.stdout.write(f"{value.name:<48} decoded compatibility PASS\n")
+        if set(entries) != {value.name for value in values}:
+            sys.stderr.write("Recovery 2E fixture inventory differs from the canonical manifest\n")
+            problems += 1
+        return 1 if problems else 0
+
     if args.check:
         expected_manifest = directory / "manifest.json"
         if not expected_manifest.is_file() or expected_manifest.read_bytes() != manifest:

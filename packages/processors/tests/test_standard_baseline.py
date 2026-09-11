@@ -208,6 +208,7 @@ class TestGoldenOutputs:
             assert digest == entry["sha256"], f"{engine}/{name}: golden file was modified"
 
     @available
+    @pytest.mark.canonical_linux
     @pytest.mark.parametrize(
         ("name", "settings", "source", "expected_size"),
         [

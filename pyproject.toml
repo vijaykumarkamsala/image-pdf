@@ -200,6 +200,9 @@ warn_required_dynamic_aliases = true
 
 # -------------------------------------------------------------- pytest -------
 [tool.pytest.ini_options]
+markers = [
+  "canonical_linux: byte-exact encoded-image assertions owned by the pinned Linux environment",
+]
 testpaths = [
   "packages/contracts/tests",
   "packages/metrics/tests",

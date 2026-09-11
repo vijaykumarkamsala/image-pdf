@@ -197,14 +197,23 @@ def _windows_process_memory_counters() -> tuple[int, int]:
             ("PeakPagefileUsage", ctypes.c_size_t),
         ]
 
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    # WinDLL/get_last_error are deliberately resolved at runtime. They do not
+    # exist in ctypes' Linux typeshed surface, even though this function remains
+    # part of a cross-platform module that Linux must type-check. A direct
+    # attribute reference therefore made the Linux build fail before tests.
+    win_dll: Any = getattr(ctypes, "WinDLL", None)
+    get_last_error: Any = getattr(ctypes, "get_last_error", None)
+    if not callable(win_dll) or not callable(get_last_error):
+        raise RuntimeError("Windows process memory accounting is unavailable")
+
+    kernel32 = win_dll("kernel32", use_last_error=True)
     kernel32.GetCurrentProcess.argtypes = []
     kernel32.GetCurrentProcess.restype = wintypes.HANDLE
     process = kernel32.GetCurrentProcess()
     try:
         get_memory = kernel32.K32GetProcessMemoryInfo
     except AttributeError:
-        get_memory = ctypes.WinDLL("psapi", use_last_error=True).GetProcessMemoryInfo
+        get_memory = win_dll("psapi", use_last_error=True).GetProcessMemoryInfo
     get_memory.argtypes = [
         wintypes.HANDLE,
         ctypes.POINTER(ProcessMemoryCounters),
@@ -214,7 +223,7 @@ def _windows_process_memory_counters() -> tuple[int, int]:
     counters = ProcessMemoryCounters()
     counters.cb = ctypes.sizeof(counters)
     if not get_memory(process, ctypes.byref(counters), counters.cb):
-        raise OSError(ctypes.get_last_error(), "GetProcessMemoryInfo failed")
+        raise OSError(get_last_error(), "GetProcessMemoryInfo failed")
     return int(counters.WorkingSetSize), int(counters.PeakWorkingSetSize)
 
 

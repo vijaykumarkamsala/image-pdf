@@ -1,10 +1,9 @@
-# Coverage configuration for continuous integration only.
+# Coverage configuration for the canonical pinned Linux environment only.
 #
-# The local run uses the settings in pyproject.toml and measures everything,
-# because a development machine has the model weights installed. A CI runner
-# does not, and must not: tests/test_scope_and_artifacts.py forbids fetching a
-# model, a weight or a provider during a run, and conftest.py blocks the network
-# outright. Those are deliberate rules that make a benchmark reproducible.
+# The environment deliberately has no model weights: their licence disposition
+# prevents redistribution in an image, tests/test_scope_and_artifacts.py forbids
+# fetching a model or weight during a run, and conftest.py blocks external
+# network access. Those are product and benchmark integrity rules.
 #
 # So the inference code is unreachable in CI *by policy*, not by neglect. Left in
 # the measurement it drags the total from 90% to 88% and the gate fails for a
@@ -13,10 +12,10 @@
 # everywhere else - and marking the code `pragma: no cover`, which would hide it
 # locally too, where it genuinely is tested.
 #
-# The right answer is that each environment is held to the same standard for the
-# code it can actually execute. The omissions below are exactly the modules whose
-# uncovered lines are model loading and inference, and nothing else. They are
-# still measured locally, where they run.
+# The omissions below are exactly the code whose executable branches require the
+# unredistributable weights, plus pinned Tesseract data that is not part of the
+# Recovery 2E worker. Linux libvips is installed and measured here; Windows skips
+# have no effect on this authoritative coverage result.
 #
 # If this list ever needs to grow, that is a signal worth arguing about rather
 # than a line to add quietly.
@@ -33,22 +32,6 @@ omit =
     */ai_adapters/rrdbnet.py
     # Chooses and configures a device for inference.
     */ai_adapters/accelerator.py
-    # The libvips engine, which the Windows runner cannot load.
-    #
-    # libvips is a native library, not a wheel. On Linux apt provides it; on
-    # Windows the DLLs live in a gitignored .tools/vips that only a developer
-    # machine has, and the workflow deliberately leaves the Windows job without
-    # it so the engine-unavailable path gets exercised. That makes vips_engine
-    # unreachable there - 22% against 89% where the library exists - and a gate
-    # that averages the two environments is really asking the Windows job to
-    # cover code it is configured not to run.
-    #
-    # Omitted for both runners rather than for one, because a per-OS config file
-    # is a second copy of this list that nothing keeps in step. The Linux job
-    # still *runs* every libvips test, so a regression there still fails on its
-    # assertions; it simply stops being counted twice in a coverage average.
-    */standard/vips_engine.py
-    */standard/vips_runtime.py
     # Drives the Tesseract binary, which a runner does not have.
     #
     # Installing it from apt was tried and reverted, and the reason is worth

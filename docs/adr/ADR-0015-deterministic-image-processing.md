@@ -79,3 +79,19 @@ host. Large streaming/tiled libvips execution remains a release gate rather than
 an implied capability. A future libvips adapter may replace Pillow behind the
 same recipe, preview and output contracts after differential, packaging,
 resource and live-provider checks pass.
+
+## Linux production evidence follow-up
+
+Cloud Run's Linux runtime, not the original Windows development host, owns
+authoritative encoded bytes and image/browser baselines. The pinned production
+and evidence targets are recorded in
+`services/processing-worker/ENVIRONMENT.md`. The production target retains the
+Pillow-only Recovery 2E boundary; the derived evidence target adds the approved
+CPU-only Torch build and exact libvips/browser toolchain without promoting POC
+dependencies into the worker runtime.
+
+The repository-wide coverage gate and byte-exact image/zero-tolerance visual
+checks run once in that Linux environment. Windows remains a compatibility gate
+for decoded pixels, dimensions, formats, metadata, API behavior and non-visual
+browser journeys. It does not author production baselines and its environment
+skips do not affect authoritative coverage.
