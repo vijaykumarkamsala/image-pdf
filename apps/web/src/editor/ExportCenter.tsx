@@ -238,6 +238,11 @@ export function ExportCenter({
       </nav>
       {error && <InlineNotice tone="error" title="Export needs attention">{error}</InlineNotice>}
       {step === "configure" ? <div className="export-configure">
+        <div className="export-tablet-action">
+          <span><strong>{outputCount} {outputCount === 1 ? "output" : "outputs"}</strong><small>{selectedArtboards.size} {selectedArtboards.size === 1 ? "artboard" : "artboards"} x {profiles.length} {profiles.length === 1 ? "profile" : "profiles"}</small></span>
+          <Button type="button" tone="primary" disabled={busy !== null || outputCount < 1} onClick={() => void submit()}>{busy === "submit" ? "Submitting export..." : `Export ${outputCount || ""} ${outputCount === 1 ? "output" : "outputs"}`}</Button>
+          <small>Free during testing. This action records zero charge.</small>
+        </div>
         <section className="export-main" aria-labelledby="export-output-heading">
           <div className="export-section-heading"><span><strong id="export-output-heading">Output presets</strong><small>Add one or several independent outputs.</small></span>{exports.some((item) => item.state === "completed") && <Button type="button" size="compact" onClick={repeatLast}><RotateCcw aria-hidden="true" />Repeat last successful</Button>}</div>
           <div className="export-preset-grid">{OUTPUT_PRESETS.map((item) => {

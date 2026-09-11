@@ -587,6 +587,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .export-steps button[aria-current="step"] > span { border-color: var(--color-brand); color: var(--color-on-brand); background: var(--color-brand); }
 .export-center > .ds-notice { margin: 14px 20px 0; }
 .export-configure { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 620px; }
+.export-tablet-action { display: none; }
 .export-main { min-width: 0; padding: 18px 20px 30px; }
 .export-section-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .export-section-heading > span { display: grid; }
@@ -698,6 +699,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .comparison-workspace { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) auto auto; }
   .comparison-evidence { grid-row: 3; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow-y: visible; border-top: 1px solid var(--color-border); border-left: 0; }
   .comparison-footer { grid-row: 4; }
+}
+
+@media (min-width: 701px) and (max-width: 900px) {
+  .export-tablet-action { position: sticky; top: 64px; z-index: 2; grid-column: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 14px; min-height: 72px; padding: 10px 20px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+  .export-tablet-action > span { display: grid; }
+  .export-tablet-action small { color: var(--color-text-muted); font-size: 9px; }
+  .export-tablet-action > small { grid-column: 1 / -1; }
+  .export-summary > .export-total,
+  .export-summary > .ds-button,
+  .export-summary > .zero-charge { display: none; }
 }
 
 @media (max-width: 700px) {

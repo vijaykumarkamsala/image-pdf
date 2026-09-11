@@ -290,6 +290,23 @@ test("@visual Recovery 2E dark and responsive review/export states", async ({ pa
     await shot(page, `enhancement-review-${viewport.label}-${viewport.width}x${viewport.height}-dark.png`);
     await page.getByRole("button", { name: "Export", exact: true }).click();
     await expect(page.getByTestId("export-center")).toBeVisible();
+    if (viewport.width === 768) {
+      const action = page.getByRole("button", { name: "Export 1 output" });
+      const actionBox = await action.boundingBox();
+      expect(actionBox).not.toBeNull();
+      expect(actionBox!.width).toBeGreaterThanOrEqual(44);
+      expect(actionBox!.height).toBeGreaterThanOrEqual(44);
+      expect(actionBox!.x).toBeGreaterThanOrEqual(0);
+      expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(viewport.width);
+      expect(actionBox!.y).toBeGreaterThanOrEqual(0);
+      expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(viewport.height);
+      const close = page.getByRole("button", { name: "Close", exact: true });
+      await close.focus();
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("button", { name: "Configure" })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(action).toBeFocused();
+    }
     await shot(page, `export-center-${viewport.label}-${viewport.width}x${viewport.height}-dark.png`);
     await page.getByRole("button", { name: "Close", exact: true }).click();
   }
