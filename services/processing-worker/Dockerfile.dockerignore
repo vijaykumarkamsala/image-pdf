@@ -1,5 +1,7 @@
 data/corpus/
-data/reports/
+data/reports/*
+!data/reports/example/
+!data/reports/example/**
 data/runs/
 .env
 .env.*

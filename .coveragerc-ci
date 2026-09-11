@@ -32,6 +32,14 @@ omit =
     */ai_adapters/rrdbnet.py
     # Chooses and configures a device for inference.
     */ai_adapters/accelerator.py
+    # These PostgreSQL adapters are exercised by the mandatory real-database
+    # integration tests in this same canonical run. Keep the repository's
+    # established coverage boundary: integration conformance is asserted by
+    # behaviour rather than treating every SQL error-mapping branch as unit
+    # coverage. This is the same omission declared in pyproject.toml, not a
+    # reduction of the 90% gate.
+    */processing_worker/repository.py
+    */processing_worker/export_repository.py
     # Drives the Tesseract binary, which a runner does not have.
     #
     # Installing it from apt was tried and reverted, and the reason is worth

@@ -148,4 +148,4 @@ RUN python -m pip install "setuptools==84.0.0" \
 RUN chown -R worker:worker /opt/ipw /opt/ms-playwright
 USER worker
 
-CMD ["python", "tools/check.py", "--verbose"]
+CMD ["sh", "tools/run_canonical_linux_gates.sh"]

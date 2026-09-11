@@ -48,6 +48,11 @@ libvips, Node and Chromium only to execute the complete repository evidence set.
 CPU-only Torch avoids both the unreviewed CUDA licence path and CUDA libraries'
 process-RSS inflation. The worker's 768 MiB limit remains unchanged.
 
+Its single `run_canonical_linux_gates.sh` entry point compiles the API-owned
+migrations and applies them to the disposable PostgreSQL 17 service before the
+Python coverage run. This keeps every real-database test on the full product
+schema without relying on test ordering.
+
 ## Baseline changes
 
 Normal pull-request CI is read-only. The manual `update_linux_baselines` workflow
