@@ -37,23 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-python-workspaces
         with:
           python-version: ${{ matrix.python-version }}
-
-      # Exactly the command documented in README.md.
-      - name: Install all workspaces
-        run: >
-          python -m pip install
-          -c requirements-dev.lock.txt
-          -r requirements-dev.txt
-          -e packages/contracts
-          -e packages/processors
-          -e packages/metrics
-          -e packages/pdf
-          -e packages/vector
-          -e services/benchmark-runner
-          -e services/workspace-api
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -85,20 +71,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-python-workspaces
         with:
           python-version: "3.13"
-      - run: >
-          python -m pip install
-          -c requirements-dev.lock.txt
-          -r requirements-dev.txt
-          -e packages/contracts
-          -e packages/processors
-          -e packages/metrics
-          -e packages/pdf
-          -e packages/vector
-          -e services/benchmark-runner
-          -e services/workspace-api
       - name: Assert POC scope boundary and monorepo layering
         run: >
           python -m pytest tests/test_scope_and_artifacts.py tests/test_workspaces.py
