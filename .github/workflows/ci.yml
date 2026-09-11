@@ -146,4 +146,4 @@ jobs:
         run: |
           npm.cmd run typecheck --silent
           npm.cmd run test --silent
-          npm.cmd run test:e2e --workspace ipw-web --silent -- --grep-invert "@visual|@studio-visual"
+          npm.cmd run test:e2e --workspace ipw-web --silent -- --grep-invert visual

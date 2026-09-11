@@ -19,7 +19,7 @@ target and derived `canonical-ci` target pin:
 | IPW Standard font | SHA-256 `69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143169f` |
 | libvips / pyvips (evidence only) | `8.18.5` / `3.1.1` |
 | NumPy (evidence only) | `2.5.2` |
-| Torch (evidence only) | `2.13.0+cpu`, CUDA absent, four CPU threads |
+| Torch (evidence only) | `2.13.0+cpu`, CUDA absent, one CPU thread |
 | Node | `24.10.0` from image digest `sha256:b8d2197aff9129d16c801a3e3e1b2a873c4946480f5a310f38056df2268c38d9` |
 | Playwright / Chromium | `1.62.1` / `151.0.7922.34` |
 | PostgreSQL integration service | `17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0` |
