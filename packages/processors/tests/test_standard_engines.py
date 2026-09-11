@@ -339,6 +339,81 @@ class TestOriginalPreservation:
         assert after == before
 
 
+@pytest.mark.skipif(
+    not vips_available(), reason="libvips native library not installed on this host"
+)
+class TestLibvipsProductionPaths:
+    """Exercise native paths that Linux owns and Pillow tests cannot prove."""
+
+    def test_adjusting_saturation_preserves_alpha(self) -> None:
+        engine = VipsEngine()
+        image = engine.load(str(ALPHA))
+
+        adjusted = engine.adjust(
+            image,
+            brightness_percent=0,
+            contrast_percent=0,
+            saturation_percent=30,
+            exposure_percent=0,
+            white_balance="none",
+        )
+
+        assert adjusted.has_alpha
+        assert (adjusted.width, adjusted.height) == (image.width, image.height)
+
+    def test_print_ready_returns_a_native_image(self) -> None:
+        engine = VipsEngine()
+        rendered = engine.print_ready(
+            engine.load(str(SMOOTH)),
+            scale=1,
+            material="photo",
+            whiten=False,
+            keep_ink_colour=True,
+        )
+
+        assert rendered.width > 0
+        assert rendered.height > 0
+        assert rendered.bands == 3
+
+    def test_explicit_page_corners_are_flattened(self) -> None:
+        engine = VipsEngine()
+        rendered = engine.straighten_page(
+            engine.load(str(SMOOTH)),
+            [(0, 0), (63, 0), (63, 63), (0, 63)],
+        )
+
+        assert rendered.width > 0
+        assert rendered.height > 0
+        assert rendered.bands == 3
+
+    def test_enlarge_and_clean_round_trip_through_the_native_engine(self) -> None:
+        engine = VipsEngine()
+        source = engine.load(str(SMOOTH))
+
+        enlarged = engine.enlarge(source, scale=2, material="photo", iterations=1)
+        cleaned = engine.clean_document(
+            source,
+            strength_percent=50,
+            whiten=False,
+            keep_ink_colour=True,
+        )
+
+        assert (enlarged.width, enlarged.height) == (128, 128)
+        assert (cleaned.width, cleaned.height) == (64, 64)
+
+    def test_unavailable_native_library_fails_explicitly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import ipw.processors.standard.vips_engine as module
+
+        monkeypatch.setattr(module, "load_pyvips", lambda: None)
+
+        engine = VipsEngine()
+        assert not engine.available
+        with pytest.raises(EngineError, match="libvips is not available"):
+            engine.load(str(SMOOTH))
+
+
 class TestCmykIsAJpegMode:
     """A print shop's file must survive the round trip.
 

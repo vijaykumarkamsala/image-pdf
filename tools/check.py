@@ -47,7 +47,7 @@ GATES: tuple[Gate, ...] = (
     ),
     Gate(
         "tests",
-        [PY, "-m", "pytest"],
+        [PY, "tools/run_python_tests.py"],
         "behaviour, contract conformance and coverage",
     ),
     Gate(
