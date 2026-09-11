@@ -24,6 +24,7 @@ from PIL import (
     ImageDraw,
     ImageEnhance,
     ImageFilter,
+    ImageFont,
     ImageOps,
     UnidentifiedImageError,
 )
@@ -41,6 +42,8 @@ MAX_PROCESS_SECONDS = 60.0
 PROCESSOR_NAME = "ipw-deterministic-pillow-image-export"
 PROCESSOR_VERSION = "1.1.0"
 STANDARD_RESAMPLING_LABEL = "Standard resampling (not AI reconstruction)"
+STANDARD_TEXT_FONT_FAMILY = "IPW Standard"
+STANDARD_TEXT_FONT_SHA256 = "69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143169f"
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
 
@@ -356,7 +359,7 @@ class DeterministicImageEngine:
             elif kind == "shape":
                 item = self._shape_layer(layer.get("shape") or {}, width, height, unit=unit)
             elif kind == "rich_text":
-                item = self._text_layer(layer.get("rich_text") or {}, width, height)
+                item = self._text_layer(layer.get("rich_text") or {}, width, height, unit=unit)
             elif kind == "vector_svg":
                 item = self._vector_layer(layer.get("vector") or {}, width, height, unit=unit)
             else:
@@ -464,7 +467,7 @@ class DeterministicImageEngine:
                     "shared-style native export is unavailable until style projection is canonical"
                 )
             if layer.get("layer_type") == "rich_text":
-                self._text_layer(layer.get("rich_text") or {}, 1, 1)
+                self._validate_text(layer.get("rich_text") or {})
             if layer.get("layer_type") == "vector_svg":
                 vector = layer.get("vector") or {}
                 if vector.get("shared_asset_id") or vector.get("sanitised_svg_object_reference_id"):
@@ -863,12 +866,78 @@ class DeterministicImageEngine:
             raise ValueError("shape kind is not supported")
         return image
 
-    def _text_layer(self, text: dict[str, Any], width: int, height: int) -> Image.Image:
-        del text, width, height
-        raise ValueError(
-            "native text export is unavailable until approved bundled fonts and browser-matched "
-            "layout metrics are installed"
-        )
+    def _text_layer(
+        self, text: dict[str, Any], width: int, height: int, *, unit: float = 1
+    ) -> Image.Image:
+        self._validate_text(text)
+        font_size = self._bounded_dimension(float(text.get("font_size", 32)) * unit)
+        font = ImageFont.load_default(size=font_size)
+        font_bytes = getattr(font, "font_bytes", None)
+        if (
+            font.getname() != ("Aileron", "Regular")
+            or font.layout_engine != ImageFont.Layout.BASIC
+            or not isinstance(font_bytes, bytes)
+            or hashlib.sha256(font_bytes).hexdigest() != STANDARD_TEXT_FONT_SHA256
+        ):
+            raise RuntimeError("bundled standard font identity changed")
+        image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        alignment = str(text.get("text_align", "left"))
+        anchor, horizontal = {
+            "left": ("lt", 0),
+            "center": ("mt", width / 2),
+            "right": ("rt", width),
+        }[alignment]
+        line_advance = max(1, round(font_size * 1.16))
+        colour = self._colour(text.get("color"), "#162033")
+        for line_number, line in enumerate(str(text.get("text", "")).split("\n")):
+            draw.text(
+                (horizontal, line_number * line_advance),
+                line,
+                font=font,
+                fill=colour,
+                anchor=anchor,
+            )
+        return image
+
+    @staticmethod
+    def _validate_text(text: dict[str, Any]) -> None:
+        allowed = {
+            "schema_version",
+            "text",
+            "runs",
+            "font_family",
+            "font_size",
+            "color",
+            "text_align",
+        }
+        if set(text) - allowed:
+            raise ValueError("advanced native typography is unavailable in this build")
+        content = text.get("text")
+        if not isinstance(content, str) or len(content) > 10_000:
+            raise ValueError("native text content exceeds the supported range")
+        if any(character != "\n" and not " " <= character <= "~" for character in content):
+            raise ValueError("native text contains glyphs outside the bundled standard subset")
+        if text.get("font_family", STANDARD_TEXT_FONT_FAMILY) != STANDARD_TEXT_FONT_FAMILY:
+            raise ValueError("native text requires the bundled IPW Standard font")
+        if text.get("runs") not in (None, [], ()):
+            raise ValueError("rich-text runs are unavailable in deterministic image export")
+        font_size = text.get("font_size", 32)
+        if (
+            not isinstance(font_size, (int, float))
+            or isinstance(font_size, bool)
+            or not math.isfinite(float(font_size))
+            or not 0 < float(font_size) <= 2_000
+        ):
+            raise ValueError("native text size is outside the supported range")
+        alignment = text.get("text_align", "left")
+        if alignment not in {"left", "center", "right"}:
+            raise ValueError("native text alignment is unavailable in deterministic image export")
+        colour = text.get("color", "#162033")
+        if not isinstance(colour, str) or not re.fullmatch(
+            r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?", colour
+        ):
+            raise ValueError("native text colour is not a supported hexadecimal colour")
 
     def _vector_layer(
         self, vector: dict[str, Any], width: int, height: int, *, unit: float = 1

@@ -220,7 +220,7 @@
           "type": "string"
         },
         "font_family": {
-          "default": "system-ui",
+          "default": "IPW Standard",
           "maxLength": 2048,
           "minLength": 1,
           "title": "Font Family",

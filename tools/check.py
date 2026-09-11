@@ -72,6 +72,11 @@ GATES: tuple[Gate, ...] = (
         "fixtures are reproducible",
     ),
     Gate(
+        "standard-font-drift",
+        [PY, "tools/sync_standard_font.py", "--check"],
+        "the browser and deterministic worker use the same pinned rights-cleared font bytes",
+    ),
+    Gate(
         "ts-contract-drift",
         [PY, "tools/generate_ts_contracts.py", "--check"],
         "the TypeScript contract still matches the JSON Schema",

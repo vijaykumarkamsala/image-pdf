@@ -18,6 +18,7 @@ from ipw.inspection import inspect_bytes
 from ipw.processing_worker.durable_intake import DispatchMessage
 from ipw.processing_worker.enhancement_engine import (
     CANONICAL_SRGB_PROFILE,
+    MAX_PIXELS,
     DeterministicImageEngine,
     ProcessingBudget,
     ProcessingLimits,
@@ -1128,6 +1129,130 @@ def test_native_mask_blend_order_and_artboard_clipping_are_authoritative() -> No
     assert len({normal_sha, multiply_sha, reordered_sha}) == 3
 
 
+def test_native_text_shape_raster_group_mask_and_artboard_compose_deterministically() -> None:
+    data = source_png()
+    document = deepcopy(snapshot())
+    document["artboards"][0]["background"] = {"kind": "transparent", "color": None}
+    document["masks"] = [
+        {
+            "mask_id": "mask-raster-left",
+            "artboard_id": "artboard-export",
+            "kind": "shape",
+            "path_data": "rect(0,0,0.5,1)",
+            "enabled": True,
+            "inverted": False,
+            "feather": 0,
+        }
+    ]
+    document["layers"] = [
+        {
+            "layer_id": "group-composition",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": None,
+            "layer_type": "group",
+            "order": 0,
+            "visible": True,
+            "opacity": 0.8,
+            "blend_mode": "normal",
+            "transform": {"x": 5, "y": 8, "width": 100, "height": 60},
+        },
+        {
+            "layer_id": "raster-masked",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": "group-composition",
+            "layer_type": "raster_image",
+            "order": 0,
+            "visible": True,
+            "opacity": 1,
+            "blend_mode": "normal",
+            "transform": {"x": 0, "y": 0, "width": 70, "height": 40},
+            "raster": {
+                "shared_asset_id": "asset-raster",
+                "crop": {"left": 0, "top": 0, "right": 1, "bottom": 1},
+                "mask_ids": ["mask-raster-left"],
+                "adjustments": {},
+            },
+        },
+        {
+            "layer_id": "shape-over-raster",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": "group-composition",
+            "layer_type": "shape",
+            "order": 1,
+            "visible": True,
+            "opacity": 1,
+            "blend_mode": "normal",
+            "transform": {"x": 24, "y": 18, "width": 48, "height": 28},
+            "shape": {"shape": "rectangle", "fill": "#E24A3B", "stroke_width": 0},
+        },
+        {
+            "layer_id": "text-standard",
+            "artboard_id": "artboard-export",
+            "parent_layer_id": None,
+            "layer_type": "rich_text",
+            "order": 1,
+            "visible": True,
+            "opacity": 0.7,
+            "blend_mode": "normal",
+            "transform": {
+                "x": 72,
+                "y": 4,
+                "width": 64,
+                "height": 34,
+                "rotation_degrees": 12,
+            },
+            "rich_text": {
+                "text": "IPW Text",
+                "runs": [],
+                "font_family": "IPW Standard",
+                "font_size": 18,
+                "color": "#162033",
+                "text_align": "left",
+            },
+        },
+    ]
+    first_sha, first = render_native(document, assets={"asset-raster": verified_asset(data)})
+    second_sha, second = render_native(document, assets={"asset-raster": verified_asset(data)})
+    assert first_sha == second_sha
+    assert first.tobytes() == second.tobytes()
+    assert first.size == (120, 80)
+    assert cast(tuple[int, ...], first.getpixel((12, 14)))[3] in range(203, 205)
+    assert cast(tuple[int, ...], first.getpixel((65, 14)))[3] == 0
+    assert cast(tuple[int, ...], first.getpixel((35, 35)))[:3] == (226, 74, 59)
+    without_text = deepcopy(document)
+    without_text["layers"][-1]["visible"] = False
+    without_text_sha, _ = render_native(
+        without_text, assets={"asset-raster": verified_asset(data)}
+    )
+    assert without_text_sha != first_sha
+
+
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"font_family": "Arial"}, "IPW Standard font"),
+        ({"runs": [{"start": 0, "end": 3, "style": {"font_weight": "bold"}}]}, "runs"),
+        ({"text_align": "justify"}, "alignment"),
+        ({"text": "café"}, "glyphs outside"),
+        ({"line_height": 1.2}, "typography"),
+    ],
+)
+def test_native_text_fails_closed_for_external_or_advanced_typography(
+    override: dict[str, object], message: str
+) -> None:
+    text: dict[str, object] = {
+        "text": "IPW",
+        "runs": [],
+        "font_family": "IPW Standard",
+        "font_size": 18,
+        "color": "#162033",
+        "text_align": "left",
+        **override,
+    }
+    with pytest.raises(ValueError, match=message):
+        DeterministicImageEngine()._text_layer(text, 100, 30)
+
+
 def test_native_hierarchy_rejects_cross_artboard_parent_cycles_and_duplicate_order() -> None:
     engine = DeterministicImageEngine()
     cross_artboard = nested_group_document()
@@ -1242,7 +1367,7 @@ def test_engine_fails_closed_for_invalid_layers_operations_profiles_and_limits()
     with pytest.raises(ValueError, match="shape kind"):
         engine._shape_layer({"shape": "star"}, 8, 8)
     with pytest.raises(ValueError, match="font"):
-        engine._text_layer({"font_family": "unapproved-font"}, 8, 8)
+        engine._text_layer({"text": "blocked", "font_family": "unapproved-font"}, 8, 8)
     with pytest.raises(ValueError, match="external vector"):
         engine._vector_layer({}, 8, 8)
     with pytest.raises(ValueError, match="coordinate"):
@@ -1274,6 +1399,10 @@ def test_engine_fails_closed_for_invalid_layers_operations_profiles_and_limits()
         engine._bounded_dimension(50_001)
     with pytest.raises(ValueError, match="pixels"):
         engine._guard_pixels(50_000, 50_000)
+    engine._guard_pixels(4_000, 4_000)
+    assert MAX_PIXELS == 4_000 * 4_000
+    with pytest.raises(ValueError, match="pixels"):
+        engine._guard_pixels(4_001, 4_000)
     with pytest.raises(ValueError, match="blend"):
         engine._composite(image.copy(), image.copy(), 0, 0, "unsupported")
 
@@ -1541,6 +1670,46 @@ def test_durable_export_isolates_output_failure_and_zip_is_reproducible() -> Non
         assert archive.namelist() == ["export.png", "manifest.json"]
         manifest = json.loads(archive.read("manifest.json"))
         assert manifest["items"][0]["sha256"] == completed.rendered.sha256
+
+
+def test_durable_export_uses_one_budget_before_reads_and_across_all_outputs() -> None:
+    class RecordingEngine(DeterministicImageEngine):
+        def __init__(self) -> None:
+            self.budget_ids: list[int] = []
+
+        def render(self, **values: Any) -> Any:
+            self.budget_ids.append(id(values["budget"]))
+            return super().render(**values)
+
+    data = source_png()
+    repository = FakeRepository(export_lease(data))
+    engine = RecordingEngine()
+    factory_calls = 0
+    stages: list[str] = []
+
+    def budget_factory(checkpoint: Callable[[str], None]) -> ProcessingBudget:
+        nonlocal factory_calls
+        factory_calls += 1
+
+        def record(stage: str) -> None:
+            stages.append(stage)
+            checkpoint(stage)
+
+        return ProcessingBudget(clock=lambda: 0.0, rss=lambda: 1, checkpoint=record)
+
+    outcome = DurableImageExportProcessor(
+        repository,
+        FakeStore(data),
+        worker_id="worker-budget",
+        engine=engine,
+        budget_factory=budget_factory,
+    ).process(DispatchMessage("dispatch-export", "job-export", "trace-export"))
+    assert outcome.state == "succeeded"
+    assert factory_calls == 1
+    assert len(engine.budget_ids) == 2
+    assert len(set(engine.budget_ids)) == 1
+    assert stages.index("source-read-start:asset-raster") < stages.index("validate")
+    assert stages.count("job-start") == 1
 
 
 class OutcomeRepository(FakeRepository):

@@ -14,6 +14,7 @@ const OPERATION_KINDS = new Set([
 ]);
 const EXECUTABLE_MAX_PIXELS = 16_000_000;
 const EXECUTABLE_MAX_DIMENSION = 12_000;
+const STANDARD_TEXT_FONT_FAMILY = "IPW Standard";
 const CROP_PRESETS = new Set(["1:1", "4:3", "3:2", "16:9"]);
 const BLEND_MODES = new Set(["normal", "multiply", "screen", "overlay", "darken", "lighten"]);
 
@@ -151,9 +152,9 @@ export function assertExecutableExport(
     }
     const kind = requireText(layer["layer_type"], "layer type", 64);
     if (kind === "rich_text") {
-      throw capability("Text export requires approved bundled fonts and matching layout metrics");
+      assertStandardText(layer["rich_text"]);
     }
-    if (!["group", "raster_image", "shape", "vector_svg"].includes(kind)) {
+    if (!["group", "raster_image", "shape", "rich_text", "vector_svg"].includes(kind)) {
       throw capability(`Layer type ${kind} has no approved export renderer`);
     }
     if (!BLEND_MODES.has(String(layer["blend_mode"] ?? "normal"))) {
@@ -284,6 +285,33 @@ export function assertExecutableExport(
       }
     }
   }
+}
+
+function assertStandardText(value: unknown): void {
+  const text = object(value, "rich-text layer");
+  const allowed = new Set(["schema_version", "text", "runs", "font_family", "font_size", "color", "text_align"]);
+  const unsupported = Object.keys(text).find((field) => !allowed.has(field));
+  if (unsupported) throw capability(`Advanced text field ${unsupported} is not executable in this build`);
+  const content = text["text"];
+  if (typeof content !== "string" || content.length > 10_000) {
+    throw invalid("Native text content exceeds the supported range");
+  }
+  if (/[^\x20-\x7e\n]/u.test(content)) {
+    throw capability("Native text contains glyphs outside the bundled standard subset");
+  }
+  if (text["font_family"] !== STANDARD_TEXT_FONT_FAMILY) {
+    throw capability("Native text requires the bundled IPW Standard font");
+  }
+  const runs = text["runs"];
+  if (runs !== undefined && (!Array.isArray(runs) || runs.length > 0)) {
+    throw capability("Rich-text runs are not executable in this build");
+  }
+  number(text["font_size"] ?? 32, 0.001, 2_000, "text size");
+  const colour = text["color"] ?? "#162033";
+  if (typeof colour !== "string" || !/^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/.test(colour)) {
+    throw invalid("Native text colour must be hexadecimal");
+  }
+  oneOf(text["text_align"] ?? "left", ["left", "center", "right"] as const, "text alignment");
 }
 
 export function effectiveVisibleRasterAssetIds(snapshotValue: unknown, artboardIds: Iterable<string>): Set<string> {

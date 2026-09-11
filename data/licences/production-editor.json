@@ -21,6 +21,22 @@
       "notes": "Browser rendering and pointer-interaction adapter only. Fabric serialization is not the Product V2 native document format."
     },
     {
+      "component_id": "aileron-ipw-standard",
+      "display_name": "Aileron Regular (IPW Standard embedded subset)",
+      "kind": "font",
+      "disposition": "approved",
+      "licence_id": "CC0-1.0",
+      "official_source": "https://dotcolon.net/fonts/aileron/",
+      "pinned_version": "0.102-pillow-12.3.0-subset",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [],
+      "reviewed_by": "Recovery-2E-corrective",
+      "reviewed_on": "2026-09-11",
+      "evidence": "The official Aileron page identifies version 0.102, states No Rights Reserved and declares Creative Commons CC0 1.0. Pillow 12.3.0 identifies its embedded limited-character default font as Aileron Regular. The exact embedded bytes are pinned at SHA-256 69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143169f and are reproduced by tools/sync_standard_font.py.",
+      "notes": "Only this Regular subset is enabled for standard native text. External fonts, rich-text runs and advanced typography fail export preflight."
+    },
+    {
       "component_id": "csstools-color-helpers",
       "display_name": "CSSTools Color Helpers",
       "kind": "dependency",

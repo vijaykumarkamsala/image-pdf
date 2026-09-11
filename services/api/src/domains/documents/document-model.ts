@@ -23,7 +23,7 @@ const SUPPORTED_STYLE_PROPERTIES = new Set([
   "fill", "stroke", "stroke_width", "font_family", "font_size", "color", "text_align", "opacity", "blend_mode",
 ]);
 const SUPPORTED_RICH_TEXT_PROPERTIES = new Set(["font_family", "font_size", "color", "font_weight", "font_style", "underline"]);
-const APPROVED_FONTS = new Set(["system-ui", "arial", "times new roman", "courier new"]);
+const APPROVED_FONTS = new Set(["IPW Standard"]);
 const SAFE_VECTOR_PATH = /^[MmLlHhVvCcSsQqTtAaZz0-9eE+.,\s-]+$/;
 const SAFE_MASK_PATH = /^(?:rect|ellipse)\(\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*,\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\s*\)$/;
 
@@ -493,7 +493,7 @@ function validateStyle(style: SharedStyleRecord) {
   const blend = style.properties?.["blend_mode"];
   if (blend !== undefined && (typeof blend !== "string" || !SUPPORTED_BLEND_MODES.has(blend))) invalidMutation("Shared style blend mode is not supported");
   const font = style.properties?.["font_family"];
-  if (font !== undefined && (typeof font !== "string" || !APPROVED_FONTS.has(font.toLowerCase()))) invalidMutation("Shared styles require an approved deterministic font");
+  if (font !== undefined && (typeof font !== "string" || !APPROVED_FONTS.has(font))) invalidMutation("Shared styles require an approved deterministic font");
 }
 
 function normalizeAngle(value: number) {
@@ -708,12 +708,12 @@ function validateLayerContent(layer: LayerRecord) {
         if (!SUPPORTED_RICH_TEXT_PROPERTIES.has(key)) invalidMutation(`Rich-text property ${key} is not supported`);
         if (typeof value === "number" && !Number.isFinite(value)) invalidMutation("Rich-text style values must be finite");
       }
-      if (typeof run.style?.["font_family"] === "string" && !APPROVED_FONTS.has(run.style["font_family"].toLowerCase())) {
+      if (typeof run.style?.["font_family"] === "string" && !APPROVED_FONTS.has(run.style["font_family"])) {
         invalidMutation("Rich-text runs require an approved deterministic font");
       }
       previousEnd = run.end;
     }
-    if (!APPROVED_FONTS.has((layer.rich_text.font_family ?? "system-ui").toLowerCase())) {
+    if (!APPROVED_FONTS.has(layer.rich_text.font_family ?? "IPW Standard")) {
       invalidMutation("Rich-text layers require an approved deterministic font");
     }
   }

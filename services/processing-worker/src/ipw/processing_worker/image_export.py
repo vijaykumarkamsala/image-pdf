@@ -10,11 +10,13 @@ import tempfile
 import threading
 import unicodedata
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from PIL import Image
 
+from ipw.contracts import PRODUCT_SCHEMA_VERSION
 from ipw.processing_worker.durable_intake import DispatchMessage, WorkerOutcome
 from ipw.processing_worker.enhancement_engine import (
     MAX_COMPRESSED_SOURCE_BYTES,
@@ -177,12 +179,16 @@ class DurableImageExportProcessor:
         worker_id: str,
         engine: DeterministicImageEngine | None = None,
         execution_lock: threading.Lock | None = None,
+        budget_factory: Callable[[Callable[[str], None]], ProcessingBudget] | None = None,
     ) -> None:
         self._repository = repository
         self._objects = objects
         self._worker_id = worker_id
         self._engine = engine or DeterministicImageEngine()
         self._execution_lock = execution_lock or threading.Lock()
+        self._budget_factory = budget_factory or (lambda checkpoint: ProcessingBudget(
+            checkpoint=checkpoint
+        ))
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
         with self._execution_lock:
@@ -201,11 +207,12 @@ class DurableImageExportProcessor:
         if lease is None:
             return WorkerOutcome("already_terminal", message.job_id)
         try:
+            budget = self._budget_factory(lambda _stage: self._cancel_guard(lease))
             self._repository.start_image_export(lease)
-            self._cancel_guard(lease)
-            assets = self._read_assets(lease)
+            budget.check("job-start")
+            assets = self._read_assets(lease, budget)
             for target in lease.outputs:
-                self._cancel_guard(lease)
+                budget.check(f"output-start:{target.output_id}")
                 self._repository.start_export_output(lease, target.output_id)
                 try:
                     rendered = self._engine.render(
@@ -214,9 +221,7 @@ class DurableImageExportProcessor:
                         assets=assets,
                         operations=lease.operations,
                         profile=target.profile,
-                        budget=ProcessingBudget(
-                            checkpoint=lambda _stage: self._cancel_guard(lease)
-                        ),
+                        budget=budget,
                     )
                     self._cancel_guard(lease)
                     extension = {
@@ -303,9 +308,12 @@ class DurableImageExportProcessor:
             )
             return WorkerOutcome(state, lease.job_id)
 
-    def _read_assets(self, lease: LeasedImageExportJob) -> dict[str, VerifiedRasterAsset]:
+    def _read_assets(
+        self, lease: LeasedImageExportJob, budget: ProcessingBudget
+    ) -> dict[str, VerifiedRasterAsset]:
         assets: dict[str, VerifiedRasterAsset] = {}
         for source in lease.assets:
+            budget.check(f"source-read-start:{source.shared_asset_id}")
             snapshot = self._objects.read(
                 PrivateObjectRef(lease.workspace_id, source.object_key, ObjectZone.IMMUTABLE),
                 generation=source.storage_generation,
@@ -330,6 +338,7 @@ class DurableImageExportProcessor:
                 has_icc_profile=source.has_icc_profile,
                 colour_model=source.colour_model,
             )
+            budget.check(f"source-read-complete:{source.shared_asset_id}")
         return assets
 
     def _cancel_guard(self, lease: LeasedImageExportJob) -> None:
@@ -473,7 +482,7 @@ class DurableExportBundleProcessor:
             )
         )
         manifest = {
-            "schema_version": "1.18.0",
+            "schema_version": PRODUCT_SCHEMA_VERSION,
             "bundle_id": lease.bundle_id,
             "export_request_id": lease.export_request_id,
             "expires_at": lease.expires_at,

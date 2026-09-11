@@ -1,0 +1,17 @@
+IPW Standard font provenance
+============================
+
+The file ipw-standard.ttf is the unmodified, limited-character Aileron Regular
+font embedded in Pillow 12.3.0's PIL.ImageFont.load_default implementation.
+
+Upstream font: Aileron version 0.102 by Sora Sagano / dot colon
+Official source: https://dotcolon.net/fonts/aileron/
+Licence: Creative Commons CC0 1.0 Universal (No Rights Reserved)
+Licence URL: https://creativecommons.org/publicdomain/zero/1.0/
+Embedded subset SHA-256:
+69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143169f
+
+The official source expressly permits use, modification and redistribution and
+publishes Aileron under CC0. The font is provided without warranty. The browser
+copy is generated and verified by tools/sync_standard_font.py from the exact
+Pillow artifact used by the deterministic worker.

@@ -6,7 +6,10 @@ import io
 from PIL import Image
 
 from ipw.processing_worker.durable_intake import DispatchMessage
+from ipw.processing_worker.enhancement_engine import MAX_PIXELS as ENHANCEMENT_MAX_PIXELS
 from ipw.processing_worker.preview import (
+    MAX_DECODED_PIXELS,
+    WORKSPACE_EDGE,
     DurablePreviewProcessor,
     LeasedPreviewJob,
     PreviewDerivative,
@@ -18,6 +21,12 @@ def png(width: int = 96, height: int = 64) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", (width, height), (32, 96, 180)).save(output, "PNG")
     return output.getvalue()
+
+
+def test_large_source_preview_has_a_separate_durable_proxy_limit() -> None:
+    assert MAX_DECODED_PIXELS == 100_000_000
+    assert MAX_DECODED_PIXELS > ENHANCEMENT_MAX_PIXELS == 16_000_000
+    assert WORKSPACE_EDGE == 2_048
 
 
 class Repository:

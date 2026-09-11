@@ -166,14 +166,33 @@ test("native hierarchy ownership, cycles and effective visibility are enforced",
   text.layers.push({
     layer_id: "text-one", artboard_id: "artboard-one", parent_layer_id: null,
     layer_type: "rich_text", order: 1, visible: true, opacity: 1, blend_mode: "normal",
-    transform: { x: 10, y: 10, width: 200, height: 80 },
-    rich_text: { text: "Not silently flattened", font_family: "system-ui", font_size: 24 },
+    transform: { x: 10, y: 10, width: 200, height: 80, rotation_degrees: 12 },
+    rich_text: {
+      text: "Native text", runs: [], font_family: "IPW Standard", font_size: 24,
+      color: "#162033", text_align: "center",
+    },
   });
-  assert.throws(() => assertExecutableExport(
+  assert.doesNotThrow(() => assertExecutableExport(
     text,
     [],
     [{ artboardId: "artboard-one", profile: profile() }],
-  ), /Text export requires approved bundled fonts/);
+  ));
+
+  for (const [field, value, message] of [
+    ["font_family", "Arial", /IPW Standard font/],
+    ["runs", [{ start: 0, end: 6, style: { font_weight: "bold" } }], /Rich-text runs/],
+    ["text_align", "justify", /text alignment/],
+    ["text", "Native café", /glyphs outside/],
+    ["line_height", 1.2, /Advanced text field/],
+  ] as const) {
+    const unsupported: any = structuredClone(text);
+    unsupported.layers[2]!.rich_text[field] = value;
+    assert.throws(() => assertExecutableExport(
+      unsupported,
+      [],
+      [{ artboardId: "artboard-one", profile: profile() }],
+    ), message);
+  }
 
   const skewed: any = structuredClone(valid);
   skewed.layers[1]!.transform.skew_x_degrees = 8;
@@ -182,4 +201,25 @@ test("native hierarchy ownership, cycles and effective visibility are enforced",
     [],
     [{ artboardId: "artboard-one", profile: profile() }],
   ), /Native skew export is not executable in this build/);
+});
+
+test("full enhancement executes at exactly 16 megapixels and rejects one pixel-column more", () => {
+  const exact: any = snapshot();
+  exact.artboards[0].width = 4_000;
+  exact.artboards[0].height = 4_000;
+  exact.layers = [];
+  exact.shared_assets = [];
+  assert.doesNotThrow(() => assertExecutableExport(
+    exact,
+    [],
+    [{ artboardId: "artboard-one", profile: profile() }],
+  ));
+
+  const over = structuredClone(exact);
+  over.artboards[0]!.width = 4_001;
+  assert.throws(() => assertExecutableExport(
+    over,
+    [],
+    [{ artboardId: "artboard-one", profile: profile() }],
+  ), /16 megapixel processing limit/);
 });

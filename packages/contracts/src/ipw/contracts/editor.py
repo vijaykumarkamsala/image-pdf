@@ -287,7 +287,7 @@ class RichTextRun(EditorContractModel):
 class RichTextLayerData(EditorContractModel):
     text: str
     runs: tuple[RichTextRun, ...] = ()
-    font_family: NonEmptyStr = "system-ui"
+    font_family: NonEmptyStr = "IPW Standard"
     font_size: float = Field(default=32, gt=0, le=2_000)
     color: NonEmptyStr = "#162033"
     text_align: Literal["left", "center", "right", "justify"] = "left"

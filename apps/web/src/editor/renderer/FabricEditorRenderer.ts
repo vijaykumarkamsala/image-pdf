@@ -103,6 +103,10 @@ export class FabricEditorRenderer implements EditorRenderer {
     const canvas = this.requireCanvas();
     this.rendering = true;
     try {
+      if ((snapshot.layers ?? []).some((layer) => layer.layer_type === "rich_text")) {
+        await loadStandardFont();
+        if (signal.aborted || generation !== this.generation) return { generation, applied: false };
+      }
       const shouldFit = this.viewport.zoom === 1 && this.viewport.panX === 0 && this.viewport.panY === 0;
       this.snapshot = structuredClone(snapshot);
       this.objects.clear();
@@ -545,15 +549,16 @@ function effectiveStyle(layer: LayerRecord, styles: SharedStyleRecord[]) {
   return result;
 }
 
-function approvedFont(value: string | undefined): { family: string; compatible: boolean } {
-  const fonts = new Map([
-    ["system-ui", "system-ui"],
-    ["arial", "Arial"],
-    ["times new roman", "Times New Roman"],
-    ["courier new", "Courier New"],
-  ]);
-  const family = fonts.get((value ?? "system-ui").toLowerCase());
-  return family ? { family, compatible: true } : { family: "Arial", compatible: false };
+function approvedFont(value: string | undefined): { family: string; compatible: true } {
+  if (value !== "IPW Standard") throw new Error("Native text requires the bundled IPW Standard font");
+  return { family: "IPW Standard", compatible: true };
+}
+
+async function loadStandardFont(): Promise<void> {
+  await document.fonts.load('400 32px "IPW Standard"');
+  if (!document.fonts.check('400 32px "IPW Standard"')) {
+    throw new Error("The bundled IPW Standard font could not be loaded");
+  }
 }
 
 function richTextStyles(text: string, runs: RichTextRun[]) {
