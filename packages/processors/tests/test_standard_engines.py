@@ -413,6 +413,25 @@ class TestLibvipsProductionPaths:
         with pytest.raises(EngineError, match="libvips is not available"):
             engine.load(str(SMOOTH))
 
+    def test_native_encode_error_is_normalised(self, tmp_path: Path) -> None:
+        import ipw.processors.standard.vips_engine as module
+
+        class BrokenNativeImage:
+            def hasalpha(self) -> bool:
+                return False
+
+            def pngsave(self, _path: str, **_options: object) -> None:
+                raise OSError("native encoder failed")
+
+        with pytest.raises(EngineError, match="could not encode image: OSError"):
+            VipsEngine().save(
+                module.VipsImage(BrokenNativeImage()),
+                str(tmp_path / "broken.png"),
+                "image/png",
+                95,
+                optimise=False,
+            )
+
 
 class TestCmykIsAJpegMode:
     """A print shop's file must survive the round trip.
