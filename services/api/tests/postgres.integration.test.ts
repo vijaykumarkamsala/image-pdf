@@ -1018,6 +1018,17 @@ test(
         customInput,
       );
       assert.equal(declined.value.recommendations[0]?.state, "declined");
+      await assert.rejects(
+        pool.query(
+          `INSERT INTO recommendation_decisions(decision_id,workspace_id,recommendation_set_id,
+           recommendation_id,actor_id,state,created_at)
+           VALUES ($1,$2,$3,$4,$5,'accepted',$6)`,
+          [`decision-cross-tenant-${randomUUID()}`, outsider.workspace.workspace_id,
+            recommendationSetId, recommendationId, "actor-export-outsider-pg",
+            "2026-09-02T08:00:00.000Z"],
+        ),
+        (error: unknown) => (error as { code?: string }).code === "23503",
+      );
       const previewInput = {
         workspaceId,
         documentId,
@@ -1192,6 +1203,28 @@ test(
          failure_code='bounded-test-failure',failure_message='Bounded test failure'
          WHERE output_id=$1`,
         [failedOutputId],
+      );
+      assert.equal(
+        await exports.delivery("actor-export-pg", workspaceId, completedOutputId),
+        null,
+        "a historical success without matching provenance must not be delivered",
+      );
+      await pool.query(
+        `INSERT INTO export_provenance(provenance_id,output_id,workspace_id,export_request_id,
+         document_id,document_version_id,source_version_ids,recipe_id,recipe_version,
+         processor_name,processor_version,deterministic,parameters_sha256,output_sha256,
+         metadata_policy,metadata_verified,metadata_evidence,trace_id,job_id,created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'[]',$7,$8,'test-processor','1.0',true,$9,$10,
+                 '{}',true,$11,$12,$13,$14)`,
+        [`provenance-${randomUUID()}`, completedOutputId, workspaceId,
+          submitted.value.export_request_id, documentId, created.value.document.current_version_id,
+          recipe.value.recipe_id, recipe.value.version, "b".repeat(64), "a".repeat(64),
+          metadataEvidence, "trace-postgres", submitted.value.job_id,
+          "2026-09-02T08:01:00.000Z"],
+      );
+      assert.equal(
+        (await exports.delivery("actor-export-pg", workspaceId, completedOutputId))?.sha256,
+        "a".repeat(64),
       );
       await pool.query(
         "UPDATE image_export_requests SET state='partially_completed' WHERE export_request_id=$1",

@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.18.0";
+export const PRODUCT_SCHEMA_VERSION = "1.19.0";
 
 export interface Actor {
   schema_version?: string;

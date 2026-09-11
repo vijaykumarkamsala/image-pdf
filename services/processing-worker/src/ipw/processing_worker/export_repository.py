@@ -323,16 +323,18 @@ class PostgresImageExportWorkerRepository:
             source_ids = sorted({item.source_version_id for item in lease.assets})
             cursor.execute(
                 """INSERT INTO export_provenance(provenance_id,output_id,workspace_id,
+                   export_request_id,
                    document_id,document_version_id,source_version_ids,recipe_id,recipe_version,
                    processor_name,processor_version,deterministic,parameters_sha256,output_sha256,
                    metadata_policy,metadata_verified,metadata_evidence,trace_id,job_id,created_at)
-                   VALUES(%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,true,%s,%s,%s::jsonb,
+                   VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,true,%s,%s,%s::jsonb,
                           %s,%s::jsonb,%s,%s,%s)
                    ON CONFLICT(output_id) DO NOTHING""",
                 (
                     deterministic_id("provenance", stored.output_id),
                     stored.output_id,
                     lease.workspace_id,
+                    lease.export_request_id,
                     lease.document_id,
                     lease.document_version_id,
                     json.dumps(source_ids),

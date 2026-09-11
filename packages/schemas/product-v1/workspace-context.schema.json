@@ -15,7 +15,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -42,7 +42,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -97,7 +97,7 @@
           "default": null
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -127,7 +127,7 @@
           "$ref": "#/$defs/RolePreset"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -234,7 +234,7 @@
           "title": "Personal For Actor Id"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -265,7 +265,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -306,7 +306,7 @@
       "$ref": "#/$defs/WorkspaceProjectPolicy"
     },
     "schema_version": {
-      "default": "1.18.0",
+      "default": "1.19.0",
       "title": "Schema Version",
       "type": "string"
     },

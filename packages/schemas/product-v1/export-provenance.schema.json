@@ -78,7 +78,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -152,7 +152,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.18.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -241,7 +241,7 @@
       "type": "integer"
     },
     "schema_version": {
-      "default": "1.18.0",
+      "default": "1.19.0",
       "title": "Schema Version",
       "type": "string"
     },

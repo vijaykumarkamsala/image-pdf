@@ -413,9 +413,9 @@ export class PostgresImageExportRepository implements ImageExportRepository {
           "Authoritative preview is registered at a fixed 1200 by 900 comparison viewport.", now],
       );
       await client.query(
-        `INSERT INTO image_export_outputs(output_id,export_request_id,artboard_id,profile,state,
-         progress_percent,filename) VALUES ($1,$2,$3,$4,'queued',0,'preview.png')`,
-        [outputId, exportId, artboardId, JSON.stringify(profile)],
+        `INSERT INTO image_export_outputs(output_id,workspace_id,export_request_id,artboard_id,profile,state,
+         progress_percent,filename) VALUES ($1,$2,$3,$4,$5,'queued',0,'preview.png')`,
+        [outputId, input.workspaceId, exportId, artboardId, JSON.stringify(profile)],
       );
       await client.query(
         `INSERT INTO enhancement_previews(preview_id,workspace_id,actor_id,document_id,
@@ -487,9 +487,9 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       );
       for (const item of input.outputs) {
         await client.query(
-          `INSERT INTO image_export_outputs(output_id,export_request_id,artboard_id,profile,state,
-           progress_percent,filename) VALUES ($1,$2,$3,$4,'queued',0,$5)`,
-          [this.runtime.id("output"), exportId, item.artboardId, JSON.stringify(item.profile), item.filename],
+          `INSERT INTO image_export_outputs(output_id,workspace_id,export_request_id,artboard_id,profile,state,
+           progress_percent,filename) VALUES ($1,$2,$3,$4,$5,'queued',0,$6)`,
+          [this.runtime.id("output"), input.workspaceId, exportId, item.artboardId, JSON.stringify(item.profile), item.filename],
         );
       }
       await this.insertJob(client, context, {
@@ -599,7 +599,13 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       const completed = await client.query(
         `SELECT output_id,filename,sha256,byte_size FROM image_export_outputs output
          JOIN image_export_requests request USING(export_request_id)
+         JOIN export_provenance provenance
+           ON provenance.workspace_id=output.workspace_id
+          AND provenance.export_request_id=output.export_request_id
+          AND provenance.output_id=output.output_id
          WHERE request.workspace_id=$1 AND output.export_request_id=$2 AND output.state='succeeded'
+           AND output.metadata_verified IS TRUE AND output.metadata_evidence IS NOT NULL
+           AND provenance.metadata_verified IS TRUE AND provenance.metadata_evidence IS NOT NULL
          ORDER BY output.output_id`,
         [workspaceId, exportRequestId],
       );
@@ -648,7 +654,13 @@ export class PostgresImageExportRepository implements ImageExportRepository {
        FROM image_export_outputs output JOIN image_export_requests request USING(export_request_id)
        JOIN memberships membership ON membership.workspace_id=request.workspace_id AND membership.actor_id=$1
        JOIN object_references object ON object.object_reference_id=output.object_reference_id AND object.workspace_id=request.workspace_id
-       WHERE request.workspace_id=$2 AND output.output_id=$3 AND output.state='succeeded'`,
+       JOIN export_provenance provenance
+         ON provenance.workspace_id=output.workspace_id
+        AND provenance.export_request_id=output.export_request_id
+        AND provenance.output_id=output.output_id
+       WHERE request.workspace_id=$2 AND output.output_id=$3 AND output.state='succeeded'
+         AND output.metadata_verified IS TRUE AND output.metadata_evidence IS NOT NULL
+         AND provenance.metadata_verified IS TRUE AND provenance.metadata_evidence IS NOT NULL`,
       [actorId, workspaceId, outputId],
     );
     const row = result.rows[0];
