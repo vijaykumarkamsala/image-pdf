@@ -6,6 +6,14 @@ from tools.image_compatibility import (
     portable_metadata_value,
 )
 from tools.make_goldens import _windows_compatible
+from tools.make_recovery_2e_fixtures import _canonical_srgb_profile
+
+
+def test_generated_srgb_profile_pins_the_canonical_platform_header() -> None:
+    profile = _canonical_srgb_profile()
+
+    assert profile[36:40] == b"acsp"
+    assert profile[40:44] == b"APPL"
 
 
 def test_icc_platform_signature_is_not_treated_as_image_metadata_drift() -> None:

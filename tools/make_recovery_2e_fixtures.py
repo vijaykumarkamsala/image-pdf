@@ -38,6 +38,7 @@ class Fixture:
 def _canonical_srgb_profile() -> bytes:
     profile = bytearray(ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes())
     profile[24:36] = b"\x07\xd0\x00\x01\x00\x01\x00\x00\x00\x00\x00\x00"
+    profile[40:44] = b"APPL"
     profile[84:100] = b"\x00" * 16
     return bytes(profile)
 
