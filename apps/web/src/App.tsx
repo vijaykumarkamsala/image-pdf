@@ -11,6 +11,7 @@ import {
   Home,
   LogIn,
   LogOut,
+  Layers3,
   Menu as MenuIcon,
   Plus,
   ShieldCheck,
@@ -34,6 +35,7 @@ import { workspacePath, workspaceRoutes } from "./routes";
 
 const StudioStartPage = lazy(() => import("./editor/ImageGraphicStudio").then((module) => ({ default: module.StudioStartPage })));
 const ImageGraphicStudio = lazy(() => import("./editor/ImageGraphicStudio").then((module) => ({ default: module.ImageGraphicStudio })));
+const BatchWorkspace = lazy(() => import("./editor/BatchWorkspace").then((module) => ({ default: module.BatchWorkspace })));
 
 const developmentBuild = (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV ?? false;
 
@@ -169,8 +171,9 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
       <Routes>
         <Route path=":workspaceId" element={<SignedWorkspaceHome workspaceId={id} actorName={context.actor.display_name} onUpload={() => setUploadOpen(true)} refresh={fileRefresh} />} />
         <Route path=":workspaceId/projects" element={<ProjectsPage />} />
-        <Route path=":workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} />} />
+        <Route path=":workspaceId/files" element={<FilesPage defaultFilesName={context.default_files.name ?? "Default Files"} refresh={fileRefresh} onUpload={() => setUploadOpen(true)} canCreateBatch={context.effective_permissions.some((permission) => permission.permission === "batch.create" && permission.allowed)} />} />
         <Route path=":workspaceId/jobs" element={<JobsPage />} />
+        <Route path=":workspaceId/studio/batch" element={<Suspense fallback={<AppLoading />}><BatchWorkspace canCreate={context.effective_permissions.some((permission) => permission.permission === "batch.create" && permission.allowed)} /></Suspense>} />
         <Route path=":workspaceId/studio/new" element={<Suspense fallback={<AppLoading />}><StudioStartPage /></Suspense>} />
         <Route path=":workspaceId/studio/:documentId" element={<Suspense fallback={<AppLoading />}><ImageGraphicStudio /></Suspense>} />
         <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
@@ -225,7 +228,7 @@ function ProjectsPage() {
   </main>;
 }
 
-function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: string; refresh: number; onUpload: () => void }) {
+function FilesPage({ defaultFilesName, refresh, onUpload, canCreateBatch }: { defaultFilesName: string; refresh: number; onUpload: () => void; canCreateBatch: boolean }) {
   const { workspaceId = "" } = useParams();
   const navigate = useNavigate();
   const [files, setFiles] = useState<WorkspaceFile[] | null>(null);
@@ -241,7 +244,7 @@ function FilesPage({ defaultFilesName, refresh, onUpload }: { defaultFilesName: 
     }, (reason: unknown) => setError(reason instanceof Error ? reason : new Error("Files unavailable")));
   }, [workspaceId, refresh]);
   return <main className="page" data-testid="files-page">
-    <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files you have not placed in a project.</p></div><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></section>
+    <section className="page-heading"><div><p className="eyebrow">Workspace</p><h1>{defaultFilesName}</h1><p>Files you have not placed in a project.</p></div><div className="page-heading-actions"><Button onClick={() => navigate(workspacePath(workspaceId, "studio/batch"))}><Layers3 aria-hidden="true" />{canCreateBatch ? "Batch process" : "Batch history"}</Button><Button tone="primary" onClick={onUpload}><Upload aria-hidden="true" />Upload</Button></div></section>
     {error && <div className="inline-error" role="alert">{error.message}</div>}
     {files === null || documents === null ? <StatePanel kind="loading" title="Loading files" message="Retrieving accepted sources and native documents." /> : files.length === 0 && documents.filter((item) => item.location.kind === "default_files").length === 0 ? <StatePanel kind="empty" title="No files yet" message="Files you upload, create or save without a project will appear here." action={{ label: "Upload a file", onClick: onUpload }} /> : <div className="file-list" role="list" aria-label="Workspace files">{files.filter((file) => file.canonical_location.kind === "default_files").map((file) => <article className="file-card" role="listitem" key={file.file_id}><span className="file-type-icon"><FileStack aria-hidden="true" /></span><div><strong>{file.display_name}</strong><span>Source</span></div><small title={file.current_source_version_id}>Original preserved</small><Button size="compact" onClick={() => navigate(`${workspacePath(workspaceId, "studio/new")}?source=${encodeURIComponent(file.file_id)}`)}>Create in Studio</Button></article>)}{documents.filter((document) => document.location.kind === "default_files").map((document) => <NativeDocumentCard key={document.document_id} document={document} projects={projects} workspaceId={workspaceId} onMoved={(moved) => setDocuments((current) => current?.map((item) => item.document_id === moved.document_id ? moved : item) ?? null)} />)}</div>}
   </main>;

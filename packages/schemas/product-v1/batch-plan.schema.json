@@ -1,0 +1,202 @@
+{
+  "$defs": {
+    "BatchConfirmationState": {
+      "enum": [
+        "pending",
+        "not_required",
+        "confirmed"
+      ],
+      "title": "BatchConfirmationState",
+      "type": "string"
+    },
+    "BatchPlanGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "client_item_ids": {
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+            "type": "string"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Client Item Ids",
+          "type": "array"
+        },
+        "compatibility_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Compatibility Sha256",
+          "type": "string"
+        },
+        "exception_count": {
+          "minimum": 0,
+          "title": "Exception Count",
+          "type": "integer"
+        },
+        "group_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Group Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "representative_client_item_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Representative Client Item Id",
+          "type": "string"
+        },
+        "representative_preview_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Representative Preview Id"
+        },
+        "schema_version": {
+          "default": "1.20.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group_id",
+        "compatibility_sha256",
+        "label",
+        "client_item_ids",
+        "representative_client_item_id",
+        "exception_count"
+      ],
+      "title": "BatchPlanGroup",
+      "type": "object"
+    },
+    "BatchPlanItem": {
+      "additionalProperties": false,
+      "properties": {
+        "client_item_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Client Item Id",
+          "type": "string"
+        },
+        "confirmation_state": {
+          "$ref": "#/$defs/BatchConfirmationState"
+        },
+        "exception_codes": {
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Exception Codes",
+          "type": "array"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Group Id"
+        },
+        "included": {
+          "title": "Included",
+          "type": "boolean"
+        },
+        "requires_individual_confirmation": {
+          "title": "Requires Individual Confirmation",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.20.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "client_item_id",
+        "group_id",
+        "included",
+        "requires_individual_confirmation",
+        "confirmation_state",
+        "exception_codes"
+      ],
+      "title": "BatchPlanItem",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/batch-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "excluded_count": {
+      "maximum": 49,
+      "minimum": 0,
+      "title": "Excluded Count",
+      "type": "integer"
+    },
+    "groups": {
+      "items": {
+        "$ref": "#/$defs/BatchPlanGroup"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Groups",
+      "type": "array"
+    },
+    "included_count": {
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Included Count",
+      "type": "integer"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/BatchPlanItem"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Items",
+      "type": "array"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "plan_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Plan Sha256",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.20.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_sha256",
+    "name",
+    "items",
+    "groups",
+    "included_count",
+    "excluded_count"
+  ],
+  "title": "BatchPlan",
+  "type": "object"
+}

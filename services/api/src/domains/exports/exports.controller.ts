@@ -91,6 +91,41 @@ export class ExportsController {
     const delivery = await this.exports.bundleDownload(headers, workspaceId, bundleId);
     sendDelivery(response, headers, delivery);
   }
+
+  @Post("batches/plan")
+  planBatch(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Body() body: RequestBody) {
+    return this.exports.planBatch(headers, workspaceId, body);
+  }
+
+  @Post("batches")
+  submitBatch(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Body() body: RequestBody) {
+    return this.exports.submitBatch(headers, workspaceId, body);
+  }
+
+  @Get("batches")
+  listBatches(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string) {
+    return this.exports.listBatches(headers, workspaceId);
+  }
+
+  @Get("batches/:batchId")
+  getBatch(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("batchId") batchId: string) {
+    return this.exports.getBatch(headers, workspaceId, batchId);
+  }
+
+  @Post("batches/:batchId/cancel")
+  cancelBatch(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("batchId") batchId: string) {
+    return this.exports.cancelBatch(headers, workspaceId, batchId);
+  }
+
+  @Post("batches/:batchId/retry")
+  retryBatch(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("batchId") batchId: string) {
+    return this.exports.retryBatch(headers, workspaceId, batchId);
+  }
+
+  @Get("batches/:batchId/report")
+  batchReport(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("batchId") batchId: string) {
+    return this.exports.batchReport(headers, workspaceId, batchId);
+  }
 }
 
 export function attachment(filename: string): string {

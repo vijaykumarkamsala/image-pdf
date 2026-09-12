@@ -9,7 +9,8 @@ import { requestDigest } from "../../kernel/runtime.js";
 import { DOCUMENT_REPOSITORY, type DocumentRepository } from "../documents/documents.types.js";
 import { IdentityBoundary } from "../identity/identity.service.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
-import { requireExportFilename, requireOperations, requireOutputProfile } from "./enhancement-validation.js";
+import { requireExportOutputs, requireOperations } from "./enhancement-validation.js";
+import { requireBatchCreateInput, requireBatchPlanInput } from "./batch-validation.js";
 import { IMAGE_EXPORT_REPOSITORY, type ImageExportRepository } from "./exports.types.js";
 
 type Headers = Record<string, string | string[] | undefined>;
@@ -120,23 +121,7 @@ export class ExportsService implements OnApplicationShutdown {
   async submit(headers: Headers, workspaceId: string, documentId: string, body: Body) {
     const access = await this.access(headers, workspaceId, "export.create");
     const id = await this.document(access.principal.actorId, access.workspaceId, documentId);
-    const rawOutputs = body["outputs"];
-    if (!Array.isArray(rawOutputs) || rawOutputs.length < 1 || rawOutputs.length > OUTPUT_LIMIT) {
-      throw new DomainError(400, "export-outputs-invalid", `Select between 1 and ${OUTPUT_LIMIT} outputs`);
-    }
-    const usedNames = new Set<string>();
-    const outputs = rawOutputs.map((value) => {
-      if (!value || typeof value !== "object" || Array.isArray(value)) throw new DomainError(400, "export-output-invalid", "Each export output must be an object");
-      const item = value as Body;
-      const profile = requireOutputProfile(item["profile"]);
-      let filename = ensureExtension(requireExportFilename(item["filename"]), profile.format);
-      if (usedNames.has(filename.toLowerCase())) {
-        if (profile.collision_behavior === "fail") throw new DomainError(409, "export-filename-collision", "Output filenames must be unique");
-        filename = availableFilename(filename, usedNames);
-      }
-      usedNames.add(filename.toLowerCase());
-      return { artboardId: requireId(item["artboard_id"], "artboard id"), profile, filename };
-    });
+    const outputs = requireExportOutputs(body["outputs"], OUTPUT_LIMIT);
     const payload = {
       workspaceId: access.workspaceId,
       documentId: id,
@@ -217,6 +202,76 @@ export class ExportsService implements OnApplicationShutdown {
     return this.readDelivery(access.workspaceId, value);
   }
 
+  async planBatch(headers: Headers, workspaceId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "batch.create");
+    const input = requireBatchPlanInput(body, access.workspaceId);
+    await this.batchDocuments(access.principal.actorId, access.workspaceId, input.items);
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      plan: await this.exports.planBatch(access.principal.actorId, input),
+    };
+  }
+
+  async submitBatch(headers: Headers, workspaceId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "batch.create");
+    const input = requireBatchCreateInput(body, access.workspaceId);
+    await this.batchDocuments(access.principal.actorId, access.workspaceId, input.items);
+    const context = this.command(headers, access.principal, "batch.submit", input);
+    const result = await this.exports.submitBatch(context, input);
+    if (!result.replayed) {
+      await this.auditUnlessAtomic(context, access.workspaceId, "batch.submitted", result.value.batch_id, "batch");
+    }
+    return { schema_version: PRODUCT_SCHEMA_VERSION, batch: result.value, replayed: result.replayed };
+  }
+
+  async listBatches(headers: Headers, workspaceId: string) {
+    const access = await this.access(headers, workspaceId, "batch.read");
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      batches: await this.exports.listBatches(access.principal.actorId, access.workspaceId),
+    };
+  }
+
+  async getBatch(headers: Headers, workspaceId: string, batchId: string) {
+    const access = await this.access(headers, workspaceId, "batch.read");
+    const id = requireId(batchId, "batch id");
+    const value = await this.exports.getBatch(access.principal.actorId, access.workspaceId, id);
+    if (!value) throw new DomainError(404, "batch-not-found", "Batch was not found");
+    return { schema_version: PRODUCT_SCHEMA_VERSION, batch: value };
+  }
+
+  async cancelBatch(headers: Headers, workspaceId: string, batchId: string) {
+    const access = await this.access(headers, workspaceId, "batch.cancel");
+    const id = requireId(batchId, "batch id");
+    const payload = { workspaceId: access.workspaceId, batchId: id };
+    const context = this.command(headers, access.principal, "batch.cancel", payload);
+    const result = await this.exports.cancelBatch(context, access.workspaceId, id);
+    if (!result.replayed) {
+      await this.auditUnlessAtomic(context, access.workspaceId, "batch.cancellation-requested", id, "batch");
+    }
+    return { schema_version: PRODUCT_SCHEMA_VERSION, batch: result.value, replayed: result.replayed };
+  }
+
+  async retryBatch(headers: Headers, workspaceId: string, batchId: string) {
+    const access = await this.access(headers, workspaceId, "batch.retry");
+    const id = requireId(batchId, "batch id");
+    const payload = { workspaceId: access.workspaceId, batchId: id };
+    const context = this.command(headers, access.principal, "batch.retry", payload);
+    const result = await this.exports.retryBatch(context, access.workspaceId, id);
+    if (!result.replayed) {
+      await this.auditUnlessAtomic(context, access.workspaceId, "batch.retry-requested", id, "batch");
+    }
+    return { schema_version: PRODUCT_SCHEMA_VERSION, batch: result.value, replayed: result.replayed };
+  }
+
+  async batchReport(headers: Headers, workspaceId: string, batchId: string) {
+    const access = await this.access(headers, workspaceId, "batch.read");
+    const id = requireId(batchId, "batch id");
+    const value = await this.exports.batchReport(access.principal.actorId, access.workspaceId, id);
+    if (!value) throw new DomainError(404, "batch-not-found", "Batch was not found");
+    return { schema_version: PRODUCT_SCHEMA_VERSION, report: value };
+  }
+
   async onApplicationShutdown(): Promise<void> { await this.exports.close(); }
 
   private async saveRecipe(headers: Headers, workspaceId: string, documentId: string, recipeId: string | undefined, body: Body, permission: Permission) {
@@ -255,6 +310,23 @@ export class ExportsService implements OnApplicationShutdown {
     return id;
   }
 
+  private async batchDocuments(
+    actorId: string,
+    workspaceId: string,
+    items: Array<{ documentId: string; documentVersionId: string; displayName: string }>,
+  ): Promise<void> {
+    for (let offset = 0; offset < items.length; offset += 5) {
+      await Promise.all(items.slice(offset, offset + 5).map(async (item) => {
+        const documentId = requireId(item.documentId, "document id");
+        const document = await this.documents.get(actorId, workspaceId, documentId);
+        if (!document) throw new DomainError(404, "document-not-found", "Document was not found");
+        if (document.document.current_version_id !== item.documentVersionId) {
+          throw new DomainError(409, "document-version-changed", `Review the current version of ${item.displayName} before batch processing`);
+        }
+      }));
+    }
+  }
+
   private async access(headers: Headers, workspaceId: string, required: Permission) {
     const principal = await this.identity.resolve(headers);
     const id = requireId(workspaceId, "workspace id");
@@ -276,10 +348,16 @@ export class ExportsService implements OnApplicationShutdown {
     return (Array.isArray(value) ? value[0] : value)?.trim();
   }
 
-  private auditUnlessAtomic(context: CommandContext, workspaceId: string, action: string, resourceId: string) {
+  private auditUnlessAtomic(
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    resourceId: string,
+    resourceKind = "image_export",
+  ) {
     return this.exports.recordsMutationsAtomically
       ? Promise.resolve()
-      : this.product.recordExternalMutation(context, workspaceId, action, "image_export", resourceId);
+      : this.product.recordExternalMutation(context, workspaceId, action, resourceKind, resourceId);
   }
 }
 
@@ -300,22 +378,4 @@ function optionalPositiveInteger(value: unknown, field: string): number | null {
 function positiveInteger(value: unknown, field: string): number {
   if (!Number.isSafeInteger(value) || Number(value) < 1) throw new DomainError(400, "invalid-input", `${field} must be a positive integer`);
   return Number(value);
-}
-
-function ensureExtension(filename: string, format: "jpeg" | "png" | "webp" | "tiff"): string {
-  const allowed = format === "jpeg" ? [".jpg", ".jpeg"] : format === "tiff" ? [".tif", ".tiff"] : [`.${format}`];
-  if (allowed.some((extension) => filename.toLowerCase().endsWith(extension))) return filename;
-  if (/\.[a-z0-9]{1,8}$/i.test(filename)) throw new DomainError(400, "export-extension-mismatch", `Filename extension does not match ${format.toUpperCase()}`);
-  return `${filename}${allowed[0]}`;
-}
-
-function availableFilename(filename: string, used: Set<string>): string {
-  const dot = filename.lastIndexOf(".");
-  const stem = dot > 0 ? filename.slice(0, dot) : filename;
-  const extension = dot > 0 ? filename.slice(dot) : "";
-  for (let suffix = 2; suffix <= OUTPUT_LIMIT; suffix += 1) {
-    const candidate = `${stem}-${suffix}${extension}`;
-    if (!used.has(candidate.toLowerCase())) return candidate;
-  }
-  throw new DomainError(409, "export-filename-collision", "Output filenames could not be made unique");
 }

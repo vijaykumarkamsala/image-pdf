@@ -1,0 +1,97 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/batch-group-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cancelled_count": {
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Cancelled Count",
+      "type": "integer"
+    },
+    "compatibility_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Compatibility Sha256",
+      "type": "string"
+    },
+    "exception_count": {
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Exception Count",
+      "type": "integer"
+    },
+    "failed_count": {
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Failed Count",
+      "type": "integer"
+    },
+    "group_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Group Id",
+      "type": "string"
+    },
+    "item_count": {
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Item Count",
+      "type": "integer"
+    },
+    "label": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "queued_count": {
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Queued Count",
+      "type": "integer"
+    },
+    "representative_item_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Representative Item Id",
+      "type": "string"
+    },
+    "representative_preview_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Representative Preview Id",
+      "type": "string"
+    },
+    "running_count": {
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Running Count",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": "1.20.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "succeeded_count": {
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Succeeded Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "group_id",
+    "label",
+    "compatibility_sha256",
+    "representative_item_id",
+    "representative_preview_id",
+    "item_count",
+    "queued_count",
+    "running_count",
+    "succeeded_count",
+    "failed_count",
+    "cancelled_count",
+    "exception_count"
+  ],
+  "title": "BatchGroupReport",
+  "type": "object"
+}

@@ -1,0 +1,70 @@
+{
+  "$defs": {
+    "BatchConfirmationState": {
+      "enum": [
+        "pending",
+        "not_required",
+        "confirmed"
+      ],
+      "title": "BatchConfirmationState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/batch-plan-item.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "client_item_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Client Item Id",
+      "type": "string"
+    },
+    "confirmation_state": {
+      "$ref": "#/$defs/BatchConfirmationState"
+    },
+    "exception_codes": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Exception Codes",
+      "type": "array"
+    },
+    "group_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Group Id"
+    },
+    "included": {
+      "title": "Included",
+      "type": "boolean"
+    },
+    "requires_individual_confirmation": {
+      "title": "Requires Individual Confirmation",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.20.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_item_id",
+    "group_id",
+    "included",
+    "requires_individual_confirmation",
+    "confirmation_state",
+    "exception_codes"
+  ],
+  "title": "BatchPlanItem",
+  "type": "object"
+}

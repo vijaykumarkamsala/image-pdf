@@ -30,7 +30,11 @@
         "export.create",
         "export.read",
         "export.cancel",
-        "export.retry"
+        "export.retry",
+        "batch.create",
+        "batch.read",
+        "batch.cancel",
+        "batch.retry"
       ],
       "title": "Permission",
       "type": "string"
@@ -58,7 +62,7 @@
       "$ref": "#/$defs/Permission"
     },
     "schema_version": {
-      "default": "1.19.0",
+      "default": "1.20.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.19.0";
+export const PRODUCT_SCHEMA_VERSION = "1.20.0";
 
 export interface Actor {
   schema_version?: string;
@@ -72,6 +72,148 @@ export interface AuditEvent {
   resource_id: string;
   occurred_at: string;
   trace_id: string;
+}
+
+export type BatchConfirmationState = "pending" | "not_required" | "confirmed";
+export const BatchConfirmationStateValues: readonly BatchConfirmationState[] = ["pending", "not_required", "confirmed"] as const;
+
+export interface BatchGroupApproval {
+  schema_version?: string;
+  group_id: string;
+  representative_client_item_id: string;
+  representative_preview_id: string;
+  confirmation_state: "confirmed";
+}
+
+export interface BatchGroupRecord {
+  schema_version?: string;
+  group_id: string;
+  batch_id: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  compatibility_sha256: string;
+  label: string;
+  item_count: number;
+  representative_item_id: string;
+  representative_preview_id: string;
+  exception_count: number;
+}
+
+export interface BatchGroupReport {
+  schema_version?: string;
+  group_id: string;
+  label: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  compatibility_sha256: string;
+  representative_item_id: string;
+  representative_preview_id: string;
+  item_count: number;
+  queued_count: number;
+  running_count: number;
+  succeeded_count: number;
+  failed_count: number;
+  cancelled_count: number;
+  exception_count: number;
+}
+
+export interface BatchItemRecord {
+  schema_version?: string;
+  batch_item_id: string;
+  batch_id: string;
+  client_item_id: string;
+  position: number;
+  display_name: string;
+  document_id: string;
+  document_version_id: string;
+  recipe_id: string;
+  recipe_version: number;
+  group_id: string | null;
+  included: boolean;
+  exclusion_reason: string | null;
+  requires_individual_confirmation: boolean;
+  confirmation_state: BatchConfirmationState;
+  exception_codes: string[];
+  export_request_id: string | null;
+  job_id: string | null;
+  state: BatchItemState;
+  progress_percent: number;
+  output_count: number;
+  succeeded_output_count: number;
+  failed_output_count: number;
+  cancelled_output_count: number;
+  failure_code: string | null;
+  failure_message: string | null;
+  last_checkpoint_key: string | null;
+  updated_at: string;
+}
+
+export type BatchItemState = "excluded" | "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export const BatchItemStateValues: readonly BatchItemState[] = ["excluded", "queued", "running", "succeeded", "failed", "cancelled"] as const;
+
+export interface BatchOutputReport {
+  schema_version?: string;
+  output_id: string;
+  filename: string;
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  sha256: string | null;
+  byte_size?: number | null;
+  failure_code: string | null;
+  failure_message: string | null;
+}
+
+export interface BatchOutputSelection {
+  schema_version?: string;
+  artboard_id: string;
+  profile: ExportOutputProfile;
+  filename: string;
+}
+
+export interface BatchPlanGroup {
+  schema_version?: string;
+  group_id: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  compatibility_sha256: string;
+  label: string;
+  client_item_ids: string[];
+  representative_client_item_id: string;
+  representative_preview_id?: string | null;
+  exception_count: number;
+}
+
+export interface BatchPlanItem {
+  schema_version?: string;
+  client_item_id: string;
+  group_id: string | null;
+  included: boolean;
+  requires_individual_confirmation: boolean;
+  confirmation_state: BatchConfirmationState;
+  exception_codes: string[];
+}
+
+export interface BatchReportItem {
+  schema_version?: string;
+  batch_item_id: string;
+  client_item_id: string;
+  group_id: string | null;
+  display_name: string;
+  state: BatchItemState;
+  exception_codes: string[];
+  outputs: BatchOutputReport[];
+}
+
+export type BatchRunState = "queued" | "running" | "partially_completed" | "completed" | "failed" | "cancelled";
+export const BatchRunStateValues: readonly BatchRunState[] = ["queued", "running", "partially_completed", "completed", "failed", "cancelled"] as const;
+
+export interface BatchSubmissionItem {
+  schema_version?: string;
+  client_item_id: string;
+  display_name: string;
+  document_id: string;
+  document_version_id: string;
+  recipe_id: string;
+  recipe_version: number;
+  outputs: BatchOutputSelection[];
+  included?: boolean;
+  exclusion_reason?: string | null;
 }
 
 export interface Collection {
@@ -623,8 +765,8 @@ export interface OutputSizeEstimate {
   explanation: string;
 }
 
-export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover" | "recipe.create" | "recipe.read" | "recipe.update" | "export.create" | "export.read" | "export.cancel" | "export.retry";
-export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover", "recipe.create", "recipe.read", "recipe.update", "export.create", "export.read", "export.cancel", "export.retry"] as const;
+export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover" | "recipe.create" | "recipe.read" | "recipe.update" | "export.create" | "export.read" | "export.cancel" | "export.retry" | "batch.create" | "batch.read" | "batch.cancel" | "batch.retry";
+export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover", "recipe.create", "recipe.read", "recipe.update", "export.create", "export.read", "export.cancel", "export.retry", "batch.create", "batch.read", "batch.cancel", "batch.retry"] as const;
 
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
@@ -1026,6 +1168,76 @@ export interface AssetOriginalRecord {
 export interface AuditEventList {
   schema_version?: string;
   events: AuditEvent[];
+}
+
+export interface BatchCreateRequest {
+  schema_version?: string;
+  name: string;
+  items: BatchSubmissionItem[];
+  /** Lower-case hexadecimal SHA-256 digest. */
+  plan_sha256: string;
+  group_approvals: BatchGroupApproval[];
+  confirmed_client_item_ids?: string[];
+}
+
+export interface BatchPlan {
+  schema_version?: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  plan_sha256: string;
+  name: string;
+  items: BatchPlanItem[];
+  groups: BatchPlanGroup[];
+  included_count: number;
+  excluded_count: number;
+}
+
+export interface BatchPlanRequest {
+  schema_version?: string;
+  name: string;
+  items: BatchSubmissionItem[];
+}
+
+export interface BatchReport {
+  schema_version?: string;
+  batch_id: string;
+  workspace_id: string;
+  name: string;
+  state: BatchRunState;
+  item_count: number;
+  queued_count: number;
+  running_count: number;
+  succeeded_count: number;
+  failed_count: number;
+  cancelled_count: number;
+  excluded_count: number;
+  groups: BatchGroupReport[];
+  items: BatchReportItem[];
+  generated_at: string;
+}
+
+export interface BatchRunRecord {
+  schema_version?: string;
+  batch_id: string;
+  workspace_id: string;
+  name: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  plan_sha256: string;
+  state: BatchRunState;
+  items: BatchItemRecord[];
+  groups: BatchGroupRecord[];
+  item_count: number;
+  included_count: number;
+  excluded_count: number;
+  queued_count: number;
+  running_count: number;
+  succeeded_count: number;
+  failed_count: number;
+  cancelled_count: number;
+  cancellation_requested: boolean;
+  zero_charge?: true;
+  created_by_actor_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CollectionProjectRelation {

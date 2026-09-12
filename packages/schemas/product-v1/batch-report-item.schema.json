@@ -1,0 +1,175 @@
+{
+  "$defs": {
+    "BatchItemState": {
+      "enum": [
+        "excluded",
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "BatchItemState",
+      "type": "string"
+    },
+    "BatchOutputReport": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Size"
+        },
+        "failure_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failure Code"
+        },
+        "failure_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failure Message"
+        },
+        "filename": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "output_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Output Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.20.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "description": "Lower-case hexadecimal SHA-256 digest.",
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sha256"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "output_id",
+        "filename",
+        "state",
+        "sha256",
+        "failure_code",
+        "failure_message"
+      ],
+      "title": "BatchOutputReport",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/batch-report-item.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batch_item_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Batch Item Id",
+      "type": "string"
+    },
+    "client_item_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Client Item Id",
+      "type": "string"
+    },
+    "display_name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "exception_codes": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Exception Codes",
+      "type": "array"
+    },
+    "group_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Group Id"
+    },
+    "outputs": {
+      "items": {
+        "$ref": "#/$defs/BatchOutputReport"
+      },
+      "maxItems": 64,
+      "title": "Outputs",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.20.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/BatchItemState"
+    }
+  },
+  "required": [
+    "batch_item_id",
+    "client_item_id",
+    "group_id",
+    "display_name",
+    "state",
+    "exception_codes",
+    "outputs"
+  ],
+  "title": "BatchReportItem",
+  "type": "object"
+}

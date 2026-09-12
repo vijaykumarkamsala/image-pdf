@@ -1,0 +1,363 @@
+{
+  "$defs": {
+    "ExportOutputProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "alpha_behavior": {
+          "default": "preserve",
+          "enum": [
+            "preserve",
+            "flatten"
+          ],
+          "title": "Alpha Behavior",
+          "type": "string"
+        },
+        "background": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Background"
+        },
+        "bit_depth": {
+          "default": 8,
+          "enum": [
+            8,
+            16
+          ],
+          "title": "Bit Depth",
+          "type": "integer"
+        },
+        "chroma_subsampling": {
+          "anyOf": [
+            {
+              "enum": [
+                "4:4:4",
+                "4:2:2",
+                "4:2:0"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chroma Subsampling"
+        },
+        "collision_behavior": {
+          "default": "suffix",
+          "enum": [
+            "suffix",
+            "fail"
+          ],
+          "title": "Collision Behavior",
+          "type": "string"
+        },
+        "colour_profile": {
+          "default": "srgb",
+          "enum": [
+            "preserve",
+            "srgb",
+            "display-p3"
+          ],
+          "title": "Colour Profile",
+          "type": "string"
+        },
+        "filename_template": {
+          "default": "{document}-{artboard}-{profile}",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Filename Template",
+          "type": "string"
+        },
+        "fit": {
+          "default": "contain",
+          "enum": [
+            "contain",
+            "cover",
+            "stretch"
+          ],
+          "title": "Fit",
+          "type": "string"
+        },
+        "format": {
+          "$ref": "#/$defs/ImageExportFormat"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "lossless": {
+          "default": false,
+          "title": "Lossless",
+          "type": "boolean"
+        },
+        "metadata_policy": {
+          "$ref": "#/$defs/MetadataPolicy"
+        },
+        "name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "percentage": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 1000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Percentage"
+        },
+        "physical_height": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 100000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Physical Height"
+        },
+        "physical_unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "in",
+                "mm",
+                "cm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Physical Unit"
+        },
+        "physical_width": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 100000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Physical Width"
+        },
+        "ppi": {
+          "anyOf": [
+            {
+              "maximum": 9600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ppi"
+        },
+        "preset_version": {
+          "const": "recovery-2e-v1",
+          "default": "recovery-2e-v1",
+          "title": "Preset Version",
+          "type": "string"
+        },
+        "profile_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "purpose": {
+          "$ref": "#/$defs/ExportPurpose"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality"
+        },
+        "resampling_algorithm": {
+          "$ref": "#/$defs/ResamplingAlgorithm",
+          "default": "lanczos"
+        },
+        "schema_version": {
+          "default": "1.20.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "profile_id",
+        "name",
+        "purpose",
+        "format"
+      ],
+      "title": "ExportOutputProfile",
+      "type": "object"
+    },
+    "ExportPurpose": {
+      "enum": [
+        "archival_derivative",
+        "web",
+        "email",
+        "social",
+        "presentation",
+        "high_resolution_digital",
+        "custom"
+      ],
+      "title": "ExportPurpose",
+      "type": "string"
+    },
+    "ImageExportFormat": {
+      "enum": [
+        "jpeg",
+        "png",
+        "webp",
+        "tiff"
+      ],
+      "title": "ImageExportFormat",
+      "type": "string"
+    },
+    "MetadataPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "preserve_camera": {
+          "default": false,
+          "title": "Preserve Camera",
+          "type": "boolean"
+        },
+        "preserve_capture_time": {
+          "default": false,
+          "title": "Preserve Capture Time",
+          "type": "boolean"
+        },
+        "preserve_copyright": {
+          "default": true,
+          "title": "Preserve Copyright",
+          "type": "boolean"
+        },
+        "preserve_description": {
+          "default": false,
+          "title": "Preserve Description",
+          "type": "boolean"
+        },
+        "preserve_location": {
+          "const": false,
+          "default": false,
+          "title": "Preserve Location",
+          "type": "boolean"
+        },
+        "remove_embedded_thumbnails": {
+          "const": true,
+          "default": true,
+          "title": "Remove Embedded Thumbnails",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.20.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "MetadataPolicy",
+      "type": "object"
+    },
+    "ResamplingAlgorithm": {
+      "enum": [
+        "nearest",
+        "bilinear",
+        "bicubic",
+        "lanczos"
+      ],
+      "title": "ResamplingAlgorithm",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/batch-output-selection.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artboard_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Artboard Id",
+      "type": "string"
+    },
+    "filename": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Filename",
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/ExportOutputProfile"
+    },
+    "schema_version": {
+      "default": "1.20.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artboard_id",
+    "profile",
+    "filename"
+  ],
+  "title": "BatchOutputSelection",
+  "type": "object"
+}

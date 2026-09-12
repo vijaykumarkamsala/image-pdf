@@ -12,7 +12,7 @@ export default defineConfig({
   grepInvert: /internal panel harness/,
   snapshotPathTemplate: "{testDir}/../__screenshots__/{arg}{ext}",
   use: {
-    baseURL: "http://127.0.0.1:4174",
+    baseURL: process.env["IPW_PLAYWRIGHT_BASE_URL"] ?? "http://127.0.0.1:4174",
     browserName: "chromium",
     colorScheme: "light",
     locale: "en-US",
@@ -20,7 +20,7 @@ export default defineConfig({
     reducedMotion: "reduce",
     trace: "retain-on-failure",
   },
-  webServer: [
+  webServer: process.env["IPW_PLAYWRIGHT_EXTERNAL_SERVERS"] === "1" ? undefined : [
     {
       command: "npm run build --workspace ipw-api && npm run start --workspace ipw-api",
       cwd: "../..",

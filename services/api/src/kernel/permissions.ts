@@ -31,6 +31,10 @@ const ALL_PERMISSIONS: Permission[] = [
   "export.read",
   "export.cancel",
   "export.retry",
+  "batch.create",
+  "batch.read",
+  "batch.cancel",
+  "batch.retry",
 ];
 
 const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
@@ -63,6 +67,10 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
     "export.read",
     "export.cancel",
     "export.retry",
+    "batch.create",
+    "batch.read",
+    "batch.cancel",
+    "batch.retry",
   ]),
   viewer: new Set([
     "workspace.read",
@@ -72,6 +80,7 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
     "document.read",
     "recipe.read",
     "export.read",
+    "batch.read",
   ]),
 };
 

@@ -12,6 +12,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from ipw.contracts.batch import BATCH_SCHEMA_EXPORTS
 from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
 from ipw.contracts.enhancement import ENHANCEMENT_SCHEMA_EXPORTS
@@ -108,6 +109,10 @@ class Permission(StrEnum):
     EXPORT_READ = "export.read"
     EXPORT_CANCEL = "export.cancel"
     EXPORT_RETRY = "export.retry"
+    BATCH_CREATE = "batch.create"
+    BATCH_READ = "batch.read"
+    BATCH_CANCEL = "batch.cancel"
+    BATCH_RETRY = "batch.retry"
 
 
 class PermissionOrigin(StrEnum):
@@ -836,3 +841,4 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
 
 PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(ENHANCEMENT_SCHEMA_EXPORTS)
+PRODUCT_SCHEMA_EXPORTS.update(BATCH_SCHEMA_EXPORTS)
