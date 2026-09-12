@@ -43,6 +43,10 @@ import type {
   BatchPlanRequest,
   BatchReport,
   BatchRunRecord,
+  PdfCreateRequest,
+  PdfExportRequestRecord,
+  PdfExportResult,
+  PdfPreflightReport,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -155,6 +159,10 @@ export interface BatchPlanResponse { schema_version: string; plan: BatchPlan }
 export interface BatchResponse { schema_version: string; batch: BatchRunRecord; replayed?: boolean }
 export interface BatchListResponse { schema_version: string; batches: BatchRunRecord[] }
 export interface BatchReportResponse { schema_version: string; report: BatchReport }
+export interface PdfExportReadModel { request: PdfExportRequestRecord; result: PdfExportResult | null }
+export interface PdfPreflightResponse { schema_version: string; preflight: PdfPreflightReport }
+export interface PdfExportResponse { schema_version: string; pdf_export: PdfExportReadModel; replayed?: boolean }
+export interface PdfExportListResponse { schema_version: string; pdf_exports: PdfExportReadModel[] }
 
 export type AuthSessionResponse = { authenticated: false } | {
   authenticated: true;
@@ -521,6 +529,13 @@ export const api = {
       body: JSON.stringify(input),
     });
   },
+  createPdfDocument(workspaceId: string, input: PdfCreateRequest): Promise<DocumentResponse> {
+    return request(`/workspaces/${workspaceId}/documents/pdf`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("pdf-document") },
+      body: JSON.stringify(input),
+    });
+  },
   document(workspaceId: string, documentId: string): Promise<DocumentResponse> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}`);
   },
@@ -738,6 +753,37 @@ export const api = {
   },
   imageBatchReport(workspaceId: string, batchId: string): Promise<BatchReportResponse> {
     return request(`/workspaces/${workspaceId}/batches/${batchId}/report`);
+  },
+  pdfPreflight(workspaceId: string, documentId: string): Promise<PdfPreflightResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/pdf-preflight`);
+  },
+  submitPdfExport(workspaceId: string, documentId: string): Promise<PdfExportResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/pdf-exports`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("pdf-export") },
+    });
+  },
+  pdfExports(workspaceId: string, documentId?: string): Promise<PdfExportListResponse> {
+    const query = documentId ? `?document_id=${encodeURIComponent(documentId)}` : "";
+    return request(`/workspaces/${workspaceId}/pdf-exports${query}`);
+  },
+  pdfExport(workspaceId: string, requestId: string): Promise<PdfExportResponse> {
+    return request(`/workspaces/${workspaceId}/pdf-exports/${requestId}`);
+  },
+  cancelPdfExport(workspaceId: string, requestId: string): Promise<PdfExportResponse> {
+    return request(`/workspaces/${workspaceId}/pdf-exports/${requestId}/cancel`, {
+      method: "PATCH",
+      headers: { "idempotency-key": commandKey("pdf-export-cancel") },
+    });
+  },
+  retryPdfExport(workspaceId: string, requestId: string): Promise<PdfExportResponse> {
+    return request(`/workspaces/${workspaceId}/pdf-exports/${requestId}/retry`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("pdf-export-retry") },
+    });
+  },
+  pdfExportDownloadUrl(workspaceId: string, requestId: string): string {
+    return `/v1/workspaces/${encodeURIComponent(workspaceId)}/pdf-exports/${encodeURIComponent(requestId)}/download`;
   },
   exportOutputDownloadUrl(workspaceId: string, outputId: string): string {
     return `/v1/workspaces/${encodeURIComponent(workspaceId)}/export-outputs/${encodeURIComponent(outputId)}/download`;

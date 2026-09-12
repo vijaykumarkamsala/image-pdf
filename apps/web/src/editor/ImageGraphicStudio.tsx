@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -56,6 +56,7 @@ import { useDurableEditorSession, type SaveState } from "./useDurableEditorSessi
 import { EnhancementWorkspace, type ComparisonSelection } from "./EnhancementWorkspace";
 import { ExportCenter } from "./ExportCenter";
 import { ComparisonWorkspace } from "./ComparisonWorkspace";
+import { PdfExportCenter } from "./PdfExportCenter";
 
 const PRESETS = [
   { id: "social", label: "Social post", detail: "1080 x 1080 px", width: 1080, height: 1080 },
@@ -197,6 +198,7 @@ export function ImageGraphicStudio() {
   const [confirmedMetadataPolicy, setConfirmedMetadataPolicy] = useState<MetadataPolicy | undefined>();
   const previewState = editor?.document.preview_state ?? "not_required";
   const editorReady = editor !== null && (previewState === "not_required" || previewState === "ready");
+  const isPdf = editor?.document.kind === "pdf";
 
   useEffect(() => {
     let active = true;
@@ -469,7 +471,7 @@ export function ImageGraphicStudio() {
     commit({
       kind: "artboard.add",
       artboard: {
-        artboard_id: id, name: `Artboard ${order + 1}`, order,
+        artboard_id: id, name: `${isPdf ? "Page" : "Artboard"} ${order + 1}`, order,
         width: first.width, height: first.height, unit: first.unit, orientation: first.orientation,
         background: structuredClone(first.background), intended_use: structuredClone(first.intended_use),
       },
@@ -579,7 +581,7 @@ export function ImageGraphicStudio() {
   }
 
   function openSaveAs() {
-    setSaveAsName(`${editorRef.current?.document.name ?? "Untitled graphic"} copy`);
+    setSaveAsName(`${editorRef.current?.document.name ?? (isPdf ? "Untitled PDF" : "Untitled graphic")} copy`);
     setSaveAsProjectId(editorRef.current?.document.project_id ?? "");
     setSaveAsOpen(true);
   }
@@ -597,7 +599,7 @@ export function ImageGraphicStudio() {
         pendingCount ? recoveredSnapshot ?? undefined : undefined,
       );
       setSaveAsOpen(false);
-      navigate(workspacePath(workspaceId, `studio/${response.editor.document.document_id}`));
+      navigate(workspacePath(workspaceId, `${response.editor.document.kind === "pdf" ? "pdf" : "studio"}/${response.editor.document.document_id}`));
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "The copy could not be created");
     } finally {
@@ -646,6 +648,21 @@ export function ImageGraphicStudio() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [commit, readOnly, selected, selectedId]);
 
+  const preparePdfDocument = useCallback(async () => {
+    await flushPending();
+    if (getPendingCount()) throw new Error("Finish saving this document before exporting.");
+    let current = await api.document(workspaceId, documentId);
+    const immutableVersion = current.editor.versions.find(
+      (version) => version.document_version_id === current.editor.document.current_version_id,
+    );
+    if (!immutableVersion || immutableVersion.revision !== current.editor.snapshot.revision) {
+      await api.createDocumentVersion(workspaceId, documentId, "PDF export checkpoint");
+      current = await api.document(workspaceId, documentId);
+    }
+    replaceServer(current.editor);
+    return current.editor;
+  }, [documentId, flushPending, getPendingCount, replaceServer, workspaceId]);
+
   if (!editor) return <main className="studio-loading">{message ? <StatePanel kind="error" title="Studio unavailable" message={message} action={{ label: "Back to Home", onClick: () => navigate(workspacePath(workspaceId)) }} /> : <StatePanel kind="loading" title="Opening Studio" message="Loading the native document and editor lease." />}</main>;
 
   if (previewState === "preparing") return <main className="studio-loading preview-preparation" data-testid="preview-preparing">
@@ -673,26 +690,26 @@ export function ImageGraphicStudio() {
   </main>;
 
   const leftPanel = <Tabs label="Document panels" selected={leftTab} onSelect={setLeftTab} items={[
-    { id: "artboards", label: "Artboards", panel: <ArtboardsPanel snapshot={editor.snapshot} activeId={activeArtboardId} select={activateArtboard} add={addArtboard} mutate={commit} readOnly={readOnly} /> },
+    { id: "artboards", label: isPdf ? "Pages" : "Artboards", panel: <ArtboardsPanel snapshot={editor.snapshot} activeId={activeArtboardId} select={activateArtboard} add={addArtboard} mutate={commit} readOnly={readOnly} pdfMode={isPdf} /> },
     { id: "layers", label: "Layers", panel: <LayersPanel snapshot={editor.snapshot} selectedId={selectedId} groupSelection={groupSelection} toggleGroup={(id) => setGroupSelection((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} select={selectLayer} mutate={commit} readOnly={readOnly} /> },
     { id: "assets", label: "Assets", panel: <AssetsPanel editor={editor} sources={sources} addingAssetId={addingAssetId} add={addAsset} compatibility={compatibility} readOnly={readOnly} /> },
     { id: "history", label: "History", panel: <HistoryPanel editor={editor} versionName={versionName} setVersionName={setVersionName} save={() => void nameVersion()} restore={(id) => void restore(id)} readOnly={readOnly} /> },
   ]} />;
   const rightPanel = <Tabs label="Tool panels" selected={rightTab} onSelect={setRightTab} items={[
-    { id: "properties", label: "Properties", panel: <PropertiesPanel snapshot={editor.snapshot} layer={selected} update={updateLayer} mutate={commit} readOnly={readOnly} /> },
-    { id: "enhance", label: "Enhance", panel: <EnhancementWorkspace workspaceId={workspaceId} editor={editor} activeArtboardId={activeArtboardId} readOnly={readOnly} onCompare={setComparison} onMetadataPolicy={setConfirmedMetadataPolicy} onOpenExport={() => setExportOpen(true)} /> },
-    { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addVectorPath={addVectorPath} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} ungroupSelected={ungroupSelected} groupCount={groupSelection.size} saveAs={openSaveAs} fit={() => rendererRef.current?.fit()} focusCanvas={() => surfaceRef.current?.querySelector<HTMLElement>(".upper-canvas")?.focus()} selected={selected} update={updateLayer} readOnly={readOnly} /> },
+    { id: "properties", label: "Properties", panel: <PropertiesPanel snapshot={editor.snapshot} layer={selected} update={updateLayer} mutate={commit} readOnly={readOnly} pdfMode={isPdf} /> },
+    ...(!isPdf ? [{ id: "enhance", label: "Enhance", panel: <EnhancementWorkspace workspaceId={workspaceId} editor={editor} activeArtboardId={activeArtboardId} readOnly={readOnly} onCompare={setComparison} onMetadataPolicy={setConfirmedMetadataPolicy} onOpenExport={() => setExportOpen(true)} /> }] : []),
+    { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addVectorPath={addVectorPath} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} ungroupSelected={ungroupSelected} groupCount={groupSelection.size} saveAs={openSaveAs} fit={() => rendererRef.current?.fit()} focusCanvas={() => surfaceRef.current?.querySelector<HTMLElement>(".upper-canvas")?.focus()} selected={selected} update={updateLayer} readOnly={readOnly} pdfMode={isPdf} /> },
   ]} />;
 
-  return <main className={`studio${comparison ? " is-comparing" : ""}`} data-testid="image-graphic-studio">
+  return <main className={`studio${comparison ? " is-comparing" : ""}`} data-testid={isPdf ? "pdf-studio" : "image-graphic-studio"}>
     <div className="studio-command-bar" role="toolbar" aria-label="Editor commands">
       <Tooltip label="Back to Home"><IconButton label="Back to Home" onClick={() => navigate(workspacePath(workspaceId))}><ArrowLeft aria-hidden="true" /></IconButton></Tooltip>
-      <div className="studio-document-title"><h1 title={editor.document.name}>{editor.document.name}</h1><span>{editor.snapshot.artboards.length} {editor.snapshot.artboards.length === 1 ? "artboard" : "artboards"}</span></div>
+      <div className="studio-document-title"><h1 title={editor.document.name}>{editor.document.name}</h1><span>{editor.snapshot.artboards.length} {isPdf ? (editor.snapshot.artboards.length === 1 ? "page" : "pages") : (editor.snapshot.artboards.length === 1 ? "artboard" : "artboards")}</span></div>
       <div className={`studio-save-state state-${saveState}`} role="status"><Save aria-hidden="true" /><span>{saveLabel(saveState)}</span></div>
       <div className="studio-command-group" role="group" aria-label="History"><IconButton label="Undo" disabled={readOnly || pendingCount > 0} onClick={() => void history("undo")}><Undo2 aria-hidden="true" /></IconButton><IconButton label="Redo" disabled={readOnly || pendingCount > 0} onClick={() => void history("redo")}><Redo2 aria-hidden="true" /></IconButton><IconButton label={readOnly ? "Save independent copy" : "Save as"} disabled={!editor} onClick={openSaveAs}><CopyPlus aria-hidden="true" /></IconButton></div>
-      <div className="studio-command-group add-tools" role="group" aria-label="Add"><Button size="compact" aria-label="Text" disabled={readOnly} onClick={addText}><Type aria-hidden="true" /><span>Text</span></Button><Button size="compact" aria-label="Shape" disabled={readOnly} onClick={() => addShape()}><Shapes aria-hidden="true" /><span>Shape</span></Button><Button size="compact" aria-label="Artboard" disabled={readOnly} onClick={addArtboard}><Plus aria-hidden="true" /><span>Artboard</span></Button></div>
+      <div className="studio-command-group add-tools" role="group" aria-label="Add"><Button size="compact" aria-label="Text" disabled={readOnly} onClick={addText}><Type aria-hidden="true" /><span>Text</span></Button><Button size="compact" aria-label="Rectangle" disabled={readOnly} onClick={() => addShape()}><Shapes aria-hidden="true" /><span>Rectangle</span></Button><Button size="compact" aria-label={isPdf ? "Page" : "Artboard"} disabled={readOnly} onClick={addArtboard}><Plus aria-hidden="true" /><span>{isPdf ? "Page" : "Artboard"}</span></Button></div>
       <div className="studio-command-group" role="group" aria-label="Zoom"><IconButton label="Zoom out" onClick={() => rendererRef.current?.zoomBy(0.8)}><ZoomOut aria-hidden="true" /></IconButton><span className="zoom-value">{Math.round(viewport.zoom * 100)}%</span><IconButton label="Zoom in" onClick={() => rendererRef.current?.zoomBy(1.25)}><ZoomIn aria-hidden="true" /></IconButton><IconButton label="Fit artboards" onClick={() => rendererRef.current?.fit()}><Maximize2 aria-hidden="true" /></IconButton></div>
-      <div className="studio-command-group studio-output-tools" role="group" aria-label="Enhancement and export"><Button size="compact" aria-label="Enhance" aria-pressed={rightTab === "enhance"} onClick={() => setRightTab("enhance")}><Sparkles aria-hidden="true" /><span>Enhance</span></Button><Button size="compact" tone="primary" aria-label="Export" onClick={() => setExportOpen(true)}><Download aria-hidden="true" /><span>Export</span></Button></div>
+      <div className="studio-command-group studio-output-tools" role="group" aria-label={isPdf ? "PDF preflight and export" : "Enhancement and export"}>{!isPdf && <Button size="compact" aria-label="Enhance" aria-pressed={rightTab === "enhance"} onClick={() => setRightTab("enhance")}><Sparkles aria-hidden="true" /><span>Enhance</span></Button>}<Button size="compact" tone="primary" aria-label={isPdf ? "Preflight and export PDF" : "Export"} onClick={() => setExportOpen(true)}><Download aria-hidden="true" /><span>{isPdf ? "Export PDF" : "Export"}</span></Button></div>
     </div>
     {message && <div className="studio-message" role="alert"><span>{message}</span><div className="studio-message-actions">
       {(saveState === "failed" || saveState === "offline") && pendingCount > 0 && <Button size="compact" onClick={retryPending}>Retry now</Button>}
@@ -700,11 +717,11 @@ export function ImageGraphicStudio() {
       {saveState === "read-only" && <><Button size="compact" onClick={() => void requestTakeover()}>Request takeover</Button>{canForceTakeover && <Button size="compact" tone="danger" onClick={() => setForceOpen(true)}>Force takeover</Button>}</>}
     </div>{pendingCount > 0 && <details><summary>{pendingCount} pending {pendingCount === 1 ? "edit" : "edits"}</summary><p>Pending edits stay on this device for this signed-in account. Closing a browser tab can prevent a final lease release, but acknowledged server work is never removed.</p></details>}</div>}
     {takeoverRequest && <div className="studio-takeover-request" role="alert"><div><strong>{takeoverRequest.actorDisplayName} requested editing access</strong><span>{takeoverRequest.reason}</span></div><div><Button size="compact" onClick={() => void releaseForTakeover()}>Save and release</Button><Button size="compact" onClick={() => void denyTakeover("Current editor is continuing this session")}>Deny</Button></div></div>}
-    <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
+    <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:${isPdf ? "pdf-studio" : "image-graphic-studio"}` : undefined} panels={[
       { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
       { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
     ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} comparison={comparison ? <ComparisonWorkspace workspaceId={workspaceId} selection={comparison} onMode={(mode) => setComparison((current) => current ? { ...current, mode } : current)} onClose={() => setComparison(null)} /> : null} />} />
-    <ExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} initialMetadataPolicy={confirmedMetadataPolicy} prepareDocument={async () => {
+    {!isPdf && <ExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} initialMetadataPolicy={confirmedMetadataPolicy} prepareDocument={async () => {
       await flushPending();
       if (getPendingCount()) throw new Error("Finish saving this document before exporting.");
       let current = await api.document(workspaceId, documentId);
@@ -717,10 +734,11 @@ export function ImageGraphicStudio() {
       }
       replaceServer(current.editor);
       return current.editor;
-    }} />
+    }} />}
+    {isPdf && <PdfExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} prepareDocument={preparePdfDocument} />}
     <Dialog open={saveAsOpen} title="Save a copy" onClose={() => setSaveAsOpen(false)}>
       <form className="modal-form" onSubmit={(event) => void saveAs(event)}>
-        <TextInput autoFocus label="Graphic name" maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
+        <TextInput autoFocus label={isPdf ? "PDF name" : "Graphic name"} maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
         <label className="studio-select-label">Location<select className="ds-select" value={saveAsProjectId} onChange={(event) => setSaveAsProjectId(event.target.value)}><option value="">Default Files</option>{projects.map((project) => <option key={project.project_id} value={project.project_id}>{project.name}</option>)}</select></label>
         <div className="dialog-actions"><Button type="button" onClick={() => setSaveAsOpen(false)}>Cancel</Button><Button tone="primary" disabled={savingCopy || !saveAsName.trim()}>{savingCopy ? "Saving..." : "Save copy"}</Button></div>
       </form>
@@ -767,27 +785,29 @@ function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, re
   </div>;
 }
 
-function ArtboardsPanel({ snapshot, activeId, select, add, mutate, readOnly }: {
+function ArtboardsPanel({ snapshot, activeId, select, add, mutate, readOnly, pdfMode }: {
   snapshot: EditorDocumentSnapshot;
   activeId: string;
   select: (id: string) => void;
   add: () => void;
   mutate: (mutation: EditorMutation) => void;
   readOnly: boolean;
+  pdfMode: boolean;
 }) {
   const artboards = [...snapshot.artboards].sort((left, right) => left.order - right.order);
   const active = artboards.find((item) => item.artboard_id === activeId) ?? artboards[0];
   const update = (next: typeof active) => next && mutate({ kind: "artboard.update", target_id: next.artboard_id, artboard: next, properties: {} });
-  return <div className="studio-panel-body"><div className="artboard-list" role="list" aria-label="Artboards">{artboards.map((artboard) => <div role="listitem" key={artboard.artboard_id}><button type="button" aria-pressed={activeId === artboard.artboard_id} onClick={() => select(artboard.artboard_id)}><span className="artboard-thumbnail" style={{ aspectRatio: `${artboard.width} / ${artboard.height}`, background: artboard.background.kind === "transparent" ? "repeating-conic-gradient(#d8dde7 0 25%, #fff 0 50%) 50% / 8px 8px" : artboard.background.color ?? "#fff" }} /><span><strong>{artboard.name}</strong><small>{formatDimension(artboard.width)} x {formatDimension(artboard.height)} {artboard.unit} | {artboard.orientation}</small></span></button></div>)}</div>
-    <Button size="compact" disabled={readOnly} onClick={add}><Plus aria-hidden="true" />Add artboard</Button>
-    {active && <fieldset disabled={readOnly} className="artboard-properties"><legend>Active artboard</legend>
+  const noun = pdfMode ? "page" : "artboard";
+  return <div className="studio-panel-body"><div className={`artboard-list${pdfMode ? " pdf-page-panel-list" : ""}`} role="list" aria-label={pdfMode ? "Pages" : "Artboards"}>{artboards.map((artboard, index) => <div role="listitem" key={artboard.artboard_id}><button type="button" aria-pressed={activeId === artboard.artboard_id} onClick={() => select(artboard.artboard_id)}><span className="artboard-thumbnail" style={{ aspectRatio: `${artboard.width} / ${artboard.height}`, background: artboard.background.kind === "transparent" ? "repeating-conic-gradient(#d8dde7 0 25%, #fff 0 50%) 50% / 8px 8px" : artboard.background.color ?? "#fff" }} /><span><strong>{artboard.name}</strong><small>{formatDimension(artboard.width)} x {formatDimension(artboard.height)} {artboard.unit} | {artboard.orientation}</small></span></button>{pdfMode && <div className="pdf-page-panel-order"><IconButton label={`Move ${artboard.name} up`} disabled={readOnly || index === 0} onClick={() => mutate({ kind: "artboard.update", target_id: artboard.artboard_id, artboard: { ...artboard, order: index - 1 }, properties: {} })}><ChevronUp aria-hidden="true" /></IconButton><IconButton label={`Move ${artboard.name} down`} disabled={readOnly || index === artboards.length - 1} onClick={() => mutate({ kind: "artboard.update", target_id: artboard.artboard_id, artboard: { ...artboard, order: index + 1 }, properties: {} })}><ChevronDown aria-hidden="true" /></IconButton></div>}</div>)}</div>
+    <Button size="compact" disabled={readOnly} onClick={add}><Plus aria-hidden="true" />Add {noun}</Button>
+    {active && <fieldset disabled={readOnly} className="artboard-properties"><legend>Active {noun}</legend>
       <label>Name<input value={active.name} onChange={(event) => update({ ...active, name: event.target.value || active.name })} /></label>
-      <div className="property-grid"><NumberProperty label="Width" value={active.width} step={0.01} onCommit={(width) => update({ ...active, width: Math.max(0.01, width), orientation: artboardOrientation(Math.max(0.01, width), active.height) })} /><NumberProperty label="Height" value={active.height} step={0.01} onCommit={(height) => update({ ...active, height: Math.max(0.01, height), orientation: artboardOrientation(active.width, Math.max(0.01, height)) })} /></div>
+      {!pdfMode && <><div className="property-grid"><NumberProperty label="Width" value={active.width} step={0.01} onCommit={(width) => update({ ...active, width: Math.max(0.01, width), orientation: artboardOrientation(Math.max(0.01, width), active.height) })} /><NumberProperty label="Height" value={active.height} step={0.01} onCommit={(height) => update({ ...active, height: Math.max(0.01, height), orientation: artboardOrientation(active.width, Math.max(0.01, height)) })} /></div>
       <label>Unit<select value={active.unit ?? "px"} onChange={(event) => update(convertArtboardUnit(active, event.target.value as "px" | "mm" | "in" | "pt"))}><option value="px">Pixels</option><option value="in">Inches</option><option value="mm">Millimetres</option><option value="pt">Points</option></select></label>
       <label>Orientation<select value={active.orientation} onChange={(event) => { const value = event.target.value; if (value === "square") update({ ...active, height: active.width, orientation: "square" }); else if ((value === "landscape") !== (active.width > active.height)) update({ ...active, width: active.height, height: active.width, orientation: value as "portrait" | "landscape" }); }}><option value="portrait">Portrait</option><option value="landscape">Landscape</option><option value="square">Square</option></select></label>
-      <label><input type="checkbox" checked={active.background.kind === "transparent"} onChange={(event) => update({ ...active, background: event.target.checked ? { kind: "transparent", color: null } : { kind: "solid", color: "#ffffff" } })} />Transparent background</label>
+      <label><input type="checkbox" checked={active.background.kind === "transparent"} onChange={(event) => update({ ...active, background: event.target.checked ? { kind: "transparent", color: null } : { kind: "solid", color: "#ffffff" } })} />Transparent background</label></>}
       {active.background.kind === "solid" && <label>Background<input type="color" value={active.background.color ?? "#ffffff"} onChange={(event) => update({ ...active, background: { kind: "solid", color: event.target.value } })} /></label>}
-      <Button tone="danger" size="compact" disabled={snapshot.artboards.length === 1} onClick={() => mutate({ kind: "artboard.remove", target_id: active.artboard_id, properties: {} })}>Remove artboard</Button>
+      <Button tone="danger" size="compact" disabled={snapshot.artboards.length === 1} onClick={() => mutate({ kind: "artboard.remove", target_id: active.artboard_id, properties: {} })}>Remove {noun}</Button>
     </fieldset>}
   </div>;
 }
@@ -829,12 +849,13 @@ function HistoryPanel({ editor, versionName, setVersionName, save, restore, read
   return <div className="studio-panel-body history-panel"><div className="version-create"><TextInput label="Version name" maxLength={100} disabled={readOnly} value={versionName} onChange={(event) => setVersionName(event.target.value)} /><Button size="compact" disabled={readOnly || !versionName.trim()} onClick={save}>Save version</Button></div><div className="version-list">{editor.versions.map((version) => <article key={version.document_version_id}><span><strong>{version.name || version.kind.replaceAll("_", " ")}</strong><small>Revision {version.revision} | {version.kind.replaceAll("_", " ")}</small></span>{version.document_version_id !== editor.document.current_version_id && <Button tone="quiet" size="compact" disabled={readOnly} onClick={() => restore(version.document_version_id)}>Restore</Button>}</article>)}</div></div>;
 }
 
-function PropertiesPanel({ snapshot, layer, update, mutate, readOnly }: {
+function PropertiesPanel({ snapshot, layer, update, mutate, readOnly, pdfMode }: {
   snapshot: EditorDocumentSnapshot;
   layer: LayerRecord | null;
   update: (properties: EditorMutation["properties"], transform?: LayerTransform, adjustments?: VisualAdjustments) => void;
   mutate: (mutation: EditorMutation) => void;
   readOnly: boolean;
+  pdfMode: boolean;
 }) {
   if (!layer) return <div className="studio-panel-empty"><MousePointer2 aria-hidden="true" /><strong>Select a layer</strong><span>Its transform and appearance controls will appear here.</span></div>;
   const transform = layer.transform;
@@ -853,18 +874,34 @@ function PropertiesPanel({ snapshot, layer, update, mutate, readOnly }: {
   };
   return <div className="studio-panel-body properties-panel"><div className="property-heading"><LayerIcon layer={layer} /><span><strong>{layer.name}</strong><small>{layerTypeLabel(layer)}</small></span></div>
     <fieldset disabled={readOnly}><legend>Transform</legend><div className="property-grid">{(["x", "y", "width", "height", "rotation_degrees"] as const).map((key) => <NumberProperty key={key} label={key === "rotation_degrees" ? "Rotate" : key.toUpperCase()} value={key === "rotation_degrees" ? rotation : transform[key]} onCommit={(value) => update({}, { ...transform, [key]: key === "width" || key === "height" ? Math.max(1, value) : value })} />)}</div><div className="property-actions"><IconButton label="Flip horizontally" onClick={() => update({}, { ...transform, flip_x: !(transform.flip_x ?? false) })}><FlipHorizontal2 aria-hidden="true" /></IconButton><IconButton label="Flip vertically" onClick={() => update({}, { ...transform, flip_y: !(transform.flip_y ?? false) })}><FlipVertical2 aria-hidden="true" /></IconButton><IconButton label="Rotate 90 degrees" onClick={() => update({}, { ...transform, rotation_degrees: rotation + 90 > 360 ? rotation - 270 : rotation + 90 })}><RotateCw aria-hidden="true" /></IconButton></div></fieldset>
-    <fieldset disabled={readOnly}><legend>Layer</legend><label>Opacity <span>{Math.round(opacity * 100)}%</span><input type="range" min="0" max="100" value={Math.round(opacity * 100)} onChange={(event) => update({ opacity: Number(event.target.value) / 100 })} /></label><label>Blend mode<select value={layer.blend_mode ?? "normal"} onChange={(event) => update({ blend_mode: event.target.value })}><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="darken">Darken</option><option value="lighten">Lighten</option></select></label></fieldset>
-    {layer.raster && crop && <><fieldset disabled={readOnly}><legend>Crop</legend><div className="property-grid">{(["left", "top", "right", "bottom"] as const).map((key) => <NumberProperty key={key} label={key} step={0.01} value={crop[key]} onCommit={(value) => mutate({ kind: "layer.update", target_id: layer.layer_id, crop: { ...crop, [key]: Math.min(1, Math.max(0, value)) }, properties: {} })} />)}</div></fieldset><fieldset disabled={readOnly}><legend>Quick correction</legend><label>Light <span>{layer.raster.adjustments?.brightness ?? 0}</span><input type="range" min="-100" max="100" value={layer.raster.adjustments?.brightness ?? 0} onChange={(event) => update({}, undefined, { ...normalizedAdjustments(layer.raster!.adjustments), brightness: Number(event.target.value) })} /></label></fieldset><details className="advanced-controls"><summary>Advanced adjustments</summary><AdjustmentControls value={normalizedAdjustments(layer.raster.adjustments)} update={(adjustments) => update({}, undefined, adjustments)} readOnly={readOnly} /></details></>}
+    {!pdfMode && <fieldset disabled={readOnly}><legend>Layer</legend><label>Opacity <span>{Math.round(opacity * 100)}%</span><input type="range" min="0" max="100" value={Math.round(opacity * 100)} onChange={(event) => update({ opacity: Number(event.target.value) / 100 })} /></label><label>Blend mode<select value={layer.blend_mode ?? "normal"} onChange={(event) => update({ blend_mode: event.target.value })}><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="darken">Darken</option><option value="lighten">Lighten</option></select></label></fieldset>}
+    {!pdfMode && layer.raster && crop && <><fieldset disabled={readOnly}><legend>Crop</legend><div className="property-grid">{(["left", "top", "right", "bottom"] as const).map((key) => <NumberProperty key={key} label={key} step={0.01} value={crop[key]} onCommit={(value) => mutate({ kind: "layer.update", target_id: layer.layer_id, crop: { ...crop, [key]: Math.min(1, Math.max(0, value)) }, properties: {} })} />)}</div></fieldset><fieldset disabled={readOnly}><legend>Quick correction</legend><label>Light <span>{layer.raster.adjustments?.brightness ?? 0}</span><input type="range" min="-100" max="100" value={layer.raster.adjustments?.brightness ?? 0} onChange={(event) => update({}, undefined, { ...normalizedAdjustments(layer.raster!.adjustments), brightness: Number(event.target.value) })} /></label></fieldset><details className="advanced-controls"><summary>Advanced adjustments</summary><AdjustmentControls value={normalizedAdjustments(layer.raster.adjustments)} update={(adjustments) => update({}, undefined, adjustments)} readOnly={readOnly} /></details></>}
+    {pdfMode && layer.raster && <fieldset disabled={readOnly}><legend>Accessibility description</legend><label>Purpose<select value={layer.accessibility?.role ?? ""} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, accessibility: event.target.value === "decorative" ? { role: "decorative", alt_text: null } : event.target.value === "figure" ? { role: "figure", alt_text: layer.accessibility?.alt_text?.trim() || layer.name } : null }, properties: {} })}><option value="">Not described</option><option value="figure">Meaningful image</option><option value="decorative">Decorative image</option></select></label>{layer.accessibility?.role === "figure" && <AltTextControl layer={layer} mutate={mutate} readOnly={readOnly} />}<small>Stored with the native document for a future tagged-PDF profile. The current Screen PDF remains untagged.</small></fieldset>}
     {layer.rich_text && <fieldset disabled={readOnly}><legend>Text</legend><label className="property-textarea">Content<textarea value={layer.rich_text.text} onChange={(event) => { const text = event.target.value; mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, text, runs: [] } }, properties: {} }); }} /></label><label>Font<select value={fontCompatible ? layer.rich_text.font_family ?? "IPW Standard" : "__unsupported"} onChange={(event) => event.target.value !== "__unsupported" && mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, font_family: event.target.value, runs: [] } }, properties: {} })}>{!fontCompatible && <option value="__unsupported">Unsupported: {layer.rich_text.font_family}</option>}{APPROVED_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>{!fontCompatible && <InlineNotice tone="warning" title="Font not available">This font is not substituted. Choose IPW Standard before export.</InlineNotice>}<NumberProperty label="Text size" value={layer.rich_text.font_size ?? 32} onCommit={(fontSize) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, font_size: Math.max(1, fontSize), runs: [] } }, properties: {} })} /></fieldset>}
-    {layer.shape && <fieldset disabled={readOnly}><legend>Shape</legend><label>Kind<select value={layer.shape.shape} onChange={(event) => { const shape = event.target.value as "rectangle" | "ellipse" | "line" | "polygon"; mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, name: shape[0]!.toUpperCase() + shape.slice(1), shape: { ...layer.shape!, shape, fill: shape === "line" ? null : layer.shape!.fill ?? "#3559e0", stroke: shape === "line" ? layer.shape!.stroke ?? "#3559e0" : layer.shape!.stroke, stroke_width: shape === "line" ? Math.max(1, layer.shape!.stroke_width ?? 0) : layer.shape!.stroke_width, points: shapePoints(shape) } }, properties: {} }); }}><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option><option value="line">Line</option><option value="polygon">Polygon</option></select></label><label>{layer.shape.shape === "line" ? "Stroke" : "Fill"}<input type="color" value={(layer.shape.shape === "line" ? layer.shape.stroke : layer.shape.fill) ?? "#3559e0"} onChange={(event) => layer.shape!.shape === "line" ? mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, shape: { ...layer.shape!, stroke: event.target.value } }, properties: {} }) : paintLayer(event.target.value)} /></label></fieldset>}
+    {layer.shape && <fieldset disabled={readOnly}><legend>Shape</legend>{pdfMode ? <span>Rectangle</span> : <label>Kind<select value={layer.shape.shape} onChange={(event) => { const shape = event.target.value as "rectangle" | "ellipse" | "line" | "polygon"; mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, name: shape[0]!.toUpperCase() + shape.slice(1), shape: { ...layer.shape!, shape, fill: shape === "line" ? null : layer.shape!.fill ?? "#3559e0", stroke: shape === "line" ? layer.shape!.stroke ?? "#3559e0" : layer.shape!.stroke, stroke_width: shape === "line" ? Math.max(1, layer.shape!.stroke_width ?? 0) : layer.shape!.stroke_width, points: shapePoints(shape) } }, properties: {} }); }}><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option><option value="line">Line</option><option value="polygon">Polygon</option></select></label>}<label>{layer.shape.shape === "line" ? "Stroke" : "Fill"}<input type="color" value={(layer.shape.shape === "line" ? layer.shape.stroke : layer.shape.fill) ?? "#3559e0"} onChange={(event) => layer.shape!.shape === "line" ? mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, shape: { ...layer.shape!, stroke: event.target.value } }, properties: {} }) : paintLayer(event.target.value)} /></label></fieldset>}
     {layer.vector?.path_data && <fieldset disabled={readOnly}><legend>Internal vector path</legend><label className="property-textarea">Path commands<textarea value={layer.vector.path_data} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, vector: { ...layer.vector!, path_data: event.target.value } }, properties: {} })} /></label><InlineNotice tone="info" title="Internal paths only">External SVG stays unavailable until an approved sanitisation pipeline is executable.</InlineNotice><label>Fill<input type="color" value={layer.vector.fill ?? "#16a085"} onChange={(event) => paintLayer(event.target.value)} /></label></fieldset>}
     {layer.raster && <fieldset disabled={readOnly}><legend>Asset instance</legend><label>Mode<select aria-label="Asset instance mode" value={layer.raster.instance_mode ?? "linked"} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, raster: { ...layer.raster!, instance_mode: event.target.value as "linked" | "independent" } }, properties: {} })}><option value="linked">Linked</option><option value="independent">Independent</option></select></label></fieldset>}
-    {(layer.shape || layer.vector) && <fieldset disabled={readOnly}><legend>Shared style</legend>{linkedStyle ? <><span>Linked to {linkedStyle.name}. Changes update every linked object.</span><Button size="compact" onClick={() => mutate({ kind: "style.detach", target_id: linkedStyle.shared_style_id, target_ids: [layer.layer_id], properties: {} })}>Detach appearance</Button></> : <><Button size="compact" onClick={() => mutate({ kind: "style.upsert", target_ids: [layer.layer_id], shared_style: { shared_style_id: `style-${crypto.randomUUID()}`, name: `${layer.name} style`, kind: "fill", properties: { fill: layer.shape?.fill ?? layer.vector?.fill ?? "#3559e0", stroke: layer.shape?.stroke ?? layer.vector?.stroke ?? null, stroke_width: layer.shape?.stroke_width ?? layer.vector?.stroke_width ?? 0 } }, properties: {} })}>Create linked style</Button>{availableStyles.map((style) => <Button key={style.shared_style_id} tone="quiet" size="compact" onClick={() => mutate({ kind: "style.upsert", shared_style: style, target_ids: [layer.layer_id], properties: {} })}>Link {style.name}</Button>)}</>}</fieldset>}
-    {(layer.raster || layer.vector) && <><Button disabled={readOnly} onClick={() => {
+    {!pdfMode && (layer.shape || layer.vector) && <fieldset disabled={readOnly}><legend>Shared style</legend>{linkedStyle ? <><span>Linked to {linkedStyle.name}. Changes update every linked object.</span><Button size="compact" onClick={() => mutate({ kind: "style.detach", target_id: linkedStyle.shared_style_id, target_ids: [layer.layer_id], properties: {} })}>Detach appearance</Button></> : <><Button size="compact" onClick={() => mutate({ kind: "style.upsert", target_ids: [layer.layer_id], shared_style: { shared_style_id: `style-${crypto.randomUUID()}`, name: `${layer.name} style`, kind: "fill", properties: { fill: layer.shape?.fill ?? layer.vector?.fill ?? "#3559e0", stroke: layer.shape?.stroke ?? layer.vector?.stroke ?? null, stroke_width: layer.shape?.stroke_width ?? layer.vector?.stroke_width ?? 0 } }, properties: {} })}>Create linked style</Button>{availableStyles.map((style) => <Button key={style.shared_style_id} tone="quiet" size="compact" onClick={() => mutate({ kind: "style.upsert", shared_style: style, target_ids: [layer.layer_id], properties: {} })}>Link {style.name}</Button>)}</>}</fieldset>}
+    {!pdfMode && (layer.raster || layer.vector) && <><Button disabled={readOnly} onClick={() => {
       const maskId = `mask-${crypto.randomUUID()}`;
       mutate({ kind: "mask.update", target_id: layer.layer_id, mask: { mask_id: maskId, artboard_id: layer.artboard_id, name: `Mask for ${layer.name}`, kind: "shape", enabled: true, inverted: false, feather: 0, path_data: "rect(0.1,0.1,0.8,0.8)", object_reference_id: null }, properties: {} });
     }}><Blend aria-hidden="true" />Add editable mask</Button>{masks.map((mask) => <fieldset disabled={readOnly} key={mask.mask_id}><legend>{mask.name}</legend><label><input type="checkbox" checked={mask.enabled ?? true} onChange={(event) => mutate({ kind: "mask.update", target_id: layer.layer_id, mask: { ...mask, enabled: event.target.checked }, properties: {} })} />Enabled</label><label><input type="checkbox" checked={mask.inverted ?? false} onChange={(event) => mutate({ kind: "mask.update", target_id: layer.layer_id, mask: { ...mask, inverted: event.target.checked }, properties: {} })} />Invert mask</label><label>Shape<select value={mask.path_data?.startsWith("ellipse") ? "ellipse" : "rect"} onChange={(event) => mutate({ kind: "mask.update", target_id: layer.layer_id, mask: { ...mask, path_data: `${event.target.value}(0.1,0.1,0.8,0.8)` }, properties: {} })}><option value="rect">Rectangle</option><option value="ellipse">Ellipse</option></select></label></fieldset>)}</>}
   </div>;
+}
+
+function AltTextControl({ layer, mutate, readOnly }: { layer: LayerRecord; mutate: (mutation: EditorMutation) => void; readOnly: boolean }) {
+  const current = layer.accessibility?.alt_text ?? "";
+  const [draft, setDraft] = useState(current);
+  useEffect(() => setDraft(current), [current, layer.layer_id]);
+  function save() {
+    const altText = draft.trim();
+    if (!altText) {
+      setDraft(current);
+      return;
+    }
+    if (altText !== current) mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, accessibility: { role: "figure", alt_text: altText } }, properties: {} });
+  }
+  return <label className="property-textarea">Image description<textarea disabled={readOnly} value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={save} /></label>;
 }
 
 function AdjustmentControls({ value, update, readOnly }: { value: VisualAdjustments; update: (value: VisualAdjustments) => void; readOnly: boolean }) {
@@ -875,10 +912,11 @@ function AdjustmentControls({ value, update, readOnly }: { value: VisualAdjustme
   return <fieldset disabled={readOnly}><legend>Adjustments</legend>{controls.map(([key, label, min, max]) => <label key={key}>{label}<span>{value[key] ?? 0}</span><input type="range" min={min} max={max} value={(value[key] as number | undefined) ?? 0} onChange={(event) => update({ ...value, [key]: Number(event.target.value) })} /></label>)}</fieldset>;
 }
 
-function AllTools({ addShape, addVectorPath, addText, addArtboard, groupSelected, ungroupSelected, groupCount, saveAs, fit, focusCanvas, selected, update, readOnly }: {
+function AllTools({ addShape, addVectorPath, addText, addArtboard, groupSelected, ungroupSelected, groupCount, saveAs, fit, focusCanvas, selected, update, readOnly, pdfMode }: {
   addShape: (shape?: "rectangle" | "ellipse" | "line" | "polygon") => void; addVectorPath: () => void; addText: () => void; addArtboard: () => void; groupSelected: () => void; ungroupSelected: () => void; groupCount: number; saveAs: () => void; fit: () => void; focusCanvas: () => void; selected: LayerRecord | null;
   update: (properties: EditorMutation["properties"], transform?: LayerTransform, adjustments?: VisualAdjustments) => void;
   readOnly: boolean;
+  pdfMode: boolean;
 }) {
   const [query, setQuery] = useState("");
   const tools = [
@@ -889,15 +927,16 @@ function AllTools({ addShape, addVectorPath, addText, addArtboard, groupSelected
     { label: "Line", description: "Add a line", icon: Minus, action: () => addShape("line"), mutating: true },
     { label: "Polygon", description: "Add a polygon", icon: Shapes, action: () => addShape("polygon"), mutating: true },
     { label: "Vector path", description: "Add an editable internal path", icon: Shapes, action: addVectorPath, mutating: true },
-    { label: "Artboard", description: "Add another canvas", icon: BoxSelect, action: addArtboard, mutating: true },
-    { label: "Save a copy", description: "Create an independent graphic", icon: CopyPlus, action: saveAs, mutating: false },
+    { label: pdfMode ? "Page" : "Artboard", description: pdfMode ? "Add another PDF page" : "Add another canvas", icon: BoxSelect, action: addArtboard, mutating: true },
+    { label: "Save a copy", description: `Create an independent ${pdfMode ? "PDF" : "graphic"}`, icon: CopyPlus, action: saveAs, mutating: false },
     { label: "Group", description: `Group ${groupCount} marked layers`, icon: Layers3, action: groupSelected, mutating: true },
     { label: "Ungroup", description: "Release a group without moving its children", icon: Layers3, action: ungroupSelected, mutating: true },
     { label: "Rotate", description: "Rotate selected layer 90 degrees", icon: RotateCw, action: () => selected && update({}, { ...selected.transform, rotation_degrees: (selected.transform.rotation_degrees ?? 0) + 90 }), mutating: true },
     { label: "Flip horizontal", description: "Mirror selected layer", icon: FlipHorizontal2, action: () => selected && update({}, { ...selected.transform, flip_x: !selected.transform.flip_x }), mutating: true },
     { label: "Fit view", description: "Frame every artboard", icon: Focus, action: fit, mutating: false },
   ];
-  const visible = tools.filter((tool) => `${tool.label} ${tool.description}`.toLowerCase().includes(query.toLowerCase()));
+  const pdfTools = new Set(["Select & move", "Rich text", "Rectangle", "Page", "Save a copy", "Rotate", "Flip horizontal", "Fit view"]);
+  const visible = tools.filter((tool) => (!pdfMode || pdfTools.has(tool.label)) && `${tool.label} ${tool.description}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="studio-panel-body all-tools"><label className="tool-search"><span className="sr-only">Search tools</span><input type="search" placeholder="Search tools" value={query} onChange={(event) => setQuery(event.target.value)} /></label><div>{visible.map(({ label, description, icon: Icon, action, mutating }) => <button type="button" key={label} onClick={action} disabled={(mutating && readOnly) || ((label === "Rotate" || label === "Flip horizontal") && !selected) || (label === "Group" && groupCount < 2) || (label === "Ungroup" && !selected?.group)}><Icon aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span></button>)}</div></div>;
 }
 

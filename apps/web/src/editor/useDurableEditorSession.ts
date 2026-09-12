@@ -424,6 +424,8 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
     void drain();
   }, [documentId, drain, publish, workspaceId]);
 
+  const getPendingCount = useCallback(() => pendingRef.current.length, []);
+
   return {
     editor,
     editorRef,
@@ -432,7 +434,7 @@ export function useDurableEditorSession(workspaceId: string, documentId: string)
     message,
     setMessage,
     pendingCount,
-    getPendingCount: () => pendingRef.current.length,
+    getPendingCount,
     readOnly: !leaseHeld || saveState === "read-only" || saveState === "conflict",
     commit,
     replaceServer,
