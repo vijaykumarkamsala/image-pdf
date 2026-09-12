@@ -7,6 +7,7 @@ import { PRODUCT_SCHEMA_VERSION, type ProcessingJobRecord } from "ipw-contracts-
 import { transformWithOxc } from "vite";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
+const playwrightBaseUrl = (process.env["IPW_PLAYWRIGHT_BASE_URL"] ?? "http://127.0.0.1:4174").replace(/\/$/, "");
 let editorJournalBridge: Promise<string> | null = null;
 
 async function installEditorJournalTestBridge(page: Page) {
@@ -55,7 +56,7 @@ async function routeDeterministicOidcSignIn(page: Page, code: string) {
     await route.fulfill({
       status: 302,
       headers: {
-        location: `http://127.0.0.1:4174/v1/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state ?? "")}`,
+        location: `${playwrightBaseUrl}/v1/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state ?? "")}`,
       },
     });
   });

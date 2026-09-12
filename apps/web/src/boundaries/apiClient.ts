@@ -38,6 +38,11 @@ import type {
   ProcessingRecipeRecord,
   RecommendationDecision,
   RecommendationSet,
+  BatchCreateRequest,
+  BatchPlan,
+  BatchPlanRequest,
+  BatchReport,
+  BatchRunRecord,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -146,6 +151,10 @@ export interface RecommendationDecisionResponse { schema_version: string; decisi
 export interface ExportListResponse { schema_version: string; exports: ImageExportRequestRecord[] }
 export interface ExportResponse { schema_version: string; export_request: ImageExportRequestRecord; replayed?: boolean }
 export interface ExportBundleResponse { schema_version: string; bundle: ExportZipBundle; replayed?: boolean }
+export interface BatchPlanResponse { schema_version: string; plan: BatchPlan }
+export interface BatchResponse { schema_version: string; batch: BatchRunRecord; replayed?: boolean }
+export interface BatchListResponse { schema_version: string; batches: BatchRunRecord[] }
+export interface BatchReportResponse { schema_version: string; report: BatchReport }
 
 export type AuthSessionResponse = { authenticated: false } | {
   authenticated: true;
@@ -691,6 +700,44 @@ export const api = {
   },
   exportBundle(workspaceId: string, bundleId: string): Promise<ExportBundleResponse> {
     return request(`/workspaces/${workspaceId}/export-bundles/${bundleId}`);
+  },
+  planImageBatch(workspaceId: string, input: BatchPlanRequest): Promise<BatchPlanResponse> {
+    return request(`/workspaces/${workspaceId}/batches/plan`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  submitImageBatch(
+    workspaceId: string,
+    input: BatchCreateRequest,
+    idempotencyKey = commandKey("batch-submit"),
+  ): Promise<BatchResponse> {
+    return request(`/workspaces/${workspaceId}/batches`, {
+      method: "POST",
+      headers: { "idempotency-key": idempotencyKey },
+      body: JSON.stringify(input),
+    });
+  },
+  imageBatches(workspaceId: string): Promise<BatchListResponse> {
+    return request(`/workspaces/${workspaceId}/batches`);
+  },
+  imageBatch(workspaceId: string, batchId: string): Promise<BatchResponse> {
+    return request(`/workspaces/${workspaceId}/batches/${batchId}`);
+  },
+  cancelImageBatch(workspaceId: string, batchId: string): Promise<BatchResponse> {
+    return request(`/workspaces/${workspaceId}/batches/${batchId}/cancel`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("batch-cancel") },
+    });
+  },
+  retryImageBatch(workspaceId: string, batchId: string): Promise<BatchResponse> {
+    return request(`/workspaces/${workspaceId}/batches/${batchId}/retry`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("batch-retry") },
+    });
+  },
+  imageBatchReport(workspaceId: string, batchId: string): Promise<BatchReportResponse> {
+    return request(`/workspaces/${workspaceId}/batches/${batchId}/report`);
   },
   exportOutputDownloadUrl(workspaceId: string, outputId: string): string {
     return `/v1/workspaces/${encodeURIComponent(workspaceId)}/export-outputs/${encodeURIComponent(outputId)}/download`;
