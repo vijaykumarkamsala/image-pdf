@@ -28,6 +28,14 @@ Earlier POC documents remain useful as historical benchmark evidence, but they n
 
 An implementation agent must report contradictions and request product-owner approval. It must not silently choose an older requirement.
 
+## Feature implementation records
+
+- [`BATCH_PROCESSING.md`](BATCH_PROCESSING.md) defines the implemented customer,
+  orchestration, durability, security and verification boundary.
+- [`ADR-0017`](../adr/ADR-0017-durable-batch-aggregate.md) records why batches
+  coordinate independent image-export jobs instead of introducing another
+  processing runtime.
+
 ## Approved product scope before external tester release
 
 - Image & Graphic Studio
