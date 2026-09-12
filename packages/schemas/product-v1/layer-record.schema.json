@@ -33,7 +33,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -57,13 +57,57 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         }
       },
       "title": "GroupLayerData",
       "type": "object"
+    },
+    "LayerAccessibility": {
+      "additionalProperties": false,
+      "properties": {
+        "alt_text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alt Text"
+        },
+        "role": {
+          "$ref": "#/$defs/LayerAccessibilityRole"
+        },
+        "schema_version": {
+          "default": "1.21.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "LayerAccessibility",
+      "type": "object"
+    },
+    "LayerAccessibilityRole": {
+      "enum": [
+        "paragraph",
+        "heading_1",
+        "heading_2",
+        "heading_3",
+        "figure",
+        "decorative",
+        "artifact"
+      ],
+      "title": "LayerAccessibilityRole",
+      "type": "string"
     },
     "LayerTransform": {
       "additionalProperties": false,
@@ -106,7 +150,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -193,7 +237,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -242,7 +286,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -277,7 +321,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -358,7 +402,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -395,7 +439,7 @@
       "additionalProperties": false,
       "properties": {
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -482,7 +526,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -554,7 +598,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -588,6 +632,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "accessibility": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LayerAccessibility"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "artboard_id": {
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
       "title": "Artboard Id",
@@ -701,7 +756,7 @@
       "default": null
     },
     "schema_version": {
-      "default": "1.20.0",
+      "default": "1.21.0",
       "title": "Schema Version",
       "type": "string"
     },

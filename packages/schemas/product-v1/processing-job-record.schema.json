@@ -20,7 +20,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -37,6 +37,7 @@
         "file_intake_inspection",
         "preview_generation",
         "image_export",
+        "pdf_export",
         "export_bundle"
       ],
       "title": "ProcessingJobKind",
@@ -220,6 +221,19 @@
     "owner_kind": {
       "$ref": "#/$defs/UploadOwnerKind"
     },
+    "pdf_export_request_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pdf Export Request Id"
+    },
     "progress_percent": {
       "maximum": 100,
       "minimum": 0,
@@ -227,7 +241,7 @@
       "type": "integer"
     },
     "schema_version": {
-      "default": "1.20.0",
+      "default": "1.21.0",
       "title": "Schema Version",
       "type": "string"
     },

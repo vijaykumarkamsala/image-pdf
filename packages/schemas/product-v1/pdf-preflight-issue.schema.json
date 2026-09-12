@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "PdfPreflightSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ],
+      "title": "PdfPreflightSeverity",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-preflight-issue.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "blocks_export": {
+      "default": false,
+      "title": "Blocks Export",
+      "type": "boolean"
+    },
+    "code": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Code",
+      "type": "string"
+    },
+    "layer_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Layer Id"
+    },
+    "message": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "page_artboard_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Page Artboard Id"
+    },
+    "schema_version": {
+      "default": "1.21.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/PdfPreflightSeverity"
+    }
+  },
+  "required": [
+    "code",
+    "severity",
+    "message"
+  ],
+  "title": "PdfPreflightIssue",
+  "type": "object"
+}

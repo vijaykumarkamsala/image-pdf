@@ -16,6 +16,7 @@ from ipw.contracts.batch import BATCH_SCHEMA_EXPORTS
 from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
 from ipw.contracts.enhancement import ENHANCEMENT_SCHEMA_EXPORTS
+from ipw.contracts.pdf_creation import PDF_SCHEMA_EXPORTS
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
 
 
@@ -361,6 +362,7 @@ class ProcessingJobKind(StrEnum):
     FILE_INTAKE_INSPECTION = "file_intake_inspection"
     PREVIEW_GENERATION = "preview_generation"
     IMAGE_EXPORT = "image_export"
+    PDF_EXPORT = "pdf_export"
     EXPORT_BUNDLE = "export_bundle"
 
 
@@ -608,6 +610,7 @@ class ProcessingJobRecord(ProductKernelContractModel):
     upload_session_id: SlugId | None = None
     document_id: SlugId | None = None
     export_request_id: SlugId | None = None
+    pdf_export_request_id: SlugId | None = None
     bundle_id: SlugId | None = None
     state: ProcessingJobState
     attempt: int = Field(ge=0)
@@ -627,17 +630,29 @@ class ProcessingJobRecord(ProductKernelContractModel):
             self.kind == ProcessingJobKind.FILE_INTAKE_INSPECTION
             and self.upload_session_id is not None
             and self.document_id is None
+            and self.pdf_export_request_id is None
         )
         preview = (
             self.kind == ProcessingJobKind.PREVIEW_GENERATION
             and self.document_id is not None
             and self.upload_session_id is None
+            and self.pdf_export_request_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
         )
         image_export = (
             self.kind == ProcessingJobKind.IMAGE_EXPORT
             and self.document_id is not None
             and self.export_request_id is not None
+            and self.bundle_id is None
+            and self.upload_session_id is None
+            and self.owner_kind == UploadOwnerKind.ACTOR
+            and self.pdf_export_request_id is None
+        )
+        pdf_export = (
+            self.kind == ProcessingJobKind.PDF_EXPORT
+            and self.document_id is not None
+            and self.export_request_id is None
+            and self.pdf_export_request_id is not None
             and self.bundle_id is None
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
@@ -649,8 +664,9 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.bundle_id is not None
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
+            and self.pdf_export_request_id is None
         )
-        if not (intake or preview or image_export or bundle):
+        if not (intake or preview or image_export or pdf_export or bundle):
             raise ValueError("processing job target must match its kind")
         return self
 
@@ -842,3 +858,4 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
 PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(ENHANCEMENT_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(BATCH_SCHEMA_EXPORTS)
+PRODUCT_SCHEMA_EXPORTS.update(PDF_SCHEMA_EXPORTS)

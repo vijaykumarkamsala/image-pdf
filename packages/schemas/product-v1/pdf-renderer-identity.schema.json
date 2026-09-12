@@ -1,0 +1,47 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-renderer-identity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "licence_component_ids": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Licence Component Ids",
+      "type": "array"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.21.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "standard_font_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Standard Font Sha256",
+      "type": "string"
+    },
+    "version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "licence_component_ids",
+    "standard_font_sha256"
+  ],
+  "title": "PdfRendererIdentity",
+  "type": "object"
+}
