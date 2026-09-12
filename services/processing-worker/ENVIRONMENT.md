@@ -6,6 +6,15 @@ coverage gate. Windows remains a required development-compatibility environment,
 but it compares decoded pixels, dimensions, formats, metadata and behavior rather
 than compressed bytes or browser screenshots.
 
+The compatibility comparison ignores only the host-platform field in an
+otherwise byte-identical ICC profile (`APPL` on Linux and `MSFT` on Windows).
+For the three evidence-only libvips downscale cases, it accepts the demonstrated
+cross-compiled integer rounding only when every decoded channel is within two
+levels and total absolute error is no more than one level per output pixel.
+Dimensions, format, mode, frames and metadata must still match, and all other
+operations require exact decoded pixels. These Windows rules do not apply to or
+relax any canonical Linux byte or screenshot gate.
+
 ## Pinned environment
 
 The source of truth is [`Dockerfile`](Dockerfile). Its production `runtime`

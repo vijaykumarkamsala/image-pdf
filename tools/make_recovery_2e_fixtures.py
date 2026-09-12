@@ -22,6 +22,11 @@ from typing import Any
 
 from PIL import Image, ImageChops, ImageCms, ImageDraw, ImageEnhance
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.image_compatibility import portable_metadata_value
+
 
 @dataclass(frozen=True)
 class Fixture:
@@ -372,16 +377,6 @@ def manifest_payload(values: tuple[Fixture, ...]) -> bytes:
     return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
 
 
-def _metadata_value(value: object) -> object:
-    if isinstance(value, bytes):
-        return {"bytes": len(value), "sha256": hashlib.sha256(value).hexdigest()}
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, (list, tuple)):
-        return [_metadata_value(item) for item in value]
-    return repr(value)
-
-
 def decoded_signature(payload: bytes) -> dict[str, Any]:
     """Describe decoded behavior without treating compressed bytes as portable."""
 
@@ -394,7 +389,7 @@ def decoded_signature(payload: bytes) -> dict[str, Any]:
             "frames": int(getattr(opened, "n_frames", 1)),
             "pixels_sha256": hashlib.sha256(opened.tobytes()).hexdigest(),
             "metadata": {
-                key: _metadata_value(value)
+                key: portable_metadata_value(key, value)
                 for key, value in sorted(opened.info.items())
                 if key not in {"duration"}
             },

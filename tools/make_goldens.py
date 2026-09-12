@@ -28,6 +28,14 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.image_compatibility import (
+    native_downscale_rounding_matches,
+    portable_metadata_value,
+)
+
 if TYPE_CHECKING:
     from ipw.contracts.operation import AnySettings
 
@@ -88,6 +96,11 @@ fixture instead, which gives the filter something to remove and something it
 must preserve.
 """
 
+NATIVE_DOWNSCALE_OPERATIONS = frozenset(
+    {"resize-bicubic-32", "resize-lanczos-32", "resize-scale-half"}
+)
+"""libvips operations with bounded cross-compiled integer rounding evidence."""
+
 
 def goldens_dir(repo_root: Path) -> Path:
     return repo_root / "data" / "goldens"
@@ -95,16 +108,6 @@ def goldens_dir(repo_root: Path) -> Path:
 
 def repo_root_from_here() -> Path:
     return Path(__file__).resolve().parents[1]
-
-
-def _metadata_value(value: object) -> object:
-    if isinstance(value, bytes):
-        return {"bytes": len(value), "sha256": hashlib.sha256(value).hexdigest()}
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, (list, tuple)):
-        return [_metadata_value(item) for item in value]
-    return repr(value)
 
 
 def _decoded_signature(payload: bytes) -> dict[str, object]:
@@ -121,11 +124,48 @@ def _decoded_signature(payload: bytes) -> dict[str, object]:
             "frames": int(getattr(image, "n_frames", 1)),
             "pixels_sha256": hashlib.sha256(image.tobytes()).hexdigest(),
             "metadata": {
-                key: _metadata_value(value)
+                key: portable_metadata_value(key, value)
                 for key, value in sorted(image.info.items())
                 if key not in {"duration"}
             },
         }
+
+
+def _decoded_pixels(payload: bytes) -> bytes:
+    from PIL import Image
+
+    with Image.open(io.BytesIO(payload)) as image:
+        image.load()
+        return image.tobytes()
+
+
+def _windows_compatible(
+    canonical: bytes, candidate: bytes, *, engine_name: str, operation_name: str
+) -> tuple[bool, str]:
+    canonical_signature = _decoded_signature(canonical)
+    candidate_signature = _decoded_signature(candidate)
+    if canonical_signature == candidate_signature:
+        return True, ""
+
+    canonical_structure = {
+        key: value for key, value in canonical_signature.items() if key != "pixels_sha256"
+    }
+    candidate_structure = {
+        key: value for key, value in candidate_signature.items() if key != "pixels_sha256"
+    }
+    if (
+        engine_name == "libvips"
+        and operation_name in NATIVE_DOWNSCALE_OPERATIONS
+        and canonical_structure == candidate_structure
+    ):
+        size = canonical_signature["size"]
+        assert isinstance(size, list)
+        pixel_count = int(size[0]) * int(size[1])
+        if native_downscale_rounding_matches(
+            _decoded_pixels(canonical), _decoded_pixels(candidate), pixel_count=pixel_count
+        ):
+            return True, " (bounded native downscale rounding)"
+    return False, ""
 
 
 def generate(repo_root: Path, *, check: bool, compatibility: bool = False) -> int:
@@ -218,16 +258,22 @@ def generate(repo_root: Path, *, check: bool, compatibility: bool = False) -> in
                         sys.stderr.write(f"{engine_name}/{name}: canonical golden file missing\n")
                         problems += 1
                         continue
-                    if _decoded_signature(canonical_path.read_bytes()) != _decoded_signature(
-                        produced
-                    ):
+                    compatible, detail = _windows_compatible(
+                        canonical_path.read_bytes(),
+                        produced,
+                        engine_name=engine_name,
+                        operation_name=name,
+                    )
+                    if not compatible:
                         sys.stderr.write(
                             f"{engine_name}/{name}: decoded pixels, dimensions, format or metadata "
                             "differ from the canonical Linux golden\n"
                         )
                         problems += 1
                     else:
-                        sys.stdout.write(f"{engine_name}/{name:<28} decoded compatibility PASS\n")
+                        sys.stdout.write(
+                            f"{engine_name}/{name:<28} decoded compatibility PASS{detail}\n"
+                        )
                 elif check:
                     if not path.is_file():
                         sys.stderr.write(f"{engine_name}/{name}: golden missing\n")
