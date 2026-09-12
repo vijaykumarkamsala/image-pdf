@@ -25,6 +25,7 @@ export const MIGRATION_VERSIONS = [
   "0017_recovery_2d_acceptance_integrity",
   "0018_recovery_2e_enhancement_exports",
   "0019_recovery_2e_production_correctness",
+  "0020_batch_processing",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {
