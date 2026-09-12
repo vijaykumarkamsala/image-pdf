@@ -3,6 +3,7 @@ import test from "node:test";
 import { randomUUID } from "node:crypto";
 
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
+import type { ProcessingRecipeRecord } from "ipw-contracts-ts/product";
 import { Pool } from "pg";
 
 import { DomainError } from "../src/kernel/errors.js";
@@ -1284,6 +1285,259 @@ test(
           submitted.value.export_request_id,
         ),
         (error: unknown) => error instanceof DomainError && error.code === "export-retry-unavailable",
+      );
+    } finally {
+      await pool.end();
+    }
+  },
+);
+
+test(
+  "PostgreSQL 17 persists 50-file batches with isolated cancellation and failed-only retry",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    const pool = new Pool({ connectionString, max: 8 });
+    const runtime = {
+      id: (prefix: string) => `${prefix}-${randomUUID()}`,
+      now: () => "2026-09-12T08:00:00.000Z",
+    };
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    const exports = new PostgresImageExportRepository(pool, runtime);
+    const actorId = `actor-batch-pg-${randomUUID()}`;
+    const outsiderId = `actor-batch-outsider-${randomUUID()}`;
+    try {
+      await runMigrations(pool);
+      const owner = await product.bootstrap(
+        context(actorId, `batch-bootstrap-${randomUUID()}`, "session.bootstrap", {}),
+      );
+      await product.bootstrap(
+        context(outsiderId, `batch-outsider-${randomUUID()}`, "session.bootstrap", {}),
+      );
+      const workspaceId = owner.workspace.workspace_id;
+      const created = [];
+      const recipes: ProcessingRecipeRecord[] = [];
+      for (let index = 0; index < 50; index += 1) {
+        const createdDocument = await documents.create(
+          context(actorId, `batch-document-${randomUUID()}`, "document.create", { workspaceId, index }),
+          {
+            workspaceId,
+            defaultFilesId: owner.defaultFiles.default_files_id,
+            name: `Batch image ${index + 1}`,
+            intendedUse: "digital",
+            intendedUseLabel: "Digital image",
+            width: 640,
+            height: 360,
+          },
+        );
+        created.push(createdDocument);
+        const recipeInput = {
+          workspaceId,
+          documentId: createdDocument.value.document.document_id,
+          name: "Standard batch output",
+          operations: [],
+        };
+        recipes.push((await exports.createRecipe(
+          context(actorId, `batch-recipe-${randomUUID()}`, "recipe.save", recipeInput),
+          recipeInput,
+        )).value);
+      }
+
+      const profile = {
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        profile_id: "batch-web-png",
+        name: "Batch web PNG",
+        purpose: "web" as const,
+        format: "png" as const,
+        width: 320,
+        height: 180,
+      };
+      const items = created.map((document, index) => ({
+        clientItemId: `item-${index}`,
+        displayName: document.value.document.name,
+        documentId: document.value.document.document_id,
+        documentVersionId: document.value.document.current_version_id,
+        recipeId: recipes[index]!.recipe_id,
+        recipeVersion: recipes[index]!.version,
+        outputs: [{
+          artboardId: document.value.snapshot.artboards[0]!.artboard_id,
+          profile,
+          filename: `batch-image-${index + 1}.png`,
+        }],
+        included: true,
+        exclusionReason: null,
+      }));
+      const planInput = { workspaceId, name: "Fifty-file production batch", items };
+      const plan = await exports.planBatch(actorId, planInput);
+      assert.equal(plan.items.length, 50);
+      assert.equal(plan.groups.length, 1);
+      assert.equal(plan.groups[0]!.client_item_ids.length, 50);
+
+      const representative = created[0]!;
+      const previewInput = {
+        workspaceId,
+        documentId: representative.value.document.document_id,
+        recipeId: recipes[0]!.recipe_id,
+        recipeVersion: recipes[0]!.version,
+        mode: "current" as const,
+        artboardId: representative.value.snapshot.artboards[0]!.artboard_id,
+      };
+      const preview = await exports.createPreview(
+        context(actorId, `batch-preview-${randomUUID()}`, "enhancement-preview.create", previewInput),
+        previewInput,
+      );
+      const previewObjectId = `object-${randomUUID()}`;
+      await pool.query(
+        `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,
+         media_type,byte_size,created_at) VALUES ($1,$2,$3,$4,'image/png',128,$5)`,
+        [previewObjectId, workspaceId, `derivative/${workspaceId}/batch-preview.png`,
+          "a".repeat(64), runtime.now()],
+      );
+      await pool.query(
+        `UPDATE image_export_outputs SET state='succeeded',progress_percent=100,
+         object_reference_id=$1,sha256=$2,byte_size=128,width=320,height=180,
+         media_type='image/png',metadata_verified=true,metadata_evidence='{}',completed_at=$3
+         WHERE output_id=$4`,
+        [previewObjectId, "a".repeat(64), runtime.now(), preview.value.output_id],
+      );
+
+      const createInput = {
+        ...planInput,
+        planSha256: plan.plan_sha256,
+        groupApprovals: plan.groups.map((group) => ({
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          group_id: group.group_id,
+          representative_client_item_id: group.representative_client_item_id,
+          representative_preview_id: preview.value.preview_id,
+          confirmation_state: "confirmed" as const,
+        })),
+        confirmedClientItemIds: [],
+      };
+      const commandContext = context(
+        actorId,
+        `batch-submit-${randomUUID()}`,
+        "batch.submit",
+        createInput,
+      );
+      const submitted = await exports.submitBatch(commandContext, createInput);
+      const replay = await exports.submitBatch(commandContext, createInput);
+      assert.equal(replay.replayed, true);
+      assert.equal(replay.value.batch_id, submitted.value.batch_id);
+      assert.equal(submitted.value.queued_count, 50);
+      assert.equal(await exports.getBatch(outsiderId, workspaceId, submitted.value.batch_id), null);
+
+      const durable = await pool.query(
+        `SELECT item.batch_item_id,item.export_request_id,request.job_id,output.output_id
+         FROM batch_items item
+         JOIN image_export_requests request ON request.export_request_id=item.export_request_id
+         JOIN image_export_outputs output ON output.export_request_id=request.export_request_id
+         WHERE item.workspace_id=$1 AND item.batch_id=$2 ORDER BY item.position`,
+        [workspaceId, submitted.value.batch_id],
+      );
+      assert.equal(durable.rowCount, 50);
+      const outbox = await pool.query(
+        `SELECT COUNT(*)::integer AS count FROM processing_jobs job
+         JOIN job_outbox outbox ON outbox.job_id=job.job_id WHERE job.batch_id=$1`,
+        [submitted.value.batch_id],
+      );
+      assert.equal(outbox.rows[0]!.count, 50);
+
+      const succeeded = durable.rows[0]!;
+      const failed = durable.rows[1]!;
+      const outputObjectId = `object-${randomUUID()}`;
+      await pool.query(
+        `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,
+         media_type,byte_size,created_at) VALUES ($1,$2,$3,$4,'image/png',256,$5)`,
+        [outputObjectId, workspaceId, `derivative/${workspaceId}/batch-success.png`,
+          "b".repeat(64), runtime.now()],
+      );
+      await pool.query(
+        `UPDATE image_export_outputs SET state='succeeded',progress_percent=100,
+         object_reference_id=$1,sha256=$2,byte_size=256,width=320,height=180,
+         media_type='image/png',metadata_verified=true,metadata_evidence='{}',completed_at=$3
+         WHERE output_id=$4`,
+        [outputObjectId, "b".repeat(64), runtime.now(), succeeded["output_id"]],
+      );
+      await pool.query(
+        "UPDATE image_export_requests SET state='completed',updated_at=$1 WHERE export_request_id=$2",
+        [runtime.now(), succeeded["export_request_id"]],
+      );
+      await pool.query(
+        "UPDATE processing_jobs SET state='succeeded',progress_percent=100,updated_at=$1 WHERE job_id=$2",
+        [runtime.now(), succeeded["job_id"]],
+      );
+
+      await pool.query(
+        `UPDATE image_export_outputs SET state='failed',progress_percent=100,
+         failure_code='decoder-failed',failure_message='The decoder rejected this source'
+         WHERE output_id=$1`,
+        [failed["output_id"]],
+      );
+      await pool.query(
+        "UPDATE image_export_requests SET state='failed',updated_at=$1 WHERE export_request_id=$2",
+        [runtime.now(), failed["export_request_id"]],
+      );
+      await pool.query(
+        "UPDATE processing_jobs SET state='running',attempt=1,progress_percent=60,updated_at=$1 WHERE job_id=$2",
+        [runtime.now(), failed["job_id"]],
+      );
+      await pool.query(
+        `INSERT INTO job_checkpoints(job_id,attempt,checkpoint_key,payload,created_at)
+         VALUES ($1,1,'rendered-source','{}',$2)`,
+        [failed["job_id"], runtime.now()],
+      );
+      await pool.query(
+        "UPDATE processing_jobs SET state='failed',failure=$1,updated_at=$2 WHERE job_id=$3",
+        [{ code: "decoder-failed", message: "The decoder rejected this source", retryable: true },
+          runtime.now(), failed["job_id"]],
+      );
+
+      const isolated = await exports.getBatch(actorId, workspaceId, submitted.value.batch_id);
+      assert.equal(isolated?.succeeded_count, 1);
+      assert.equal(isolated?.failed_count, 1);
+      assert.equal(isolated?.items[1]?.last_checkpoint_key, "rendered-source");
+      const cancelled = await exports.cancelBatch(
+        context(actorId, `batch-cancel-${randomUUID()}`, "batch.cancel", { batchId: submitted.value.batch_id }),
+        workspaceId,
+        submitted.value.batch_id,
+      );
+      assert.equal(cancelled.value.state, "partially_completed");
+      assert.equal(cancelled.value.succeeded_count, 1);
+      assert.equal(cancelled.value.failed_count, 1);
+      assert.equal(cancelled.value.cancelled_count, 48);
+
+      const report = await exports.batchReport(actorId, workspaceId, submitted.value.batch_id);
+      assert.equal(report?.groups[0]?.item_count, 50);
+      assert.equal(report?.groups[0]?.succeeded_count, 1);
+      assert.equal(report?.groups[0]?.failed_count, 1);
+      assert.equal(report?.groups[0]?.cancelled_count, 48);
+      assert.equal(report?.items[0]?.outputs[0]?.sha256, "b".repeat(64));
+      assert.equal(report?.items[1]?.outputs[0]?.failure_code, "decoder-failed");
+      assert.doesNotMatch(JSON.stringify(report), /object_key|storage_generation|token|secret/i);
+
+      const retried = await exports.retryBatch(
+        context(actorId, `batch-retry-${randomUUID()}`, "batch.retry", { batchId: submitted.value.batch_id }),
+        workspaceId,
+        submitted.value.batch_id,
+      );
+      assert.equal(retried.value.succeeded_count, 1);
+      assert.equal(retried.value.queued_count, 1);
+      assert.equal(retried.value.cancelled_count, 48);
+      const childJobs = await pool.query(
+        "SELECT COUNT(*)::integer AS count FROM processing_jobs WHERE batch_id=$1",
+        [submitted.value.batch_id],
+      );
+      assert.equal(childJobs.rows[0]!.count, 51);
+      const charges = await pool.query(
+        `SELECT customer_amount,credit_debit FROM usage_events
+         WHERE workspace_id=$1 AND event_kind LIKE 'batch.%'`,
+        [workspaceId],
+      );
+      assert.equal(charges.rowCount, 3);
+      assert.ok(charges.rows.every((row) => Number(row["customer_amount"]) === 0 && row["credit_debit"] === 0));
+      await assert.rejects(
+        pool.query("UPDATE batch_items SET display_name='mutated' WHERE batch_item_id=$1", [succeeded["batch_item_id"]]),
       );
     } finally {
       await pool.end();

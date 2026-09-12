@@ -59,7 +59,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -302,7 +302,7 @@
       "default": "lanczos"
     },
     "schema_version": {
-      "default": "1.19.0",
+      "default": "1.20.0",
       "title": "Schema Version",
       "type": "string"
     },

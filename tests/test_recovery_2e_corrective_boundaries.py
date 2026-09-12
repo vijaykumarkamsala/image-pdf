@@ -26,9 +26,12 @@ def test_corrective_migration_preserves_success_and_binds_relationships(repo_roo
     assert "CHECK (request_kind = 'enhancement_preview')" in migration
 
 
-def test_product_contract_line_advanced_for_corrective_release(repo_root: Path) -> None:
+def test_product_contract_line_includes_batch_contracts(repo_root: Path) -> None:
     version = (
         repo_root / "packages" / "contracts" / "src" / "ipw" / "contracts" / "version.py"
     ).read_text(encoding="utf-8")
 
-    assert 'PRODUCT_SCHEMA_VERSION = "1.19.0"' in version
+    assert 'PRODUCT_SCHEMA_VERSION = "1.20.0"' in version
+    assert (
+        repo_root / "packages" / "schemas" / "product-v1" / "batch-run-record.schema.json"
+    ).is_file()

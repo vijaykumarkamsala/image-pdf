@@ -118,6 +118,29 @@ export function requireExportFilename(value: unknown): string {
   return filename;
 }
 
+export function requireExportOutputs(
+  value: unknown,
+  limit = 64,
+): Array<{ artboardId: string; profile: ExportOutputProfile; filename: string }> {
+  if (!Array.isArray(value) || value.length < 1 || value.length > limit) {
+    throw new DomainError(400, "export-outputs-invalid", `Select between 1 and ${limit} outputs`);
+  }
+  const usedNames = new Set<string>();
+  return value.map((raw) => {
+    const item = object(raw, "export output");
+    const profile = requireOutputProfile(item["profile"]);
+    let filename = ensureExtension(requireExportFilename(item["filename"]), profile.format);
+    if (usedNames.has(filename.toLowerCase())) {
+      if (profile.collision_behavior === "fail") {
+        throw new DomainError(409, "export-filename-collision", "Output filenames must be unique");
+      }
+      filename = availableFilename(filename, usedNames, limit);
+    }
+    usedNames.add(filename.toLowerCase());
+    return { artboardId: requireId(item["artboard_id"], "artboard id"), profile, filename };
+  });
+}
+
 export function assertExecutableExport(
   snapshotValue: unknown,
   operations: ImageOperation[],
@@ -597,6 +620,26 @@ function optionalColour(value: unknown): string | null {
 
 function resampler(value: unknown) {
   return oneOf(value ?? "lanczos", ["nearest", "bilinear", "bicubic", "lanczos"] as const, "resampling algorithm");
+}
+
+function ensureExtension(filename: string, format: "jpeg" | "png" | "webp" | "tiff"): string {
+  const allowed = format === "jpeg" ? [".jpg", ".jpeg"] : format === "tiff" ? [".tif", ".tiff"] : [`.${format}`];
+  if (allowed.some((extension) => filename.toLowerCase().endsWith(extension))) return filename;
+  if (/\.[a-z0-9]{1,8}$/i.test(filename)) {
+    throw new DomainError(400, "export-extension-mismatch", `Filename extension does not match ${format.toUpperCase()}`);
+  }
+  return `${filename}${allowed[0]}`;
+}
+
+function availableFilename(filename: string, used: Set<string>, limit: number): string {
+  const dot = filename.lastIndexOf(".");
+  const stem = dot > 0 ? filename.slice(0, dot) : filename;
+  const extension = dot > 0 ? filename.slice(dot) : "";
+  for (let suffix = 2; suffix <= limit; suffix += 1) {
+    const candidate = `${stem}-${suffix}${extension}`;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+  }
+  throw new DomainError(409, "export-filename-collision", "Output filenames could not be made unique");
 }
 
 function invalid(message: string): DomainError {

@@ -1,0 +1,72 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/batch-plan-group.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "client_item_ids": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Client Item Ids",
+      "type": "array"
+    },
+    "compatibility_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Compatibility Sha256",
+      "type": "string"
+    },
+    "exception_count": {
+      "minimum": 0,
+      "title": "Exception Count",
+      "type": "integer"
+    },
+    "group_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Group Id",
+      "type": "string"
+    },
+    "label": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "representative_client_item_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Representative Client Item Id",
+      "type": "string"
+    },
+    "representative_preview_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Representative Preview Id"
+    },
+    "schema_version": {
+      "default": "1.20.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "group_id",
+    "compatibility_sha256",
+    "label",
+    "client_item_ids",
+    "representative_client_item_id",
+    "exception_count"
+  ],
+  "title": "BatchPlanGroup",
+  "type": "object"
+}

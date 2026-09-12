@@ -1,4 +1,8 @@
 import type {
+  BatchGroupApproval,
+  BatchPlan,
+  BatchReport,
+  BatchRunRecord,
   EnhancementPreview,
   ExportOutputProfile,
   ExportZipBundle,
@@ -56,6 +60,30 @@ export interface SubmitExportInput {
   outputs: Array<{ artboardId: string; profile: ExportOutputProfile; filename: string }>;
 }
 
+export interface BatchSubmissionInputItem {
+  clientItemId: string;
+  displayName: string;
+  documentId: string;
+  documentVersionId: string;
+  recipeId: string;
+  recipeVersion: number;
+  outputs: Array<{ artboardId: string; profile: ExportOutputProfile; filename: string }>;
+  included: boolean;
+  exclusionReason: string | null;
+}
+
+export interface BatchPlanInput {
+  workspaceId: string;
+  name: string;
+  items: BatchSubmissionInputItem[];
+}
+
+export interface BatchCreateInput extends BatchPlanInput {
+  planSha256: string;
+  groupApprovals: BatchGroupApproval[];
+  confirmedClientItemIds: string[];
+}
+
 export interface ExportDelivery {
   objectKey: string;
   byteSize: number;
@@ -83,6 +111,13 @@ export interface ImageExportRepository {
   getBundle(actorId: string, workspaceId: string, bundleId: string): Promise<ExportZipBundle | null>;
   delivery(actorId: string, workspaceId: string, outputId: string): Promise<ExportDelivery | null>;
   bundleDelivery(actorId: string, workspaceId: string, bundleId: string): Promise<ExportDelivery | null>;
+  planBatch(actorId: string, input: BatchPlanInput): Promise<BatchPlan>;
+  submitBatch(context: CommandContext, input: BatchCreateInput): Promise<ExportCommandResult<BatchRunRecord>>;
+  listBatches(actorId: string, workspaceId: string): Promise<BatchRunRecord[]>;
+  getBatch(actorId: string, workspaceId: string, batchId: string): Promise<BatchRunRecord | null>;
+  cancelBatch(context: CommandContext, workspaceId: string, batchId: string): Promise<ExportCommandResult<BatchRunRecord>>;
+  retryBatch(context: CommandContext, workspaceId: string, batchId: string): Promise<ExportCommandResult<BatchRunRecord>>;
+  batchReport(actorId: string, workspaceId: string, batchId: string): Promise<BatchReport | null>;
   close(): Promise<void>;
 }
 

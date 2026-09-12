@@ -25,7 +25,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -51,7 +51,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -80,7 +80,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -124,7 +124,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -160,7 +160,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -191,12 +191,12 @@
             {
               "input": 0.0,
               "output": 0.0,
-              "schema_version": "1.19.0"
+              "schema_version": "1.20.0"
             },
             {
               "input": 1.0,
               "output": 1.0,
-              "schema_version": "1.19.0"
+              "schema_version": "1.20.0"
             }
           ],
           "items": {
@@ -206,7 +206,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -232,7 +232,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -249,7 +249,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -273,7 +273,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -294,7 +294,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -313,7 +313,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -415,7 +415,7 @@
           "title": "Parameters"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -473,7 +473,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -499,7 +499,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -524,7 +524,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -573,7 +573,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -670,7 +670,7 @@
           "title": "Ppi"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -704,7 +704,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -726,7 +726,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -752,7 +752,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -778,7 +778,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -797,7 +797,7 @@
       "additionalProperties": false,
       "properties": {
         "schema_version": {
-          "default": "1.19.0",
+          "default": "1.20.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -858,7 +858,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.19.0",
+      "default": "1.20.0",
       "title": "Schema Version",
       "type": "string"
     },

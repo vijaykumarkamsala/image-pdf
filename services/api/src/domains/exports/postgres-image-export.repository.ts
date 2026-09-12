@@ -1,5 +1,10 @@
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 import type {
+  BatchGroupRecord,
+  BatchItemRecord,
+  BatchPlan,
+  BatchReport,
+  BatchRunRecord,
   EnhancementPreview,
   ExportOutputProfile,
   ExportOutputRecord,
@@ -19,6 +24,9 @@ import { runMigrations } from "../../kernel/migrations.js";
 import type { CommandContext } from "../../kernel/product.types.js";
 import type { RuntimeValues } from "../../kernel/runtime.js";
 import type {
+  BatchCreateInput,
+  BatchPlanInput,
+  BatchSubmissionInputItem,
   ExportCommandResult,
   ExportDelivery,
   ImageExportRepository,
@@ -28,6 +36,7 @@ import type {
   RecommendationInput,
   SubmitExportInput,
 } from "./exports.types.js";
+import { batchGroupId, batchOutputCompatibility, stableBatchDigest } from "./batch-validation.js";
 import { assertExecutableExport, effectiveVisibleRasterAssetIds } from "./enhancement-validation.js";
 
 function instant(value: Date | string | null): string | null {
@@ -124,6 +133,75 @@ function enhancementPreview(row: QueryResultRow): EnhancementPreview {
     failure_code: row["failure_code"] ? String(row["failure_code"]) : null,
     failure_message: row["failure_message"] ? String(row["failure_message"]) : null,
     created_at: instant(row["created_at"] as Date | string)!,
+  };
+}
+
+interface SourceCompatibilityFact {
+  source_version_id: string;
+  media_type: string;
+  width: number;
+  height: number;
+  bit_depth: number;
+  colour_model: string;
+  has_alpha: boolean;
+  has_icc_profile: boolean;
+  sensitive_metadata_count: number;
+}
+
+interface PreparedBatchItem {
+  input: BatchSubmissionInputItem;
+  document: QueryResultRow;
+  recipe: ProcessingRecipeRecord;
+  compatibility: string | null;
+  exceptionCodes: string[];
+}
+
+function assertApprovedBatchPlan(plan: BatchPlan, input: BatchCreateInput): void {
+  if (plan.plan_sha256 !== input.planSha256) {
+    throw new DomainError(409, "batch-plan-changed", "Batch settings changed after review; review the refreshed plan");
+  }
+  const approvals = new Map(input.groupApprovals.map((approval) => [approval.group_id, approval]));
+  if (approvals.size !== plan.groups.length || plan.groups.some((group) => {
+    const approval = approvals.get(group.group_id);
+    return !approval || approval.representative_client_item_id !== group.representative_client_item_id;
+  })) {
+    throw new DomainError(409, "batch-approval-incomplete", "Approve the representative preview for every batch group");
+  }
+  const required = plan.items
+    .filter((item) => item.requires_individual_confirmation)
+    .map((item) => item.client_item_id)
+    .sort();
+  const confirmed = [...input.confirmedClientItemIds].sort();
+  if (required.length !== confirmed.length || required.some((item, index) => item !== confirmed[index])) {
+    throw new DomainError(409, "batch-item-confirmation-incomplete", "Confirm every batch item with a surfaced exception");
+  }
+}
+
+function batchLabel(item: BatchSubmissionInputItem): string {
+  const formats = [...new Set(item.outputs.map((output) => output.profile.format.toUpperCase()))];
+  return `${formats.join(" + ")} · ${item.outputs.length} ${item.outputs.length === 1 ? "output" : "outputs"}`;
+}
+
+function batchGroupReport(
+  batch: BatchRunRecord,
+  group: BatchRunRecord["groups"][number],
+): BatchReport["groups"][number] {
+  const items = batch.items.filter((item) => item.group_id === group.group_id);
+  const count = (state: BatchItemRecord["state"]): number => items.filter((item) => item.state === state).length;
+  return {
+    schema_version: PRODUCT_SCHEMA_VERSION,
+    group_id: group.group_id,
+    label: group.label,
+    compatibility_sha256: group.compatibility_sha256,
+    representative_item_id: group.representative_item_id,
+    representative_preview_id: group.representative_preview_id,
+    item_count: items.length,
+    queued_count: count("queued"),
+    running_count: count("running"),
+    succeeded_count: count("succeeded"),
+    failed_count: count("failed"),
+    cancelled_count: count("cancelled"),
+    exception_count: group.exception_count,
   };
 }
 
@@ -680,6 +758,317 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     return row ? { objectKey: String(row["object_key"]), byteSize: Number(row["byte_size"]), mediaType: "application/zip", filename: `export-${bundleId}.zip`, sha256: String(row["sha256"]), storageGeneration: String(row["storage_generation"]) } : null;
   }
 
+  async planBatch(actorId: string, input: BatchPlanInput): Promise<BatchPlan> {
+    const client = await this.pool.connect();
+    try {
+      return (await this.prepareBatch(client, actorId, input)).plan;
+    } finally {
+      client.release();
+    }
+  }
+
+  async submitBatch(context: CommandContext, input: BatchCreateInput): Promise<ExportCommandResult<BatchRunRecord>> {
+    return this.transaction(async (client) => {
+      const replay = await this.replay<BatchRunRecord>(client, context, input.workspaceId, "batch.submit");
+      if (replay) return { value: replay, replayed: true };
+      const prepared = await this.prepareBatch(client, context.principal.actorId, input);
+      assertApprovedBatchPlan(prepared.plan, input);
+      const approvals = new Map(input.groupApprovals.map((approval) => [approval.group_id, approval]));
+      const byClientId = new Map(prepared.items.map((item) => [item.input.clientItemId, item]));
+      for (const group of prepared.plan.groups) {
+        const approval = approvals.get(group.group_id)!;
+        const representative = byClientId.get(group.representative_client_item_id)!;
+        const preview = await client.query(
+          `SELECT 1 FROM enhancement_previews preview
+           JOIN image_export_outputs output
+             ON output.workspace_id=preview.workspace_id AND output.output_id=preview.output_id
+           WHERE preview.workspace_id=$1 AND preview.preview_id=$2
+             AND preview.document_id=$3 AND preview.document_version_id=$4
+             AND preview.recipe_id=$5 AND preview.recipe_version=$6
+             AND preview.mode IN ('current','recommended') AND output.state='succeeded'`,
+          [input.workspaceId, approval.representative_preview_id,
+            representative.input.documentId, representative.input.documentVersionId,
+            representative.input.recipeId, representative.input.recipeVersion],
+        );
+        if (!preview.rowCount) {
+          throw new DomainError(409, "batch-preview-not-ready", "Every group requires a completed representative preview from the reviewed versions");
+        }
+      }
+
+      const batchId = this.runtime.id("batch");
+      const now = this.runtime.now();
+      const batchItemIds = new Map(input.items.map((item) => [item.clientItemId, this.runtime.id("batch-item")]));
+      await client.query(
+        `INSERT INTO batch_runs(batch_id,workspace_id,actor_id,name,plan_sha256,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$6)`,
+        [batchId, input.workspaceId, context.principal.actorId, input.name, prepared.plan.plan_sha256, now],
+      );
+      for (const [position, group] of prepared.plan.groups.entries()) {
+        const approval = approvals.get(group.group_id)!;
+        await client.query(
+          `INSERT INTO batch_groups(group_id,workspace_id,batch_id,position,compatibility_sha256,
+           label,representative_item_id,representative_preview_id,exception_count)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [group.group_id, input.workspaceId, batchId, position, group.compatibility_sha256,
+            group.label, batchItemIds.get(group.representative_client_item_id),
+            approval.representative_preview_id, group.exception_count],
+        );
+      }
+      const planItems = new Map(prepared.plan.items.map((item) => [item.client_item_id, item]));
+      for (const [position, item] of prepared.items.entries()) {
+        const planned = planItems.get(item.input.clientItemId)!;
+        const batchItemId = batchItemIds.get(item.input.clientItemId)!;
+        let exportId: string | null = null;
+        let jobId: string | null = null;
+        if (item.input.included) {
+          exportId = this.runtime.id("export");
+          jobId = this.runtime.id("job");
+          const artboards = new Map(
+            ((item.document["snapshot"] as { artboards?: Array<{ artboard_id: string; width: number; height: number }> }).artboards ?? [])
+              .map((artboard) => [artboard.artboard_id, artboard]),
+          );
+          const estimates = item.input.outputs.map((output) => {
+            const artboard = artboards.get(output.artboardId)!;
+            return this.estimatePixels(artboard.width, artboard.height, output.profile);
+          });
+          const minimum = Math.floor(estimates.reduce((sum, pixels) => sum + pixels * 0.08, 0));
+          const maximum = Math.ceil(estimates.reduce((sum, pixels) => sum + pixels * 4.5, 0));
+          await client.query(
+            `INSERT INTO image_export_requests(export_request_id,workspace_id,actor_id,document_id,
+             document_version_id,recipe_id,recipe_version,job_id,state,estimated_min_bytes,
+             estimated_max_bytes,estimate_explanation,created_at,updated_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',$9,$10,$11,$12,$12)`,
+            [exportId, input.workspaceId, context.principal.actorId, item.input.documentId,
+              item.input.documentVersionId, item.input.recipeId, item.input.recipeVersion,
+              jobId, minimum, maximum,
+              "Range reflects format, content and metadata uncertainty; it is not a promised byte count.", now],
+          );
+          for (const output of item.input.outputs) {
+            await client.query(
+              `INSERT INTO image_export_outputs(output_id,workspace_id,export_request_id,artboard_id,
+               profile,state,progress_percent,filename) VALUES ($1,$2,$3,$4,$5,'queued',0,$6)`,
+              [this.runtime.id("output"), input.workspaceId, exportId, output.artboardId,
+                JSON.stringify(output.profile), output.filename],
+            );
+          }
+        }
+        await client.query(
+          `INSERT INTO batch_items(batch_item_id,workspace_id,batch_id,client_item_id,position,
+           display_name,document_id,document_version_id,recipe_id,recipe_version,group_id,included,
+           exclusion_reason,requires_individual_confirmation,confirmation_state,exception_codes,
+           export_request_id,created_at,updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$18)`,
+          [batchItemId, input.workspaceId, batchId, item.input.clientItemId, position,
+            item.input.displayName, item.input.documentId, item.input.documentVersionId,
+            item.input.recipeId, item.input.recipeVersion, planned.group_id, item.input.included,
+            item.input.exclusionReason, planned.requires_individual_confirmation,
+            planned.requires_individual_confirmation ? "confirmed" : "not_required",
+            JSON.stringify(planned.exception_codes), exportId, now],
+        );
+        if (exportId && jobId) {
+          await this.insertJob(client, context, {
+            jobId,
+            kind: "image_export",
+            workspaceId: input.workspaceId,
+            documentId: item.input.documentId,
+            exportRequestId: exportId,
+            bundleId: null,
+            batchId,
+            batchItemId,
+            now,
+          });
+          await this.auditOnly(client, context, input.workspaceId, "batch.item.queued", "batch_item", batchItemId);
+        }
+      }
+      await this.batchEvidence(client, context, input.workspaceId, "batch.submitted", batchId, prepared.plan.included_count);
+      const value = await this.readBatch(client, input.workspaceId, batchId);
+      await this.remember(client, context, input.workspaceId, "batch.submit", batchId, value);
+      return { value, replayed: false };
+    });
+  }
+
+  async listBatches(actorId: string, workspaceId: string): Promise<BatchRunRecord[]> {
+    const result = await this.pool.query(
+      `SELECT run.batch_id FROM batch_runs run
+       JOIN memberships membership ON membership.workspace_id=run.workspace_id AND membership.actor_id=$1
+       WHERE run.workspace_id=$2 ORDER BY run.updated_at DESC,run.batch_id DESC LIMIT 50`,
+      [actorId, workspaceId],
+    );
+    return Promise.all(result.rows.map((row) => this.readBatch(this.pool, workspaceId, String(row["batch_id"]))));
+  }
+
+  async getBatch(actorId: string, workspaceId: string, batchId: string): Promise<BatchRunRecord | null> {
+    const allowed = await this.pool.query(
+      `SELECT 1 FROM batch_runs run JOIN memberships membership
+       ON membership.workspace_id=run.workspace_id AND membership.actor_id=$1
+       WHERE run.workspace_id=$2 AND run.batch_id=$3`,
+      [actorId, workspaceId, batchId],
+    );
+    return allowed.rowCount ? this.readBatch(this.pool, workspaceId, batchId) : null;
+  }
+
+  async cancelBatch(context: CommandContext, workspaceId: string, batchId: string): Promise<ExportCommandResult<BatchRunRecord>> {
+    return this.transaction(async (client) => {
+      const replay = await this.replay<BatchRunRecord>(client, context, workspaceId, "batch.cancel");
+      if (replay) return { value: replay, replayed: true };
+      const run = await client.query(
+        "SELECT * FROM batch_runs WHERE workspace_id=$1 AND batch_id=$2 FOR UPDATE",
+        [workspaceId, batchId],
+      );
+      if (!run.rowCount) throw new DomainError(404, "batch-not-found", "Batch was not found");
+      const jobs = await client.query(
+        `SELECT item.batch_item_id,item.export_request_id,request.job_id,job.state
+         FROM batch_items item
+         JOIN image_export_requests request ON request.export_request_id=item.export_request_id
+         JOIN processing_jobs job ON job.job_id=request.job_id
+         WHERE item.workspace_id=$1 AND item.batch_id=$2
+           AND request.state NOT IN ('completed','partially_completed','failed','cancelled')
+         ORDER BY item.position FOR UPDATE OF request,job`,
+        [workspaceId, batchId],
+      );
+      const now = this.runtime.now();
+      for (const row of jobs.rows) {
+        const immediate = ["queued", "retry_wait"].includes(String(row["state"]));
+        await client.query("UPDATE processing_jobs SET state=$1,updated_at=$2 WHERE job_id=$3", [
+          immediate ? "cancelled" : "cancel_requested", now, row["job_id"],
+        ]);
+        if (immediate) {
+          await client.query(
+            "UPDATE image_export_outputs SET state='cancelled',progress_percent=100 WHERE export_request_id=$1 AND state='queued'",
+            [row["export_request_id"]],
+          );
+          await client.query(
+            "UPDATE image_export_requests SET state='cancelled',updated_at=$1 WHERE export_request_id=$2",
+            [now, row["export_request_id"]],
+          );
+        }
+      }
+      await client.query(
+        `UPDATE batch_runs SET cancellation_requested_at=COALESCE(cancellation_requested_at,$1),updated_at=$1
+         WHERE batch_id=$2 AND workspace_id=$3`,
+        [now, batchId, workspaceId],
+      );
+      await this.batchEvidence(client, context, workspaceId, "batch.cancellation-requested", batchId, jobs.rowCount ?? 0);
+      const value = await this.readBatch(client, workspaceId, batchId);
+      await this.remember(client, context, workspaceId, "batch.cancel", batchId, value);
+      return { value, replayed: false };
+    });
+  }
+
+  async retryBatch(context: CommandContext, workspaceId: string, batchId: string): Promise<ExportCommandResult<BatchRunRecord>> {
+    return this.transaction(async (client) => {
+      const replay = await this.replay<BatchRunRecord>(client, context, workspaceId, "batch.retry");
+      if (replay) return { value: replay, replayed: true };
+      const run = await client.query(
+        "SELECT * FROM batch_runs WHERE workspace_id=$1 AND batch_id=$2 FOR UPDATE",
+        [workspaceId, batchId],
+      );
+      if (!run.rowCount) throw new DomainError(404, "batch-not-found", "Batch was not found");
+      const failed = await client.query(
+        `SELECT item.batch_item_id,item.document_id,item.export_request_id
+         FROM batch_items item JOIN image_export_requests request
+           ON request.export_request_id=item.export_request_id
+         WHERE item.workspace_id=$1 AND item.batch_id=$2
+           AND request.state IN ('failed','partially_completed')
+           AND EXISTS(SELECT 1 FROM image_export_outputs output
+             WHERE output.export_request_id=request.export_request_id AND output.state='failed')
+         ORDER BY item.position FOR UPDATE OF request`,
+        [workspaceId, batchId],
+      );
+      if (!failed.rowCount) {
+        throw new DomainError(409, "batch-retry-unavailable", "No failed batch items are eligible for retry");
+      }
+      const now = this.runtime.now();
+      for (const row of failed.rows) {
+        const jobId = this.runtime.id("job");
+        await client.query(
+          `UPDATE image_export_outputs SET state='queued',progress_percent=0,failure_code=NULL,
+           failure_message=NULL WHERE export_request_id=$1 AND state='failed'`,
+          [row["export_request_id"]],
+        );
+        await client.query(
+          "UPDATE image_export_requests SET job_id=$1,state='queued',updated_at=$2 WHERE export_request_id=$3",
+          [jobId, now, row["export_request_id"]],
+        );
+        await this.insertJob(client, context, {
+          jobId,
+          kind: "image_export",
+          workspaceId,
+          documentId: String(row["document_id"]),
+          exportRequestId: String(row["export_request_id"]),
+          bundleId: null,
+          batchId,
+          batchItemId: String(row["batch_item_id"]),
+          now,
+        });
+      }
+      await client.query(
+        `UPDATE batch_runs SET cancellation_requested_at=NULL,updated_at=$1
+         WHERE batch_id=$2 AND workspace_id=$3`,
+        [now, batchId, workspaceId],
+      );
+      await this.batchEvidence(client, context, workspaceId, "batch.retry-requested", batchId, failed.rowCount ?? 0);
+      const value = await this.readBatch(client, workspaceId, batchId);
+      await this.remember(client, context, workspaceId, "batch.retry", batchId, value);
+      return { value, replayed: false };
+    });
+  }
+
+  async batchReport(actorId: string, workspaceId: string, batchId: string): Promise<BatchReport | null> {
+    const batch = await this.getBatch(actorId, workspaceId, batchId);
+    if (!batch) return null;
+    const outputs = await this.pool.query(
+      `SELECT item.batch_item_id,output.output_id,output.filename,output.state,output.sha256,
+              output.byte_size,output.failure_code,output.failure_message
+       FROM batch_items item LEFT JOIN image_export_outputs output
+         ON output.export_request_id=item.export_request_id
+       WHERE item.workspace_id=$1 AND item.batch_id=$2
+       ORDER BY item.position,output.output_id`,
+      [workspaceId, batchId],
+    );
+    const byItem = new Map<string, QueryResultRow[]>();
+    for (const row of outputs.rows) {
+      if (!row["output_id"]) continue;
+      const key = String(row["batch_item_id"]);
+      byItem.set(key, [...(byItem.get(key) ?? []), row]);
+    }
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      batch_id: batch.batch_id,
+      workspace_id: batch.workspace_id,
+      name: batch.name,
+      state: batch.state,
+      item_count: batch.item_count,
+      queued_count: batch.queued_count,
+      running_count: batch.running_count,
+      succeeded_count: batch.succeeded_count,
+      failed_count: batch.failed_count,
+      cancelled_count: batch.cancelled_count,
+      excluded_count: batch.excluded_count,
+      groups: batch.groups.map((group) => batchGroupReport(batch, group)),
+      items: batch.items.map((item) => ({
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        batch_item_id: item.batch_item_id,
+        client_item_id: item.client_item_id,
+        group_id: item.group_id,
+        display_name: item.display_name,
+        state: item.state,
+        exception_codes: item.exception_codes,
+        outputs: (byItem.get(item.batch_item_id) ?? []).map((row) => ({
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          output_id: String(row["output_id"]),
+          filename: String(row["filename"]),
+          state: String(row["state"]) as "queued" | "running" | "succeeded" | "failed" | "cancelled",
+          sha256: row["sha256"] ? String(row["sha256"]) : null,
+          byte_size: row["byte_size"] === null ? null : Number(row["byte_size"]),
+          failure_code: row["failure_code"] ? String(row["failure_code"]) : null,
+          failure_message: row["failure_message"] ? String(row["failure_message"]) : null,
+        })),
+      })),
+      generated_at: this.runtime.now(),
+    };
+  }
+
   async close(): Promise<void> { await this.pool.end(); }
 
   private async readRecommendationSet(
@@ -778,13 +1167,261 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     return result.rows[0];
   }
 
+  private async prepareBatch(
+    client: Pool | PoolClient,
+    actorId: string,
+    input: BatchPlanInput,
+  ): Promise<{ plan: BatchPlan; items: PreparedBatchItem[] }> {
+    const prepared: PreparedBatchItem[] = [];
+    for (const item of input.items) {
+      const document = await this.requireDocument(client, actorId, input.workspaceId, item.documentId);
+      if (String(document["current_version_id"]) !== item.documentVersionId) {
+        throw new DomainError(409, "document-version-changed", `Review the current version of ${item.displayName} before batch processing`);
+      }
+      const recipeResult = await client.query(
+        `SELECT recipe.* FROM processing_recipes recipe
+         JOIN memberships membership
+           ON membership.workspace_id=recipe.workspace_id AND membership.actor_id=$1
+         WHERE recipe.workspace_id=$2 AND recipe.document_id=$3
+           AND recipe.recipe_id=$4 AND recipe.version=$5`,
+        [actorId, input.workspaceId, item.documentId, item.recipeId, item.recipeVersion],
+      );
+      if (!recipeResult.rows[0]) throw new DomainError(404, "recipe-not-found", `The selected recipe for ${item.displayName} was not found`);
+      const selectedRecipe = recipe(recipeResult.rows[0]);
+      let compatibility: string | null = null;
+      const exceptionCodes: string[] = [];
+      if (item.included) {
+        const snapshot = document["snapshot"] as {
+          artboards?: Array<{ artboard_id: string; width: number; height: number }>;
+        };
+        assertExecutableExport(snapshot, selectedRecipe.operations, item.outputs);
+        const sourceFacts = await this.assertSourceCapabilities(
+          client,
+          input.workspaceId,
+          snapshot,
+          item.outputs.map((output) => output.artboardId),
+          item.outputs.map((output) => output.profile),
+        );
+        const artboards = new Map((snapshot.artboards ?? []).map((artboard) => [artboard.artboard_id, artboard]));
+        if (sourceFacts.some((fact) => fact.sensitive_metadata_count > 0)) exceptionCodes.push("sensitive-metadata");
+        if (sourceFacts.some((fact) => fact.has_alpha)
+          && item.outputs.some((output) => output.profile.format === "jpeg")) {
+          exceptionCodes.push("transparency-flattened");
+        }
+        if (sourceFacts.some((fact) => fact.colour_model === "cmyk")) exceptionCodes.push("colour-conversion");
+        compatibility = stableBatchDigest({
+          operations: selectedRecipe.operations,
+          outputs: item.outputs.map((output) => ({
+            artboard: artboards.has(output.artboardId) ? {
+              width: artboards.get(output.artboardId)!.width,
+              height: artboards.get(output.artboardId)!.height,
+            } : null,
+            profile: batchOutputCompatibility(output.profile),
+          })),
+          sources: sourceFacts
+            .map((fact) => ({
+              media_type: fact.media_type,
+              width: fact.width,
+              height: fact.height,
+              bit_depth: fact.bit_depth,
+              colour_model: fact.colour_model,
+              has_alpha: fact.has_alpha,
+              has_icc_profile: fact.has_icc_profile,
+              sensitive_metadata_count: fact.sensitive_metadata_count,
+            }))
+            .sort((left, right) => stableBatchDigest(left).localeCompare(stableBatchDigest(right))),
+        });
+      }
+      prepared.push({ input: item, document, recipe: selectedRecipe, compatibility, exceptionCodes });
+    }
+
+    const grouped = new Map<string, PreparedBatchItem[]>();
+    for (const item of prepared.filter((candidate) => candidate.compatibility !== null)) {
+      grouped.set(item.compatibility!, [...(grouped.get(item.compatibility!) ?? []), item]);
+    }
+    const groupIds = new Map([...grouped.keys()].map((digest) => [digest, batchGroupId(digest)]));
+    const groups: BatchPlan["groups"] = [...grouped.entries()].map(([digest, items]) => ({
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      group_id: groupIds.get(digest)!,
+      compatibility_sha256: digest,
+      label: batchLabel(items[0]!.input),
+      client_item_ids: items.map((item) => item.input.clientItemId),
+      representative_client_item_id: items[0]!.input.clientItemId,
+      representative_preview_id: null,
+      exception_count: items.filter((item) => item.exceptionCodes.length > 0).length,
+    }));
+    const items: BatchPlan["items"] = prepared.map((item) => ({
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      client_item_id: item.input.clientItemId,
+      group_id: item.compatibility ? groupIds.get(item.compatibility)! : null,
+      included: item.input.included,
+      requires_individual_confirmation: item.exceptionCodes.length > 0,
+      confirmation_state: item.exceptionCodes.length > 0 ? "pending" : "not_required",
+      exception_codes: item.exceptionCodes,
+    }));
+    const planShape = { workspace_id: input.workspaceId, name: input.name, items, groups };
+    const plan: BatchPlan = {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      plan_sha256: stableBatchDigest(planShape),
+      name: input.name,
+      items,
+      groups,
+      included_count: prepared.filter((item) => item.input.included).length,
+      excluded_count: prepared.filter((item) => !item.input.included).length,
+    };
+    return { plan, items: prepared };
+  }
+
+  private async readBatch(
+    client: Pool | PoolClient,
+    workspaceId: string,
+    batchId: string,
+  ): Promise<BatchRunRecord> {
+    const runResult = await client.query(
+      "SELECT * FROM batch_runs WHERE workspace_id=$1 AND batch_id=$2",
+      [workspaceId, batchId],
+    );
+    const run = runResult.rows[0];
+    if (!run) throw new DomainError(404, "batch-not-found", "Batch was not found");
+    const groupsResult = await client.query(
+      `SELECT batch_group.*,
+              (SELECT COUNT(*) FROM batch_items item
+               WHERE item.workspace_id=batch_group.workspace_id
+                 AND item.batch_id=batch_group.batch_id AND item.group_id=batch_group.group_id) AS item_count
+       FROM batch_groups batch_group
+       WHERE batch_group.workspace_id=$1 AND batch_group.batch_id=$2
+       ORDER BY batch_group.position`,
+      [workspaceId, batchId],
+    );
+    const itemsResult = await client.query(
+      `SELECT item.*,request.job_id,request.state AS request_state,request.updated_at AS request_updated_at,
+              job.progress_percent AS job_progress,job.failure AS job_failure,
+              output_stats.output_count,output_stats.succeeded_count,output_stats.failed_count,
+              output_stats.cancelled_count,output_stats.progress_percent AS output_progress,
+              output_stats.failure_code,output_stats.failure_message,checkpoint.checkpoint_key
+       FROM batch_items item
+       LEFT JOIN image_export_requests request
+         ON request.workspace_id=item.workspace_id AND request.export_request_id=item.export_request_id
+       LEFT JOIN processing_jobs job
+         ON job.workspace_id=request.workspace_id AND job.job_id=request.job_id
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::integer AS output_count,
+                COUNT(*) FILTER (WHERE state='succeeded')::integer AS succeeded_count,
+                COUNT(*) FILTER (WHERE state='failed')::integer AS failed_count,
+                COUNT(*) FILTER (WHERE state='cancelled')::integer AS cancelled_count,
+                COALESCE(FLOOR(AVG(progress_percent)),0)::integer AS progress_percent,
+                (ARRAY_AGG(failure_code ORDER BY output_id) FILTER (WHERE state='failed'))[1] AS failure_code,
+                (ARRAY_AGG(failure_message ORDER BY output_id) FILTER (WHERE state='failed'))[1] AS failure_message
+         FROM image_export_outputs output WHERE output.export_request_id=item.export_request_id
+       ) output_stats ON true
+       LEFT JOIN LATERAL (
+         SELECT checkpoint_key FROM job_checkpoints
+         WHERE job_id=request.job_id ORDER BY attempt DESC,created_at DESC,checkpoint_key DESC LIMIT 1
+       ) checkpoint ON true
+       WHERE item.workspace_id=$1 AND item.batch_id=$2 ORDER BY item.position`,
+      [workspaceId, batchId],
+    );
+    const items: BatchItemRecord[] = itemsResult.rows.map((row) => {
+      const included = Boolean(row["included"]);
+      const requestState = row["request_state"] ? String(row["request_state"]) : null;
+      const state: BatchItemRecord["state"] = !included ? "excluded"
+        : requestState === "completed" ? "succeeded"
+          : requestState === "partially_completed" || requestState === "failed" ? "failed"
+            : requestState === "cancelled" ? "cancelled"
+              : requestState === "running" ? "running"
+                : "queued";
+      const jobFailure = row["job_failure"] && typeof row["job_failure"] === "object"
+        ? row["job_failure"] as Record<string, unknown>
+        : {};
+      return {
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        batch_item_id: String(row["batch_item_id"]),
+        batch_id: String(row["batch_id"]),
+        client_item_id: String(row["client_item_id"]),
+        position: Number(row["position"]),
+        display_name: String(row["display_name"]),
+        document_id: String(row["document_id"]),
+        document_version_id: String(row["document_version_id"]),
+        recipe_id: String(row["recipe_id"]),
+        recipe_version: Number(row["recipe_version"]),
+        group_id: row["group_id"] ? String(row["group_id"]) : null,
+        included,
+        exclusion_reason: row["exclusion_reason"] ? String(row["exclusion_reason"]) : null,
+        requires_individual_confirmation: Boolean(row["requires_individual_confirmation"]),
+        confirmation_state: String(row["confirmation_state"]) as BatchItemRecord["confirmation_state"],
+        exception_codes: Array.isArray(row["exception_codes"]) ? row["exception_codes"].map(String) : [],
+        export_request_id: row["export_request_id"] ? String(row["export_request_id"]) : null,
+        job_id: row["job_id"] ? String(row["job_id"]) : null,
+        state,
+        progress_percent: included ? Number(row["output_progress"] ?? row["job_progress"] ?? 0) : 100,
+        output_count: Number(row["output_count"] ?? 0),
+        succeeded_output_count: Number(row["succeeded_count"] ?? 0),
+        failed_output_count: Number(row["failed_count"] ?? 0),
+        cancelled_output_count: Number(row["cancelled_count"] ?? 0),
+        failure_code: row["failure_code"] ? String(row["failure_code"])
+          : jobFailure["code"] ? String(jobFailure["code"]) : null,
+        failure_message: row["failure_message"] ? String(row["failure_message"])
+          : jobFailure["message"] ? String(jobFailure["message"]) : null,
+        last_checkpoint_key: row["checkpoint_key"] ? String(row["checkpoint_key"]) : null,
+        updated_at: instant((row["request_updated_at"] ?? row["updated_at"]) as Date | string)!,
+      };
+    });
+    const count = (state: BatchItemRecord["state"]): number => items.filter((item) => item.state === state).length;
+    const excluded = count("excluded");
+    const queued = count("queued");
+    const running = count("running");
+    const succeeded = count("succeeded");
+    const failed = count("failed");
+    const cancelled = count("cancelled");
+    const state: BatchRunRecord["state"] = running > 0 || (queued > 0 && succeeded + failed + cancelled > 0)
+      ? "running"
+      : queued > 0 ? "queued"
+        : succeeded === items.length - excluded ? "completed"
+          : succeeded > 0 ? "partially_completed"
+            : failed > 0 ? "failed" : "cancelled";
+    const runUpdatedAt = instant(run["updated_at"] as Date | string)!;
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      batch_id: String(run["batch_id"]),
+      workspace_id: String(run["workspace_id"]),
+      name: String(run["name"]),
+      plan_sha256: String(run["plan_sha256"]),
+      state,
+      items,
+      groups: groupsResult.rows.map((row): BatchGroupRecord => ({
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        group_id: String(row["group_id"]),
+        batch_id: String(row["batch_id"]),
+        compatibility_sha256: String(row["compatibility_sha256"]),
+        label: String(row["label"]),
+        item_count: Number(row["item_count"]),
+        representative_item_id: String(row["representative_item_id"]),
+        representative_preview_id: String(row["representative_preview_id"]),
+        exception_count: Number(row["exception_count"]),
+      })),
+      item_count: items.length,
+      included_count: items.length - excluded,
+      excluded_count: excluded,
+      queued_count: queued,
+      running_count: running,
+      succeeded_count: succeeded,
+      failed_count: failed,
+      cancelled_count: cancelled,
+      cancellation_requested: run["cancellation_requested_at"] !== null,
+      zero_charge: true,
+      created_by_actor_id: String(run["actor_id"]),
+      created_at: instant(run["created_at"] as Date | string)!,
+      updated_at: items.reduce((latest, item) => item.updated_at > latest ? item.updated_at : latest, runUpdatedAt),
+    };
+  }
+
   private async assertSourceCapabilities(
     client: Pool | PoolClient,
     workspaceId: string,
     snapshotValue: unknown,
     artboardIds: string[],
     profiles: ExportOutputProfile[],
-  ): Promise<void> {
+  ): Promise<SourceCompatibilityFact[]> {
     const snapshot = snapshotValue && typeof snapshotValue === "object" && !Array.isArray(snapshotValue)
       ? snapshotValue as Record<string, unknown>
       : {};
@@ -795,6 +1432,7 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     let totalBytes = 0;
     let totalPixels = 0;
     let referencedCount = 0;
+    const compatibilityFacts: SourceCompatibilityFact[] = [];
     for (const asset of sharedAssets.filter((item) => item["kind"] === "raster"
       && referencedAssetIds.has(String(item["shared_asset_id"])))) {
       const sourceVersionId = typeof asset["source_version_id"] === "string" ? asset["source_version_id"] : "";
@@ -803,8 +1441,8 @@ export class PostgresImageExportRepository implements ImageExportRepository {
         throw new DomainError(422, "export-capability-unavailable", "A raster layer has incomplete immutable source identity");
       }
       const facts = await client.query(
-        `SELECT orientation,bit_depth,frame_count,width,height,byte_size,media_type,
-                has_icc_profile,colour_model FROM source_inspection_facts
+        `SELECT source_version_id,orientation,bit_depth,frame_count,width,height,byte_size,media_type,
+                has_alpha,has_icc_profile,colour_model,sensitive_metadata FROM source_inspection_facts
          WHERE workspace_id=$1 AND source_version_id=$2 AND asset_original_id=$3`,
         [workspaceId, sourceVersionId, assetOriginalId],
       );
@@ -844,6 +1482,19 @@ export class PostgresImageExportRepository implements ImageExportRepository {
       totalBytes += byteSize;
       totalPixels += width * height;
       referencedCount += 1;
+      compatibilityFacts.push({
+        source_version_id: String(row["source_version_id"]),
+        media_type: String(row["media_type"]),
+        width,
+        height,
+        bit_depth: bitDepth,
+        colour_model: colourModel,
+        has_alpha: Boolean(row["has_alpha"]),
+        has_icc_profile: hasIcc,
+        sensitive_metadata_count: Array.isArray(row["sensitive_metadata"])
+          ? row["sensitive_metadata"].length
+          : 0,
+      });
     }
     if (referencedCount !== referencedAssetIds.size) {
       throw new DomainError(422, "export-capability-unavailable", "A raster layer has no bound immutable source facts");
@@ -851,6 +1502,7 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     if (totalBytes > 64 * 1024 * 1024 || totalPixels > 16_000_000) {
       throw new DomainError(413, "export-source-capacity-exceeded", "Combined raster sources exceed the executable image processing limit");
     }
+    return compatibilityFacts.sort((left, right) => left.source_version_id.localeCompare(right.source_version_id));
   }
 
   private async replay<T>(client: PoolClient, context: CommandContext, workspaceId: string, commandName: string): Promise<T | null> {
@@ -889,23 +1541,70 @@ export class PostgresImageExportRepository implements ImageExportRepository {
     await client.query("INSERT INTO usage_admin_dimensions(usage_event_id,dimensions) VALUES ($1,$2)", [usageId, { capability: "image_enhancement_export", action }]);
   }
 
+  private async auditOnly(
+    client: PoolClient,
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    resourceKind: string,
+    resourceId: string,
+  ): Promise<void> {
+    await client.query(
+      `INSERT INTO audit_events(audit_event_id,workspace_id,actor_id,action,resource_kind,resource_id,occurred_at,trace_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [this.runtime.id("audit"), workspaceId, context.principal.actorId, action, resourceKind, resourceId,
+        this.runtime.now(), context.traceId],
+    );
+  }
+
+  private async batchEvidence(
+    client: PoolClient,
+    context: CommandContext,
+    workspaceId: string,
+    action: string,
+    batchId: string,
+    itemCount: number,
+  ): Promise<void> {
+    await this.auditOnly(client, context, workspaceId, action, "batch", batchId);
+    const usageId = this.runtime.id("usage");
+    await client.query(
+      `INSERT INTO usage_events(usage_event_id,workspace_id,actor_id,event_kind,customer_amount,credit_debit,currency,occurred_at)
+       VALUES ($1,$2,$3,$4,0,0,'USD',$5)`,
+      [usageId, workspaceId, context.principal.actorId, action, this.runtime.now()],
+    );
+    await client.query(
+      "INSERT INTO usage_admin_dimensions(usage_event_id,dimensions) VALUES ($1,$2)",
+      [usageId, { capability: "batch_image_processing", action, item_count: itemCount, zero_charge: true }],
+    );
+  }
+
   private insertJob(
     client: PoolClient,
     context: CommandContext,
-    input: { jobId: string; kind: "image_export" | "export_bundle"; workspaceId: string; documentId: string | null; exportRequestId: string; bundleId: string | null; now: string },
+    input: {
+      jobId: string;
+      kind: "image_export" | "export_bundle";
+      workspaceId: string;
+      documentId: string | null;
+      exportRequestId: string;
+      bundleId: string | null;
+      batchId?: string | null;
+      batchItemId?: string | null;
+      now: string;
+    },
   ): Promise<unknown> {
     return client.query(
       `WITH inserted AS (
          INSERT INTO processing_jobs(job_id,kind,owner_kind,workspace_id,actor_id,guest_session_id,
-         upload_session_id,document_id,export_request_id,bundle_id,state,attempt,max_attempts,
+         upload_session_id,document_id,export_request_id,bundle_id,batch_id,batch_item_id,state,attempt,max_attempts,
          progress_percent,created_at,updated_at)
-         VALUES ($1,$2,'actor',$3,$4,NULL,NULL,$5,$6,$7,'queued',0,3,0,$8,$8)
+         VALUES ($1,$2,'actor',$3,$4,NULL,NULL,$5,$6,$7,$8,$9,'queued',0,3,0,$10,$10)
        )
        INSERT INTO job_outbox(outbox_id,job_id,dispatch_kind,payload,trace_id,available_at,created_at)
-       VALUES ($9,$1,'process_job',$10,$11,$8,$8)`,
+       VALUES ($11,$1,'process_job',$12,$13,$10,$10)`,
       [input.jobId, input.kind, input.workspaceId, context.principal.actorId, input.documentId,
-        input.exportRequestId, input.bundleId, input.now, this.runtime.id("outbox"),
-        { job_id: input.jobId }, context.traceId],
+        input.exportRequestId, input.bundleId, input.batchId ?? null, input.batchItemId ?? null,
+        input.now, this.runtime.id("outbox"), { job_id: input.jobId }, context.traceId],
     );
   }
 
