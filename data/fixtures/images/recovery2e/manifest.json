@@ -7,10 +7,10 @@
       "sha256": "7e0b99f503fa21b3aba40a31394d873b27c1386b0f538ad1c7460b30d93aa41e"
     },
     {
-      "byte_size": 4201,
+      "byte_size": 3740,
       "description": "RGBA PNG with a deterministic alpha ramp",
       "name": "transparent-256x192.png",
-      "sha256": "dadcc4fdabbd35e88388b9fbbc6e2b46ba06c7c874b6f6b678a423d073663e58"
+      "sha256": "bb349e312a845f82387ac631a6efab68dfeef048c043a4ddf19817b2bb36084c"
     },
     {
       "byte_size": 3998,
@@ -19,10 +19,10 @@
       "sha256": "3988d65438ccce3b6e8375ac3586ab249934385d31bd390892392ae294050867"
     },
     {
-      "byte_size": 112330,
+      "byte_size": 112340,
       "description": "deflate-compressed RGB TIFF source",
       "name": "source-240x180.tiff",
-      "sha256": "7ed24c5f6122f2972ea8d2dba907f3268503b937bac944e9c510eaf042a18c97"
+      "sha256": "c9668eb8c2faf05971fad565e0ab8503d6342f9625b791ea548c0eabdb83e50d"
     },
     {
       "byte_size": 3504,
@@ -37,10 +37,10 @@
       "sha256": "b167bed29d8f8b0ca918e5897519438302f5d35f3eb542cb8cae90ef5d97ae30"
     },
     {
-      "byte_size": 4243,
+      "byte_size": 3948,
       "description": "RGB PNG tagged with the canonical generated sRGB profile",
       "name": "tagged-rgb-320x200.png",
-      "sha256": "4a44babf74416a45aef663a188d7172097c96db9f17b63fb1be3387f7e386af0"
+      "sha256": "032441e7a0ba1b3945eb7d5cb4b2eb8955034913389691f31623838f1458f6ff"
     },
     {
       "byte_size": 26170,
@@ -49,22 +49,22 @@
       "sha256": "9f6cfb6d1e82a8840b745ed15f51e3b45269f346a78417c3f03195705cc07a2c"
     },
     {
-      "byte_size": 61933,
+      "byte_size": 55210,
       "description": "8.32 MP RGB PNG above the synchronous preview threshold",
       "name": "bounded-high-resolution-3200x2600.png",
-      "sha256": "ca5505531e9375e5c89cd8507de440a7bcae5a5a7c4ed2dd6b50df1b9307d93d"
+      "sha256": "2b4614b126242f088bcad23dfbed3e505114c41fe61027a5c643af1298f1df7c"
     },
     {
-      "byte_size": 22348,
+      "byte_size": 21351,
       "description": "same-geometry registered Original preview used only for deterministic visual presentation",
       "name": "preview-original-1200x900.png",
-      "sha256": "4c05635d831a17e473a68b3850769e6bbd8ad0c20744f832c9d444c841ee8c63"
+      "sha256": "f9f55a18157e51894fcf5d21d6404c5e393a5a0c24a7ba2d82888bca218a25e6"
     },
     {
-      "byte_size": 31933,
+      "byte_size": 35590,
       "description": "same-geometry registered Current preview with deterministic contrast and curve corrections",
       "name": "preview-current-1200x900.png",
-      "sha256": "0c9f906ee3f40b2ef040b20021b72266c739302f5b7a829da983b9eb5fb136f6"
+      "sha256": "09f6475fb6170ee1f30834d0be11a1e9f286c60843e2f5db19a140727788cc11"
     }
   ],
   "generator": "tools/make_recovery_2e_fixtures.py",

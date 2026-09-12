@@ -2,38 +2,38 @@
   "engines": {
     "libvips": {
       "adjust-brighter": {
-        "bytes": 6418,
+        "bytes": 6655,
         "file": "data/goldens/libvips/adjust-brighter.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "93327f7aab541c928e6379e97816d379be52eb4ce7fdefa80c1a871e6e799662",
+        "sha256": "e96d233c2cda3d9d2b23b77f5c9c186b378b5249142d6ee60a85e5eef8a3c392",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "adjust-contrast": {
-        "bytes": 5359,
+        "bytes": 5571,
         "file": "data/goldens/libvips/adjust-contrast.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "f11a7cfae154d26b974510852acb0385ef666457cec480aa3c8d20f37131dc23",
+        "sha256": "8d290f92ff899d7353e8e1383f596129ebb3d25dc92364b3edcd4f2f65ce3f2a",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "adjust-saturation": {
-        "bytes": 6896,
+        "bytes": 7117,
         "file": "data/goldens/libvips/adjust-saturation.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "6de3dcd9c3bb73cc2fbf345ceb0c166b9a75559eac6f9da6c727e03bcb77aa28",
+        "sha256": "ba958f437d9bdad826ea3f2a19d00e41b44ecd88c4392f5357828891bedb11d2",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "adjust-white-balance-auto": {
-        "bytes": 7945,
+        "bytes": 8191,
         "file": "data/goldens/libvips/adjust-white-balance-auto.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "4eedef0b5f08205cb051f7ffe02ed36dccc936a2f2b927954a05ffe13c921b88",
+        "sha256": "fd9a919ec0b2ba0eb40f6ee602adb7e480dd23089fb6ca93f57d87395465d067",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
@@ -47,119 +47,119 @@
         "width": 64
       },
       "convert-to-png": {
-        "bytes": 8511,
+        "bytes": 8731,
         "file": "data/goldens/libvips/convert-to-png.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "9d7d45dc2287e4c01407be9f547599700aeb2e20b31be3ac230d3f7a84c870d7",
+        "sha256": "33afbf99f9820923367f35887c01fa07347dc4192d5ef701d0c143ae1499d7e0",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "crop-centre-32": {
-        "bytes": 2148,
+        "bytes": 2333,
         "file": "data/goldens/libvips/crop-centre-32.png",
         "height": 32,
         "media_type": "image/png",
-        "sha256": "407ee0d1e433273b422f7b08eab8bbee1de0b24be6045ca26cbca36da3d36a6e",
+        "sha256": "9bad21e22043595a62a46f39cf7792b786a89009029d4b5f90d9a4291c35d941",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 32
       },
       "denoise-moderate": {
-        "bytes": 12034,
+        "bytes": 11881,
         "file": "data/goldens/libvips/denoise-moderate.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "4860f3644d8f4fa6b0ae4f135b96e252b2b504969b1612e786ac07e1dc28e17d",
+        "sha256": "28ca002c6443a575edfd50b1c8b0628c2759eb157cf10fad2ee6158b2c5a413b",
         "source": "data/fixtures/images/synthetic-noise-64.png",
         "width": 64
       },
       "flip-horizontal": {
-        "bytes": 8545,
+        "bytes": 8706,
         "file": "data/goldens/libvips/flip-horizontal.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "77c526fa7edc512d700652d5b6bdc7fed31f4386463a4ff190eb8c84f7797c16",
+        "sha256": "12b337137d82da5345ef8eb4f2b663be09a7a7839727dedc086b48ae977da3d6",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "flip-vertical": {
-        "bytes": 8511,
+        "bytes": 8727,
         "file": "data/goldens/libvips/flip-vertical.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "22df0380b6d15c886e760b32dfe19e418bbfcea271b4d5e1fbb86b7660cf4bcb",
+        "sha256": "290a7e0600b2e0c5266fe6c01e5452f344de228508d92e2d37327fdb3bb76697",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "resize-bicubic-32": {
-        "bytes": 2393,
+        "bytes": 2598,
         "file": "data/goldens/libvips/resize-bicubic-32.png",
         "height": 32,
         "media_type": "image/png",
-        "sha256": "15c28df63403260fd3d978068b75a4d55721924fffcff967e1b41322eed71e63",
+        "sha256": "ccee947f861844b6464088afb1e5a57a10a98592a3d299b9a4881fecffd2b127",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 32
       },
       "resize-lanczos-128-upscale": {
-        "bytes": 36802,
+        "bytes": 36891,
         "file": "data/goldens/libvips/resize-lanczos-128-upscale.png",
         "height": 128,
         "media_type": "image/png",
-        "sha256": "7db2c48572293cb620589d4d8169390fad9cd20818f68a6a99ac274f3a64228d",
+        "sha256": "1df643893f117341bf16c2b1ab972b3f0e3163552060296fc129f51332035530",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 128
       },
       "resize-lanczos-32": {
-        "bytes": 2435,
+        "bytes": 2625,
         "file": "data/goldens/libvips/resize-lanczos-32.png",
         "height": 32,
         "media_type": "image/png",
-        "sha256": "4de29cc6ef0dd46005bf8f36078d4eb21479fa44d785022a290b439e9937365c",
+        "sha256": "e5024fec8bc05cf873d8fcb831844fe79d0c90a195b86b9b9a46dd55edc84224",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 32
       },
       "resize-scale-half": {
-        "bytes": 2393,
+        "bytes": 2598,
         "file": "data/goldens/libvips/resize-scale-half.png",
         "height": 32,
         "media_type": "image/png",
-        "sha256": "15c28df63403260fd3d978068b75a4d55721924fffcff967e1b41322eed71e63",
+        "sha256": "ccee947f861844b6464088afb1e5a57a10a98592a3d299b9a4881fecffd2b127",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 32
       },
       "rotate-180": {
-        "bytes": 8540,
+        "bytes": 8699,
         "file": "data/goldens/libvips/rotate-180.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "8a9010ca58d2eb299c38a02185898efe3e6638da62b8f2fa891c4d0ee5eeca80",
+        "sha256": "24b163f680ce574e28f7aee0f399b7ba17b72d47c6849dd38a742f6ebe46741f",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "rotate-270": {
-        "bytes": 8511,
+        "bytes": 8730,
         "file": "data/goldens/libvips/rotate-270.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "49402041c9ed3891592ccc425c502b4790bf1972272170536d95597b1d2590f3",
+        "sha256": "87fb7f6dc030488fe6c1b53736c83ab7fdd02ea9a6415be5c38ef96e079fde02",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "rotate-90": {
-        "bytes": 8550,
+        "bytes": 8754,
         "file": "data/goldens/libvips/rotate-90.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "a648ba5a7281e86b7dbb00488ebdda378eff3ba0bfbe261f530a14e6efe577c1",
+        "sha256": "c6c55844dc8f13a25c3a2768a5070611dffe5cd9464edea5741e71df122bfd9e",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
       "sharpen-moderate": {
-        "bytes": 12085,
+        "bytes": 12309,
         "file": "data/goldens/libvips/sharpen-moderate.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "7e37589fbc6529de3fe642d3d8948e224b895168488cc003a4d34508dc60cd55",
+        "sha256": "6ba416a9c8f3ec3d8b71b4574f65349f097246dfa19af4779afcd5db9d17ea72",
         "source": "data/fixtures/images/synthetic-noise-64.png",
         "width": 64
       }
@@ -179,7 +179,7 @@
         "file": "data/goldens/pillow/adjust-contrast.png",
         "height": 64,
         "media_type": "image/png",
-        "sha256": "c6435986c4920a8e2c5404863a91f46ba10ffa7b677ed38f1390fe05d9ae63bf",
+        "sha256": "07b6e9b615199857c4bedf7cf56a0e8b9de6bad880ca4349b71795123ba9a040",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 64
       },
@@ -265,11 +265,11 @@
         "width": 32
       },
       "resize-lanczos-128-upscale": {
-        "bytes": 916,
+        "bytes": 1035,
         "file": "data/goldens/pillow/resize-lanczos-128-upscale.png",
         "height": 128,
         "media_type": "image/png",
-        "sha256": "a385ada9362d5bf2496713f98f2ebc9131129223dd390c95c30dbfeba36ac08f",
+        "sha256": "9396c2285c5c58147d2f87ad18f0e8a4bc4e7c63a5058d2ed36647fa666a619d",
         "source": "data/fixtures/images/synthetic-gradient-64.png",
         "width": 128
       },
