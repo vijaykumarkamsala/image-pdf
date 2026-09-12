@@ -13,6 +13,8 @@ import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durab
 import { PostgresExperienceRepository } from "../src/domains/experience/postgres-experience.repository.js";
 import { PostgresDocumentRepository } from "../src/domains/documents/postgres-document.repository.js";
 import { PostgresImageExportRepository } from "../src/domains/exports/postgres-image-export.repository.js";
+import { PostgresPdfExportRepository } from "../src/domains/pdf/postgres-pdf-export.repository.js";
+import { preflightScreenPdf } from "../src/domains/pdf/pdf-preflight.js";
 import { DocumentsService } from "../src/domains/documents/documents.service.js";
 import { IdentityBoundary } from "../src/domains/identity/identity.service.js";
 import type { AuthRepository } from "../src/domains/identity/auth.types.js";
@@ -868,6 +870,81 @@ test(
 );
 
 test(
+  "PostgreSQL 17 persists native PDF exports, job dispatch and tenant-scoped idempotency",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    const pool = new Pool({ connectionString });
+    const runtime = new DeterministicRuntimeValues("2026-09-12T09:00:00.000Z");
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    const exports = new PostgresPdfExportRepository(pool, runtime);
+    try {
+      await runMigrations(pool);
+      const bootstrap = await product.bootstrap(context("actor-pdf-pg", "pdf-bootstrap-pg", "session.bootstrap", {}));
+      const workspaceId = bootstrap.workspace.workspace_id;
+      const created = await documents.create(
+        context("actor-pdf-pg", "pdf-document-pg", "pdf-document.create", { workspaceId, name: "PostgreSQL PDF" }),
+        {
+          kind: "pdf",
+          workspaceId,
+          defaultFilesId: bootstrap.defaultFiles.default_files_id,
+          name: "PostgreSQL PDF",
+          intendedUse: "digital",
+          intendedUseLabel: "Screen PDF",
+          sources: [],
+          pagePreset: "a4",
+          pageOrientation: "portrait",
+          language: "en-GB",
+        },
+      );
+      const preflight = preflightScreenPdf(created.value, runtime.now());
+      assert.equal(preflight.state, "ready");
+      const exportContext = context("actor-pdf-pg", "pdf-export-pg", "pdf-export.create", {
+        workspaceId,
+        documentId: created.value.document.document_id,
+        snapshotSha256: preflight.snapshot_sha256,
+      });
+      const submitted = await exports.create(exportContext, { workspaceId, preflight });
+      const replayed = await exports.create(exportContext, { workspaceId, preflight });
+      assert.equal(replayed.replayed, true);
+      assert.equal(replayed.value.request.pdf_export_request_id, submitted.value.request.pdf_export_request_id);
+      assert.equal(submitted.value.request.state, "queued");
+
+      const dispatched = await pool.query(
+        `SELECT job.kind,job.state,outbox.state AS outbox_state,outbox.payload
+         FROM processing_jobs job JOIN job_outbox outbox USING(job_id)
+         WHERE job.pdf_export_request_id=$1`,
+        [submitted.value.request.pdf_export_request_id],
+      );
+      assert.equal(dispatched.rowCount, 1);
+      assert.deepEqual({
+        kind: dispatched.rows[0]!["kind"],
+        state: dispatched.rows[0]!["state"],
+        outboxState: dispatched.rows[0]!["outbox_state"],
+      }, { kind: "pdf_export", state: "queued", outboxState: "pending" });
+
+      const cancelContext = context("actor-pdf-pg", "pdf-cancel-pg", "pdf-export.cancel", {
+        workspaceId,
+        requestId: submitted.value.request.pdf_export_request_id,
+      });
+      const cancelled = await exports.cancel(cancelContext, workspaceId, submitted.value.request.pdf_export_request_id);
+      assert.equal(cancelled.value.request.state, "cancelled");
+      const retryContext = context("actor-pdf-pg", "pdf-retry-pg", "pdf-export.retry", {
+        workspaceId,
+        requestId: submitted.value.request.pdf_export_request_id,
+      });
+      const retried = await exports.retry(retryContext, workspaceId, submitted.value.request.pdf_export_request_id);
+      assert.equal(retried.value.request.state, "queued");
+      assert.equal((await exports.list("actor-pdf-pg", workspaceId, created.value.document.document_id)).length, 1);
+      assert.equal((await pool.query("SELECT version FROM schema_migrations WHERE version='0021_native_pdf_creation'")).rowCount, 1);
+    } finally {
+      await pool.end();
+    }
+  },
+);
+
+test(
   "PostgreSQL 17 persists recipes, recommendations and atomic image export jobs",
   { skip: !connectionString },
   async () => {
@@ -1610,6 +1687,11 @@ test(
             width: 9000,
             height: 3000,
             byteSize: 13 * 1024 * 1024,
+            orientation: 1,
+            bitDepth: 8,
+            frameCount: 1,
+            hasIccProfile: false,
+            colourModel: "rgb",
             requiresPreview: true,
           },
         },

@@ -1,7 +1,10 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 
+import { attachment } from "../../kernel/http-delivery.js";
 import { ExportsService } from "./exports.service.js";
+
+export { attachment } from "../../kernel/http-delivery.js";
 
 type RequestHeaders = Record<string, string | string[] | undefined>;
 type RequestBody = Record<string, unknown>;
@@ -126,13 +129,6 @@ export class ExportsController {
   batchReport(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("batchId") batchId: string) {
     return this.exports.batchReport(headers, workspaceId, batchId);
   }
-}
-
-export function attachment(filename: string): string {
-  const normalized = filename.normalize("NFC").replace(/[\0-\x1f\x7f\u202a-\u202e\u2066-\u2069]/gu, "_");
-  const safe = normalized.replace(/[^a-zA-Z0-9._ -]/g, "_").replace(/["\\]/g, "_").slice(0, 120) || "download";
-  const encoded = encodeURIComponent(normalized).replace(/['()*]/g, (value) => `%${value.charCodeAt(0).toString(16).toUpperCase()}`);
-  return `attachment; filename="${safe}"; filename*=UTF-8''${encoded}`;
 }
 
 function sendDelivery(

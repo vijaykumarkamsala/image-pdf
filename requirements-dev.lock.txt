@@ -30,6 +30,8 @@ typing-inspection==0.4.2
 # index before the workspaces are resolved; the local version suffix prevents a
 # plain PyPI CUDA build from satisfying this constraint on Linux.
 Pillow==12.3.0
+reportlab==5.0.1
+pypdf==6.18.1
 numpy==2.5.2
 pyvips==3.1.1
 torch==2.13.0+cpu

@@ -53,7 +53,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
   }
 
   async create(context: CommandContext, input: CreateDocumentInput): Promise<DocumentCommandResult<DocumentReadModel>> {
-    return this.command(context, "document.create", async (client) => {
+    return this.command(context, input.kind === "pdf" ? "pdf-document.create" : "document.create", async (client) => {
       const documentId = this.runtime.id("document");
       const versionId = this.runtime.id("document-version");
       const now = this.runtime.now();
@@ -64,9 +64,9 @@ export class PostgresDocumentRepository implements DocumentRepository {
         `INSERT INTO editor_documents(document_id,workspace_id,project_id,location_kind,default_files_id,kind,name,
          source_file_id,source_asset_original_id,source_version_id,current_version_id,current_revision,current_snapshot,
          history_cursor,created_by_actor_id,created_at,updated_at,preview_state,preview_job_id)
-         VALUES($1,$2,$3,$4,$5,'graphic',$6,$7,$8,$9,$10,0,$11,0,$12,$13,$13,$14,$15)`,
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,$12,0,$13,$14,$14,$15,$16)`,
         [documentId, input.workspaceId, input.projectId ?? null, locationKind, input.projectId ? null : input.defaultFilesId,
-          input.name, input.source?.fileId ?? null, input.source?.assetOriginalId ?? null, input.source?.sourceVersionId ?? null,
+          input.kind ?? "graphic", input.name, input.source?.fileId ?? null, input.source?.assetOriginalId ?? null, input.source?.sourceVersionId ?? null,
           versionId, snapshot, context.principal.actorId, now, previewJobId ? "preparing" : "not_required", previewJobId],
       );
       await this.insertVersion(client, {
@@ -78,7 +78,11 @@ export class PostgresDocumentRepository implements DocumentRepository {
         await this.enqueuePreview(client, context, input.workspaceId, documentId, previewJobId, now);
       }
       return (await this.read(client, input.workspaceId, documentId))!;
-    }, (value) => ({ workspaceId: input.workspaceId, action: "document.created", resourceId: value.document.document_id }));
+    }, (value) => ({
+      workspaceId: input.workspaceId,
+      action: input.kind === "pdf" ? "pdf_document.created" : "document.created",
+      resourceId: value.document.document_id,
+    }));
   }
 
   async list(actorId: string, workspaceId: string): Promise<EditorDocumentRecord[]> {
@@ -231,6 +235,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       }
       snapshot.document_id = nextId;
       snapshot.revision = 0;
+      if (snapshot.pdf_settings) snapshot.pdf_settings.title = name;
       const sourcePreviewState = String(source["preview_state"] ?? "not_required");
       const cloneReadyPreview = sourcePreviewState === "ready" && Boolean(source["current_preview_id"]);
       const nextPreviewJobId = sourcePreviewState === "not_required"
@@ -242,9 +247,9 @@ export class PostgresDocumentRepository implements DocumentRepository {
         `INSERT INTO editor_documents(document_id,workspace_id,project_id,location_kind,default_files_id,kind,name,
          source_file_id,source_asset_original_id,source_version_id,current_version_id,current_revision,current_snapshot,
          history_cursor,created_by_actor_id,created_at,updated_at,preview_state,preview_job_id)
-         VALUES($1,$2,$3,$4,$5,'graphic',$6,$7,$8,$9,$10,0,$11,0,$12,$13,$13,$14,$15)`,
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,$12,0,$13,$14,$14,$15,$16)`,
         [nextId, workspaceId, projectId ?? null, projectId ? "project" : "default_files", projectId ? null : defaultFilesId,
-          name, source["source_file_id"], source["source_asset_original_id"], source["source_version_id"], versionId,
+          source["kind"], name, source["source_file_id"], source["source_asset_original_id"], source["source_version_id"], versionId,
           snapshot, context.principal.actorId, now, cloneReadyPreview ? "ready" : nextPreviewJobId ? "preparing" : "not_required", nextPreviewJobId],
       );
       await this.insertVersion(client, {

@@ -22,7 +22,11 @@ from typing import Any
 from PIL import ImageFont
 
 PYTHON_VERSION = (3, 14, 5)
-RUNTIME_DISTRIBUTIONS = {"Pillow": "12.3.0"}
+RUNTIME_DISTRIBUTIONS = {
+    "Pillow": "12.3.0",
+    "pypdf": "6.18.1",
+    "reportlab": "5.0.1",
+}
 CANONICAL_DISTRIBUTIONS = {
     **RUNTIME_DISTRIBUTIONS,
     "numpy": "2.5.2",

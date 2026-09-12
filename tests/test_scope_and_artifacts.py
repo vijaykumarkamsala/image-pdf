@@ -210,6 +210,8 @@ def _workspace_dependencies(repo_root: Path) -> dict[str, set[str]]:
 #                      asn1crypto, python-dateutil, six - which are recorded in
 #                      the licence register but do not appear here, because this
 #                      constant tracks what a workspace *declares*.
+#   reportlab Native-PDF-001 pinned open-source Screen PDF authoring adapter.
+#   pypdf    Native-PDF-001 independent structural validation after rendering.
 #
 # Growing this set is a deliberate act: add the dependency to a workspace
 # pyproject.toml, record its licence with real evidence, and update this constant
@@ -224,6 +226,8 @@ APPROVED_RUNTIME_DEPENDENCIES = {
     "google-auth",
     "google-cloud-storage",
     "pg8000",
+    "pypdf",
+    "reportlab",
 }
 
 

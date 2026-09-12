@@ -67,7 +67,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
   constructor(private readonly runtime: RuntimeValues) {}
 
   async create(context: CommandContext, input: CreateDocumentInput): Promise<DocumentCommandResult<DocumentReadModel>> {
-    return this.idempotent(context, "document.create", () => {
+    return this.idempotent(context, input.kind === "pdf" ? "pdf-document.create" : "document.create", () => {
       const documentId = this.runtime.id("document");
       const versionId = this.runtime.id("document-version");
       const now = this.runtime.now();
@@ -80,7 +80,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
         location: input.projectId
           ? { schema_version: PRODUCT_SCHEMA_VERSION, kind: "project", default_files_id: null, project_id: input.projectId }
           : { schema_version: PRODUCT_SCHEMA_VERSION, kind: "default_files", default_files_id: input.defaultFilesId, project_id: null },
-        kind: "graphic",
+        kind: input.kind ?? "graphic",
         name: input.name,
         source_file_id: input.source?.fileId ?? null,
         source_asset_original_id: input.source?.assetOriginalId ?? null,
@@ -220,6 +220,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
       }
       snapshot.document_id = nextId;
       snapshot.revision = 0;
+      if (snapshot.pdf_settings) snapshot.pdf_settings.title = name;
       const record: EditorDocumentRecord = {
         ...clone(source.record), document_id: nextId, name, project_id: projectId ?? null,
         location: projectId

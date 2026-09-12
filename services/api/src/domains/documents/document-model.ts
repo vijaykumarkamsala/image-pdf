@@ -12,7 +12,7 @@ import type {
 
 import { DomainError } from "../../kernel/errors.js";
 import type { RuntimeValues } from "../../kernel/runtime.js";
-import type { CreateDocumentInput } from "./documents.types.js";
+import type { CreateDocumentInput, VerifiedRasterSource } from "./documents.types.js";
 
 export const DOCUMENT_HISTORY_LIMIT = 100;
 export const DOCUMENT_CHECKPOINT_INTERVAL = 10;
@@ -55,6 +55,7 @@ export function addSeconds(instant: string, seconds: number): string {
 }
 
 export function initialSnapshot(runtime: RuntimeValues, documentId: string, input: CreateDocumentInput): EditorDocumentSnapshot {
+  if (input.kind === "pdf") return initialPdfSnapshot(runtime, documentId, input);
   const sourceWidth = input.source?.width ?? undefined;
   const sourceHeight = input.source?.height ?? undefined;
   const width = input.width ?? sourceWidth ?? 1200;
@@ -98,10 +99,127 @@ export function initialSnapshot(runtime: RuntimeValues, documentId: string, inpu
       source_version_id: input.source.sourceVersionId,
       object_reference_id: input.source.objectReferenceId,
       preview_object_reference_id: null,
+      source_media_type: input.source.mediaType,
+      source_width_px: input.source.width,
+      source_height_px: input.source.height,
+      source_byte_size: input.source.byteSize,
+      source_orientation: input.source.orientation,
+      source_bit_depth: input.source.bitDepth,
+      source_frame_count: input.source.frameCount,
+      source_has_icc_profile: input.source.hasIccProfile,
+      source_colour_model: input.source.colourModel,
       linked_by_default: true,
     }] : [],
     shared_styles: [],
     variants: [],
+    pdf_settings: null,
+  };
+}
+
+const PDF_PAGE_POINTS = {
+  a4: { width: 595.2756, height: 841.8898, label: "A4" },
+  letter: { width: 612, height: 792, label: "Letter" },
+} as const;
+
+function initialPdfSnapshot(runtime: RuntimeValues, documentId: string, input: CreateDocumentInput): EditorDocumentSnapshot {
+  if (input.source) invalidMutation("PDF creation accepts its sources as an ordered list");
+  const sources = input.sources ?? [];
+  if (sources.length > 50) invalidMutation("A PDF can be created from at most 50 source images at once");
+  const preset = input.pagePreset ?? "a4";
+  const selected = PDF_PAGE_POINTS[preset];
+  const landscape = input.pageOrientation === "landscape";
+  const pageWidth = landscape ? selected.height : selected.width;
+  const pageHeight = landscape ? selected.width : selected.height;
+  const pageSources: Array<VerifiedRasterSource | undefined> = sources.length ? sources : [undefined];
+  const artboards: EditorDocumentSnapshot["artboards"] = [];
+  const layers: LayerRecord[] = [];
+  const sharedAssets: NonNullable<EditorDocumentSnapshot["shared_assets"]> = [];
+  const pages: NonNullable<EditorDocumentSnapshot["pdf_settings"]>["pages"] = [];
+  pageSources.forEach((source, order) => {
+    const artboardId = runtime.id("page");
+    artboards.push({
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      artboard_id: artboardId,
+      name: `Page ${order + 1}`,
+      order,
+      width: pageWidth,
+      height: pageHeight,
+      unit: "pt",
+      orientation: orientation(pageWidth, pageHeight),
+      background: { schema_version: PRODUCT_SCHEMA_VERSION, kind: "solid", color: "#ffffff" },
+      intended_use: {
+        schema_version: PRODUCT_SCHEMA_VERSION,
+        kind: "digital",
+        label: "Screen PDF",
+        attributes: { page_preset: preset },
+      },
+    });
+    pages.push({ schema_version: PRODUCT_SCHEMA_VERSION, artboard_id: artboardId, label: String(order + 1), master_page_id: null });
+    if (!source) return;
+    const sharedAssetId = runtime.id("shared-asset");
+    sharedAssets.push({
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      shared_asset_id: sharedAssetId,
+      workspace_id: input.workspaceId,
+      kind: "raster",
+      name: source.displayName,
+      asset_original_id: source.assetOriginalId,
+      source_version_id: source.sourceVersionId,
+      object_reference_id: source.objectReferenceId,
+      preview_object_reference_id: null,
+      source_media_type: source.mediaType,
+      source_width_px: source.width,
+      source_height_px: source.height,
+      source_byte_size: source.byteSize,
+      source_orientation: source.orientation,
+      source_bit_depth: source.bitDepth,
+      source_frame_count: source.frameCount,
+      source_has_icc_profile: source.hasIccProfile,
+      source_colour_model: source.colourModel,
+      linked_by_default: true,
+    });
+    layers.push(pdfRasterLayer(runtime, artboardId, sharedAssetId, source, pageWidth, pageHeight));
+  });
+  return {
+    schema_version: PRODUCT_SCHEMA_VERSION,
+    document_id: documentId,
+    revision: 0,
+    artboards,
+    layers,
+    masks: [],
+    shared_assets: sharedAssets,
+    shared_styles: [],
+    variants: [],
+    pdf_settings: {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      title: input.name,
+      language: input.language ?? "en",
+      subject: null,
+      page_size_policy: "uniform",
+      default_page_name: selected.label,
+      pages,
+    },
+  };
+}
+
+function pdfRasterLayer(
+  runtime: RuntimeValues,
+  artboardId: string,
+  sharedAssetId: string,
+  source: VerifiedRasterSource,
+  pageWidth: number,
+  pageHeight: number,
+): LayerRecord {
+  const margin = 24;
+  const sourceWidth = source.width ?? pageWidth;
+  const sourceHeight = source.height ?? pageHeight;
+  const scale = Math.min((pageWidth - margin * 2) / sourceWidth, (pageHeight - margin * 2) / sourceHeight);
+  const width = Math.max(1, sourceWidth * scale);
+  const height = Math.max(1, sourceHeight * scale);
+  return {
+    ...rasterLayer(runtime, artboardId, sharedAssetId, source.displayName, width, height),
+    transform: transform((pageWidth - width) / 2, (pageHeight - height) / 2, width, height),
+    accessibility: null,
   };
 }
 
@@ -323,9 +441,23 @@ export function applyMutation(current: EditorDocumentSnapshot, mutation: EditorM
     default:
       invalidMutation("Unsupported document operation");
   }
+  syncPdfPages(next);
   next.revision = current.revision + 1;
   validateSnapshot(next);
   return next;
+}
+
+function syncPdfPages(snapshot: EditorDocumentSnapshot) {
+  if (!snapshot.pdf_settings) return;
+  const existing = new Map(snapshot.pdf_settings.pages.map((page) => [page.artboard_id, page]));
+  snapshot.pdf_settings.pages = [...snapshot.artboards]
+    .sort((left, right) => left.order - right.order)
+    .map((artboard, index) => existing.get(artboard.artboard_id) ?? {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      artboard_id: artboard.artboard_id,
+      label: String(index + 1),
+      master_page_id: null,
+    });
 }
 
 function insertLayer(snapshot: EditorDocumentSnapshot, layer: LayerRecord) {
@@ -552,6 +684,22 @@ function requireArtboard(snapshot: EditorDocumentSnapshot, id: string | null | u
 export function validateSnapshot(snapshot: EditorDocumentSnapshot) {
   if (snapshot.artboards.length === 0) invalidMutation("A document must keep at least one artboard");
   const artboards = new Set(snapshot.artboards.map((item) => item.artboard_id));
+  if (snapshot.pdf_settings) {
+    const orderedArtboards = [...snapshot.artboards].sort((left, right) => left.order - right.order);
+    const pages = snapshot.pdf_settings.pages;
+    if (pages.length !== orderedArtboards.length
+      || new Set(pages.map((page) => page.artboard_id)).size !== pages.length
+      || pages.some((page, index) => page.artboard_id !== orderedArtboards[index]?.artboard_id)) {
+      invalidMutation("PDF pages must map to every artboard in deterministic order");
+    }
+    if (snapshot.artboards.some((artboard) => artboard.unit !== "pt")) {
+      invalidMutation("PDF pages must use point units");
+    }
+    if (snapshot.pdf_settings.page_size_policy === "uniform"
+      && new Set(snapshot.artboards.map((artboard) => `${artboard.width}:${artboard.height}`)).size !== 1) {
+      invalidMutation("Uniform PDF pages must use one page size");
+    }
+  }
   const snapshotLayers = snapshot.layers ?? [];
   const layers = new Set(snapshotLayers.map((item) => item.layer_id));
   if (artboards.size !== snapshot.artboards.length || layers.size !== snapshotLayers.length) invalidMutation("Document identifiers must be unique");
@@ -566,10 +714,35 @@ export function validateSnapshot(snapshot: EditorDocumentSnapshot) {
     const expectedOrientation = orientation(artboard.width, artboard.height);
     if (artboard.orientation !== expectedOrientation) invalidMutation("Artboard orientation must match its dimensions");
   }
+  if (snapshot.pdf_settings) {
+    if (!snapshot.pdf_settings.title?.trim()) invalidMutation("PDF metadata requires a title");
+    if (!/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(snapshot.pdf_settings.language ?? "")) {
+      invalidMutation("PDF metadata requires a valid BCP 47 language tag");
+    }
+    const orderedArtboards = [...snapshot.artboards].sort((left, right) => left.order - right.order);
+    const pageIds = snapshot.pdf_settings.pages.map((page) => page.artboard_id);
+    if (new Set(pageIds).size !== pageIds.length
+      || pageIds.length !== orderedArtboards.length
+      || pageIds.some((id, index) => id !== orderedArtboards[index]?.artboard_id)) {
+      invalidMutation("PDF pages must reference every artboard in deterministic order");
+    }
+    if (orderedArtboards.some((artboard) => artboard.unit !== "pt")) {
+      invalidMutation("PDF pages must use point units");
+    }
+    if (snapshot.pdf_settings.page_size_policy === "uniform"
+      && new Set(orderedArtboards.map((artboard) => `${artboard.width}:${artboard.height}`)).size !== 1) {
+      invalidMutation("Uniform PDF pages must use one page size");
+    }
+  }
   const sharedAssets = new Map((snapshot.shared_assets ?? []).map((item) => [item.shared_asset_id, item]));
   const sharedStyles = new Map((snapshot.shared_styles ?? []).map((item) => [item.shared_style_id, item]));
   const maskRecords = new Map((snapshot.masks ?? []).map((item) => [item.mask_id, item]));
   if (sharedAssets.size !== (snapshot.shared_assets ?? []).length) invalidMutation("Shared asset identifiers must be unique");
+  for (const asset of sharedAssets.values()) {
+    const hasWidth = asset.source_width_px !== null && asset.source_width_px !== undefined;
+    const hasHeight = asset.source_height_px !== null && asset.source_height_px !== undefined;
+    if (hasWidth !== hasHeight) invalidMutation("Source pixel dimensions must be recorded together");
+  }
   if (sharedStyles.size !== (snapshot.shared_styles ?? []).length) invalidMutation("Shared style identifiers must be unique");
   if (maskRecords.size !== (snapshot.masks ?? []).length) invalidMutation("Mask identifiers must be unique");
   const siblingOrders = new Set<string>();
@@ -599,6 +772,13 @@ export function validateSnapshot(snapshot: EditorDocumentSnapshot) {
     }
     validateTransform(layer.transform);
     validateLayerContent(layer);
+    if (layer.accessibility?.role === "figure" && !layer.accessibility.alt_text?.trim()) {
+      invalidMutation("Figure layers require alternative text");
+    }
+    if (["decorative", "artifact"].includes(layer.accessibility?.role ?? "")
+      && layer.accessibility?.alt_text !== null && layer.accessibility?.alt_text !== undefined) {
+      invalidMutation("Decorative and artifact layers cannot carry alternative text");
+    }
     if (layer.raster) {
       const asset = sharedAssets.get(layer.raster.shared_asset_id);
       if (!asset || !["raster", "brand"].includes(asset.kind)) invalidMutation("Raster layers require a valid raster shared asset");
@@ -693,6 +873,15 @@ function validateLayerContent(layer: LayerRecord) {
     for (const [name, value] of Object.entries(layer.raster.adjustments)) {
       if (name === "schema_version") continue;
       finiteRange(value, name === "sharpness" ? 0 : -100, 100, `Adjustment ${name}`);
+    }
+  }
+  if (layer.accessibility) {
+    const altText = layer.accessibility.alt_text?.trim() ?? "";
+    if (layer.accessibility.role === "figure" && !altText) {
+      invalidMutation("Figure layers require alternative text");
+    }
+    if (["decorative", "artifact"].includes(layer.accessibility.role) && altText) {
+      invalidMutation("Decorative and artifact layers cannot carry alternative text");
     }
   }
   if (layer.rich_text) {

@@ -13,6 +13,7 @@ import { IdentityModule } from "./domains/identity/identity.module.js";
 import { IntakeModule } from "./domains/intake/intake.module.js";
 import { JobsModule } from "./domains/jobs/jobs.module.js";
 import { ProjectsModule } from "./domains/projects/projects.module.js";
+import { PdfModule } from "./domains/pdf/pdf.module.js";
 import { UsageModule } from "./domains/usage/usage.module.js";
 import { WorkspacesModule } from "./domains/workspaces/workspaces.module.js";
 import { KernelModule } from "./kernel/kernel.module.js";
@@ -29,6 +30,7 @@ import { KernelModule } from "./kernel/kernel.module.js";
     DocumentsModule,
     ExperienceModule,
     ExportsModule,
+    PdfModule,
     AuditModule,
     UsageModule,
   ],

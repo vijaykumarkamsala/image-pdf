@@ -90,6 +90,7 @@ export class DocumentsService implements OnApplicationShutdown {
     const name = requireText(body["name"] ?? source?.displayName ?? "Untitled graphic", "document name", 200);
     const intendedUse = intendedUseKind(body["intended_use"]);
     const result = await this.documents.create(context, {
+      kind: "graphic",
       workspaceId: access.workspaceId,
       projectId,
       defaultFilesId: access.defaultFilesId,
@@ -101,6 +102,64 @@ export class DocumentsService implements OnApplicationShutdown {
       source,
     });
     if (!result.replayed) await this.auditUnlessAtomic(context, access.workspaceId, "document.created", result.value.document.document_id);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
+  }
+
+  async createPdf(headers: Headers, workspaceId: string, body: Body) {
+    const access = await this.access(headers, workspaceId, "document.create");
+    const projectId = optionalId(body["project_id"], "project id");
+    if (projectId) {
+      const projects = await this.product.listProjects(access.principal.actorId, access.workspaceId);
+      if (!projects.projects.some((item) => item.project_id === projectId)) {
+        throw new DomainError(404, "project-not-found", "Project was not found");
+      }
+    }
+    const sourceFileIds = requireSourceFileIds(body["source_file_ids"]);
+    const sources: VerifiedRasterSource[] = [];
+    for (let offset = 0; offset < sourceFileIds.length; offset += 5) {
+      const group = await Promise.all(sourceFileIds.slice(offset, offset + 5).map((fileId) =>
+        this.verifiedSource(access.principal.actorId, access.workspaceId, fileId)));
+      sources.push(...group);
+    }
+    if (sources.some((source) => source.requiresPreview)) {
+      throw new DomainError(
+        409,
+        "pdf-source-preview-required",
+        "One or more images need a bounded generated preview before PDF creation",
+      );
+    }
+    const pagePreset = requirePdfPagePreset(body["page_preset"]);
+    const pageOrientation = requirePdfPageOrientation(body["orientation"]);
+    const imagePlacement = requirePdfImagePlacement(body["image_placement"]);
+    const language = requireLanguage(body["language"]);
+    const name = requireText(body["name"] ?? "Untitled PDF", "document name", 200);
+    const payload = {
+      workspaceId: access.workspaceId,
+      projectId,
+      sourceFileIds,
+      pagePreset,
+      pageOrientation,
+      imagePlacement,
+      language,
+      name,
+    };
+    const context = this.command(headers, access.principal, "pdf-document.create", payload);
+    const result = await this.documents.create(context, {
+      kind: "pdf",
+      workspaceId: access.workspaceId,
+      projectId,
+      defaultFilesId: access.defaultFilesId,
+      name,
+      intendedUse: "digital",
+      intendedUseLabel: "Screen PDF",
+      sources,
+      pagePreset,
+      pageOrientation,
+      language,
+    });
+    if (!result.replayed) {
+      await this.auditUnlessAtomic(context, access.workspaceId, "pdf_document.created", result.value.document.document_id);
+    }
     return { schema_version: PRODUCT_SCHEMA_VERSION, editor: result.value, replayed: result.replayed };
   }
 
@@ -143,6 +202,15 @@ export class DocumentsService implements OnApplicationShutdown {
       source_version_id: source.sourceVersionId,
       object_reference_id: source.objectReferenceId,
       preview_object_reference_id: null,
+      source_media_type: source.mediaType,
+      source_width_px: source.width,
+      source_height_px: source.height,
+      source_byte_size: source.byteSize,
+      source_orientation: source.orientation,
+      source_bit_depth: source.bitDepth,
+      source_frame_count: source.frameCount,
+      source_has_icc_profile: source.hasIccProfile,
+      source_colour_model: source.colourModel,
       linked_by_default: true,
     };
     const sourceWidth = source.width ?? artboard.width;
@@ -455,6 +523,11 @@ export class DocumentsService implements OnApplicationShutdown {
         sourceVersionId: file.current_source_version_id, objectReferenceId: null,
         mediaType: facts.detected_media_type, width: displayDimensions.width, height: displayDimensions.height,
         byteSize: facts.byte_size,
+        orientation: facts.orientation ?? null,
+        bitDepth: facts.bit_depth ?? null,
+        frameCount: facts.frame_count ?? null,
+        hasIccProfile: facts.has_icc_profile ?? null,
+        colourModel: facts.colour_model ?? null,
         requiresPreview: requiresGeneratedPreview({
           byteSize: facts.byte_size, width: facts.width ?? null, height: facts.height ?? null,
           mediaType: facts.detected_media_type, colourModel: facts.colour_model,
@@ -558,4 +631,41 @@ function intendedUseKind(value: unknown): "source" | "digital" | "print" | "cust
 
 function intendedUseLabel(value: "source" | "digital" | "print" | "custom") {
   return { source: "Source size", digital: "Digital design", print: "Print design", custom: "Custom size" }[value];
+}
+
+function requireSourceFileIds(value: unknown): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 50) {
+    throw new DomainError(400, "pdf-source-selection-invalid", "Choose at most 50 source images");
+  }
+  const result = value.map((item) => requireId(item, "source file id"));
+  if (new Set(result).size !== result.length) {
+    throw new DomainError(400, "pdf-source-selection-invalid", "Choose each source image once");
+  }
+  return result;
+}
+
+function requirePdfPagePreset(value: unknown): "a4" | "letter" {
+  if (value === undefined || value === null || value === "a4") return "a4";
+  if (value === "letter") return value;
+  throw new DomainError(400, "pdf-page-preset-invalid", "Page preset must be A4 or Letter");
+}
+
+function requirePdfPageOrientation(value: unknown): "portrait" | "landscape" {
+  if (value === undefined || value === null || value === "portrait") return "portrait";
+  if (value === "landscape") return value;
+  throw new DomainError(400, "pdf-page-orientation-invalid", "Page orientation must be portrait or landscape");
+}
+
+function requirePdfImagePlacement(value: unknown): "contain" {
+  if (value === undefined || value === null || value === "contain") return "contain";
+  throw new DomainError(400, "pdf-image-placement-invalid", "Image placement must be contain");
+}
+
+function requireLanguage(value: unknown): string {
+  const language = value === undefined || value === null ? "en" : requireText(value, "document language", 64);
+  if (!/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(language)) {
+    throw new DomainError(400, "pdf-language-invalid", "Document language must be a valid BCP 47 language tag");
+  }
+  return language;
 }

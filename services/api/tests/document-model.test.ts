@@ -128,6 +128,11 @@ test("malformed transforms, crops and cyclic nesting fail at the native document
       width: 100,
       height: 80,
       byteSize: 1024,
+      orientation: 1,
+      bitDepth: 8,
+      frameCount: 1,
+      hasIccProfile: false,
+      colourModel: "rgb",
       requiresPreview: false,
     },
   });
