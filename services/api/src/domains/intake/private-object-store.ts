@@ -136,6 +136,9 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
     const value = this.objects.get(ref.objectKey);
     if (!value) throw new Error("private object not found");
     if (value.byteLength > maxBytes) throw new UploadLimitExceeded();
+    if (ref.generation && createHash("sha256").update(value).digest("hex") !== ref.generation) {
+      throw new Error("private object generation changed");
+    }
     return value.slice();
   }
 
@@ -237,7 +240,11 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
     const path = this.path(ref);
     const metadata = await stat(path);
     if (metadata.size > maxBytes) throw new UploadLimitExceeded();
-    return readFile(path);
+    const bytes = await readFile(path);
+    if (ref.generation && createHash("sha256").update(bytes).digest("hex") !== ref.generation) {
+      throw new Error("private object generation changed");
+    }
+    return bytes;
   }
 
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {
@@ -285,7 +292,19 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
   }
 
   private path(ref: PrivateObjectRef): string {
-    if (!/^(quarantine|immutable|derivative)\/[a-z0-9._-]{3,64}(?:\/[a-z0-9._-]{3,128}){1,4}$/.test(ref.objectKey)) {
+    const ownerScope = safeSegment(ref.ownerScope, "owner scope");
+    const segments = ref.objectKey.split("/");
+    if (
+      segments.length < 3
+      || segments.length > 7
+      || segments[0] !== ref.zone
+      || segments[1] !== ownerScope
+      || !segments.every((segment, index) => (
+        index === 0
+          ? /^(quarantine|immutable|derivative)$/.test(segment)
+          : /^[a-z0-9._-]{3,128}$/.test(segment)
+      ))
+    ) {
       throw new Error("invalid private object key");
     }
     const root = resolve(this.root);
@@ -304,7 +323,7 @@ export interface GcsPrivateClient {
     expectedSha256: string | null;
   }): Promise<string>;
   metadata(objectKey: string): Promise<ProviderObjectMetadata>;
-  read(objectKey: string, maxBytes: number): Promise<Uint8Array>;
+  read(objectKey: string, maxBytes: number, generation?: string): Promise<Uint8Array>;
   copyIfAbsent(sourceKey: string, sourceGeneration: string, targetKey: string, sha256: string): Promise<string>;
   remove(objectKey: string, generation?: string): Promise<void>;
 }
@@ -401,7 +420,7 @@ export class GcsPrivateObjectStore implements PrivateObjectStore {
   }
 
   read(ref: PrivateObjectRef, maxBytes: number): Promise<Uint8Array> {
-    return this.client.read(ref.objectKey, maxBytes);
+    return this.client.read(ref.objectKey, maxBytes, ref.generation);
   }
 
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {

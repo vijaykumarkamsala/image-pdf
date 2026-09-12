@@ -1,0 +1,35 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/output-size-estimate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "explanation": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Explanation",
+      "type": "string"
+    },
+    "maximum_bytes": {
+      "minimum": 0,
+      "title": "Maximum Bytes",
+      "type": "integer"
+    },
+    "minimum_bytes": {
+      "minimum": 0,
+      "title": "Minimum Bytes",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": "1.19.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "minimum_bytes",
+    "maximum_bytes",
+    "explanation"
+  ],
+  "title": "OutputSizeEstimate",
+  "type": "object"
+}

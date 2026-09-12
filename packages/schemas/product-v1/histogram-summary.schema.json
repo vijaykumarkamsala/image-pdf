@@ -1,0 +1,56 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/histogram-summary.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "blue": {
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 256,
+      "minItems": 16,
+      "title": "Blue",
+      "type": "array"
+    },
+    "green": {
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 256,
+      "minItems": 16,
+      "title": "Green",
+      "type": "array"
+    },
+    "highlight_clipping": {
+      "title": "Highlight Clipping",
+      "type": "boolean"
+    },
+    "red": {
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 256,
+      "minItems": 16,
+      "title": "Red",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.19.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "shadow_clipping": {
+      "title": "Shadow Clipping",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "red",
+    "green",
+    "blue",
+    "shadow_clipping",
+    "highlight_clipping"
+  ],
+  "title": "HistogramSummary",
+  "type": "object"
+}

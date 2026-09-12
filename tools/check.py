@@ -47,7 +47,7 @@ GATES: tuple[Gate, ...] = (
     ),
     Gate(
         "tests",
-        [PY, "-m", "pytest"],
+        [PY, "tools/run_python_tests.py"],
         "behaviour, contract conformance and coverage",
     ),
     Gate(
@@ -64,6 +64,17 @@ GATES: tuple[Gate, ...] = (
         "inspection-fixtures",
         [PY, "tools/make_inspection_fixtures.py", "--check"],
         "the POC-003 signature, bomb and orientation fixtures are byte-reproducible",
+    ),
+    Gate(
+        "recovery2e-fixtures",
+        [PY, "tools/make_recovery_2e_fixtures.py", "--check"],
+        "the rights-cleared JPEG, PNG, WebP, TIFF, ICC, metadata and high-resolution "
+        "fixtures are reproducible",
+    ),
+    Gate(
+        "standard-font-drift",
+        [PY, "tools/sync_standard_font.py", "--check"],
+        "the browser and deterministic worker use the same pinned rights-cleared font bytes",
     ),
     Gate(
         "ts-contract-drift",

@@ -81,8 +81,11 @@ export class GcsSdkPrivateClient implements GcsPrivateClient {
     return normalise(metadata);
   }
 
-  async read(objectKey: string, maxBytes: number): Promise<Uint8Array> {
-    const metadata = await this.metadata(objectKey);
+  async read(objectKey: string, maxBytes: number, expectedGeneration?: string): Promise<Uint8Array> {
+    const file = this.file(objectKey, expectedGeneration);
+    const [rawMetadata] = await file.getMetadata();
+    const metadata = normalise(rawMetadata);
+    if (expectedGeneration && metadata.generation !== expectedGeneration) throw new Error("GCS object generation changed");
     if (metadata.byteSize > maxBytes) throw new Error("private object exceeds the read limit");
     const [bytes] = await this.file(objectKey, metadata.generation).download();
     if (bytes.byteLength !== metadata.byteSize) throw new Error("GCS object changed during the bounded read");

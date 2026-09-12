@@ -208,6 +208,7 @@ class TestGoldenOutputs:
             assert digest == entry["sha256"], f"{engine}/{name}: golden file was modified"
 
     @available
+    @pytest.mark.canonical_linux
     @pytest.mark.parametrize(
         ("name", "settings", "source", "expected_size"),
         [
@@ -390,7 +391,11 @@ class TestOriginalPreservation:
     def test_every_operation_leaves_the_source_unchanged(
         self, engine: str, ctx: RunContext
     ) -> None:
-        before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        before = {
+            p.relative_to(FIXTURES).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in FIXTURES.rglob("*")
+            if p.is_file()
+        }
         for settings in (
             ResizeSettings(target_width=32, target_height=32),
             CropSettings(x=0, y=0, width=16, height=16),
@@ -399,7 +404,11 @@ class TestOriginalPreservation:
             DenoiseSettings(strength_percent=30),
         ):
             run(engine, settings, ctx)
-        after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        after = {
+            p.relative_to(FIXTURES).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in FIXTURES.rglob("*")
+            if p.is_file()
+        }
         assert after == before
 
     @available

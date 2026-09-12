@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "CurvePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Input",
+          "type": "number"
+        },
+        "output": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Output",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input",
+        "output"
+      ],
+      "title": "CurvePoint",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/curves-parameters.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "channel": {
+      "default": "rgb",
+      "enum": [
+        "rgb",
+        "red",
+        "green",
+        "blue"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "points": {
+      "default": [
+        {
+          "input": 0.0,
+          "output": 0.0,
+          "schema_version": "1.19.0"
+        },
+        {
+          "input": 1.0,
+          "output": 1.0,
+          "schema_version": "1.19.0"
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/CurvePoint"
+      },
+      "title": "Points",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.19.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "title": "CurvesParameters",
+  "type": "object"
+}

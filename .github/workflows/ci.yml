@@ -1,19 +1,16 @@
-name: POC checks
-
-# Proves POC-001 acceptance criterion 1: "A clean checkout can install
-# dependencies using documented commands." A local pass on the author's machine
-# is not evidence; a clean runner is.
-#
-# Every workspace is installed, not only the three the POC started with: the
-# tests import ipw.pdf, ipw.vector and ipw.workspace_api, and a runner that
-# installs less than the suite imports fails on a collection error rather
-# than on anything real.
+name: Product gates
 
 on:
   push:
     branches: ["main", "poc/**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      update_linux_baselines:
+        description: Regenerate canonical Linux image and browser baselines for review
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -23,83 +20,138 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Both ends of the supported range, and both platform families, because
-        # byte-determinism claims must hold across line endings and filesystems.
-        os: [ubuntu-latest, windows-latest]
-        python-version: ["3.11", "3.13"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      # Exactly the command documented in README.md.
-      - name: Install all workspaces
-        run: >
-          python -m pip install
-          -c requirements-dev.lock.txt
-          -r requirements-dev.txt
-          -e packages/contracts
-          -e packages/processors
-          -e packages/metrics
-          -e packages/pdf
-          -e packages/vector
-          -e services/benchmark-runner
-          -e services/workspace-api
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-
-      - name: Install Node workspaces
-        run: npm ci
-
-      # libvips is packaged on Linux; the Windows job exercises the
-      # engine-unavailable path instead, which is itself worth testing.
-      - name: Install libvips (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libvips
-
-      - name: Run every gate
-        # A runner has no model weights and is forbidden from fetching any, so
-        # the inference code cannot execute here. .coveragerc-ci omits exactly
-        # those modules and nothing else, holding this environment to the same
-        # standard for the code it can actually run. See the file for why the
-        # alternatives - lowering the threshold, or `pragma: no cover` - are both
-        # worse.
+  canonical-linux:
+    name: Canonical Linux production evidence
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
         env:
-          COVERAGE_RCFILE: .coveragerc-ci
-        run: python tools/check.py
+          POSTGRES_DB: ipw_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ipw_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
-  scope-guard:
-    name: Scope guard — no model, weight or provider
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build pinned production-derived evidence image
+        run: >-
+          docker build
+          --file services/processing-worker/Dockerfile
+          --target canonical-ci
+          --tag ipw-canonical-linux:${{ github.sha }}
+          .
+
+      - name: Regenerate Linux canonical baselines
+        if: github.event_name == 'workflow_dispatch' && inputs.update_linux_baselines
+        run: |
+          sudo chown -R 10001:10001 \
+            data/goldens \
+            data/fixtures/images/recovery2e \
+            apps/web/tests/__screenshots__
+          sudo chown 10001:10001 data/fixtures/FIXTURES.sha256
+          docker run --rm --network host --shm-size=2gb \
+            -e IPW_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ipw_ci \
+            -v "${{ github.workspace }}/data/goldens:/opt/ipw/data/goldens" \
+            -v "${{ github.workspace }}/data/fixtures/images/recovery2e:/opt/ipw/data/fixtures/images/recovery2e" \
+            -v "${{ github.workspace }}/data/fixtures/FIXTURES.sha256:/opt/ipw/data/fixtures/FIXTURES.sha256" \
+            -v "${{ github.workspace }}/apps/web/tests/__screenshots__:/opt/ipw/apps/web/tests/__screenshots__" \
+            ipw-canonical-linux:${{ github.sha }} \
+            sh -lc "python tools/make_recovery_2e_fixtures.py && \
+                    bench fixtures verify --write && \
+                    python tools/make_goldens.py && \
+                    npm run test:e2e --workspace ipw-web --silent -- --update-snapshots"
+          sudo chown -R "$(id -u):$(id -g)" \
+            data/goldens \
+            data/fixtures/images/recovery2e \
+            apps/web/tests/__screenshots__
+          sudo chown "$(id -u):$(id -g)" data/fixtures/FIXTURES.sha256
+
+      - name: Run every authoritative gate
+        if: ${{ ! (github.event_name == 'workflow_dispatch' && inputs.update_linux_baselines) }}
+        run: >-
+          docker run --rm --network host --shm-size=2gb
+          -e IPW_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ipw_ci
+          ipw-canonical-linux:${{ github.sha }}
+
+      - name: Verify regenerated authoritative gates
+        if: github.event_name == 'workflow_dispatch' && inputs.update_linux_baselines
+        run: |
+          sudo chown -R 10001:10001 \
+            data/goldens \
+            data/fixtures/images/recovery2e \
+            apps/web/tests/__screenshots__
+          sudo chown 10001:10001 data/fixtures/FIXTURES.sha256
+          docker run --rm --network host --shm-size=2gb \
+            -e IPW_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ipw_ci \
+            -v "${{ github.workspace }}/data/goldens:/opt/ipw/data/goldens:ro" \
+            -v "${{ github.workspace }}/data/fixtures/images/recovery2e:/opt/ipw/data/fixtures/images/recovery2e:ro" \
+            -v "${{ github.workspace }}/data/fixtures/FIXTURES.sha256:/opt/ipw/data/fixtures/FIXTURES.sha256:ro" \
+            -v "${{ github.workspace }}/apps/web/tests/__screenshots__:/opt/ipw/apps/web/tests/__screenshots__:ro" \
+            ipw-canonical-linux:${{ github.sha }}
+          sudo chown -R "$(id -u):$(id -g)" \
+            data/goldens \
+            data/fixtures/images/recovery2e \
+            apps/web/tests/__screenshots__
+          sudo chown "$(id -u):$(id -g)" data/fixtures/FIXTURES.sha256
+
+      - name: Upload Linux baselines for visual review
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.update_linux_baselines
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          python-version: "3.13"
-      - run: >
-          python -m pip install
-          -c requirements-dev.lock.txt
-          -r requirements-dev.txt
-          -e packages/contracts
-          -e packages/processors
-          -e packages/metrics
-          -e packages/pdf
-          -e packages/vector
-          -e services/benchmark-runner
-          -e services/workspace-api
-      - name: Assert POC scope boundary and monorepo layering
-        run: >
-          python -m pytest tests/test_scope_and_artifacts.py tests/test_workspaces.py
-          -q --no-cov
+          name: canonical-linux-baselines-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            data/goldens
+            data/fixtures/FIXTURES.sha256
+            data/fixtures/images/recovery2e
+            apps/web/tests/__screenshots__
+
+  windows-compatibility:
+    name: Windows development compatibility
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: ./.github/actions/setup-python-workspaces
+        with:
+          python-version: "3.14.5"
+
+      - name: Install pinned Windows libvips
+        run: python tools/install_libvips.py
+
+      - name: Set up exact Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.10.0"
+
+      - name: Install exact Node workspaces and Chromium
+        run: |
+          npm.cmd ci
+          npx.cmd playwright install chromium
+
+      - name: Format, lint and type compatibility
+        run: |
+          python -m ruff format --check .
+          python -m ruff check .
+          python -m mypy
+
+      - name: Python behavior and decoded-image compatibility
+        run: |
+          python -m pytest -m "not canonical_linux" --no-cov
+          python tools/make_recovery_2e_fixtures.py --compatibility
+          python tools/make_goldens.py --compatibility
+
+      - name: TypeScript and browser behavior compatibility
+        run: |
+          npm.cmd run typecheck --silent
+          npm.cmd run test --silent
+          npm.cmd run test:e2e --workspace ipw-web --silent -- --grep-invert visual

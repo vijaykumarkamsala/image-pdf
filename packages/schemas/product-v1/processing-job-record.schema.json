@@ -20,7 +20,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.17.0",
+          "default": "1.19.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -35,7 +35,9 @@
     "ProcessingJobKind": {
       "enum": [
         "file_intake_inspection",
-        "preview_generation"
+        "preview_generation",
+        "image_export",
+        "export_bundle"
       ],
       "title": "ProcessingJobKind",
       "type": "string"
@@ -85,6 +87,19 @@
       "title": "Attempt",
       "type": "integer"
     },
+    "bundle_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Bundle Id"
+    },
     "created_at": {
       "maxLength": 2048,
       "minLength": 1,
@@ -103,6 +118,19 @@
       ],
       "default": null,
       "title": "Document Id"
+    },
+    "export_request_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Export Request Id"
     },
     "failure": {
       "anyOf": [
@@ -199,7 +227,7 @@
       "type": "integer"
     },
     "schema_version": {
-      "default": "1.17.0",
+      "default": "1.19.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -48,6 +48,37 @@ test("filesystem storage contains bytes only below its private root", async () =
     const ref = await store.createQuarantine("workspace-001", "upload-002");
     await store.append(ref, new Uint8Array([7]), 0, 1);
     assert.deepEqual(await readFile(join(root, ...ref.objectKey.split("/"))), Buffer.from([7]));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("filesystem storage reads generation-bound worker export keys for the same owner only", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ipw-private-"));
+  const store = new LocalFilesystemPrivateObjectStore(root);
+  const bytes = Buffer.from("verified derivative");
+  const generation = "c0add1fcd65e1cd445d06e71120c831c8eae0e32f3da6fa4650b76204b22a927";
+  const objectKey = [
+    "derivative",
+    "workspace-001",
+    "exports",
+    "export-request-001",
+    "export-output-001",
+    "attempt-1-abc123def456",
+    "result.png",
+  ].join("/");
+  const path = join(root, ...objectKey.split("/"));
+  try {
+    await mkdir(join(path, ".."), { recursive: true });
+    await writeFile(path, bytes);
+    assert.deepEqual(
+      await store.read({ ownerScope: "workspace-001", objectKey, zone: "derivative", generation }, bytes.byteLength),
+      bytes,
+    );
+    await assert.rejects(
+      store.read({ ownerScope: "workspace-002", objectKey, zone: "derivative", generation }, bytes.byteLength),
+      /invalid private object key/,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

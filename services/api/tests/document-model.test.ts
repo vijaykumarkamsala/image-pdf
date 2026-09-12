@@ -278,16 +278,21 @@ test("ordering, grouping, linked styles and unit conversion remain deterministic
 });
 
 test("Studio format and synchronous preview limits are central, measured and fail closed", () => {
-  assert.deepEqual([...STUDIO_EDITABLE_MEDIA_TYPES].sort(), ["image/jpeg", "image/png", "image/webp"]);
+  assert.deepEqual([...STUDIO_EDITABLE_MEDIA_TYPES].sort(), [
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+    "image/webp",
+  ]);
   assert.equal(requiresGeneratedPreview({
     byteSize: STUDIO_SYNC_PREVIEW_POLICY.maxCompressedBytes,
     width: 4000,
-    height: 3000,
+    height: 2000,
   }), false);
   assert.equal(requiresGeneratedPreview({
     byteSize: STUDIO_SYNC_PREVIEW_POLICY.maxCompressedBytes + 1,
     width: 4000,
-    height: 3000,
+    height: 2000,
   }), true);
   assert.equal(requiresGeneratedPreview({ byteSize: 1024, width: 9000, height: 100 }), true);
   assert.equal(requiresGeneratedPreview({ byteSize: 1024, width: 6000, height: 5000 }), true);

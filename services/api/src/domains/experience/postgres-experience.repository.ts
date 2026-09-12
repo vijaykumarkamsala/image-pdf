@@ -37,6 +37,8 @@ function job(row: QueryResultRow): ProcessingJobRecord {
     guest_session_id: row["guest_session_id"] ? String(row["guest_session_id"]) : null,
     upload_session_id: row["upload_session_id"] ? String(row["upload_session_id"]) : null,
     document_id: row["document_id"] ? String(row["document_id"]) : null,
+    export_request_id: row["export_request_id"] ? String(row["export_request_id"]) : null,
+    bundle_id: row["bundle_id"] ? String(row["bundle_id"]) : null,
     state: String(row["state"]) as ProcessingJobRecord["state"],
     attempt: Number(row["attempt"]),
     max_attempts: Number(row["max_attempts"]),

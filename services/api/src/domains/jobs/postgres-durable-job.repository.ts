@@ -34,6 +34,8 @@ function job(row: QueryResultRow): ProcessingJobRecord {
     guest_session_id: row["guest_session_id"] ? String(row["guest_session_id"]) : null,
     upload_session_id: row["upload_session_id"] ? String(row["upload_session_id"]) : null,
     document_id: row["document_id"] ? String(row["document_id"]) : null,
+    export_request_id: row["export_request_id"] ? String(row["export_request_id"]) : null,
+    bundle_id: row["bundle_id"] ? String(row["bundle_id"]) : null,
     state: String(row["state"]) as ProcessingJobRecord["state"],
     attempt: Number(row["attempt"]),
     max_attempts: Number(row["max_attempts"]),
@@ -537,12 +539,16 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
         await client.query(
           `INSERT INTO source_inspection_facts(source_version_id,workspace_id,asset_original_id,object_reference_id,
            source_sha256,storage_generation,media_type,byte_size,width,height,malware_scan_state,
-           inspection_schema_version,inspected_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+           inspection_schema_version,inspected_at,orientation,has_alpha,bit_depth,has_icc_profile,
+           sensitive_metadata,frame_count,colour_model)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
           [result.sourceVersionId, current.workspace_id, result.assetOriginalId, objectReferenceId,
             result.facts.sha256, result.immutableStorageGeneration, result.facts.detected_media_type,
             result.facts.byte_size, result.facts.width, result.facts.height,
-            result.facts.malware_scan_state, result.facts.schema_version, now],
+            result.facts.malware_scan_state, result.facts.schema_version, now, result.facts.orientation,
+            result.facts.has_alpha, result.facts.bit_depth, result.facts.has_icc_profile,
+            JSON.stringify(result.facts.sensitive_metadata), result.facts.frame_count,
+            result.facts.colour_model],
         );
         const defaults = await client.query(
           "SELECT default_files_id FROM default_files_locations WHERE workspace_id=$1",

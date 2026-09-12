@@ -8,7 +8,7 @@ import { constantTimeEqual, cookieValue, CSRF_COOKIE, GUEST_COOKIE, SESSION_COOK
 export class CsrfMiddleware implements NestMiddleware {
   use(request: Request, _response: Response, next: NextFunction) {
     if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return next();
-    const path = request.path.replace(/^\/v1/, "");
+    const path = request.originalUrl.split("?", 1)[0]!.replace(/^\/v1/, "");
     if (path === "/guest-sessions") return next();
     const headers = request.headers as Record<string, string | string[] | undefined>;
     if (!cookieValue(headers, SESSION_COOKIE) && !cookieValue(headers, GUEST_COOKIE)) return next();

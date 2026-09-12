@@ -17,6 +17,11 @@ import pg8000.dbapi
 
 from ipw.inspection import DeterministicMalwareScanner
 from ipw.processing_worker.durable_intake import DispatchMessage, DurableIntakeProcessor
+from ipw.processing_worker.export_repository import PostgresImageExportWorkerRepository
+from ipw.processing_worker.image_export import (
+    DurableExportBundleProcessor,
+    DurableImageExportProcessor,
+)
 from ipw.processing_worker.preview import DurablePreviewProcessor
 from ipw.processing_worker.repository import PostgresWorkerRepository
 from ipw.storage import LocalWorkerPrivateObjectStore
@@ -70,24 +75,54 @@ def consume_local_dispatch(database_url: str, job_id: str) -> tuple[str, str]:
         connection.close()
 
 
+def job_for_export_request(database_url: str, export_request_id: str) -> str:
+    parsed = urlparse(database_url)
+    connection: Any = pg8000.dbapi.connect(
+        user=unquote(parsed.username or ""),
+        password=unquote(parsed.password or ""),
+        host=parsed.hostname,
+        port=parsed.port or 5432,
+        database=unquote(parsed.path.lstrip("/")),
+        timeout=30,
+    )
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "SELECT job_id FROM image_export_requests WHERE export_request_id=%s",
+            (export_request_id,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise RuntimeError("export request has no durable processing job")
+        return str(row[0])
+    finally:
+        cursor.close()
+        connection.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("job_id")
+    parser.add_argument("job_id", nargs="?")
+    parser.add_argument("--export-request-id")
     parser.add_argument("--trace-id", default="trace-recovery-2d-acceptance")
     args = parser.parse_args()
     database_url = os.environ.get("IPW_TEST_DATABASE_URL")
     storage_root = os.environ.get("IPW_LOCAL_STORAGE_ROOT")
     if not database_url or not storage_root:
         raise RuntimeError("IPW_TEST_DATABASE_URL and IPW_LOCAL_STORAGE_ROOT are required")
+    if bool(args.job_id) == bool(args.export_request_id):
+        raise RuntimeError("provide exactly one job_id or --export-request-id")
+    job_id = args.job_id or job_for_export_request(database_url, args.export_request_id)
 
     repository = PostgresWorkerRepository.connect(database_url)
+    export_repository = PostgresImageExportWorkerRepository.connect(database_url)
     try:
         objects = LocalWorkerPrivateObjectStore(Path(storage_root))
-        outbox_id, outbox_trace_id = consume_local_dispatch(database_url, args.job_id)
-        kind = repository.job_kind(args.job_id)
+        outbox_id, outbox_trace_id = consume_local_dispatch(database_url, job_id)
+        kind = repository.job_kind(job_id)
         message = DispatchMessage(
             dispatch_id=outbox_id,
-            job_id=args.job_id,
+            job_id=job_id,
             trace_id=outbox_trace_id or args.trace_id,
         )
         if kind == "file_intake_inspection":
@@ -105,6 +140,20 @@ def main() -> None:
                 worker_id="recovery-2d-local-preview",
             )
             outcome = preview_processor.process(message)
+        elif kind == "image_export":
+            image_export_processor = DurableImageExportProcessor(
+                export_repository,
+                objects,
+                worker_id="recovery-2e-local-image-export",
+            )
+            outcome = image_export_processor.process(message)
+        elif kind == "export_bundle":
+            bundle_processor = DurableExportBundleProcessor(
+                export_repository,
+                objects,
+                worker_id="recovery-2e-local-export-bundle",
+            )
+            outcome = bundle_processor.process(message)
         else:
             raise RuntimeError(f"unsupported local acceptance job kind: {kind}")
         print(
@@ -120,6 +169,7 @@ def main() -> None:
         if outcome.state not in {"succeeded", "already_terminal"}:
             raise RuntimeError(f"local worker did not complete the job: {outcome.state}")
     finally:
+        export_repository.close()
         repository.close()
 
 

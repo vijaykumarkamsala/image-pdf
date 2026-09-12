@@ -16,7 +16,7 @@ import { INTAKE_REPOSITORY, type IntakeRepository, type StoredUploadSession } fr
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
 import { sha256, validateSnapshot } from "./document-model.js";
 import { DOCUMENT_REPOSITORY, type DocumentRepository, type VerifiedRasterSource } from "./documents.types.js";
-import { requiresGeneratedPreview, STUDIO_EDITABLE_MEDIA_TYPES, STUDIO_SYNC_PREVIEW_POLICY } from "./studio-format-policy.js";
+import { requiresGeneratedPreview, studioCompatibility, STUDIO_SYNC_PREVIEW_POLICY } from "./studio-format-policy.js";
 
 type Headers = Record<string, string | string[] | undefined>;
 type Body = Record<string, unknown>;
@@ -56,7 +56,8 @@ export class DocumentsService implements OnApplicationShutdown {
           && item.record.source_version_id === file.current_source_version_id));
       const facts = stored?.record.source_facts;
       if (!facts || stored?.record.state !== "ready") return [];
-      const editable = STUDIO_EDITABLE_MEDIA_TYPES.has(facts.detected_media_type);
+      const compatibility = studioCompatibility(facts);
+      const editable = compatibility.editable;
       return [{
         schema_version: PRODUCT_SCHEMA_VERSION,
         file_id: file.file_id,
@@ -66,11 +67,10 @@ export class DocumentsService implements OnApplicationShutdown {
         width: facts.width,
         height: facts.height,
         editable,
-        compatibility_message: editable
-          ? "Editable in Image & Graphic Studio"
-          : "Stored safely, but this format is not editable in Studio",
+        compatibility_message: compatibility.message,
         requires_generated_preview: editable && requiresGeneratedPreview({
           byteSize: facts.byte_size, width: facts.width ?? null, height: facts.height ?? null,
+          mediaType: facts.detected_media_type, colourModel: facts.colour_model,
         }),
       }];
     });
@@ -362,7 +362,12 @@ export class DocumentsService implements OnApplicationShutdown {
     if (editor.document.preview_state === "preparing") throw new DomainError(409, "editor-preview-preparing", "The safe editor preview is still being prepared");
     if (editor.document.preview_state === "failed") throw new DomainError(409, "editor-preview-failed", "The safe editor preview could not be prepared");
     if (editor.document.preview_state === "cancelled") throw new DomainError(409, "editor-preview-cancelled", "Preview preparation was cancelled");
-    if (requiresGeneratedPreview({ byteSize, width: stored.record.source_facts!.width ?? null, height: stored.record.source_facts!.height ?? null })) {
+    if (requiresGeneratedPreview({
+      byteSize, width: stored.record.source_facts!.width ?? null,
+      height: stored.record.source_facts!.height ?? null,
+      mediaType: stored.record.source_facts!.detected_media_type,
+      colourModel: stored.record.source_facts!.colour_model,
+    })) {
       const preview = await this.documents.previewDelivery(access.principal.actorId, access.workspaceId, documentId);
       if (!preview) throw new DomainError(409, "editor-preview-unavailable", "The safe editor preview is not available yet");
       return {
@@ -431,20 +436,29 @@ export class DocumentsService implements OnApplicationShutdown {
     if (!stored || stored.record.state !== "ready" || !facts || facts.malware_scan_state !== "clean") {
       throw new DomainError(409, "source-not-ready", "The source must pass intake safety checks before editing");
     }
-    if (!STUDIO_EDITABLE_MEDIA_TYPES.has(facts.detected_media_type)) {
+    const compatibility = studioCompatibility(facts);
+    if (!compatibility.editable) {
       const message = facts.detected_media_type === "image/svg+xml"
         ? "SVG editing requires the approved sanitisation pipeline"
-        : "This source format is not supported by Image & Graphic Studio";
+        : compatibility.message;
       throw new DomainError(415, "editor-source-unsupported", message);
     }
+    const displayDimensions = uprightDimensions(
+      facts.width ?? null,
+      facts.height ?? null,
+      facts.orientation ?? null,
+    );
     return {
       stored,
       source: {
         fileId: file.file_id, displayName: file.display_name, assetOriginalId: file.asset_original_id,
         sourceVersionId: file.current_source_version_id, objectReferenceId: null,
-        mediaType: facts.detected_media_type, width: facts.width ?? null, height: facts.height ?? null,
+        mediaType: facts.detected_media_type, width: displayDimensions.width, height: displayDimensions.height,
         byteSize: facts.byte_size,
-        requiresPreview: requiresGeneratedPreview({ byteSize: facts.byte_size, width: facts.width ?? null, height: facts.height ?? null }),
+        requiresPreview: requiresGeneratedPreview({
+          byteSize: facts.byte_size, width: facts.width ?? null, height: facts.height ?? null,
+          mediaType: facts.detected_media_type, colourModel: facts.colour_model,
+        }),
       },
     };
   }
@@ -484,6 +498,16 @@ export class DocumentsService implements OnApplicationShutdown {
       ? Promise.resolve()
       : this.audit(context, workspaceId, action, resourceId);
   }
+}
+
+function uprightDimensions(
+  width: number | null,
+  height: number | null,
+  orientation: number | null,
+): { width: number | null; height: number | null } {
+  return orientation && [5, 6, 7, 8].includes(orientation)
+    ? { width: height, height: width }
+    : { width, height };
 }
 
 function optionalReason(value: unknown, fallback: string): string {

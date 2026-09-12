@@ -52,7 +52,10 @@ class PreviewPrivateObjectStore(WorkerObjectReader, Protocol):
         data: bytes,
         media_type: str,
         sha256: str,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> PrivateObjectSnapshot: ...
+
+    def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None: ...
 
 
 class WorkerPrivateObjectStore(IntakePrivateObjectStore, PreviewPrivateObjectStore, Protocol):
@@ -152,8 +155,9 @@ class GcsWorkerPrivateObjectStore:
         data: bytes,
         media_type: str,
         sha256: str,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> PrivateObjectSnapshot:
-        _validate_derivative(ref, data, sha256)
+        _validate_derivative(ref, data, sha256, max_bytes)
         blob = self._bucket.blob(ref.object_key)
         try:
             blob.upload_from_string(
@@ -242,8 +246,9 @@ class LocalWorkerPrivateObjectStore:
         data: bytes,
         media_type: str,
         sha256: str,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> PrivateObjectSnapshot:
-        _validate_derivative(ref, data, sha256)
+        _validate_derivative(ref, data, sha256, max_bytes)
         path = self._path(ref)
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
@@ -266,12 +271,14 @@ class LocalWorkerPrivateObjectStore:
         return path
 
 
-def _validate_derivative(ref: PrivateObjectRef, data: bytes, sha256: str) -> None:
+def _validate_derivative(ref: PrivateObjectRef, data: bytes, sha256: str, max_bytes: int) -> None:
     if ref.zone is not ObjectZone.DERIVATIVE or not ref.object_key.startswith(
         f"derivative/{ref.owner_scope}/"
     ):
         raise ValueError("invalid derivative object reference")
-    if len(data) > 16 * 1024 * 1024:
+    if max_bytes < 1 or max_bytes > 1024 * 1024 * 1024:
+        raise ValueError("invalid derivative object limit")
+    if len(data) > max_bytes:
         raise ValueError("derivative exceeds the bounded object limit")
     if hashlib.sha256(data).hexdigest() != sha256:
         raise ValueError("derivative digest mismatch")

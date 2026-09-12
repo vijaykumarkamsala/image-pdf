@@ -29,6 +29,15 @@ import type {
   DocumentVersionRecord,
   ImportCompatibilityReport,
   StudioSourceCandidate,
+  EnhancementPreview,
+  ExportOutputProfile,
+  ExportZipBundle,
+  ImageExportRequestRecord,
+  ImageOperation,
+  IntendedOutcome,
+  ProcessingRecipeRecord,
+  RecommendationDecision,
+  RecommendationSet,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -128,6 +137,15 @@ export interface DocumentMutationResponse {
     replayed: boolean;
   };
 }
+
+export interface RecipeListResponse { schema_version: string; recipes: ProcessingRecipeRecord[] }
+export interface RecipeResponse { schema_version: string; recipe: ProcessingRecipeRecord; replayed: boolean }
+export interface RecommendationResponse { schema_version: string; recommendation_set: RecommendationSet; replayed: boolean }
+export interface EnhancementPreviewResponse { schema_version: string; preview: EnhancementPreview }
+export interface RecommendationDecisionResponse { schema_version: string; decisions: RecommendationDecision[]; replayed: boolean }
+export interface ExportListResponse { schema_version: string; exports: ImageExportRequestRecord[] }
+export interface ExportResponse { schema_version: string; export_request: ImageExportRequestRecord; replayed?: boolean }
+export interface ExportBundleResponse { schema_version: string; bundle: ExportZipBundle; replayed?: boolean }
 
 export type AuthSessionResponse = { authenticated: false } | {
   authenticated: true;
@@ -595,6 +613,90 @@ export const api = {
   },
   documentCompatibility(workspaceId: string, documentId: string): Promise<{ reports: ImportCompatibilityReport[] }> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/compatibility-reports`);
+  },
+  processingRecipes(workspaceId: string, documentId: string): Promise<RecipeListResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/recipes`);
+  },
+  createProcessingRecipe(workspaceId: string, documentId: string, name: string, operations: ImageOperation[]): Promise<RecipeResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/recipes`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("recipe-create") },
+      body: JSON.stringify({ name, operations }),
+    });
+  },
+  updateProcessingRecipe(workspaceId: string, documentId: string, recipeId: string, name: string, operations: ImageOperation[]): Promise<RecipeResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/recipes/${recipeId}`, {
+      method: "PATCH",
+      headers: { "idempotency-key": commandKey("recipe-update") },
+      body: JSON.stringify({ name, operations }),
+    });
+  },
+  requestRecommendations(workspaceId: string, documentId: string, documentVersionId: string, intendedOutcome: IntendedOutcome | null): Promise<RecommendationResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/recommendations`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("recommendations") },
+      body: JSON.stringify({ document_version_id: documentVersionId, intended_outcome: intendedOutcome }),
+    });
+  },
+  decideRecommendations(workspaceId: string, recommendationSetId: string, decisions: Array<{ recommendation_id: string; state: "accepted" | "declined" }>): Promise<RecommendationDecisionResponse> {
+    return request(`/workspaces/${workspaceId}/recommendation-sets/${recommendationSetId}/decisions`, {
+      method: "PATCH",
+      headers: { "idempotency-key": commandKey("recommendation-decisions") },
+      body: JSON.stringify({ decisions }),
+    });
+  },
+  requestEnhancementPreview(workspaceId: string, documentId: string, recipeId: string, recipeVersion: number, mode: "original" | "current" | "recommended", artboardId: string): Promise<EnhancementPreviewResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/enhancement-previews`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("enhancement-preview") },
+      body: JSON.stringify({ recipe_id: recipeId, recipe_version: recipeVersion, mode, artboard_id: artboardId }),
+    });
+  },
+  enhancementPreview(workspaceId: string, previewId: string): Promise<EnhancementPreviewResponse> {
+    return request(`/workspaces/${workspaceId}/enhancement-previews/${previewId}`);
+  },
+  submitImageExport(workspaceId: string, documentId: string, input: {
+    document_version_id: string;
+    recipe_id: string;
+    recipe_version: number;
+    outputs: Array<{ artboard_id: string; profile: ExportOutputProfile; filename: string }>;
+  }): Promise<ExportResponse> {
+    return request(`/workspaces/${workspaceId}/documents/${documentId}/exports`, {
+      method: "POST",
+      headers: { "idempotency-key": commandKey("image-export") },
+      body: JSON.stringify(input),
+    });
+  },
+  imageExports(workspaceId: string, documentId?: string): Promise<ExportListResponse> {
+    const query = documentId ? `?document_id=${encodeURIComponent(documentId)}` : "";
+    return request(`/workspaces/${workspaceId}/exports${query}`);
+  },
+  imageExport(workspaceId: string, exportRequestId: string): Promise<ExportResponse> {
+    return request(`/workspaces/${workspaceId}/exports/${exportRequestId}`);
+  },
+  cancelImageExport(workspaceId: string, exportRequestId: string): Promise<ExportResponse> {
+    return request(`/workspaces/${workspaceId}/exports/${exportRequestId}/cancel`, {
+      method: "POST", headers: { "idempotency-key": commandKey("export-cancel") },
+    });
+  },
+  retryImageExport(workspaceId: string, exportRequestId: string): Promise<ExportResponse> {
+    return request(`/workspaces/${workspaceId}/exports/${exportRequestId}/retry`, {
+      method: "POST", headers: { "idempotency-key": commandKey("export-retry") },
+    });
+  },
+  createExportBundle(workspaceId: string, exportRequestId: string): Promise<ExportBundleResponse> {
+    return request(`/workspaces/${workspaceId}/exports/${exportRequestId}/bundles`, {
+      method: "POST", headers: { "idempotency-key": commandKey("export-bundle") },
+    });
+  },
+  exportBundle(workspaceId: string, bundleId: string): Promise<ExportBundleResponse> {
+    return request(`/workspaces/${workspaceId}/export-bundles/${bundleId}`);
+  },
+  exportOutputDownloadUrl(workspaceId: string, outputId: string): string {
+    return `/v1/workspaces/${encodeURIComponent(workspaceId)}/export-outputs/${encodeURIComponent(outputId)}/download`;
+  },
+  exportBundleDownloadUrl(workspaceId: string, bundleId: string): string {
+    return `/v1/workspaces/${encodeURIComponent(workspaceId)}/export-bundles/${encodeURIComponent(bundleId)}/download`;
   },
   documentSourceUrl(workspaceId: string, documentId: string): string {
     return `/v1/workspaces/${encodeURIComponent(workspaceId)}/documents/${encodeURIComponent(documentId)}/source`;

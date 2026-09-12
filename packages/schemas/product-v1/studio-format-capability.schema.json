@@ -5,7 +5,8 @@
       "enum": [
         "image/jpeg",
         "image/png",
-        "image/webp"
+        "image/webp",
+        "image/tiff"
       ],
       "title": "StudioEditableMediaType",
       "type": "string"
@@ -19,7 +20,8 @@
       "default": [
         "image/jpeg",
         "image/png",
-        "image/webp"
+        "image/webp",
+        "image/tiff"
       ],
       "items": {
         "$ref": "#/$defs/StudioEditableMediaType"
@@ -28,7 +30,7 @@
       "type": "array"
     },
     "schema_version": {
-      "default": "1.17.0",
+      "default": "1.19.0",
       "title": "Schema Version",
       "type": "string"
     }

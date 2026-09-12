@@ -481,10 +481,17 @@ class TestOriginalPreservation:
     """Acceptance criterion: original bytes remain unchanged."""
 
     def test_inspecting_every_fixture_leaves_it_unchanged(self) -> None:
-        before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        fixture_paths = sorted(path for path in FIXTURES.rglob("*") if path.is_file())
+        before = {
+            path.relative_to(FIXTURES).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in fixture_paths
+        }
         for name in before:
             inspect(ref_for(name))
-        after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        after = {
+            path.relative_to(FIXTURES).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in fixture_paths
+        }
         assert after == before
 
     def test_repeated_inspection_is_stable(self) -> None:

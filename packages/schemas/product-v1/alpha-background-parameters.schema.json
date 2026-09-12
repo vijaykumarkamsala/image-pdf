@@ -1,0 +1,35 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/alpha-background-parameters.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "background": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Background"
+    },
+    "behavior": {
+      "default": "preserve",
+      "enum": [
+        "preserve",
+        "flatten"
+      ],
+      "title": "Behavior",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.19.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "title": "AlphaBackgroundParameters",
+  "type": "object"
+}

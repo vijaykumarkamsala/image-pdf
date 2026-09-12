@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   CopyPlus,
+  Download,
   Eye,
   EyeOff,
   FlipHorizontal2,
@@ -22,6 +23,7 @@ import {
   Redo2,
   RotateCw,
   Save,
+  Sparkles,
   Shapes,
   Type,
   Undo2,
@@ -37,6 +39,7 @@ import type {
   ImportCompatibilityReport,
   LayerRecord,
   LayerTransform,
+  MetadataPolicy,
   ProjectRecord,
   StudioSourceCandidate,
   VisualAdjustments,
@@ -50,6 +53,9 @@ import { workspacePath } from "../routes";
 import { FabricEditorRenderer } from "./renderer/FabricEditorRenderer";
 import type { EditorRenderer, RendererSelectionState, RendererViewport } from "./renderer/EditorRenderer";
 import { useDurableEditorSession, type SaveState } from "./useDurableEditorSession";
+import { EnhancementWorkspace, type ComparisonSelection } from "./EnhancementWorkspace";
+import { ExportCenter } from "./ExportCenter";
+import { ComparisonWorkspace } from "./ComparisonWorkspace";
 
 const PRESETS = [
   { id: "social", label: "Social post", detail: "1080 x 1080 px", width: 1080, height: 1080 },
@@ -186,6 +192,9 @@ export function ImageGraphicStudio() {
   const [previewActionBusy, setPreviewActionBusy] = useState(false);
   const [previewRetryable, setPreviewRetryable] = useState(false);
   const [previewFailure, setPreviewFailure] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [comparison, setComparison] = useState<ComparisonSelection | null>(null);
+  const [confirmedMetadataPolicy, setConfirmedMetadataPolicy] = useState<MetadataPolicy | undefined>();
   const previewState = editor?.document.preview_state ?? "not_required";
   const editorReady = editor !== null && (previewState === "not_required" || previewState === "ready");
 
@@ -441,7 +450,7 @@ export function ImageGraphicStudio() {
       order: nextRootOrder(artboard.artboard_id), visible: true, locked: false, opacity: 1, blend_mode: "normal",
       transform: baseTransform(artboard.width * 0.2, artboard.height * 0.16, Math.min(520, artboard.width * 0.6), 100),
       shared_style_ids: [], raster: null, vector: null,
-      rich_text: { text: "Your heading", runs: [], font_family: "system-ui", font_size: 52, color: "#162033", text_align: "left" },
+      rich_text: { text: "Your heading", runs: [], font_family: "IPW Standard", font_size: 52, color: "#162033", text_align: "left" },
       shape: null, group: null, extension_payload: {},
     };
     preparePendingSelection(id);
@@ -671,17 +680,19 @@ export function ImageGraphicStudio() {
   ]} />;
   const rightPanel = <Tabs label="Tool panels" selected={rightTab} onSelect={setRightTab} items={[
     { id: "properties", label: "Properties", panel: <PropertiesPanel snapshot={editor.snapshot} layer={selected} update={updateLayer} mutate={commit} readOnly={readOnly} /> },
+    { id: "enhance", label: "Enhance", panel: <EnhancementWorkspace workspaceId={workspaceId} editor={editor} activeArtboardId={activeArtboardId} readOnly={readOnly} onCompare={setComparison} onMetadataPolicy={setConfirmedMetadataPolicy} onOpenExport={() => setExportOpen(true)} /> },
     { id: "all-tools", label: "All Tools", panel: <AllTools addShape={addShape} addVectorPath={addVectorPath} addText={addText} addArtboard={addArtboard} groupSelected={groupSelected} ungroupSelected={ungroupSelected} groupCount={groupSelection.size} saveAs={openSaveAs} fit={() => rendererRef.current?.fit()} focusCanvas={() => surfaceRef.current?.querySelector<HTMLElement>(".upper-canvas")?.focus()} selected={selected} update={updateLayer} readOnly={readOnly} /> },
   ]} />;
 
-  return <main className="studio" data-testid="image-graphic-studio">
+  return <main className={`studio${comparison ? " is-comparing" : ""}`} data-testid="image-graphic-studio">
     <div className="studio-command-bar" role="toolbar" aria-label="Editor commands">
       <Tooltip label="Back to Home"><IconButton label="Back to Home" onClick={() => navigate(workspacePath(workspaceId))}><ArrowLeft aria-hidden="true" /></IconButton></Tooltip>
       <div className="studio-document-title"><h1 title={editor.document.name}>{editor.document.name}</h1><span>{editor.snapshot.artboards.length} {editor.snapshot.artboards.length === 1 ? "artboard" : "artboards"}</span></div>
       <div className={`studio-save-state state-${saveState}`} role="status"><Save aria-hidden="true" /><span>{saveLabel(saveState)}</span></div>
       <div className="studio-command-group" role="group" aria-label="History"><IconButton label="Undo" disabled={readOnly || pendingCount > 0} onClick={() => void history("undo")}><Undo2 aria-hidden="true" /></IconButton><IconButton label="Redo" disabled={readOnly || pendingCount > 0} onClick={() => void history("redo")}><Redo2 aria-hidden="true" /></IconButton><IconButton label={readOnly ? "Save independent copy" : "Save as"} disabled={!editor} onClick={openSaveAs}><CopyPlus aria-hidden="true" /></IconButton></div>
-      <div className="studio-command-group add-tools" role="group" aria-label="Add"><Button size="compact" disabled={readOnly} onClick={addText}><Type aria-hidden="true" />Text</Button><Button size="compact" disabled={readOnly} onClick={() => addShape()}><Shapes aria-hidden="true" />Shape</Button><Button size="compact" disabled={readOnly} onClick={addArtboard}><Plus aria-hidden="true" />Artboard</Button></div>
+      <div className="studio-command-group add-tools" role="group" aria-label="Add"><Button size="compact" aria-label="Text" disabled={readOnly} onClick={addText}><Type aria-hidden="true" /><span>Text</span></Button><Button size="compact" aria-label="Shape" disabled={readOnly} onClick={() => addShape()}><Shapes aria-hidden="true" /><span>Shape</span></Button><Button size="compact" aria-label="Artboard" disabled={readOnly} onClick={addArtboard}><Plus aria-hidden="true" /><span>Artboard</span></Button></div>
       <div className="studio-command-group" role="group" aria-label="Zoom"><IconButton label="Zoom out" onClick={() => rendererRef.current?.zoomBy(0.8)}><ZoomOut aria-hidden="true" /></IconButton><span className="zoom-value">{Math.round(viewport.zoom * 100)}%</span><IconButton label="Zoom in" onClick={() => rendererRef.current?.zoomBy(1.25)}><ZoomIn aria-hidden="true" /></IconButton><IconButton label="Fit artboards" onClick={() => rendererRef.current?.fit()}><Maximize2 aria-hidden="true" /></IconButton></div>
+      <div className="studio-command-group studio-output-tools" role="group" aria-label="Enhancement and export"><Button size="compact" aria-label="Enhance" aria-pressed={rightTab === "enhance"} onClick={() => setRightTab("enhance")}><Sparkles aria-hidden="true" /><span>Enhance</span></Button><Button size="compact" tone="primary" aria-label="Export" onClick={() => setExportOpen(true)}><Download aria-hidden="true" /><span>Export</span></Button></div>
     </div>
     {message && <div className="studio-message" role="alert"><span>{message}</span><div className="studio-message-actions">
       {(saveState === "failed" || saveState === "offline") && pendingCount > 0 && <Button size="compact" onClick={retryPending}>Retry now</Button>}
@@ -692,7 +703,21 @@ export function ImageGraphicStudio() {
     <PanelFramework mode="editor" profileKey={layoutActorId ? `${layoutActorId}:${workspaceId}:image-graphic-studio` : undefined} panels={[
       { id: "inspector", title: "Document", slot: "tool", children: leftPanel },
       { id: "conversation", title: "Tools", slot: "conversation", children: rightPanel },
-    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} />} />
+    ]} center={<CanvasSurface canvasRef={canvasRef} surfaceRef={surfaceRef} editor={editor} viewport={viewport} snapGuides={snapGuides} renderSettled={renderSettled} activeArtboardId={activeArtboardId} selectedLayer={selected} rendererSelection={rendererSelection} comparison={comparison ? <ComparisonWorkspace workspaceId={workspaceId} selection={comparison} onMode={(mode) => setComparison((current) => current ? { ...current, mode } : current)} onClose={() => setComparison(null)} /> : null} />} />
+    <ExportCenter open={exportOpen} onClose={() => setExportOpen(false)} workspaceId={workspaceId} editor={editor} initialMetadataPolicy={confirmedMetadataPolicy} prepareDocument={async () => {
+      await flushPending();
+      if (getPendingCount()) throw new Error("Finish saving this document before exporting.");
+      let current = await api.document(workspaceId, documentId);
+      const immutableVersion = current.editor.versions.find(
+        (version) => version.document_version_id === current.editor.document.current_version_id,
+      );
+      if (!immutableVersion || immutableVersion.revision !== current.editor.snapshot.revision) {
+        await api.createDocumentVersion(workspaceId, documentId, "Export checkpoint");
+        current = await api.document(workspaceId, documentId);
+      }
+      replaceServer(current.editor);
+      return current.editor;
+    }} />
     <Dialog open={saveAsOpen} title="Save a copy" onClose={() => setSaveAsOpen(false)}>
       <form className="modal-form" onSubmit={(event) => void saveAs(event)}>
         <TextInput autoFocus label="Graphic name" maxLength={200} value={saveAsName} onChange={(event) => setSaveAsName(event.target.value)} />
@@ -710,7 +735,7 @@ export function ImageGraphicStudio() {
   </main>;
 }
 
-function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled, activeArtboardId, selectedLayer, rendererSelection }: {
+function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, renderSettled, activeArtboardId, selectedLayer, rendererSelection, comparison }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   editor: DocumentReadModel;
@@ -720,6 +745,7 @@ function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, re
   activeArtboardId: string;
   selectedLayer: LayerRecord | null;
   rendererSelection: RendererSelectionState;
+  comparison: React.ReactNode;
 }) {
   return <div className="studio-canvas-shell" ref={surfaceRef}
     data-render-settled={renderSettled ? "true" : "false"}
@@ -737,6 +763,7 @@ function CanvasSurface({ canvasRef, surfaceRef, editor, viewport, snapGuides, re
     {snapGuides?.x !== null && snapGuides?.x !== undefined && <span className="canvas-snap-guide guide-x" style={{ left: snapGuides.x * viewport.zoom + viewport.panX }} aria-hidden="true" />}
     {snapGuides?.y !== null && snapGuides?.y !== undefined && <span className="canvas-snap-guide guide-y" style={{ top: snapGuides.y * viewport.zoom + viewport.panY }} aria-hidden="true" />}
     <span className="preview-evidence">Browser preview | Native document remains authoritative</span>
+    {comparison}
   </div>;
 }
 
@@ -809,9 +836,6 @@ function PropertiesPanel({ snapshot, layer, update, mutate, readOnly }: {
   mutate: (mutation: EditorMutation) => void;
   readOnly: boolean;
 }) {
-  const [runStart, setRunStart] = useState(0);
-  const [runEnd, setRunEnd] = useState(0);
-  useEffect(() => { setRunStart(0); setRunEnd(layer?.rich_text?.text.length ?? 0); }, [layer?.layer_id, layer?.rich_text?.text.length]);
   if (!layer) return <div className="studio-panel-empty"><MousePointer2 aria-hidden="true" /><strong>Select a layer</strong><span>Its transform and appearance controls will appear here.</span></div>;
   const transform = layer.transform;
   const rotation = transform.rotation_degrees ?? 0;
@@ -821,7 +845,7 @@ function PropertiesPanel({ snapshot, layer, update, mutate, readOnly }: {
   const availableStyles = (snapshot.shared_styles ?? []).filter((style) => !layer.shared_style_ids?.includes(style.shared_style_id));
   const maskIds = layer.raster?.mask_ids ?? layer.vector?.mask_ids ?? [];
   const masks = (snapshot.masks ?? []).filter((mask) => maskIds.includes(mask.mask_id));
-  const fontCompatible = !layer.rich_text || APPROVED_FONTS.some((font) => font.value.toLowerCase() === (layer.rich_text?.font_family ?? "system-ui").toLowerCase());
+  const fontCompatible = !layer.rich_text || APPROVED_FONTS.some((font) => font.value === (layer.rich_text?.font_family ?? "IPW Standard"));
   const paintLayer = (fill: string) => {
     if (linkedStyle) mutate({ kind: "style.upsert", shared_style: { ...linkedStyle, properties: { ...linkedStyle.properties, fill } }, target_ids: [layer.layer_id], properties: {} });
     else if (layer.shape) mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, shape: { ...layer.shape, fill } }, properties: {} });
@@ -831,7 +855,7 @@ function PropertiesPanel({ snapshot, layer, update, mutate, readOnly }: {
     <fieldset disabled={readOnly}><legend>Transform</legend><div className="property-grid">{(["x", "y", "width", "height", "rotation_degrees"] as const).map((key) => <NumberProperty key={key} label={key === "rotation_degrees" ? "Rotate" : key.toUpperCase()} value={key === "rotation_degrees" ? rotation : transform[key]} onCommit={(value) => update({}, { ...transform, [key]: key === "width" || key === "height" ? Math.max(1, value) : value })} />)}</div><div className="property-actions"><IconButton label="Flip horizontally" onClick={() => update({}, { ...transform, flip_x: !(transform.flip_x ?? false) })}><FlipHorizontal2 aria-hidden="true" /></IconButton><IconButton label="Flip vertically" onClick={() => update({}, { ...transform, flip_y: !(transform.flip_y ?? false) })}><FlipVertical2 aria-hidden="true" /></IconButton><IconButton label="Rotate 90 degrees" onClick={() => update({}, { ...transform, rotation_degrees: rotation + 90 > 360 ? rotation - 270 : rotation + 90 })}><RotateCw aria-hidden="true" /></IconButton></div></fieldset>
     <fieldset disabled={readOnly}><legend>Layer</legend><label>Opacity <span>{Math.round(opacity * 100)}%</span><input type="range" min="0" max="100" value={Math.round(opacity * 100)} onChange={(event) => update({ opacity: Number(event.target.value) / 100 })} /></label><label>Blend mode<select value={layer.blend_mode ?? "normal"} onChange={(event) => update({ blend_mode: event.target.value })}><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="darken">Darken</option><option value="lighten">Lighten</option></select></label></fieldset>
     {layer.raster && crop && <><fieldset disabled={readOnly}><legend>Crop</legend><div className="property-grid">{(["left", "top", "right", "bottom"] as const).map((key) => <NumberProperty key={key} label={key} step={0.01} value={crop[key]} onCommit={(value) => mutate({ kind: "layer.update", target_id: layer.layer_id, crop: { ...crop, [key]: Math.min(1, Math.max(0, value)) }, properties: {} })} />)}</div></fieldset><fieldset disabled={readOnly}><legend>Quick correction</legend><label>Light <span>{layer.raster.adjustments?.brightness ?? 0}</span><input type="range" min="-100" max="100" value={layer.raster.adjustments?.brightness ?? 0} onChange={(event) => update({}, undefined, { ...normalizedAdjustments(layer.raster!.adjustments), brightness: Number(event.target.value) })} /></label></fieldset><details className="advanced-controls"><summary>Advanced adjustments</summary><AdjustmentControls value={normalizedAdjustments(layer.raster.adjustments)} update={(adjustments) => update({}, undefined, adjustments)} readOnly={readOnly} /></details></>}
-    {layer.rich_text && <fieldset disabled={readOnly}><legend>Text</legend><label className="property-textarea">Content<textarea value={layer.rich_text.text} onChange={(event) => { const text = event.target.value; mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, text, runs: (layer.rich_text!.runs ?? []).filter((run) => run.end <= text.length) } }, properties: {} }); }} /></label><label>Font<select value={fontCompatible ? layer.rich_text.font_family ?? "system-ui" : "__unsupported"} onChange={(event) => event.target.value !== "__unsupported" && mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, font_family: event.target.value } }, properties: {} })}>{!fontCompatible && <option value="__unsupported">Unsupported: {layer.rich_text.font_family}</option>}{APPROVED_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>{!fontCompatible && <InlineNotice tone="warning" title="Font not available">Preview uses Arial as an honest fallback. Choose an approved font to make rendering deterministic.</InlineNotice>}<NumberProperty label="Text size" value={layer.rich_text.font_size ?? 32} onCommit={(fontSize) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, font_size: Math.max(1, fontSize) } }, properties: {} })} /><div className="rich-run-controls"><strong>Formatting range</strong><div className="property-grid"><NumberProperty label="Start" value={runStart} onCommit={(value) => setRunStart(Math.max(0, Math.min(layer.rich_text!.text.length, Math.floor(value))))} /><NumberProperty label="End" value={runEnd} onCommit={(value) => setRunEnd(Math.max(runStart, Math.min(layer.rich_text!.text.length, Math.floor(value))))} /></div><Button size="compact" disabled={runEnd <= runStart} onClick={() => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, runs: replaceRichTextRun(layer.rich_text!.runs ?? [], { start: runStart, end: runEnd, style: { font_weight: "bold" } }) } }, properties: {} })}>Bold range</Button></div></fieldset>}
+    {layer.rich_text && <fieldset disabled={readOnly}><legend>Text</legend><label className="property-textarea">Content<textarea value={layer.rich_text.text} onChange={(event) => { const text = event.target.value; mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, text, runs: [] } }, properties: {} }); }} /></label><label>Font<select value={fontCompatible ? layer.rich_text.font_family ?? "IPW Standard" : "__unsupported"} onChange={(event) => event.target.value !== "__unsupported" && mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, font_family: event.target.value, runs: [] } }, properties: {} })}>{!fontCompatible && <option value="__unsupported">Unsupported: {layer.rich_text.font_family}</option>}{APPROVED_FONTS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label>{!fontCompatible && <InlineNotice tone="warning" title="Font not available">This font is not substituted. Choose IPW Standard before export.</InlineNotice>}<NumberProperty label="Text size" value={layer.rich_text.font_size ?? 32} onCommit={(fontSize) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, rich_text: { ...layer.rich_text!, font_size: Math.max(1, fontSize), runs: [] } }, properties: {} })} /></fieldset>}
     {layer.shape && <fieldset disabled={readOnly}><legend>Shape</legend><label>Kind<select value={layer.shape.shape} onChange={(event) => { const shape = event.target.value as "rectangle" | "ellipse" | "line" | "polygon"; mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, name: shape[0]!.toUpperCase() + shape.slice(1), shape: { ...layer.shape!, shape, fill: shape === "line" ? null : layer.shape!.fill ?? "#3559e0", stroke: shape === "line" ? layer.shape!.stroke ?? "#3559e0" : layer.shape!.stroke, stroke_width: shape === "line" ? Math.max(1, layer.shape!.stroke_width ?? 0) : layer.shape!.stroke_width, points: shapePoints(shape) } }, properties: {} }); }}><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option><option value="line">Line</option><option value="polygon">Polygon</option></select></label><label>{layer.shape.shape === "line" ? "Stroke" : "Fill"}<input type="color" value={(layer.shape.shape === "line" ? layer.shape.stroke : layer.shape.fill) ?? "#3559e0"} onChange={(event) => layer.shape!.shape === "line" ? mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, shape: { ...layer.shape!, stroke: event.target.value } }, properties: {} }) : paintLayer(event.target.value)} /></label></fieldset>}
     {layer.vector?.path_data && <fieldset disabled={readOnly}><legend>Internal vector path</legend><label className="property-textarea">Path commands<textarea value={layer.vector.path_data} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, vector: { ...layer.vector!, path_data: event.target.value } }, properties: {} })} /></label><InlineNotice tone="info" title="Internal paths only">External SVG stays unavailable until an approved sanitisation pipeline is executable.</InlineNotice><label>Fill<input type="color" value={layer.vector.fill ?? "#16a085"} onChange={(event) => paintLayer(event.target.value)} /></label></fieldset>}
     {layer.raster && <fieldset disabled={readOnly}><legend>Asset instance</legend><label>Mode<select aria-label="Asset instance mode" value={layer.raster.instance_mode ?? "linked"} onChange={(event) => mutate({ kind: "layer.update", target_id: layer.layer_id, layer: { ...layer, raster: { ...layer.raster!, instance_mode: event.target.value as "linked" | "independent" } }, properties: {} })}><option value="linked">Linked</option><option value="independent">Independent</option></select></label></fieldset>}
@@ -898,10 +922,7 @@ function normalizedAdjustments(value: VisualAdjustments | undefined): VisualAdju
 function normalizedCrop(value: CropRegion | undefined) { return { left: value?.left ?? 0, top: value?.top ?? 0, right: value?.right ?? 1, bottom: value?.bottom ?? 1 }; }
 
 const APPROVED_FONTS = [
-  { value: "system-ui", label: "System UI" },
-  { value: "Arial", label: "Arial" },
-  { value: "Times New Roman", label: "Times New Roman" },
-  { value: "Courier New", label: "Courier New" },
+  { value: "IPW Standard", label: "IPW Standard" },
 ] as const;
 
 function artboardOrientation(width: number, height: number): "portrait" | "landscape" | "square" {
@@ -925,9 +946,4 @@ function shapePoints(shape: "rectangle" | "ellipse" | "line" | "polygon") {
   if (shape === "line") return [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }];
   if (shape === "polygon") return [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
   return [];
-}
-
-function replaceRichTextRun(runs: NonNullable<NonNullable<LayerRecord["rich_text"]>["runs"]>, replacement: NonNullable<NonNullable<LayerRecord["rich_text"]>["runs"]>[number]) {
-  return [...runs.filter((run) => run.end <= replacement.start || run.start >= replacement.end), replacement]
-    .sort((left, right) => left.start - right.start || left.end - right.end);
 }

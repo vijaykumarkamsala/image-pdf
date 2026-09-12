@@ -1,0 +1,46 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/metadata-policy.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "preserve_camera": {
+      "default": false,
+      "title": "Preserve Camera",
+      "type": "boolean"
+    },
+    "preserve_capture_time": {
+      "default": false,
+      "title": "Preserve Capture Time",
+      "type": "boolean"
+    },
+    "preserve_copyright": {
+      "default": true,
+      "title": "Preserve Copyright",
+      "type": "boolean"
+    },
+    "preserve_description": {
+      "default": false,
+      "title": "Preserve Description",
+      "type": "boolean"
+    },
+    "preserve_location": {
+      "const": false,
+      "default": false,
+      "title": "Preserve Location",
+      "type": "boolean"
+    },
+    "remove_embedded_thumbnails": {
+      "const": true,
+      "default": true,
+      "title": "Remove Embedded Thumbnails",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.19.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "title": "MetadataPolicy",
+  "type": "object"
+}

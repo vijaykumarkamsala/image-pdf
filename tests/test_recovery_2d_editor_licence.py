@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -18,6 +19,17 @@ def test_fabric_is_exactly_pinned_and_commercially_reviewed(repo_root: Path) -> 
     assert component["pinned_version"] == "7.4.0"
     assert component["licence_id"] == "MIT"
     assert component["disposition"] == "approved"
+
+    font = next(
+        item for item in register["components"] if item["component_id"] == "aileron-ipw-standard"
+    )
+    font_bytes = (repo_root / "apps" / "web" / "public" / "fonts" / "ipw-standard.ttf").read_bytes()
+    assert font["pinned_version"] == "0.102-pillow-12.3.0-subset"
+    assert font["licence_id"] == "CC0-1.0"
+    assert font["disposition"] == "approved"
+    assert hashlib.sha256(font_bytes).hexdigest() == (
+        "69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143169f"
+    )
 
     color_helpers = next(
         item for item in register["components"] if item["component_id"] == "csstools-color-helpers"

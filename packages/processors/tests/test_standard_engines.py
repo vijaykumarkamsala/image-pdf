@@ -9,7 +9,10 @@ comparison ultimately rests on.
 
 from __future__ import annotations
 
+import builtins
 import hashlib
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -315,7 +318,11 @@ class TestEncoding:
 class TestOriginalPreservation:
     @engines
     def test_no_engine_operation_touches_a_source_file(self, engine: Any, tmp_path: Path) -> None:
-        before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        before = {
+            p.relative_to(FIXTURES).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in FIXTURES.rglob("*")
+            if p.is_file()
+        }
 
         image = engine.load(str(SMOOTH))
         engine.resize(image, 16, 16, "lanczos")
@@ -327,8 +334,157 @@ class TestOriginalPreservation:
         engine.flatten_alpha(engine.load(str(ALPHA)), "#000000")
         engine.save(image, str(tmp_path / "out.png"), "image/png", 95, optimise=True)
 
-        after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in FIXTURES.iterdir()}
+        after = {
+            p.relative_to(FIXTURES).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in FIXTURES.rglob("*")
+            if p.is_file()
+        }
         assert after == before
+
+
+@pytest.mark.skipif(
+    not vips_available(), reason="libvips native library not installed on this host"
+)
+class TestLibvipsProductionPaths:
+    """Exercise native paths that Linux owns and Pillow tests cannot prove."""
+
+    def test_adjusting_saturation_preserves_alpha(self) -> None:
+        engine = VipsEngine()
+        image = engine.load(str(ALPHA))
+
+        adjusted = engine.adjust(
+            image,
+            brightness_percent=0,
+            contrast_percent=0,
+            saturation_percent=30,
+            exposure_percent=0,
+            white_balance="none",
+        )
+
+        assert adjusted.has_alpha
+        assert (adjusted.width, adjusted.height) == (image.width, image.height)
+
+    def test_print_ready_returns_a_native_image(self) -> None:
+        engine = VipsEngine()
+        rendered = engine.print_ready(
+            engine.load(str(SMOOTH)),
+            scale=1,
+            material="photo",
+            whiten=False,
+            keep_ink_colour=True,
+        )
+
+        assert rendered.width > 0
+        assert rendered.height > 0
+        assert rendered.bands == 3
+
+    def test_explicit_page_corners_are_flattened(self) -> None:
+        engine = VipsEngine()
+        rendered = engine.straighten_page(
+            engine.load(str(SMOOTH)),
+            [(0, 0), (63, 0), (63, 63), (0, 63)],
+        )
+
+        assert rendered.width > 0
+        assert rendered.height > 0
+        assert rendered.bands == 3
+
+    def test_enlarge_and_clean_round_trip_through_the_native_engine(self) -> None:
+        engine = VipsEngine()
+        source = engine.load(str(SMOOTH))
+
+        enlarged = engine.enlarge(source, scale=2, material="photo", iterations=1)
+        cleaned = engine.clean_document(
+            source,
+            strength_percent=50,
+            whiten=False,
+            keep_ink_colour=True,
+        )
+
+        assert (enlarged.width, enlarged.height) == (128, 128)
+        assert (cleaned.width, cleaned.height) == (64, 64)
+
+    def test_unavailable_native_library_fails_explicitly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import ipw.processors.standard.vips_engine as module
+
+        monkeypatch.setattr(module, "load_pyvips", lambda: None)
+
+        engine = VipsEngine()
+        assert not engine.available
+        with pytest.raises(EngineError, match="libvips is not available"):
+            engine.load(str(SMOOTH))
+
+    def test_native_encode_error_is_normalised(self, tmp_path: Path) -> None:
+        import ipw.processors.standard.vips_engine as module
+
+        class BrokenNativeImage:
+            def hasalpha(self) -> bool:
+                return False
+
+            def pngsave(self, _path: str, **_options: object) -> None:
+                raise OSError("native encoder failed")
+
+        with pytest.raises(EngineError, match="could not encode image: OSError"):
+            VipsEngine().save(
+                module.VipsImage(BrokenNativeImage()),
+                str(tmp_path / "broken.png"),
+                "image/png",
+                95,
+                optimise=False,
+            )
+
+
+class TestLibvipsRuntimePortability:
+    def test_runtime_finds_the_repository_from_the_installed_module(self) -> None:
+        import ipw.processors.standard.vips_runtime as runtime
+
+        assert runtime._repo_root() == REPO_ROOT  # noqa: SLF001 - direct loader boundary test
+
+    def test_windows_loader_prepends_the_pinned_dll_directory(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        import ipw.processors.standard.vips_runtime as runtime
+
+        native = tmp_path / "vips" / "bin"
+        native.mkdir(parents=True)
+        original_import = builtins.__import__
+
+        def import_without_pyvips(
+            name: str,
+            global_values: dict[str, Any] | None = None,
+            local_values: dict[str, Any] | None = None,
+            fromlist: tuple[str, ...] = (),
+            level: int = 0,
+        ) -> Any:
+            if name == "pyvips":
+                raise ImportError("native binding intentionally unavailable")
+            return original_import(name, global_values, local_values, fromlist, level)
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(runtime, "vips_bin_dir", lambda: native)
+        monkeypatch.setattr(builtins, "__import__", import_without_pyvips)
+        monkeypatch.setenv("PATH", "existing-path")
+        runtime.load_pyvips.cache_clear()
+        try:
+            assert runtime.load_pyvips() is None
+            assert os.environ["PATH"] == f"{native}{os.pathsep}existing-path"
+        finally:
+            runtime.load_pyvips.cache_clear()
+
+    def test_native_version_error_is_reported_as_unavailable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import ipw.processors.standard.vips_runtime as runtime
+
+        class BrokenVersion:
+            def version(self, _component: int) -> int:
+                raise RuntimeError("native version lookup failed")
+
+        monkeypatch.setattr(runtime, "load_pyvips", lambda: BrokenVersion())
+
+        assert runtime.libvips_version() is None
 
 
 class TestCmykIsAJpegMode:

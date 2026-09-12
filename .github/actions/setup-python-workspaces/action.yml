@@ -1,0 +1,42 @@
+name: Set up Python workspaces
+description: Configure Python and install every repository Python workspace.
+
+inputs:
+  python-version:
+    description: Python version to install.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install the approved CPU-only Torch build
+      shell: bash
+      run: >
+        python -m pip install
+        -c requirements-dev.lock.txt
+        --index-url https://download.pytorch.org/whl/cpu
+        --extra-index-url https://pypi.org/simple
+        "torch==2.13.0+cpu"
+
+    - name: Install all Python workspaces
+      shell: bash
+      run: >
+        python -m pip install
+        -c requirements-dev.lock.txt
+        -r requirements-dev.txt
+        -e packages/contracts
+        -e packages/inspection
+        -e packages/jobs
+        -e packages/storage
+        -e packages/processors
+        -e packages/metrics
+        -e packages/pdf
+        -e packages/vector
+        -e packages/licence-registry
+        -e services/processing-worker
+        -e services/benchmark-runner
+        -e services/workspace-api

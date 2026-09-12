@@ -6,7 +6,10 @@ import io
 from PIL import Image
 
 from ipw.processing_worker.durable_intake import DispatchMessage
+from ipw.processing_worker.enhancement_engine import MAX_PIXELS as ENHANCEMENT_MAX_PIXELS
 from ipw.processing_worker.preview import (
+    MAX_DECODED_PIXELS,
+    WORKSPACE_EDGE,
     DurablePreviewProcessor,
     LeasedPreviewJob,
     PreviewDerivative,
@@ -18,6 +21,12 @@ def png(width: int = 96, height: int = 64) -> bytes:
     output = io.BytesIO()
     Image.new("RGB", (width, height), (32, 96, 180)).save(output, "PNG")
     return output.getvalue()
+
+
+def test_large_source_preview_has_a_separate_durable_proxy_limit() -> None:
+    assert MAX_DECODED_PIXELS == 100_000_000
+    assert MAX_DECODED_PIXELS > ENHANCEMENT_MAX_PIXELS == 16_000_000
+    assert WORKSPACE_EDGE == 2_048
 
 
 class Repository:
@@ -74,12 +83,22 @@ class Objects:
         )
 
     def write_derivative(
-        self, ref: PrivateObjectRef, *, data: bytes, media_type: str, sha256: str
+        self,
+        ref: PrivateObjectRef,
+        *,
+        data: bytes,
+        media_type: str,
+        sha256: str,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> PrivateObjectSnapshot:
         assert ref.zone is ObjectZone.DERIVATIVE
+        assert len(data) <= max_bytes
         assert hashlib.sha256(data).hexdigest() == sha256
         self.writes.append((ref, data, media_type))
         return PrivateObjectSnapshot(ref, sha256, media_type, data)
+
+    def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None:
+        del ref, generation
 
 
 def leased_job(data: bytes, *, media_type: str = "image/png") -> LeasedPreviewJob:
@@ -131,7 +150,7 @@ def test_preview_worker_generates_bounded_deterministic_zoom_derivatives() -> No
 
 def test_preview_worker_fails_closed_for_format_policy_drift() -> None:
     source = png()
-    repository = Repository(leased_job(source, media_type="image/tiff"))
+    repository = Repository(leased_job(source, media_type="image/gif"))
     objects = Objects(source)
 
     outcome = DurablePreviewProcessor(repository, objects, worker_id="worker-unit").process(

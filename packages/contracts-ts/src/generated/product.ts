@@ -7,12 +7,18 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.17.0";
+export const PRODUCT_SCHEMA_VERSION = "1.19.0";
 
 export interface Actor {
   schema_version?: string;
   actor_id: string;
   display_name: string;
+}
+
+export interface AlphaBackgroundParameters {
+  schema_version?: string;
+  behavior?: "preserve" | "flatten";
+  background?: string | null;
 }
 
 export interface ArtboardBackground {
@@ -75,12 +81,45 @@ export interface Collection {
   name: string;
 }
 
+export interface ColourProfileConversionParameters {
+  schema_version?: string;
+  target_profile?: "preserve" | "srgb" | "display-p3";
+  rendering_intent?: "perceptual" | "relative_colorimetric";
+  black_point_compensation?: boolean;
+}
+
+export interface ContrastParameters {
+  schema_version?: string;
+  amount?: number;
+}
+
+export interface CropParameters {
+  schema_version?: string;
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  aspect_preset?: string | null;
+}
+
 export interface CropRegion {
   schema_version?: string;
   left?: number;
   top?: number;
   right?: number;
   bottom?: number;
+}
+
+export interface CurvePoint {
+  schema_version?: string;
+  input: number;
+  output: number;
+}
+
+export interface CurvesParameters {
+  schema_version?: string;
+  channel?: "rgb" | "red" | "green" | "blue";
+  points?: CurvePoint[];
 }
 
 export interface CustomerUsageActivity {
@@ -243,6 +282,69 @@ export interface ErrorDetail {
   trace_id: string;
 }
 
+export interface ExportOutputProfile {
+  schema_version?: string;
+  profile_id: string;
+  preset_version?: "recovery-2e-v1";
+  name: string;
+  purpose: ExportPurpose;
+  format: ImageExportFormat;
+  width?: number | null;
+  height?: number | null;
+  percentage?: number | null;
+  physical_width?: number | null;
+  physical_height?: number | null;
+  physical_unit?: "in" | "mm" | "cm" | null;
+  ppi?: number | null;
+  fit?: "contain" | "cover" | "stretch";
+  quality?: number | null;
+  lossless?: boolean;
+  resampling_algorithm?: ResamplingAlgorithm;
+  colour_profile?: "preserve" | "srgb" | "display-p3";
+  bit_depth?: 8 | 16;
+  alpha_behavior?: "preserve" | "flatten";
+  background?: string | null;
+  metadata_policy?: MetadataPolicy;
+  chroma_subsampling?: "4:4:4" | "4:2:2" | "4:2:0" | null;
+  filename_template?: string;
+  collision_behavior?: "suffix" | "fail";
+}
+
+export interface ExportOutputRecord {
+  schema_version?: string;
+  output_id: string;
+  export_request_id: string;
+  artboard_id: string;
+  profile: ExportOutputProfile;
+  state: ExportOutputState;
+  progress_percent: number;
+  filename: string;
+  object_reference_id?: string | null;
+  sha256?: string | null;
+  byte_size?: number | null;
+  width?: number | null;
+  height?: number | null;
+  media_type?: string | null;
+  metadata_verified?: boolean | null;
+  metadata_evidence?: MetadataDisposition | null;
+  histogram?: HistogramSummary | null;
+  failure_code?: string | null;
+  failure_message?: string | null;
+  completed_at?: string | null;
+}
+
+export type ExportOutputState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export const ExportOutputStateValues: readonly ExportOutputState[] = ["queued", "running", "succeeded", "failed", "cancelled"] as const;
+
+export type ExportPurpose = "archival_derivative" | "web" | "email" | "social" | "presentation" | "high_resolution_digital" | "custom";
+export const ExportPurposeValues: readonly ExportPurpose[] = ["archival_derivative", "web", "email", "social", "presentation", "high_resolution_digital", "custom"] as const;
+
+export interface ExposureBrightnessParameters {
+  schema_version?: string;
+  exposure_ev?: number;
+  brightness?: number;
+}
+
 export interface FeatureStateRecord {
   schema_version?: string;
   feature: string;
@@ -263,6 +365,22 @@ export interface FileLocationRef {
 export type FileReferenceOwnerKind = "project" | "document";
 export const FileReferenceOwnerKindValues: readonly FileReferenceOwnerKind[] = ["project", "document"] as const;
 
+export interface FlipParameters {
+  schema_version?: string;
+  horizontal?: boolean;
+  vertical?: boolean;
+}
+
+export interface GammaParameters {
+  schema_version?: string;
+  gamma?: number;
+}
+
+export interface GrayscaleParameters {
+  schema_version?: string;
+  method?: "luminance" | "average";
+}
+
 export interface GroupLayerData {
   schema_version?: string;
   collapsed?: boolean;
@@ -272,6 +390,21 @@ export interface GuestSessionRecord {
   schema_version?: string;
   guest_session_id: string;
   expires_at: string;
+}
+
+export interface HighlightsShadowsParameters {
+  schema_version?: string;
+  highlights?: number;
+  shadows?: number;
+}
+
+export interface HistogramSummary {
+  schema_version?: string;
+  red: number[];
+  green: number[];
+  blue: number[];
+  shadow_clipping: boolean;
+  highlight_clipping: boolean;
 }
 
 export interface IdempotentCommandResult {
@@ -284,6 +417,21 @@ export interface IdempotentCommandResult {
 
 export type IdentityProviderKind = "local_test" | "oidc";
 export const IdentityProviderKindValues: readonly IdentityProviderKind[] = ["local_test", "oidc"] as const;
+
+export type ImageExportFormat = "jpeg" | "png" | "webp" | "tiff";
+export const ImageExportFormatValues: readonly ImageExportFormat[] = ["jpeg", "png", "webp", "tiff"] as const;
+
+export interface ImageOperation {
+  schema_version?: string;
+  operation_id: string;
+  kind: ImageOperationKind;
+  order: number;
+  enabled?: boolean;
+  parameters: OrientationNormalizeParameters | CropParameters | RotateParameters | FlipParameters | ResizeParameters | ExposureBrightnessParameters | ContrastParameters | HighlightsShadowsParameters | WhiteBalanceParameters | TintParameters | SaturationVibranceParameters | GammaParameters | LevelsParameters | CurvesParameters | GrayscaleParameters | UnsharpMaskParameters | NoiseReductionParameters | ColourProfileConversionParameters | AlphaBackgroundParameters | ResamplingScaleParameters;
+}
+
+export type ImageOperationKind = "orientation_normalize" | "crop" | "rotate" | "flip" | "resize" | "exposure_brightness" | "contrast" | "highlights_shadows" | "white_balance_temperature" | "tint" | "saturation_vibrance" | "gamma" | "levels" | "curves" | "grayscale" | "unsharp_mask" | "noise_reduction" | "colour_profile_conversion" | "alpha_background" | "resampling_scale";
+export const ImageOperationKindValues: readonly ImageOperationKind[] = ["orientation_normalize", "crop", "rotate", "flip", "resize", "exposure_brightness", "contrast", "highlights_shadows", "white_balance_temperature", "tint", "saturation_vibrance", "gamma", "levels", "curves", "grayscale", "unsharp_mask", "noise_reduction", "colour_profile_conversion", "alpha_background", "resampling_scale"] as const;
 
 export type ImportCompatibilityState = "compatible" | "limited" | "unsupported";
 export const ImportCompatibilityStateValues: readonly ImportCompatibilityState[] = ["compatible", "limited", "unsupported"] as const;
@@ -325,6 +473,9 @@ export interface IntakeRiskDimension {
 
 export type IntakeSourceCategory = "photograph" | "graphic" | "document" | "scan" | "animation" | "other" | "unsure";
 export const IntakeSourceCategoryValues: readonly IntakeSourceCategory[] = ["photograph", "graphic", "document", "scan", "animation", "other", "unsure"] as const;
+
+export type IntendedOutcome = "digital" | "archival" | "presentation" | "custom";
+export const IntendedOutcomeValues: readonly IntendedOutcome[] = ["digital", "archival", "presentation", "custom"] as const;
 
 export type IntendedUseKind = "source" | "digital" | "print" | "custom";
 export const IntendedUseKindValues: readonly IntendedUseKind[] = ["source", "digital", "print", "custom"] as const;
@@ -391,6 +542,13 @@ export const LayerTypeValues: readonly LayerType[] = ["raster_image", "vector_sv
 export type LeaseTakeoverStatus = "requested" | "acquired";
 export const LeaseTakeoverStatusValues: readonly LeaseTakeoverStatus[] = ["requested", "acquired"] as const;
 
+export interface LevelsParameters {
+  schema_version?: string;
+  black?: number;
+  white?: number;
+  midpoint?: number;
+}
+
 export type MalwareScanState = "pending" | "clean" | "malicious" | "unavailable" | "timeout" | "error";
 export const MalwareScanStateValues: readonly MalwareScanState[] = ["pending", "clean", "malicious", "unavailable", "timeout", "error"] as const;
 
@@ -403,6 +561,37 @@ export interface Membership {
   workspace_id: string;
   actor_id: string;
   role: RolePreset;
+}
+
+export interface MetadataDisposition {
+  schema_version?: string;
+  exif: "preserved-approved-fields" | "removed" | "absent";
+  gps: "removed" | "absent";
+  orientation: "normalized" | "absent";
+  xmp: "removed" | "absent";
+  iptc: "removed" | "absent";
+  comments: "removed" | "absent";
+  maker_notes: "removed" | "absent";
+  private_blocks: "removed" | "absent";
+  software_device: "preserved-approved-fields" | "removed" | "absent";
+  embedded_thumbnails: "removed" | "absent";
+  icc_profiles: "converted-to-srgb" | "assumed-srgb-and-tagged" | "preserved";
+}
+
+export interface MetadataPolicy {
+  schema_version?: string;
+  preserve_copyright?: boolean;
+  preserve_description?: boolean;
+  preserve_capture_time?: boolean;
+  preserve_camera?: boolean;
+  preserve_location?: false;
+  remove_embedded_thumbnails?: true;
+}
+
+export interface NoiseReductionParameters {
+  schema_version?: string;
+  strength?: number;
+  preserve_edges?: number;
 }
 
 export type NotificationKind = "upload_accepted" | "upload_rejected" | "job_completed" | "job_failed" | "job_cancelled" | "retry_required" | "retry_completed" | "guest_handoff_completed" | "source_cleanup_required" | "lease_takeover_requested";
@@ -421,14 +610,27 @@ export interface NotificationRecord {
   read_at?: string | null;
 }
 
-export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover";
-export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover"] as const;
+export interface OrientationNormalizeParameters {
+  schema_version?: string;
+  source_orientation: number;
+  apply_exactly_once?: true;
+}
+
+export interface OutputSizeEstimate {
+  schema_version?: string;
+  minimum_bytes: number;
+  maximum_bytes: number;
+  explanation: string;
+}
+
+export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover" | "recipe.create" | "recipe.read" | "recipe.update" | "export.create" | "export.read" | "export.cancel" | "export.retry";
+export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover", "recipe.create", "recipe.read", "recipe.update", "export.create", "export.read", "export.cancel", "export.retry"] as const;
 
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
 
-export type ProcessingJobKind = "file_intake_inspection" | "preview_generation";
-export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation"] as const;
+export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "export_bundle";
+export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "export_bundle"] as const;
 
 export interface ProcessingJobRecord {
   schema_version?: string;
@@ -440,6 +642,8 @@ export interface ProcessingJobRecord {
   guest_session_id?: string | null;
   upload_session_id?: string | null;
   document_id?: string | null;
+  export_request_id?: string | null;
+  bundle_id?: string | null;
   state: ProcessingJobState;
   attempt: number;
   max_attempts: number;
@@ -490,6 +694,44 @@ export interface RecentWorkItem {
 export type RecentWorkKind = "project" | "file" | "native_document";
 export const RecentWorkKindValues: readonly RecentWorkKind[] = ["project", "file", "native_document"] as const;
 
+export interface RecommendationEvidence {
+  schema_version?: string;
+  kind: RecommendationEvidenceKind;
+  explanation: string;
+}
+
+export type RecommendationEvidenceKind = "measured" | "heuristic";
+export const RecommendationEvidenceKindValues: readonly RecommendationEvidenceKind[] = ["measured", "heuristic"] as const;
+
+export type RecommendationTargetKind = "processing_operation" | "metadata_policy" | "output_warning";
+export const RecommendationTargetKindValues: readonly RecommendationTargetKind[] = ["processing_operation", "metadata_policy", "output_warning"] as const;
+
+export type ResamplingAlgorithm = "nearest" | "bilinear" | "bicubic" | "lanczos";
+export const ResamplingAlgorithmValues: readonly ResamplingAlgorithm[] = ["nearest", "bilinear", "bicubic", "lanczos"] as const;
+
+export interface ResamplingScaleParameters {
+  schema_version?: string;
+  scale: 2 | 4;
+  algorithm?: ResamplingAlgorithm;
+  label?: "Standard resampling (not AI reconstruction)";
+}
+
+export type ResizeMode = "pixels" | "percent" | "physical";
+export const ResizeModeValues: readonly ResizeMode[] = ["pixels", "percent", "physical"] as const;
+
+export interface ResizeParameters {
+  schema_version?: string;
+  mode: ResizeMode;
+  width: number;
+  height: number;
+  physical_unit?: "in" | "mm" | "cm" | null;
+  ppi?: number | null;
+  aspect_locked?: true;
+  aspect_preset?: string | null;
+  fit?: "contain" | "cover";
+  algorithm?: ResamplingAlgorithm;
+}
+
 export interface RichTextLayerData {
   schema_version?: string;
   text: string;
@@ -509,6 +751,30 @@ export interface RichTextRun {
 
 export type RolePreset = "owner" | "admin" | "member" | "viewer";
 export const RolePresetValues: readonly RolePreset[] = ["owner", "admin", "member", "viewer"] as const;
+
+export interface RotateParameters {
+  schema_version?: string;
+  degrees: number;
+  expand_canvas?: boolean;
+}
+
+export interface SafeRecommendation {
+  schema_version?: string;
+  recommendation_id: string;
+  title: string;
+  explanation: string;
+  evidence: RecommendationEvidence[];
+  target_kind: RecommendationTargetKind;
+  operation?: ImageOperation | null;
+  metadata_policy?: MetadataPolicy | null;
+  state?: "proposed" | "accepted" | "declined";
+}
+
+export interface SaturationVibranceParameters {
+  schema_version?: string;
+  saturation?: number;
+  vibrance?: number;
+}
 
 export type SearchResultKind = "project" | "file" | "job" | "native_document";
 export const SearchResultKindValues: readonly SearchResultKind[] = ["project", "file", "job", "native_document"] as const;
@@ -559,6 +825,10 @@ export interface SharedStyleRecord {
   properties?: Partial<Record<string, string | number | boolean | null>>;
 }
 
+/** Header-verified source channel interpretation used for capability admission. */
+export type SourceColourModel = "grayscale" | "rgb" | "cmyk" | "indexed";
+export const SourceColourModelValues: readonly SourceColourModel[] = ["grayscale", "rgb", "cmyk", "indexed"] as const;
+
 export interface SourceFacts {
   schema_version?: string;
   /** Lower-case hexadecimal SHA-256 digest. */
@@ -573,14 +843,27 @@ export interface SourceFacts {
   page_count?: number | null;
   has_alpha?: boolean | null;
   bit_depth?: number | null;
+  colour_model?: SourceColourModel | null;
   has_icc_profile?: boolean | null;
   sensitive_metadata?: string[];
   malware_scan_state: MalwareScanState;
 }
 
 /** Formats with one executable inspection, preview and browser-editing path. */
-export type StudioEditableMediaType = "image/jpeg" | "image/png" | "image/webp";
-export const StudioEditableMediaTypeValues: readonly StudioEditableMediaType[] = ["image/jpeg", "image/png", "image/webp"] as const;
+export type StudioEditableMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/tiff";
+export const StudioEditableMediaTypeValues: readonly StudioEditableMediaType[] = ["image/jpeg", "image/png", "image/webp", "image/tiff"] as const;
+
+export interface TintParameters {
+  schema_version?: string;
+  amount?: number;
+}
+
+export interface UnsharpMaskParameters {
+  schema_version?: string;
+  radius?: number;
+  amount?: number;
+  threshold?: number;
+}
 
 export interface UploadAuthorization {
   schema_version?: string;
@@ -675,6 +958,11 @@ export interface VisualAdjustments {
   sharpness?: number;
 }
 
+export interface WhiteBalanceParameters {
+  schema_version?: string;
+  temperature_kelvin?: number;
+}
+
 export interface Workspace {
   schema_version?: string;
   workspace_id: string;
@@ -708,6 +996,15 @@ export interface WorkspaceSearchResult {
   description: string;
   path: string;
   updated_at: string;
+}
+
+export interface ZipManifestItem {
+  schema_version?: string;
+  output_id: string;
+  filename: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  sha256: string;
+  byte_size: number;
 }
 
 export interface ApplicationSession {
@@ -757,9 +1054,75 @@ export interface EditorOperationRecord {
   occurred_at: string;
 }
 
+export interface EnhancementPreview {
+  schema_version?: string;
+  preview_id: string;
+  document_id: string;
+  document_version_id: string;
+  recipe_id: string;
+  recipe_version: number;
+  mode: "original" | "current" | "recommended";
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  export_request_id: string;
+  output_id: string;
+  artboard_id: string;
+  proxy?: false;
+  authoritative?: true;
+  quality_label?: "Authoritative registered preview rendered from the immutable document version";
+  width: number;
+  height: number;
+  histogram?: HistogramSummary | null;
+  object_reference_id?: string | null;
+  sha256?: string | null;
+  byte_size?: number | null;
+  media_type?: string | null;
+  failure_code?: string | null;
+  failure_message?: string | null;
+  created_at: string;
+}
+
 export interface ErrorEnvelope {
   schema_version?: string;
   error: ErrorDetail;
+}
+
+export interface ExportProvenance {
+  schema_version?: string;
+  provenance_id: string;
+  output_id: string;
+  workspace_id: string;
+  document_id: string;
+  document_version_id: string;
+  source_version_ids: string[];
+  recipe_id: string;
+  recipe_version: number;
+  processor_name: string;
+  processor_version: string;
+  deterministic: boolean;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  parameters_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  output_sha256: string;
+  metadata_policy: MetadataPolicy;
+  metadata_evidence: MetadataDisposition;
+  trace_id: string;
+  job_id: string;
+  created_at: string;
+}
+
+export interface ExportZipBundle {
+  schema_version?: string;
+  bundle_id: string;
+  workspace_id: string;
+  export_request_id: string;
+  job_id: string;
+  state: ExportOutputState;
+  items: ZipManifestItem[];
+  object_reference_id?: string | null;
+  sha256?: string | null;
+  byte_size?: number | null;
+  expires_at: string;
+  created_at: string;
 }
 
 export interface FeatureStateList {
@@ -783,6 +1146,24 @@ export interface IdentityReference {
   actor_id: string;
   provider: IdentityProviderKind;
   provider_subject: string;
+}
+
+export interface ImageExportRequestRecord {
+  schema_version?: string;
+  export_request_id: string;
+  workspace_id: string;
+  document_id: string;
+  document_version_id: string;
+  recipe_id: string;
+  recipe_version: number;
+  job_id: string;
+  outputs: ExportOutputRecord[];
+  state: "queued" | "running" | "partially_completed" | "completed" | "failed" | "cancelled";
+  estimated_size: OutputSizeEstimate;
+  zero_charge?: true;
+  created_by_actor_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ImportCompatibilityReport {
@@ -885,10 +1266,49 @@ export interface PreviewProvenance {
   created_at: string;
 }
 
+export interface ProcessingRecipeRecord {
+  schema_version?: string;
+  recipe_id: string;
+  workspace_id: string;
+  document_id: string;
+  version: number;
+  name: string;
+  operations: ImageOperation[];
+  deterministic?: true;
+  created_by_actor_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProjectList {
   schema_version?: string;
   projects: ProjectRecord[];
   collections?: Collection[];
+}
+
+export interface RecommendationDecision {
+  schema_version?: string;
+  decision_id: string;
+  workspace_id: string;
+  recommendation_set_id: string;
+  recommendation_id: string;
+  actor_id: string;
+  state: "accepted" | "declined";
+  created_at: string;
+}
+
+export interface RecommendationSet {
+  schema_version?: string;
+  recommendation_set_id: string;
+  workspace_id: string;
+  document_id: string;
+  document_version_id: string;
+  intended_outcome?: IntendedOutcome | null;
+  intended_outcome_required?: boolean;
+  source_facts_summary: string[];
+  recommendations: SafeRecommendation[];
+  no_correction_needed?: boolean;
+  created_at: string;
 }
 
 export interface ReusableFileReference {

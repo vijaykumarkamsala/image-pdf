@@ -11,6 +11,7 @@ import { PostgresGuestHandoffRepository } from "../src/domains/intake/guest-hand
 import { PostgresDurableJobRepository } from "../src/domains/jobs/postgres-durable-job.repository.js";
 import { PostgresExperienceRepository } from "../src/domains/experience/postgres-experience.repository.js";
 import { PostgresDocumentRepository } from "../src/domains/documents/postgres-document.repository.js";
+import { PostgresImageExportRepository } from "../src/domains/exports/postgres-image-export.repository.js";
 import { DocumentsService } from "../src/domains/documents/documents.service.js";
 import { IdentityBoundary } from "../src/domains/identity/identity.service.js";
 import type { AuthRepository } from "../src/domains/identity/auth.types.js";
@@ -861,6 +862,431 @@ test(
       assert.deepEqual(handoffNotifications.rows, [{ kind: "guest_handoff_completed", resource_id: handedOff.fileId }]);
     } finally {
       await repository.close();
+    }
+  },
+);
+
+test(
+  "PostgreSQL 17 persists recipes, recommendations and atomic image export jobs",
+  { skip: !connectionString },
+  async () => {
+    assert.ok(connectionString);
+    const pool = new Pool({ connectionString, max: 8 });
+    const runtime = new DeterministicRuntimeValues("2026-09-02T08:00:00.000Z");
+    for (let index = 0; index < 6000; index += 1) runtime.id("export-seed");
+    const product = new PostgresProductKernelRepository(pool, runtime);
+    const documents = new PostgresDocumentRepository(pool, runtime);
+    const exports = new PostgresImageExportRepository(pool, runtime);
+    try {
+      await runMigrations(pool);
+      const owner = await product.bootstrap(context("actor-export-pg", "export-bootstrap-pg", "session.bootstrap", {}));
+      const outsider = await product.bootstrap(context("actor-export-outsider-pg", "export-outsider-bootstrap-pg", "session.bootstrap", {}));
+      const workspaceId = owner.workspace.workspace_id;
+      const created = await documents.create(
+        context("actor-export-pg", "export-document-pg", "document.create", { workspaceId }),
+        {
+          workspaceId,
+          defaultFilesId: owner.defaultFiles.default_files_id,
+          name: "PostgreSQL export artboard",
+          intendedUse: "digital",
+          intendedUseLabel: "Digital design",
+          width: 640,
+          height: 360,
+        },
+      );
+      const documentId = created.value.document.document_id;
+      const recipeInput = {
+        workspaceId,
+        documentId,
+        name: "PostgreSQL clean-up",
+        operations: [{
+          schema_version: PRODUCT_SCHEMA_VERSION,
+          operation_id: "operation-export-pg",
+          kind: "contrast" as const,
+          order: 0,
+          enabled: true,
+          parameters: { schema_version: PRODUCT_SCHEMA_VERSION, amount: 8 },
+        }],
+      };
+      const recipe = await exports.createRecipe(
+        context("actor-export-pg", "export-recipe-pg", "recipe.save", recipeInput),
+        recipeInput,
+      );
+      const recipeReplay = await exports.createRecipe(
+        context("actor-export-pg", "export-recipe-pg", "recipe.save", recipeInput),
+        recipeInput,
+      );
+      assert.equal(recipeReplay.replayed, true);
+      assert.equal(recipeReplay.value.recipe_id, recipe.value.recipe_id);
+
+      const recommendationInput = {
+        workspaceId,
+        documentId,
+        documentVersionId: created.value.document.current_version_id,
+        intendedOutcome: "digital" as const,
+      };
+      const recommendations = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-pg", "recommendations.request", recommendationInput),
+        recommendationInput,
+      );
+      assert.equal(recommendations.value.no_correction_needed, true);
+      assert.equal(recommendations.value.recommendations.length, 0);
+
+      const concurrentRecommendationInput = { ...recommendationInput, intendedOutcome: null };
+      const [concurrentOne, concurrentTwo] = await Promise.all([
+        exports.recommend(
+          context("actor-export-pg", "export-recommendations-concurrent-one", "recommendations.request", concurrentRecommendationInput),
+          concurrentRecommendationInput,
+        ),
+        exports.recommend(
+          context("actor-export-pg", "export-recommendations-concurrent-two", "recommendations.request", concurrentRecommendationInput),
+          concurrentRecommendationInput,
+        ),
+      ]);
+      assert.equal(concurrentOne.value.recommendation_set_id, concurrentTwo.value.recommendation_set_id);
+
+      const recommendationSetId = `recommendations-${randomUUID()}`;
+      const recommendationId = `recommendation-${randomUUID()}`;
+      await pool.query(
+        `INSERT INTO recommendation_sets(recommendation_set_id,workspace_id,document_id,
+         document_version_id,intended_outcome,intended_outcome_required,source_facts_summary,
+         recommendations,no_correction_needed,created_at)
+         VALUES ($1,$2,$3,$4,'custom',false,$5,$6,true,$7)`,
+        [
+          recommendationSetId,
+          workspaceId,
+          documentId,
+          created.value.document.current_version_id,
+          JSON.stringify(["Measured source metadata requires an explicit export policy."]),
+          JSON.stringify([{
+            schema_version: PRODUCT_SCHEMA_VERSION,
+            recommendation_id: recommendationId,
+            title: "Remove private metadata on export",
+            explanation: "The original remains unchanged while approved derivatives remove private metadata.",
+            evidence: [{
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              kind: "measured",
+              explanation: "Immutable inspection facts identified private metadata.",
+            }],
+            target_kind: "metadata_policy",
+            operation: null,
+            metadata_policy: {
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              preserve_copyright: true,
+              preserve_description: false,
+              preserve_capture_time: false,
+              preserve_camera: false,
+              preserve_location: false,
+              remove_embedded_thumbnails: true,
+            },
+            state: "proposed",
+          }]),
+          "2026-09-02T08:00:00.000Z",
+        ],
+      );
+      const customInput = { ...recommendationInput, intendedOutcome: "custom" as const };
+      const custom = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-custom", "recommendations.request", customInput),
+        customInput,
+      );
+      assert.equal(custom.value.recommendations[0]?.state, "proposed");
+      const decisionInput = {
+        workspaceId,
+        recommendationSetId,
+        decisions: [{ recommendationId, state: "accepted" as const }],
+      };
+      await exports.decideRecommendations(
+        context("actor-export-pg", "export-recommendation-accept", "recommendations.decide", decisionInput),
+        decisionInput,
+      );
+      const refreshed = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-custom-refresh", "recommendations.request", customInput),
+        customInput,
+      );
+      assert.equal(refreshed.value.recommendations[0]?.state, "accepted");
+      const declineInput = {
+        workspaceId,
+        recommendationSetId,
+        decisions: [{ recommendationId, state: "declined" as const }],
+      };
+      await exports.decideRecommendations(
+        context("actor-export-pg", "export-recommendation-decline", "recommendations.decide", declineInput),
+        declineInput,
+      );
+      const declined = await exports.recommend(
+        context("actor-export-pg", "export-recommendations-custom-declined", "recommendations.request", customInput),
+        customInput,
+      );
+      assert.equal(declined.value.recommendations[0]?.state, "declined");
+      await assert.rejects(
+        pool.query(
+          `INSERT INTO recommendation_decisions(decision_id,workspace_id,recommendation_set_id,
+           recommendation_id,actor_id,state,created_at)
+           VALUES ($1,$2,$3,$4,$5,'accepted',$6)`,
+          [`decision-cross-tenant-${randomUUID()}`, outsider.workspace.workspace_id,
+            recommendationSetId, recommendationId, "actor-export-outsider-pg",
+            "2026-09-02T08:00:00.000Z"],
+        ),
+        (error: unknown) => (error as { code?: string }).code === "23503",
+      );
+      const previewInput = {
+        workspaceId,
+        documentId,
+        recipeId: recipe.value.recipe_id,
+        recipeVersion: recipe.value.version,
+        mode: "current" as const,
+        artboardId: created.value.snapshot.artboards[0].artboard_id,
+      };
+      const preview = await exports.createPreview(
+        context("actor-export-pg", "export-preview-pg", "enhancement-preview.create", previewInput),
+        previewInput,
+      );
+      assert.equal(preview.value.width, 1200);
+      assert.equal(preview.value.height, 900);
+      assert.equal(preview.value.state, "queued");
+      assert.equal(preview.value.authoritative, true);
+
+      const submitInput = {
+        workspaceId,
+        documentId,
+        documentVersionId: created.value.document.current_version_id,
+        recipeId: recipe.value.recipe_id,
+        recipeVersion: recipe.value.version,
+        outputs: [{
+          artboardId: created.value.snapshot.artboards[0].artboard_id,
+          filename: "postgres-export.png",
+          profile: {
+            schema_version: PRODUCT_SCHEMA_VERSION,
+            profile_id: "profile-export-pg",
+            name: "PostgreSQL PNG",
+            purpose: "web" as const,
+            format: "png" as const,
+            width: 320,
+            height: 180,
+            percentage: null,
+            physical_width: null,
+            physical_height: null,
+            physical_unit: null,
+            ppi: null,
+            fit: "contain" as const,
+            quality: null,
+            lossless: true,
+            resampling_algorithm: "lanczos" as const,
+            colour_profile: "srgb" as const,
+            bit_depth: 8 as const,
+            alpha_behavior: "preserve" as const,
+            background: null,
+            metadata_policy: {
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              preserve_copyright: true,
+              preserve_description: false,
+              preserve_capture_time: false,
+              preserve_camera: false,
+              preserve_location: false as const,
+              remove_embedded_thumbnails: true as const,
+            },
+            chroma_subsampling: null,
+            filename_template: "{document}-{artboard}-{profile}",
+            collision_behavior: "suffix" as const,
+          },
+        }, {
+          artboardId: created.value.snapshot.artboards[0].artboard_id,
+          filename: "postgres-export-copy.png",
+          profile: {
+            ...{
+              schema_version: PRODUCT_SCHEMA_VERSION,
+              profile_id: "profile-export-pg-copy",
+              name: "PostgreSQL PNG copy",
+              purpose: "web" as const,
+              format: "png" as const,
+              width: 640,
+              height: 360,
+              percentage: null,
+              physical_width: null,
+              physical_height: null,
+              physical_unit: null,
+              ppi: null,
+              fit: "contain" as const,
+              quality: null,
+              lossless: true,
+              resampling_algorithm: "lanczos" as const,
+              colour_profile: "srgb" as const,
+              bit_depth: 8 as const,
+              alpha_behavior: "preserve" as const,
+              background: null,
+              metadata_policy: {
+                schema_version: PRODUCT_SCHEMA_VERSION,
+                preserve_copyright: true,
+                preserve_description: false,
+                preserve_capture_time: false,
+                preserve_camera: false,
+                preserve_location: false as const,
+                remove_embedded_thumbnails: true as const,
+              },
+              chroma_subsampling: null,
+              filename_template: "{document}-{artboard}-{profile}",
+              collision_behavior: "suffix" as const,
+            },
+          },
+        }],
+      };
+      const submitted = await exports.submit(
+        context("actor-export-pg", "export-submit-pg", "export.submit", submitInput),
+        submitInput,
+      );
+      const replay = await exports.submit(
+        context("actor-export-pg", "export-submit-pg", "export.submit", submitInput),
+        submitInput,
+      );
+      assert.equal(replay.replayed, true);
+      assert.equal(replay.value.job_id, submitted.value.job_id);
+      assert.equal(await exports.get("actor-export-outsider-pg", outsider.workspace.workspace_id, submitted.value.export_request_id), null);
+      const durable = await pool.query(
+        `SELECT job.kind,job.state,outbox.state AS outbox_state,output.state AS output_state
+         FROM processing_jobs job JOIN job_outbox outbox USING(job_id)
+         JOIN image_export_outputs output ON output.export_request_id=job.export_request_id
+         WHERE job.job_id=$1`,
+        [submitted.value.job_id],
+      );
+      assert.deepEqual(durable.rows, [
+        { kind: "image_export", state: "queued", outbox_state: "pending", output_state: "queued" },
+        { kind: "image_export", state: "queued", outbox_state: "pending", output_state: "queued" },
+      ]);
+      const ledger = await pool.query(
+        "SELECT customer_amount,credit_debit FROM usage_events WHERE workspace_id=$1 AND event_kind='export.submitted'",
+        [workspaceId],
+      );
+      assert.equal(ledger.rowCount, 1);
+      assert.equal(Number(ledger.rows[0]!.customer_amount), 0);
+      assert.equal(ledger.rows[0]!.credit_debit, 0);
+
+      const outputRows = await pool.query(
+        "SELECT output_id FROM image_export_outputs WHERE export_request_id=$1 ORDER BY output_id",
+        [submitted.value.export_request_id],
+      );
+      const completedOutputId = String(outputRows.rows[0]!.output_id);
+      const failedOutputId = String(outputRows.rows[1]!.output_id);
+      const completedObjectId = `object-${randomUUID()}`;
+      await pool.query(
+        `INSERT INTO object_references(object_reference_id,workspace_id,object_key,sha256,
+         media_type,byte_size,created_at) VALUES ($1,$2,$3,$4,'image/png',128,$5)`,
+        [
+          completedObjectId,
+          workspaceId,
+          `derivative/${workspaceId}/retry-proof.png`,
+          "a".repeat(64),
+          "2026-09-02T08:01:00.000Z",
+        ],
+      );
+      const metadataEvidence = {
+        exif: "absent",
+        gps: "absent",
+        orientation: "absent",
+        xmp: "absent",
+        iptc: "absent",
+        comments: "absent",
+        maker_notes: "absent",
+        private_blocks: "absent",
+        software_device: "absent",
+        embedded_thumbnails: "absent",
+        icc_profiles: "assumed-srgb-and-tagged",
+      };
+      await pool.query(
+        `UPDATE image_export_outputs SET state='succeeded',progress_percent=100,
+         object_reference_id=$1,sha256=$2,byte_size=128,width=320,height=180,
+         media_type='image/png',metadata_verified=true,metadata_evidence=$3,completed_at=$4
+         WHERE output_id=$5`,
+        [completedObjectId, "a".repeat(64), metadataEvidence, "2026-09-02T08:01:00.000Z", completedOutputId],
+      );
+      await pool.query(
+        `UPDATE image_export_outputs SET state='failed',progress_percent=100,
+         failure_code='bounded-test-failure',failure_message='Bounded test failure'
+         WHERE output_id=$1`,
+        [failedOutputId],
+      );
+      assert.equal(
+        await exports.delivery("actor-export-pg", workspaceId, completedOutputId),
+        null,
+        "a historical success without matching provenance must not be delivered",
+      );
+      await pool.query(
+        `INSERT INTO export_provenance(provenance_id,output_id,workspace_id,export_request_id,
+         document_id,document_version_id,source_version_ids,recipe_id,recipe_version,
+         processor_name,processor_version,deterministic,parameters_sha256,output_sha256,
+         metadata_policy,metadata_verified,metadata_evidence,trace_id,job_id,created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'[]',$7,$8,'test-processor','1.0',true,$9,$10,
+                 '{}',true,$11,$12,$13,$14)`,
+        [`provenance-${randomUUID()}`, completedOutputId, workspaceId,
+          submitted.value.export_request_id, documentId, created.value.document.current_version_id,
+          recipe.value.recipe_id, recipe.value.version, "b".repeat(64), "a".repeat(64),
+          metadataEvidence, "trace-postgres", submitted.value.job_id,
+          "2026-09-02T08:01:00.000Z"],
+      );
+      assert.equal(
+        (await exports.delivery("actor-export-pg", workspaceId, completedOutputId))?.sha256,
+        "a".repeat(64),
+      );
+      const bundle = await exports.createBundle(
+        context("actor-export-pg", "export-bundle-pg", "export.bundle", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.deepEqual(bundle.value.items.map((item) => item.output_id), [completedOutputId]);
+      await pool.query(
+        "UPDATE image_export_requests SET state='partially_completed' WHERE export_request_id=$1",
+        [submitted.value.export_request_id],
+      );
+      await pool.query(
+        "UPDATE processing_jobs SET state='failed',failure=$1 WHERE job_id=$2",
+        [{ code: "bounded-test-failure", message: "Bounded test failure", retryable: false }, submitted.value.job_id],
+      );
+      const terminalCancel = await exports.cancel(
+        context("actor-export-pg", "export-terminal-cancel", "export.cancel", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.equal(terminalCancel.value.state, "partially_completed");
+      const retried = await exports.retry(
+        context("actor-export-pg", "export-failed-retry", "export.retry", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.equal(retried.value.state, "queued");
+      assert.equal(retried.value.outputs.find((output) => output.output_id === completedOutputId)?.state, "succeeded");
+      assert.equal(retried.value.outputs.find((output) => output.output_id === failedOutputId)?.state, "queued");
+      const cancelled = await exports.cancel(
+        context("actor-export-pg", "export-retry-cancel", "export.cancel", {
+          workspaceId,
+          exportRequestId: submitted.value.export_request_id,
+        }),
+        workspaceId,
+        submitted.value.export_request_id,
+      );
+      assert.equal(cancelled.value.state, "cancelled");
+      assert.equal(cancelled.value.outputs.find((output) => output.output_id === completedOutputId)?.state, "succeeded");
+      assert.equal(cancelled.value.outputs.find((output) => output.output_id === failedOutputId)?.state, "cancelled");
+      await assert.rejects(
+        exports.retry(
+          context("actor-export-pg", "export-cancelled-retry", "export.retry", {
+            workspaceId,
+            exportRequestId: submitted.value.export_request_id,
+          }),
+          workspaceId,
+          submitted.value.export_request_id,
+        ),
+        (error: unknown) => error instanceof DomainError && error.code === "export-retry-unavailable",
+      );
+    } finally {
+      await pool.end();
     }
   },
 );

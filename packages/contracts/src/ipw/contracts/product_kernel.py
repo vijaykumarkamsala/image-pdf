@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
+from ipw.contracts.enhancement import ENHANCEMENT_SCHEMA_EXPORTS
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
 
 
@@ -100,6 +101,13 @@ class Permission(StrEnum):
     DOCUMENT_EDIT = "document.edit"
     DOCUMENT_VERSION = "document.version"
     DOCUMENT_LEASE_TAKEOVER = "document.lease.takeover"
+    RECIPE_CREATE = "recipe.create"
+    RECIPE_READ = "recipe.read"
+    RECIPE_UPDATE = "recipe.update"
+    EXPORT_CREATE = "export.create"
+    EXPORT_READ = "export.read"
+    EXPORT_CANCEL = "export.cancel"
+    EXPORT_RETRY = "export.retry"
 
 
 class PermissionOrigin(StrEnum):
@@ -347,6 +355,8 @@ class UploadSessionState(StrEnum):
 class ProcessingJobKind(StrEnum):
     FILE_INTAKE_INSPECTION = "file_intake_inspection"
     PREVIEW_GENERATION = "preview_generation"
+    IMAGE_EXPORT = "image_export"
+    EXPORT_BUNDLE = "export_bundle"
 
 
 class StudioEditableMediaType(StrEnum):
@@ -355,6 +365,7 @@ class StudioEditableMediaType(StrEnum):
     JPEG = "image/jpeg"
     PNG = "image/png"
     WEBP = "image/webp"
+    TIFF = "image/tiff"
 
 
 class StudioFormatCapability(ProductKernelContractModel):
@@ -409,6 +420,15 @@ class GuestSessionAuthorization(ProductKernelContractModel):
     guest_session: GuestSessionRecord
 
 
+class SourceColourModel(StrEnum):
+    """Header-verified source channel interpretation used for capability admission."""
+
+    GRAYSCALE = "grayscale"
+    RGB = "rgb"
+    CMYK = "cmyk"
+    INDEXED = "indexed"
+
+
 class SourceFacts(ProductKernelContractModel):
     sha256: Sha256Hex
     detected_media_type: NonEmptyStr
@@ -421,6 +441,7 @@ class SourceFacts(ProductKernelContractModel):
     page_count: int | None = Field(default=None, ge=1)
     has_alpha: bool | None = None
     bit_depth: int | None = Field(default=None, ge=1)
+    colour_model: SourceColourModel | None = None
     has_icc_profile: bool | None = None
     sensitive_metadata: tuple[NonEmptyStr, ...] = ()
     malware_scan_state: MalwareScanState
@@ -581,6 +602,8 @@ class ProcessingJobRecord(ProductKernelContractModel):
     guest_session_id: SlugId | None = None
     upload_session_id: SlugId | None = None
     document_id: SlugId | None = None
+    export_request_id: SlugId | None = None
+    bundle_id: SlugId | None = None
     state: ProcessingJobState
     attempt: int = Field(ge=0)
     max_attempts: int = Field(ge=1)
@@ -606,7 +629,23 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
         )
-        if not (intake or preview):
+        image_export = (
+            self.kind == ProcessingJobKind.IMAGE_EXPORT
+            and self.document_id is not None
+            and self.export_request_id is not None
+            and self.bundle_id is None
+            and self.upload_session_id is None
+            and self.owner_kind == UploadOwnerKind.ACTOR
+        )
+        bundle = (
+            self.kind == ProcessingJobKind.EXPORT_BUNDLE
+            and self.document_id is None
+            and self.export_request_id is not None
+            and self.bundle_id is not None
+            and self.upload_session_id is None
+            and self.owner_kind == UploadOwnerKind.ACTOR
+        )
+        if not (intake or preview or image_export or bundle):
             raise ValueError("processing job target must match its kind")
         return self
 
@@ -796,3 +835,4 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
 }
 
 PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)
+PRODUCT_SCHEMA_EXPORTS.update(ENHANCEMENT_SCHEMA_EXPORTS)

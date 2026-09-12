@@ -23,7 +23,14 @@
         "document.read",
         "document.edit",
         "document.version",
-        "document.lease.takeover"
+        "document.lease.takeover",
+        "recipe.create",
+        "recipe.read",
+        "recipe.update",
+        "export.create",
+        "export.read",
+        "export.cancel",
+        "export.retry"
       ],
       "title": "Permission",
       "type": "string"
@@ -51,7 +58,7 @@
       "$ref": "#/$defs/Permission"
     },
     "schema_version": {
-      "default": "1.17.0",
+      "default": "1.19.0",
       "title": "Schema Version",
       "type": "string"
     },

@@ -24,6 +24,13 @@ const ALL_PERMISSIONS: Permission[] = [
   "document.edit",
   "document.version",
   "document.lease.takeover",
+  "recipe.create",
+  "recipe.read",
+  "recipe.update",
+  "export.create",
+  "export.read",
+  "export.cancel",
+  "export.retry",
 ];
 
 const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
@@ -49,8 +56,23 @@ const ROLE_PERMISSIONS: Record<RolePreset, ReadonlySet<Permission>> = {
     "document.read",
     "document.edit",
     "document.version",
+    "recipe.create",
+    "recipe.read",
+    "recipe.update",
+    "export.create",
+    "export.read",
+    "export.cancel",
+    "export.retry",
   ]),
-  viewer: new Set(["workspace.read", "project.read", "file.read", "search.read", "document.read"]),
+  viewer: new Set([
+    "workspace.read",
+    "project.read",
+    "file.read",
+    "search.read",
+    "document.read",
+    "recipe.read",
+    "export.read",
+  ]),
 };
 
 export function permissionsForRole(role: RolePreset): EffectivePermission[] {

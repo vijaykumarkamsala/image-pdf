@@ -22,10 +22,19 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.image_compatibility import (
+    native_downscale_rounding_matches,
+    portable_metadata_value,
+)
 
 if TYPE_CHECKING:
     from ipw.contracts.operation import AnySettings
@@ -87,6 +96,11 @@ fixture instead, which gives the filter something to remove and something it
 must preserve.
 """
 
+NATIVE_DOWNSCALE_OPERATIONS = frozenset(
+    {"resize-bicubic-32", "resize-lanczos-32", "resize-scale-half"}
+)
+"""libvips operations with bounded cross-compiled integer rounding evidence."""
+
 
 def goldens_dir(repo_root: Path) -> Path:
     return repo_root / "data" / "goldens"
@@ -96,7 +110,65 @@ def repo_root_from_here() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def generate(repo_root: Path, *, check: bool) -> int:
+def _decoded_signature(payload: bytes) -> dict[str, object]:
+    """Cross-platform image evidence without claiming encoder-byte identity."""
+
+    from PIL import Image
+
+    with Image.open(io.BytesIO(payload)) as image:
+        image.load()
+        return {
+            "format": image.format,
+            "mode": image.mode,
+            "size": list(image.size),
+            "frames": int(getattr(image, "n_frames", 1)),
+            "pixels_sha256": hashlib.sha256(image.tobytes()).hexdigest(),
+            "metadata": {
+                key: portable_metadata_value(key, value)
+                for key, value in sorted(image.info.items())
+                if key not in {"duration"}
+            },
+        }
+
+
+def _decoded_pixels(payload: bytes) -> bytes:
+    from PIL import Image
+
+    with Image.open(io.BytesIO(payload)) as image:
+        image.load()
+        return image.tobytes()
+
+
+def _windows_compatible(
+    canonical: bytes, candidate: bytes, *, engine_name: str, operation_name: str
+) -> tuple[bool, str]:
+    canonical_signature = _decoded_signature(canonical)
+    candidate_signature = _decoded_signature(candidate)
+    if canonical_signature == candidate_signature:
+        return True, ""
+
+    canonical_structure = {
+        key: value for key, value in canonical_signature.items() if key != "pixels_sha256"
+    }
+    candidate_structure = {
+        key: value for key, value in candidate_signature.items() if key != "pixels_sha256"
+    }
+    if (
+        engine_name == "libvips"
+        and operation_name in NATIVE_DOWNSCALE_OPERATIONS
+        and canonical_structure == candidate_structure
+    ):
+        size = canonical_signature["size"]
+        assert isinstance(size, list)
+        pixel_count = int(size[0]) * int(size[1])
+        if native_downscale_rounding_matches(
+            _decoded_pixels(canonical), _decoded_pixels(candidate), pixel_count=pixel_count
+        ):
+            return True, " (bounded native downscale rounding)"
+    return False, ""
+
+
+def generate(repo_root: Path, *, check: bool, compatibility: bool = False) -> int:
     import hashlib as _hashlib
 
     from ipw.contracts.operation import Operation, ProcessingVariant
@@ -126,6 +198,15 @@ def generate(repo_root: Path, *, check: bool) -> int:
     problems = 0
     skipped: list[str] = []
     manifest: dict[str, dict[str, dict[str, object]]] = {}
+    committed_index = goldens_dir(repo_root) / "index.json"
+    committed = (
+        json.loads(committed_index.read_text(encoding="utf-8"))
+        if compatibility and committed_index.is_file()
+        else None
+    )
+    if compatibility and committed is None:
+        sys.stderr.write("canonical Linux golden index is missing\n")
+        return 1
 
     for engine_name, processor in engines.items():
         if not processor.engine.available:
@@ -165,7 +246,35 @@ def generate(repo_root: Path, *, check: bool) -> int:
                     "source": NOISE_SOURCE if name in NOISE_OPERATIONS else SOURCE,
                 }
 
-                if check:
+                if compatibility:
+                    assert committed is not None
+                    entry = committed.get("engines", {}).get(engine_name, {}).get(name)
+                    if not isinstance(entry, dict):
+                        sys.stderr.write(f"{engine_name}/{name}: canonical golden missing\n")
+                        problems += 1
+                        continue
+                    canonical_path = repo_root / str(entry.get("file", ""))
+                    if not canonical_path.is_file():
+                        sys.stderr.write(f"{engine_name}/{name}: canonical golden file missing\n")
+                        problems += 1
+                        continue
+                    compatible, detail = _windows_compatible(
+                        canonical_path.read_bytes(),
+                        produced,
+                        engine_name=engine_name,
+                        operation_name=name,
+                    )
+                    if not compatible:
+                        sys.stderr.write(
+                            f"{engine_name}/{name}: decoded pixels, dimensions, format or metadata "
+                            "differ from the canonical Linux golden\n"
+                        )
+                        problems += 1
+                    else:
+                        sys.stdout.write(
+                            f"{engine_name}/{name:<28} decoded compatibility PASS{detail}\n"
+                        )
+                elif check:
                     if not path.is_file():
                         sys.stderr.write(f"{engine_name}/{name}: golden missing\n")
                         problems += 1
@@ -196,7 +305,7 @@ def generate(repo_root: Path, *, check: bool) -> int:
         ),
         "engines": manifest,
     }
-    if not check:
+    if not check and not compatibility:
         index.write_text(
             json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
         )
@@ -206,15 +315,23 @@ def generate(repo_root: Path, *, check: bool) -> int:
             f"\nskipped engines: {', '.join(skipped)} "
             f"(golden coverage is incomplete on this host)\n"
         )
+        if compatibility:
+            problems += len(skipped)
     return 1 if problems else 0
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate or check POC-004 golden outputs.")
-    parser.add_argument("--check", action="store_true", help="verify without writing")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="verify exact canonical bytes")
+    mode.add_argument(
+        "--compatibility",
+        action="store_true",
+        help="compare decoded pixels, dimensions, format and metadata without encoded bytes",
+    )
     parser.add_argument("--repo-root", type=Path, default=repo_root_from_here())
     args = parser.parse_args(argv)
-    return generate(args.repo_root, check=args.check)
+    return generate(args.repo_root, check=args.check, compatibility=args.compatibility)
 
 
 if __name__ == "__main__":

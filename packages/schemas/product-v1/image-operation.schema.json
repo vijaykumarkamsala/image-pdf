@@ -1,0 +1,816 @@
+{
+  "$defs": {
+    "AlphaBackgroundParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "background": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Background"
+        },
+        "behavior": {
+          "default": "preserve",
+          "enum": [
+            "preserve",
+            "flatten"
+          ],
+          "title": "Behavior",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "AlphaBackgroundParameters",
+      "type": "object"
+    },
+    "ColourProfileConversionParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "black_point_compensation": {
+          "default": true,
+          "title": "Black Point Compensation",
+          "type": "boolean"
+        },
+        "rendering_intent": {
+          "default": "perceptual",
+          "enum": [
+            "perceptual",
+            "relative_colorimetric"
+          ],
+          "title": "Rendering Intent",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "target_profile": {
+          "default": "srgb",
+          "enum": [
+            "preserve",
+            "srgb",
+            "display-p3"
+          ],
+          "title": "Target Profile",
+          "type": "string"
+        }
+      },
+      "title": "ColourProfileConversionParameters",
+      "type": "object"
+    },
+    "ContrastParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Amount",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "ContrastParameters",
+      "type": "object"
+    },
+    "CropParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "aspect_preset": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aspect Preset"
+        },
+        "bottom": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Bottom",
+          "type": "number"
+        },
+        "left": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Left",
+          "type": "number"
+        },
+        "right": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Right",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "top": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Top",
+          "type": "number"
+        }
+      },
+      "required": [
+        "left",
+        "top",
+        "right",
+        "bottom"
+      ],
+      "title": "CropParameters",
+      "type": "object"
+    },
+    "CurvePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Input",
+          "type": "number"
+        },
+        "output": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Output",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input",
+        "output"
+      ],
+      "title": "CurvePoint",
+      "type": "object"
+    },
+    "CurvesParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "default": "rgb",
+          "enum": [
+            "rgb",
+            "red",
+            "green",
+            "blue"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "points": {
+          "default": [
+            {
+              "input": 0.0,
+              "output": 0.0,
+              "schema_version": "1.19.0"
+            },
+            {
+              "input": 1.0,
+              "output": 1.0,
+              "schema_version": "1.19.0"
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/CurvePoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "CurvesParameters",
+      "type": "object"
+    },
+    "ExposureBrightnessParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "brightness": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Brightness",
+          "type": "number"
+        },
+        "exposure_ev": {
+          "default": 0,
+          "maximum": 5,
+          "minimum": -5,
+          "title": "Exposure Ev",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "ExposureBrightnessParameters",
+      "type": "object"
+    },
+    "FlipParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "horizontal": {
+          "default": false,
+          "title": "Horizontal",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "vertical": {
+          "default": false,
+          "title": "Vertical",
+          "type": "boolean"
+        }
+      },
+      "title": "FlipParameters",
+      "type": "object"
+    },
+    "GammaParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "gamma": {
+          "default": 1,
+          "maximum": 5,
+          "minimum": 0.1,
+          "title": "Gamma",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "GammaParameters",
+      "type": "object"
+    },
+    "GrayscaleParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "default": "luminance",
+          "enum": [
+            "luminance",
+            "average"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "GrayscaleParameters",
+      "type": "object"
+    },
+    "HighlightsShadowsParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "highlights": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Highlights",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "shadows": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Shadows",
+          "type": "number"
+        }
+      },
+      "title": "HighlightsShadowsParameters",
+      "type": "object"
+    },
+    "ImageOperationKind": {
+      "enum": [
+        "orientation_normalize",
+        "crop",
+        "rotate",
+        "flip",
+        "resize",
+        "exposure_brightness",
+        "contrast",
+        "highlights_shadows",
+        "white_balance_temperature",
+        "tint",
+        "saturation_vibrance",
+        "gamma",
+        "levels",
+        "curves",
+        "grayscale",
+        "unsharp_mask",
+        "noise_reduction",
+        "colour_profile_conversion",
+        "alpha_background",
+        "resampling_scale"
+      ],
+      "title": "ImageOperationKind",
+      "type": "string"
+    },
+    "LevelsParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "black": {
+          "default": 0,
+          "maximum": 254,
+          "minimum": 0,
+          "title": "Black",
+          "type": "integer"
+        },
+        "midpoint": {
+          "default": 1,
+          "maximum": 5,
+          "minimum": 0.1,
+          "title": "Midpoint",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "white": {
+          "default": 255,
+          "maximum": 255,
+          "minimum": 1,
+          "title": "White",
+          "type": "integer"
+        }
+      },
+      "title": "LevelsParameters",
+      "type": "object"
+    },
+    "NoiseReductionParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "preserve_edges": {
+          "default": 70,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Preserve Edges",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "strength": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength",
+          "type": "integer"
+        }
+      },
+      "title": "NoiseReductionParameters",
+      "type": "object"
+    },
+    "OrientationNormalizeParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "apply_exactly_once": {
+          "const": true,
+          "default": true,
+          "title": "Apply Exactly Once",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_orientation": {
+          "maximum": 8,
+          "minimum": 2,
+          "title": "Source Orientation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_orientation"
+      ],
+      "title": "OrientationNormalizeParameters",
+      "type": "object"
+    },
+    "ResamplingAlgorithm": {
+      "enum": [
+        "nearest",
+        "bilinear",
+        "bicubic",
+        "lanczos"
+      ],
+      "title": "ResamplingAlgorithm",
+      "type": "string"
+    },
+    "ResamplingScaleParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/ResamplingAlgorithm",
+          "default": "lanczos"
+        },
+        "label": {
+          "const": "Standard resampling (not AI reconstruction)",
+          "default": "Standard resampling (not AI reconstruction)",
+          "title": "Label",
+          "type": "string"
+        },
+        "scale": {
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Scale",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scale"
+      ],
+      "title": "ResamplingScaleParameters",
+      "type": "object"
+    },
+    "ResizeMode": {
+      "enum": [
+        "pixels",
+        "percent",
+        "physical"
+      ],
+      "title": "ResizeMode",
+      "type": "string"
+    },
+    "ResizeParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/ResamplingAlgorithm",
+          "default": "lanczos"
+        },
+        "aspect_locked": {
+          "const": true,
+          "default": true,
+          "title": "Aspect Locked",
+          "type": "boolean"
+        },
+        "aspect_preset": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aspect Preset"
+        },
+        "fit": {
+          "default": "contain",
+          "enum": [
+            "contain",
+            "cover"
+          ],
+          "title": "Fit",
+          "type": "string"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Height",
+          "type": "number"
+        },
+        "mode": {
+          "$ref": "#/$defs/ResizeMode"
+        },
+        "physical_unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "in",
+                "mm",
+                "cm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Physical Unit"
+        },
+        "ppi": {
+          "anyOf": [
+            {
+              "maximum": 9600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ppi"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode",
+        "width",
+        "height"
+      ],
+      "title": "ResizeParameters",
+      "type": "object"
+    },
+    "RotateParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "degrees": {
+          "maximum": 360,
+          "minimum": -360,
+          "title": "Degrees",
+          "type": "number"
+        },
+        "expand_canvas": {
+          "default": true,
+          "title": "Expand Canvas",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "degrees"
+      ],
+      "title": "RotateParameters",
+      "type": "object"
+    },
+    "SaturationVibranceParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "saturation": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "vibrance": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Vibrance",
+          "type": "number"
+        }
+      },
+      "title": "SaturationVibranceParameters",
+      "type": "object"
+    },
+    "TintParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Amount",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "TintParameters",
+      "type": "object"
+    },
+    "UnsharpMaskParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "default": 100,
+          "maximum": 500,
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "radius": {
+          "default": 1,
+          "maximum": 50,
+          "minimum": 0.1,
+          "title": "Radius",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "threshold": {
+          "default": 3,
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Threshold",
+          "type": "integer"
+        }
+      },
+      "title": "UnsharpMaskParameters",
+      "type": "object"
+    },
+    "WhiteBalanceParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "default": "1.19.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "temperature_kelvin": {
+          "default": 6500,
+          "maximum": 12000,
+          "minimum": 2000,
+          "title": "Temperature Kelvin",
+          "type": "integer"
+        }
+      },
+      "title": "WhiteBalanceParameters",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/image-operation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "kind": {
+      "$ref": "#/$defs/ImageOperationKind"
+    },
+    "operation_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "order": {
+      "minimum": 0,
+      "title": "Order",
+      "type": "integer"
+    },
+    "parameters": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OrientationNormalizeParameters"
+        },
+        {
+          "$ref": "#/$defs/CropParameters"
+        },
+        {
+          "$ref": "#/$defs/RotateParameters"
+        },
+        {
+          "$ref": "#/$defs/FlipParameters"
+        },
+        {
+          "$ref": "#/$defs/ResizeParameters"
+        },
+        {
+          "$ref": "#/$defs/ExposureBrightnessParameters"
+        },
+        {
+          "$ref": "#/$defs/ContrastParameters"
+        },
+        {
+          "$ref": "#/$defs/HighlightsShadowsParameters"
+        },
+        {
+          "$ref": "#/$defs/WhiteBalanceParameters"
+        },
+        {
+          "$ref": "#/$defs/TintParameters"
+        },
+        {
+          "$ref": "#/$defs/SaturationVibranceParameters"
+        },
+        {
+          "$ref": "#/$defs/GammaParameters"
+        },
+        {
+          "$ref": "#/$defs/LevelsParameters"
+        },
+        {
+          "$ref": "#/$defs/CurvesParameters"
+        },
+        {
+          "$ref": "#/$defs/GrayscaleParameters"
+        },
+        {
+          "$ref": "#/$defs/UnsharpMaskParameters"
+        },
+        {
+          "$ref": "#/$defs/NoiseReductionParameters"
+        },
+        {
+          "$ref": "#/$defs/ColourProfileConversionParameters"
+        },
+        {
+          "$ref": "#/$defs/AlphaBackgroundParameters"
+        },
+        {
+          "$ref": "#/$defs/ResamplingScaleParameters"
+        }
+      ],
+      "title": "Parameters"
+    },
+    "schema_version": {
+      "default": "1.19.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "operation_id",
+    "kind",
+    "order",
+    "parameters"
+  ],
+  "title": "ImageOperation",
+  "type": "object"
+}

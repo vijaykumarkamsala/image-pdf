@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { Test } from "@nestjs/testing";
@@ -171,6 +174,83 @@ test("high-resolution dimensions remain structural facts and cannot imply qualit
     assert.match(presentation.presentation.quality_observations.join(" "), /dimensions are structural facts/i);
     assert.match(presentation.presentation.production_readiness, /^Not assessed by intake/);
     assert.doesNotMatch(JSON.stringify(presentation), /production.ready|source is suitable|% confidence/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("nested EXIF categories and CMYK ICC facts survive the NestJS inspection boundary", async () => {
+  const server = await api();
+  try {
+    const bootstrap = await json(await server.request("/session/bootstrap", {
+      method: "POST",
+      headers: { "idempotency-key": "bootstrap-rich-inspection" },
+    }, "actor-rich-inspection"));
+    const workspaceId = bootstrap.workspace.workspace_id as string;
+
+    async function inspectFixture(name: string, key: string) {
+      const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
+      const bytes = readFileSync(
+        resolve(repositoryRoot, "data", "fixtures", "images", "recovery2e", name),
+      );
+      const created = await json(await server.request(`/workspaces/${workspaceId}/upload-sessions`, {
+        method: "POST",
+        headers: { "idempotency-key": `upload-${key}` },
+        body: JSON.stringify({ display_name: name, media_type: "image/jpeg", byte_size: bytes.byteLength }),
+      }, "actor-rich-inspection"));
+      const uploadUrl = new URL(created.authorization.upload_url, "http://local");
+      await server.request(`${uploadUrl.pathname.replace("/v1", "")}${uploadUrl.search}`, {
+        method: "PUT",
+        headers: { "content-type": "application/octet-stream", "upload-offset": "0" },
+        body: bytes,
+      }, "actor-rich-inspection");
+      await server.request(`/upload-sessions/${created.upload_session.upload_session_id}/finalise`, {
+        method: "POST",
+        headers: { "idempotency-key": `finalise-${key}` },
+      }, "actor-rich-inspection");
+      assert.equal(await server.executor.runAvailable(), true);
+      return json(await server.request(
+        `/upload-sessions/${created.upload_session.upload_session_id}`,
+        {},
+        "actor-rich-inspection",
+      ));
+    }
+
+    const metadata = await inspectFixture("private-metadata-320x200.jpg", "private-metadata");
+    assert.equal(metadata.upload_session.source_facts.orientation, 6);
+    assert.deepEqual(new Set(metadata.upload_session.source_facts.sensitive_metadata), new Set([
+      "comments",
+      "description",
+      "embedded_thumbnails",
+      "exif",
+      "gps",
+      "iptc",
+      "maker_notes",
+      "software_device",
+      "xmp",
+    ]));
+    const orientedDocument = await json(await server.request(`/workspaces/${workspaceId}/documents`, {
+      method: "POST",
+      headers: { "idempotency-key": "document-upright-metadata" },
+      body: JSON.stringify({
+        name: "Upright metadata fixture",
+        source_file_id: metadata.upload_session.file_id,
+        intended_use: "digital",
+      }),
+    }, "actor-rich-inspection"));
+    assert.deepEqual(
+      {
+        width: orientedDocument.editor.snapshot.artboards[0].width,
+        height: orientedDocument.editor.snapshot.artboards[0].height,
+        layer_width: orientedDocument.editor.snapshot.layers[0].transform.width,
+        layer_height: orientedDocument.editor.snapshot.layers[0].transform.height,
+      },
+      { width: 200, height: 320, layer_width: 200, layer_height: 320 },
+    );
+
+    const cmyk = await inspectFixture("cmyk-360x240.jpg", "cmyk");
+    assert.equal(cmyk.upload_session.source_facts.colour_model, "cmyk");
+    assert.equal(cmyk.upload_session.source_facts.has_icc_profile, true);
   } finally {
     await server.close();
   }

@@ -3,6 +3,7 @@ from __future__ import annotations
 import struct
 
 import pytest
+from tools.make_recovery_2e_fixtures import cmyk_jpeg, metadata_jpeg
 
 from ipw.inspection import (
     ClamAvScanner,
@@ -197,6 +198,8 @@ def test_jpeg_gif_bmp_and_webp_headers_are_bounded() -> None:
     struct.pack_into("<H", bmp, 28, 32)
     webp = bytearray(30)
     webp[:4], webp[8:12], webp[12:16] = b"RIFF", b"WEBP", b"VP8X"
+    webp[4:8] = (22).to_bytes(4, "little")
+    webp[16:20] = (10).to_bytes(4, "little")
     webp[20] = 0x10
     webp[24:27] = (7).to_bytes(3, "little")
     webp[27:30] = (8).to_bytes(3, "little")
@@ -269,6 +272,38 @@ def test_jpeg_orientation_icc_and_sensitive_metadata_are_reported() -> None:
     assert result.facts.orientation == 6
     assert result.facts.has_icc_profile is True
     assert result.facts.sensitive_metadata == ("exif",)
+
+
+def test_nested_exif_metadata_and_generated_cmyk_profile_are_reported() -> None:
+    metadata = inspect_bytes(
+        metadata_jpeg(),
+        display_name="private-metadata.jpg",
+        expected_media_type="image/jpeg",
+    )
+    assert metadata.accepted
+    assert metadata.facts is not None
+    assert metadata.facts.orientation == 6
+    assert set(metadata.facts.sensitive_metadata) == {
+        "comments",
+        "description",
+        "embedded_thumbnails",
+        "exif",
+        "gps",
+        "iptc",
+        "maker_notes",
+        "software_device",
+        "xmp",
+    }
+
+    cmyk = inspect_bytes(
+        cmyk_jpeg(),
+        display_name="cmyk.jpg",
+        expected_media_type="image/jpeg",
+    )
+    assert cmyk.accepted
+    assert cmyk.facts is not None
+    assert cmyk.facts.colour_model == "cmyk"
+    assert cmyk.facts.has_icc_profile is True
 
 
 def test_detected_but_unapproved_containers_fail_at_the_parser_boundary() -> None:
