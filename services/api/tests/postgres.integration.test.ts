@@ -835,6 +835,14 @@ test(
         "trace-postgres-guest",
       );
       assert.equal(guestCompletion.upload.file_id, null);
+      await assert.rejects(
+        pool.query(
+          `UPDATE upload_sessions SET owner_kind='actor',workspace_id=$1,actor_id='actor-pg',guest_session_id=NULL
+           WHERE upload_session_id='upload-guest-ready-pg'`,
+          [first.workspace.workspace_id],
+        ),
+        /upload ownership and expected source facts are immutable/,
+      );
       const handoffs = new PostgresGuestHandoffRepository(pool);
       const handedOff = await handoffs.handoff({
         uploadSessionId: "upload-guest-ready-pg",

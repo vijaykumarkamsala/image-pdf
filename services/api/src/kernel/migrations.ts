@@ -28,6 +28,7 @@ export const MIGRATION_VERSIONS = [
   "0020_batch_processing",
   "0021_native_pdf_creation",
   "0022_imported_pdf_capability",
+  "0023_guest_handoff_completion",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {
