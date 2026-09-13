@@ -27,7 +27,7 @@ import { Brand } from "./components/Brand";
 import { HeaderOperations, JobsPage, SignedWorkspaceHome } from "./components/OperationalExperience";
 import { OutcomeGrid } from "./components/OutcomeGrid";
 import { UploadDialog } from "./components/UploadDialog";
-import { Button, Dialog, IconButton, Menu, Popover, StatePanel, TextInput } from "./design-system";
+import { Button, Dialog, IconButton, InlineNotice, Menu, Popover, StatePanel, TextInput } from "./design-system";
 import { InternalPanelHarness } from "./panels/PanelFramework";
 import { OfflineStatus } from "./pwa/OfflineStatus";
 import { clearPrivateCachesOnLogout } from "./pwa/serviceWorker";
@@ -306,6 +306,7 @@ function SignedInApplication() {
 
 function GuestHome() {
   const { preference, setPreference } = useThemePreference();
+  const [params] = useSearchParams();
   const [guest, setGuest] = useState<StoredGuestSession | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const preparation = useRef<ReturnType<typeof api.createGuestSession> | null>(null);
@@ -328,6 +329,7 @@ function GuestHome() {
     <header className="public-header"><Brand /><div className="public-header-actions"><span className="free-testing"><CheckCircle2 aria-hidden="true" />Free during testing</span><Button className="public-sign-in" tone="quiet" size="compact" onClick={signIn}><LogIn aria-hidden="true" />Sign in</Button><ThemeMenu preference={preference} setPreference={setPreference} /></div></header>
     <main className="public-main" data-testid="guest-home">
       <section className="guest-intro"><p className="eyebrow">Images and PDFs, understood first</p><h1>Bring a source. See what is trustworthy.</h1><p>Upload an image or PDF for private safety checks and verified facts. Your original stays untouched.</p></section>
+      {params.get("sign_in") === "failed" && <InlineNotice tone="error" title="Sign in did not complete">Your temporary uploads are still available. Try again when you are ready to continue.</InlineNotice>}
       <section className="guest-intake" aria-labelledby="guest-intake-heading"><div className="guest-intake-heading"><div><h2 id="guest-intake-heading">Start with a file</h2><p>Choose one or several supported images or PDFs.</p></div><ShieldCheck aria-hidden="true" /></div>{guest ? <UploadDialog open embedded guestSession={guest} onOpenChange={() => undefined} onReady={() => undefined} /> : <StatePanel kind="loading" title="Preparing private intake" message="Creating a temporary session for your files." />}</section>
       <section className="public-outcomes" aria-labelledby="public-outcomes-heading"><div className="section-heading"><div><h2 id="public-outcomes-heading">Four ways forward</h2><p>Upload first and the workspace will recommend only what the verified source supports.</p></div></div><OutcomeGrid publicView /></section>
       <section className="trust-row" aria-label="Source safeguards"><span><ShieldCheck aria-hidden="true" />Original preserved</span><span><FileStack aria-hidden="true" />Verified facts before recommendations</span><span><CheckCircle2 aria-hidden="true" />No silent changes or AI</span></section>

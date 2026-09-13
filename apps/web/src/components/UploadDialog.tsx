@@ -450,7 +450,7 @@ export function UploadDialog({
                     }) : void processItem(item.id)}><RotateCcw aria-hidden="true" />Retry</Button>
                   )}
                   {guestSession && item.phase === "ready" && !item.saved && (
-                    <Button tone="primary" size="compact" onClick={() => void saveGuest(item)}>Sign in to save</Button>
+                    <Button tone="primary" size="compact" onClick={() => void saveGuest(item)}>Sign in to continue</Button>
                   )}
                 </div>
                 {item.phase === "ready" && item.upload?.source_facts && (
@@ -465,7 +465,7 @@ export function UploadDialog({
       <div className="upload-privacy">
         <ShieldCheck aria-hidden="true" />
         <span>{guestSession
-          ? "Temporary files stay private and expire after 24 hours unless you sign in to save them."
+          ? "Temporary files stay private and expire after 24 hours. Sign in or create an account to keep them and continue in your workspace."
           : "Files stay private while they are checked and added to this workspace."}</span>
       </div>
 

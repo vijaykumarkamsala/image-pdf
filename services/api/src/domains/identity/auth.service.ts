@@ -26,6 +26,33 @@ export class AuthService {
   ) {}
 
   async login(headers: Headers, returnToValue: string | undefined, handoffValue: string | undefined): Promise<string> {
+    return (await this.startLogin(headers, returnToValue, handoffValue)).authorizationUrl;
+  }
+
+  developmentLoginAvailable(): boolean {
+    return process.env["NODE_ENV"] !== "production"
+      && process.env["IPW_DEV_IDENTITY_ENABLED"] === "1"
+      && typeof this.provider.developmentCode === "function";
+  }
+
+  async developmentLogin(
+    headers: Headers,
+    returnToValue: string | undefined,
+    handoffValue: string | undefined,
+  ): Promise<{ issued: IssuedSession; redirectTo: string }> {
+    const developmentCode = this.provider.developmentCode?.bind(this.provider);
+    if (!this.developmentLoginAvailable() || !developmentCode) {
+      throw new DomainError(404, "not-found", "The requested route is unavailable");
+    }
+    const started = await this.startLogin(headers, returnToValue, handoffValue);
+    return this.callback(headers, developmentCode(started.state), started.state);
+  }
+
+  private async startLogin(
+    headers: Headers,
+    returnToValue: string | undefined,
+    handoffValue: string | undefined,
+  ): Promise<{ authorizationUrl: string; state: string }> {
     const state = token();
     const nonce = token();
     const verifier = token(64);
@@ -38,7 +65,10 @@ export class AuthService {
       guestTokenHash: guestToken ? hash(guestToken) : null,
       createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
     });
-    return this.provider.authorizationUrl({ state, nonce, codeChallenge: base64UrlDigest(verifier) });
+    return {
+      authorizationUrl: await this.provider.authorizationUrl({ state, nonce, codeChallenge: base64UrlDigest(verifier) }),
+      state,
+    };
   }
 
   async callback(headers: Headers, codeValue: string | undefined, stateValue: string | undefined): Promise<{ issued: IssuedSession; redirectTo: string }> {

@@ -147,6 +147,10 @@ export class DeterministicOidcProvider implements OidcProvider {
     if (!input.code.startsWith("code-")) throw new DomainError(401, "oidc-code-exchange-failed", "Sign in could not be completed");
     return { issuer: this.issuer, subject: input.code.slice(5), displayName: "Test customer" };
   }
+  developmentCode(state: string): string {
+    void state;
+    return "code-local-customer";
+  }
 }
 
 function hash(value: string): string {

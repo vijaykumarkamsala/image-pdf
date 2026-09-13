@@ -862,6 +862,13 @@ test(
         .find((file) => file.file_id === handedOff.fileId);
       assert.equal(guestFile?.asset_original_id, "asset-guest-preserved");
       assert.equal(guestFile?.current_source_version_id, "source-guest-preserved");
+      const handedOffUpload = (await intake.listWorkspaceUploads(first.workspace.workspace_id))
+        .find((upload) => upload.record.upload_session_id === "upload-guest-ready-pg");
+      assert.equal(handedOffUpload?.record.owner_kind, "actor");
+      assert.equal(handedOffUpload?.record.actor_id, "actor-pg");
+      assert.equal(handedOffUpload?.record.file_id, handedOff.fileId);
+      assert.equal(handedOffUpload?.quarantineRef.ownerScope, first.workspace.workspace_id);
+      assert.equal(handedOffUpload?.quarantineRef.zone, "immutable");
       const handoffAudit = await repository.listAuditEvents("actor-pg", first.workspace.workspace_id);
       assert.ok(handoffAudit.some((event) => event.action === "guest-source.handed-off"
         && event.resource_id === handedOff.fileId));

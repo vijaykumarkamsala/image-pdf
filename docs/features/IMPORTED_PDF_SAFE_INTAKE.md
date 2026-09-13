@@ -1,7 +1,7 @@
 # Imported PDF Safe Intake
 
 **Release slice:** Imported-PDF-001
-**Status:** Implemented; canonical Linux and PostgreSQL gates required before merge
+**Status:** Implemented and merged; canonical Linux and PostgreSQL gates passed
 
 ## Customer outcome
 
