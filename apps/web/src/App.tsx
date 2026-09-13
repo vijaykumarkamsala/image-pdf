@@ -39,6 +39,7 @@ const BatchWorkspace = lazy(() => import("./editor/BatchWorkspace").then((module
 const PdfStartPage = lazy(() => import("./editor/PdfStartPage").then((module) => ({ default: module.PdfStartPage })));
 const ImportedPdfStartPage = lazy(() => import("./editor/ImportedPdfWorkspace").then((module) => ({ default: module.ImportedPdfStartPage })));
 const ImportedPdfWorkspace = lazy(() => import("./editor/ImportedPdfWorkspace").then((module) => ({ default: module.ImportedPdfWorkspace })));
+const ImageQualityEditorPage = lazy(() => import("./image-quality/ImageQualityEditorPage").then((module) => ({ default: module.ImageQualityEditorPage })));
 
 const developmentBuild = (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV ?? false;
 
@@ -392,6 +393,7 @@ export default function App() {
   return <><OfflineStatus /><CrossTabSessionBoundary /><BrowserRouter><Routes>
     <Route path="/" element={<GuestHome />} />
     <Route path="/guest/upload" element={<GuestHome />} />
+    <Route path="/image-quality/*" element={<Suspense fallback={<AppLoading />}><ImageQualityEditorPage /></Suspense>} />
     <Route path="/auth/complete" element={<AuthComplete />} />
     <Route path="/app/*" element={<SignedInApplication />} />
     <Route path="/w/*" element={<SignedInApplication />} />
