@@ -481,6 +481,7 @@ export class IntakeService implements OnApplicationShutdown {
           transferProvider: this.objects.provider,
           protectedProviderSession: null,
           providerMetadata: null,
+          pdfCapabilityAnalysis: null,
         },
         {
           ownerScope: owner.ownerScope,

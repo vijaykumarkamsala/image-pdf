@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Inject, Injectable, type OnApplicationShutdown } from "@nestjs/common";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
-import type { Permission } from "ipw-contracts-ts/product";
+import type { PdfCapabilityReport, Permission, WorkspaceFile } from "ipw-contracts-ts/product";
 
 import { DomainError, requireId } from "../../kernel/errors.js";
 import { PRODUCT_REPOSITORY, type CommandContext, type ProductKernelRepository } from "../../kernel/product.types.js";
@@ -9,6 +9,11 @@ import { requestDigest } from "../../kernel/runtime.js";
 import { DOCUMENT_REPOSITORY, type DocumentRepository } from "../documents/documents.types.js";
 import { IdentityBoundary } from "../identity/identity.service.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
+import {
+  INTAKE_REPOSITORY,
+  type IntakeRepository,
+  type StoredPdfCapabilityAnalysis,
+} from "../intake/intake.types.js";
 import { PDF_EXPORT_REPOSITORY, type PdfExportRepository } from "./pdf.types.js";
 import { preflightScreenPdf } from "./pdf-preflight.js";
 
@@ -23,8 +28,65 @@ export class PdfService implements OnApplicationShutdown {
     @Inject(DOCUMENT_REPOSITORY) private readonly documents: DocumentRepository,
     @Inject(PRODUCT_REPOSITORY) private readonly product: ProductKernelRepository,
     @Inject(PRIVATE_OBJECT_STORE) private readonly objects: PrivateObjectStore,
+    @Inject(INTAKE_REPOSITORY) private readonly intake: IntakeRepository,
     private readonly identity: IdentityBoundary,
   ) {}
+
+  async capabilityReport(headers: Headers, workspaceId: string, fileId: string) {
+    const access = await this.access(headers, workspaceId, "file.read");
+    const id = requireId(fileId, "file id");
+    const file = (await this.product.listFiles(access.principal.actorId, access.workspaceId))
+      .find((candidate) => candidate.file_id === id);
+    if (!file) throw new DomainError(404, "file-not-found", "File was not found");
+    const evidence = await this.intake.findPdfCapabilityAnalysis(
+      access.workspaceId,
+      file.current_source_version_id,
+    );
+    if (!evidence) {
+      throw new DomainError(
+        404,
+        "pdf-capability-report-not-found",
+        "A verified imported-PDF capability report was not found",
+      );
+    }
+    const report = this.report(access.workspaceId, file, evidence);
+    return { schema_version: PRODUCT_SCHEMA_VERSION, capability_report: report };
+  }
+
+  async capabilityReports(headers: Headers, workspaceId: string) {
+    const access = await this.access(headers, workspaceId, "file.read");
+    const files = await this.product.listFiles(access.principal.actorId, access.workspaceId);
+    const evidence = await this.intake.listPdfCapabilityAnalyses(
+      access.workspaceId,
+      files.map((file) => file.current_source_version_id),
+    );
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      capability_reports: files.flatMap((file) => {
+        const item = evidence.get(file.current_source_version_id);
+        return item ? [this.report(access.workspaceId, file, item)] : [];
+      }),
+    };
+  }
+
+  private report(
+    workspaceId: string,
+    file: WorkspaceFile,
+    evidence: StoredPdfCapabilityAnalysis,
+  ): PdfCapabilityReport {
+    const reportKey = createHash("sha256").update(file.current_source_version_id).digest("hex");
+    return {
+      schema_version: PRODUCT_SCHEMA_VERSION,
+      pdf_capability_report_id: `pdfcap-${reportKey.slice(0, 48)}`,
+      workspace_id: workspaceId,
+      file_id: file.file_id,
+      asset_original_id: file.asset_original_id,
+      source_version_id: file.current_source_version_id,
+      storage_generation: evidence.storageGeneration,
+      analysis: evidence.analysis,
+      inspected_at: evidence.inspectedAt,
+    };
+  }
 
   async preflight(headers: Headers, workspaceId: string, documentId: string) {
     const access = await this.access(headers, workspaceId, "export.read");
@@ -136,7 +198,7 @@ export class PdfService implements OnApplicationShutdown {
     const context = await this.product.workspaceContext(principal.actorId, id);
     if (!context) throw new DomainError(404, "workspace-not-found", "Workspace was not found");
     if (!context.effectivePermissions.some((item) => item.permission === required && item.allowed)) {
-      throw new DomainError(403, "access-denied", "You do not have permission to use PDF exports");
+      throw new DomainError(403, "access-denied", "You do not have permission for this PDF operation");
     }
     return { principal, workspaceId: id };
   }

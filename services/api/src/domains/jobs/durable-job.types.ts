@@ -1,6 +1,7 @@
 import type {
   IntakeFailure,
   JobEventRecord,
+  PdfCapabilityAnalysis,
   ProcessingJobRecord,
   UploadSessionRecord,
 } from "ipw-contracts-ts/product";
@@ -52,6 +53,7 @@ export interface AcceptedInspection {
   immutableObjectKey: string;
   immutableStorageGeneration: string;
   facts: NonNullable<UploadSessionRecord["source_facts"]>;
+  pdfCapabilityAnalysis: PdfCapabilityAnalysis | null;
 }
 
 export interface InspectionCompletion {

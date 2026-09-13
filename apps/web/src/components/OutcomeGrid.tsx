@@ -21,7 +21,9 @@ export function OutcomeGrid({ publicView = false, features, workspaceId }: { pub
       ? `/w/${encodeURIComponent(workspaceId ?? "")}/studio/new`
       : outcome.feature === "create-pdf"
         ? `/w/${encodeURIComponent(workspaceId ?? "")}/pdf/new`
-        : null;
+        : outcome.feature === "edit-manage-pdf"
+          ? `/w/${encodeURIComponent(workspaceId ?? "")}/pdf/manage`
+          : null;
     return active && workspaceId && destination
       ? <Link className={className} data-feature-state="active" key={outcome.feature} to={destination}>{content}</Link>
       : <article className={className} data-feature-state={publicView ? "informational" : active ? "active" : "inactive"} aria-disabled={!publicView && !active ? true : undefined} key={outcome.feature}>{content}</article>;

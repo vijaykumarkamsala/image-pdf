@@ -1,0 +1,50 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-inspector-identity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "library_name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Library Name",
+      "type": "string"
+    },
+    "library_version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Library Version",
+      "type": "string"
+    },
+    "max_object_visits": {
+      "minimum": 1,
+      "title": "Max Object Visits",
+      "type": "integer"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.22.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "library_name",
+    "library_version",
+    "max_object_visits"
+  ],
+  "title": "PdfInspectorIdentity",
+  "type": "object"
+}

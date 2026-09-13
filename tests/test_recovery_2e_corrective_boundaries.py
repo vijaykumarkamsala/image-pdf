@@ -31,7 +31,7 @@ def test_product_contract_line_includes_batch_contracts(repo_root: Path) -> None
         repo_root / "packages" / "contracts" / "src" / "ipw" / "contracts" / "version.py"
     ).read_text(encoding="utf-8")
 
-    assert 'PRODUCT_SCHEMA_VERSION = "1.21.0"' in version
+    assert 'PRODUCT_SCHEMA_VERSION = "1.22.0"' in version
     assert (
         repo_root / "packages" / "schemas" / "product-v1" / "batch-run-record.schema.json"
     ).is_file()

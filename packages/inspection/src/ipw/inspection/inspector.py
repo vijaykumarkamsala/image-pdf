@@ -519,19 +519,18 @@ def _inspect_pdf(data: bytes, digest: str, policy: InspectionLimits) -> Inspecti
         b"/OpenAction": "open-action",
     }
     found = tuple(sorted({name for marker, name in dangerous.items() if marker in data}))
-    if found:
-        return _reject("pdf-dangerous-structure", "The PDF contains active or embedded content")
     pages = len(re.findall(rb"/Type\s*/Page(?!s)\b", data))
-    if pages < 1:
-        return _reject("pdf-pages-missing", "No readable PDF pages were found")
     if pages > policy.max_pages:
         return _reject("pdf-page-limit-exceeded", "The PDF has too many pages for safe intake")
+    sensitive = set(found)
+    if b"/Encrypt" in data:
+        sensitive.add("encrypted")
     facts = SourceFacts(
         sha256=digest,
         detected_media_type="application/pdf",
         byte_size=len(data),
-        page_count=pages,
-        sensitive_metadata=("encrypted",) if b"/Encrypt" in data else (),
+        page_count=pages or None,
+        sensitive_metadata=tuple(sorted(sensitive)),
         malware_scan_state=MalwareScanState.CLEAN,
     )
     return InspectionOutcome(accepted=True, facts=facts)

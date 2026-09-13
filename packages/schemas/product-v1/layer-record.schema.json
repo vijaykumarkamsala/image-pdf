@@ -33,7 +33,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -57,7 +57,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -85,7 +85,7 @@
           "$ref": "#/$defs/LayerAccessibilityRole"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -150,7 +150,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -237,7 +237,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -286,7 +286,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -321,7 +321,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -402,7 +402,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -439,7 +439,7 @@
       "additionalProperties": false,
       "properties": {
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -526,7 +526,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -598,7 +598,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -756,7 +756,7 @@
       "default": null
     },
     "schema_version": {
-      "default": "1.21.0",
+      "default": "1.22.0",
       "title": "Schema Version",
       "type": "string"
     },

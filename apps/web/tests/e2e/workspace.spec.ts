@@ -73,6 +73,26 @@ const screenshotOptions = {
   maxDiffPixelRatio: 0,
 } as const;
 
+const activePdfFile = {
+  name: "review-required.pdf",
+  mimeType: "application/pdf",
+  buffer: Buffer.from(`%PDF-1.7
+1 0 obj <</Type /Catalog /Pages 2 0 R /OpenAction 4 0 R>> endobj
+2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj
+3 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]>> endobj
+4 0 obj <</S /JavaScript /JS (app.alert\\(disabled\\))>> endobj
+trailer <</Root 1 0 R>>
+%%EOF`, "latin1"),
+};
+
+async function uploadActivePdf(page: Page) {
+  await page.getByRole("button", { name: "Upload" }).first().click();
+  await page.locator('input[type="file"]').setInputFiles(activePdfFile);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.locator(".upload-actions").getByRole("button", { name: "Close", exact: true }).click();
+}
+
 async function prepareVisualScreenshot(page: Page) {
   await expect(page.locator("body")).not.toContainText(/recovery/i);
   const studioCanvas = page.locator(".studio-canvas-shell");
@@ -497,7 +517,7 @@ test("customer copy discloses testing and inactive product areas without interna
   const expectedOutcomes = [
     ["Image & Graphic Studio", "Enhance, design and prepare visuals", "active", /studio\/new/],
     ["Create PDF", "Build PDFs from pages, images and rich content", "active", /pdf\/new/],
-    ["Edit & Manage PDF", "Edit, organize, protect and convert PDFs", "inactive", null],
+    ["Edit & Manage PDF", "Edit, organize, protect and convert PDFs", "active", /pdf\/manage/],
     ["Print & Production", "Check quality and prepare production outputs", "inactive", null],
   ] as const;
   const tiles = page.locator(".outcome-card");
@@ -521,6 +541,51 @@ test("customer copy discloses testing and inactive product areas without interna
   expect(await tiles.evaluateAll((elements) => elements
     .filter((element) => element.getAttribute("data-feature-state") === "inactive")
     .every((element) => (element as HTMLElement).tabIndex === -1))).toBe(true);
+});
+
+test("imported PDF opens only through its immutable-source capability report", async ({ page }) => {
+  await openWorkspace(page, "imported-pdf-safe-intake");
+  await uploadActivePdf(page);
+  await page.getByRole("link", { name: "Files" }).first().click();
+  const file = page.getByRole("listitem").filter({ hasText: activePdfFile.name }).first();
+  await expect(file.getByRole("button", { name: "Review PDF safely" })).toBeVisible();
+  await file.getByRole("button", { name: "Review PDF safely" }).click();
+
+  await expect(page.getByTestId("pdf-capability-workspace")).toBeVisible();
+  await expect(page.getByRole("heading", { name: activePdfFile.name })).toBeVisible();
+  await expect(page.getByText("Restricted safe view", { exact: true })).toBeVisible();
+  await expect(page.getByText("Immutable original", { exact: true })).toBeVisible();
+  await expect(page.getByText("Active content").locator(".."))
+    .toContainText("present");
+  await expect(page.getByText("View capability report").locator("../.."))
+    .toContainText("available");
+  await expect(page.getByText("Manage pages").locator("../.."))
+    .toContainText("blocked");
+  await expect(page.locator("body")).not.toContainText(/rendered page|password value|execute script/i);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    document: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport);
+  const undersized = await page.locator('main button, main a[href], main summary').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      return style.visibility !== "hidden" && style.display !== "none" && bounds.width > 0 && bounds.height > 0;
+    })
+    .map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { label: element.textContent?.trim(), width: bounds.width, height: bounds.height };
+    })
+    .filter((target) => target.width < 44 || target.height < 44));
+  expect(undersized).toEqual([]);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole("button", { name: "PDF files" }).click();
+  await expect(page.getByTestId("pdf-management-start")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Open an imported PDF safely" })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: activePdfFile.name }).first()
+    .getByText("View only")).toBeVisible();
 });
 
 test("Image & Graphic Studio uses real native document APIs and deterministic renderer interaction", async ({ page }) => {
@@ -1781,6 +1846,26 @@ const visualCases = [
   { name: "intermediate", width: 638, height: 768 },
   { name: "phone", width: 390, height: 844 },
 ] as const;
+
+for (const visual of [
+  { name: "desktop", width: 1440, height: 900, theme: "light" },
+  { name: "phone", width: 390, height: 844, theme: "dark" },
+] as const) {
+  test(`@visual ${visual.name} ${visual.theme} imported PDF safe view`, async ({ page }) => {
+    await page.setViewportSize({ width: visual.width, height: visual.height });
+    await openWorkspace(page, `pdf-safe-${visual.name}-${visual.theme}`, visual.theme);
+    await uploadActivePdf(page);
+    await page.getByRole("link", { name: /Edit & Manage PDF/ }).click();
+    await page.getByRole("listitem").filter({ hasText: activePdfFile.name }).first()
+      .getByRole("button", { name: "Open safely" }).click();
+    await expect(page.getByTestId("pdf-capability-workspace")).toBeVisible();
+    await prepareVisualScreenshot(page);
+    await expect(page).toHaveScreenshot(
+      `imported-pdf-safe-${visual.width}x${visual.height}-${visual.theme}.png`,
+      screenshotOptions,
+    );
+  });
+}
 
 test("@visual desktop light Guest Home", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

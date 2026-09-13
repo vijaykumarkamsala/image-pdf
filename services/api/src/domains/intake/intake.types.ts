@@ -1,4 +1,9 @@
-import type { GuestSessionRecord, IntakeClassificationRecord, UploadSessionRecord } from "ipw-contracts-ts/product";
+import type {
+  GuestSessionRecord,
+  IntakeClassificationRecord,
+  PdfCapabilityAnalysis,
+  UploadSessionRecord,
+} from "ipw-contracts-ts/product";
 
 import type { PrivateObjectRef, ProviderObjectMetadata } from "./private-object-store.js";
 
@@ -25,6 +30,13 @@ export interface StoredUploadSession {
   transferProvider: "local_api" | "google_cloud_storage";
   protectedProviderSession: string | null;
   providerMetadata: ProviderObjectMetadata | null;
+  pdfCapabilityAnalysis: PdfCapabilityAnalysis | null;
+}
+
+export interface StoredPdfCapabilityAnalysis {
+  analysis: PdfCapabilityAnalysis;
+  storageGeneration: string;
+  inspectedAt: string;
 }
 
 export interface UploadCreateResult {
@@ -70,6 +82,14 @@ export interface IntakeRepository {
   findUploadByActor(uploadSessionId: string, actorId: string): Promise<StoredUploadSession | null>;
   findUploadByToken(uploadSessionId: string, tokenHash: string, now: string): Promise<StoredUploadSession | null>;
   listWorkspaceUploads(workspaceId: string): Promise<StoredUploadSession[]>;
+  findPdfCapabilityAnalysis(
+    workspaceId: string,
+    sourceVersionId: string,
+  ): Promise<StoredPdfCapabilityAnalysis | null>;
+  listPdfCapabilityAnalyses(
+    workspaceId: string,
+    sourceVersionIds: string[],
+  ): Promise<Map<string, StoredPdfCapabilityAnalysis>>;
   recordUploadedBytes(
     uploadSessionId: string,
     tokenHash: string,

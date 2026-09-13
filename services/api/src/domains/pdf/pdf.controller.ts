@@ -10,6 +10,23 @@ type RequestHeaders = Record<string, string | string[] | undefined>;
 export class PdfController {
   constructor(private readonly pdf: PdfService) {}
 
+  @Get("pdf-files")
+  capabilityReports(
+    @Headers() headers: RequestHeaders,
+    @Param("workspaceId") workspaceId: string,
+  ) {
+    return this.pdf.capabilityReports(headers, workspaceId);
+  }
+
+  @Get("pdf-files/:fileId/capability-report")
+  capabilityReport(
+    @Headers() headers: RequestHeaders,
+    @Param("workspaceId") workspaceId: string,
+    @Param("fileId") fileId: string,
+  ) {
+    return this.pdf.capabilityReport(headers, workspaceId, fileId);
+  }
+
   @Get("documents/:documentId/pdf-preflight")
   preflight(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Param("documentId") documentId: string) {
     return this.pdf.preflight(headers, workspaceId, documentId);

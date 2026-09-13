@@ -9,7 +9,9 @@ from typing import Any, Protocol
 
 from google.api_core import exceptions as google_exceptions
 
+from ipw.contracts.pdf_management import PdfCapabilityAnalysis
 from ipw.inspection import InspectionLimits, MalwareScanner, inspect_bytes
+from ipw.processing_worker.pdf_capability import inspect_pdf_capabilities
 from ipw.processing_worker.repository import JobBusyError, LeasedIntakeJob
 from ipw.storage import IntakePrivateObjectStore, ObjectZone, PrivateObjectRef
 
@@ -53,6 +55,7 @@ class IntakeJobRepository(Protocol):
         immutable_object_key: str,
         immutable_storage_generation: str,
         facts: dict[str, Any],
+        pdf_capability_analysis: dict[str, Any] | None,
     ) -> None: ...
     def complete_rejected(
         self,
@@ -125,8 +128,8 @@ class DurableIntakeProcessor:
                     "The uploaded file does not match its expected checksum",
                 )
 
-            facts = self._checkpoint_facts(lease, digest)
-            if facts is None:
+            checkpoint = self._checkpoint_evidence(lease, digest)
+            if checkpoint is None:
                 self._heartbeat_and_cancel(lease)
                 scan = self._scanner.scan(snapshot.data)
                 if scan.state in {"unavailable", "timeout", "error"}:
@@ -156,11 +159,30 @@ class DurableIntakeProcessor:
                         outcome.message or "The file did not pass inspection",
                     )
                 facts = outcome.facts.model_dump(mode="json")
+                pdf_capability = (
+                    inspect_pdf_capabilities(
+                        snapshot.data,
+                        source_sha256=digest,
+                        page_limit=int(lease.constraints["max_pages"]),
+                    )
+                    if facts["detected_media_type"] == "application/pdf"
+                    else None
+                )
+                pdf_capability_analysis = (
+                    pdf_capability.model_dump(mode="json") if pdf_capability else None
+                )
                 self._repository.checkpoint(
                     lease,
                     "inspection-accepted",
-                    {"generation": lease.object_generation, "sha256": digest, "facts": facts},
+                    {
+                        "generation": lease.object_generation,
+                        "sha256": digest,
+                        "facts": facts,
+                        "pdf_capability_analysis": pdf_capability_analysis,
+                    },
                 )
+            else:
+                facts, pdf_capability_analysis = checkpoint
 
             self._heartbeat_and_cancel(lease)
             immutable = self._objects.promote(
@@ -177,6 +199,7 @@ class DurableIntakeProcessor:
                 immutable_object_key=immutable.object_key,
                 immutable_storage_generation=immutable.generation,
                 facts=facts,
+                pdf_capability_analysis=pdf_capability_analysis,
             )
             self._objects.delete(source, generation=lease.object_generation)
             return WorkerOutcome("succeeded", lease.job_id)
@@ -208,7 +231,9 @@ class DurableIntakeProcessor:
             )
             return WorkerOutcome(state, lease.job_id)
 
-    def _checkpoint_facts(self, lease: LeasedIntakeJob, digest: str) -> dict[str, object] | None:
+    def _checkpoint_evidence(
+        self, lease: LeasedIntakeJob, digest: str
+    ) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
         checkpoint = self._repository.latest_checkpoint(lease)
         if checkpoint is None or checkpoint[0] != "inspection-accepted":
             return None
@@ -221,7 +246,15 @@ class DurableIntakeProcessor:
             and facts.get("sha256") == digest
             and facts.get("malware_scan_state") == "clean"
         ):
-            return facts
+            capability = payload.get("pdf_capability_analysis")
+            if facts.get("detected_media_type") == "application/pdf":
+                if not isinstance(capability, dict):
+                    return None
+                validated = PdfCapabilityAnalysis.model_validate(capability).model_dump(mode="json")
+                if validated["source_sha256"] != digest:
+                    return None
+                return facts, validated
+            return facts, None
         return None
 
     def _heartbeat_and_cancel(self, lease: LeasedIntakeJob) -> None:

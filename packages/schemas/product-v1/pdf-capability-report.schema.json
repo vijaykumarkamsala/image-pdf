@@ -1,0 +1,354 @@
+{
+  "$defs": {
+    "PdfCapabilityAnalysis": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_state": {
+          "$ref": "#/$defs/PdfCapabilityAnalysisState"
+        },
+        "classification": {
+          "$ref": "#/$defs/PdfCapabilityClassification"
+        },
+        "compatibility_notes": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Compatibility Notes",
+          "type": "array"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/PdfFeatureFinding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "inspector": {
+          "$ref": "#/$defs/PdfInspectorIdentity"
+        },
+        "opening_mode": {
+          "$ref": "#/$defs/PdfOpeningMode"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/PdfOperationAvailability"
+          },
+          "title": "Operations",
+          "type": "array"
+        },
+        "original_protected": {
+          "const": true,
+          "title": "Original Protected",
+          "type": "boolean"
+        },
+        "page_count": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Count"
+        },
+        "pdf_version": {
+          "anyOf": [
+            {
+              "pattern": "^1\\.[0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdf Version"
+        },
+        "schema_version": {
+          "default": "1.22.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_sha256",
+        "analysis_state",
+        "classification",
+        "opening_mode",
+        "original_protected",
+        "findings",
+        "operations",
+        "compatibility_notes",
+        "inspector"
+      ],
+      "title": "PdfCapabilityAnalysis",
+      "type": "object"
+    },
+    "PdfCapabilityAnalysisState": {
+      "enum": [
+        "complete",
+        "restricted",
+        "unreadable"
+      ],
+      "title": "PdfCapabilityAnalysisState",
+      "type": "string"
+    },
+    "PdfCapabilityClassification": {
+      "enum": [
+        "fully_editable",
+        "limited",
+        "page_management_only",
+        "reconstructable_copy",
+        "view_only"
+      ],
+      "title": "PdfCapabilityClassification",
+      "type": "string"
+    },
+    "PdfFeature": {
+      "enum": [
+        "encryption",
+        "document_permissions",
+        "digital_signatures",
+        "fonts",
+        "text",
+        "images",
+        "vector_content",
+        "forms",
+        "annotations",
+        "optional_content_layers",
+        "tags",
+        "attachments",
+        "active_content",
+        "mixed_page_sizes"
+      ],
+      "title": "PdfFeature",
+      "type": "string"
+    },
+    "PdfFeatureFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/PdfFeature"
+        },
+        "schema_version": {
+          "default": "1.22.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/PdfFeatureState"
+        },
+        "summary": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature",
+        "state",
+        "summary"
+      ],
+      "title": "PdfFeatureFinding",
+      "type": "object"
+    },
+    "PdfFeatureState": {
+      "enum": [
+        "present",
+        "absent",
+        "unknown",
+        "restricted"
+      ],
+      "title": "PdfFeatureState",
+      "type": "string"
+    },
+    "PdfInspectorIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "library_name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Library Name",
+          "type": "string"
+        },
+        "library_version": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Library Version",
+          "type": "string"
+        },
+        "max_object_visits": {
+          "minimum": 1,
+          "title": "Max Object Visits",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.22.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "library_name",
+        "library_version",
+        "max_object_visits"
+      ],
+      "title": "PdfInspectorIdentity",
+      "type": "object"
+    },
+    "PdfOpeningMode": {
+      "enum": [
+        "safe_view",
+        "restricted_safe_view",
+        "credential_required"
+      ],
+      "title": "PdfOpeningMode",
+      "type": "string"
+    },
+    "PdfOperation": {
+      "enum": [
+        "view_capability_report",
+        "download_original",
+        "manage_pages",
+        "edit_content",
+        "unlock_with_password",
+        "sanitize_copy",
+        "reconstruct_copy"
+      ],
+      "title": "PdfOperation",
+      "type": "string"
+    },
+    "PdfOperationAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "creates_derivative": {
+          "title": "Creates Derivative",
+          "type": "boolean"
+        },
+        "operation": {
+          "$ref": "#/$defs/PdfOperation"
+        },
+        "reason": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.22.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/PdfOperationState"
+        }
+      },
+      "required": [
+        "operation",
+        "state",
+        "creates_derivative",
+        "reason"
+      ],
+      "title": "PdfOperationAvailability",
+      "type": "object"
+    },
+    "PdfOperationState": {
+      "enum": [
+        "available",
+        "blocked",
+        "not_released"
+      ],
+      "title": "PdfOperationState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-capability-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "analysis": {
+      "$ref": "#/$defs/PdfCapabilityAnalysis"
+    },
+    "asset_original_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Asset Original Id",
+      "type": "string"
+    },
+    "file_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "File Id",
+      "type": "string"
+    },
+    "inspected_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Inspected At",
+      "type": "string"
+    },
+    "pdf_capability_report_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Pdf Capability Report Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.22.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Source Version Id",
+      "type": "string"
+    },
+    "storage_generation": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Storage Generation",
+      "type": "string"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pdf_capability_report_id",
+    "workspace_id",
+    "file_id",
+    "asset_original_id",
+    "source_version_id",
+    "storage_generation",
+    "analysis",
+    "inspected_at"
+  ],
+  "title": "PdfCapabilityReport",
+  "type": "object"
+}

@@ -99,6 +99,14 @@ or editor capability as already delivered. See `docs/adr/ADR-0018-native-screen-
 - D2-066 Active content opens disabled in sandboxed safe mode.
 - D2-067 Unlock requires valid credentials and creates derivative.
 
+Implementation note (Imported-PDF-001, 13 September 2026): the first bounded
+slice preserves clean-malware imported PDFs, records source-version-bound strict
+structural evidence and opens only a non-rendering capability workspace. Active,
+encrypted, signed, embedded, dynamic or unreadable sources are restricted or
+credential-gated and remain view-only. No mutation, unlock, sanitisation,
+reconstruction or custom-engine path is released. See
+`docs/adr/ADR-0019-imported-pdf-safe-capability-boundary.md`.
+
 ## E-sign
 
 - D2-068 Own native e-sign UI/API/workflow; external signature vendors optional.

@@ -22,6 +22,13 @@ function png(width: number, height: number): Uint8Array {
   return bytes;
 }
 
+function activePdf(): Uint8Array {
+  return Buffer.from(
+    "%PDF-1.7\n1 0 obj<</Type /Page /OpenAction<</S /JavaScript /JS (disabled)>>>>endobj\n%%EOF",
+    "latin1",
+  );
+}
+
 async function api() {
   process.env["NODE_ENV"] = "test";
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -204,6 +211,118 @@ test("PDF creation rejects cropping placement and preflight blocks grouped rende
     assert.ok((linkedStyleReport.issues ?? []).some(
       (issue) => issue.code === "linked-style-unsupported" && issue.blocks_export,
     ));
+  } finally {
+    await server.close();
+  }
+});
+
+test("imported PDF intake preserves active content and exposes a tenant-scoped safe report", async () => {
+  const server = await api();
+  try {
+    const bootstrap = await json(await server.request("/session/bootstrap", {
+      method: "POST",
+      headers: { "idempotency-key": "pdf-manage-bootstrap" },
+    }));
+    const workspaceId = bootstrap.workspace.workspace_id as string;
+    const bytes = activePdf();
+    const created = await json(await server.request(`/workspaces/${workspaceId}/upload-sessions`, {
+      method: "POST",
+      headers: { "idempotency-key": "pdf-manage-upload" },
+      body: JSON.stringify({ display_name: "actions.pdf", media_type: "application/pdf", byte_size: bytes.byteLength }),
+    }));
+    const uploadUrl = new URL(created.authorization.upload_url, "http://local");
+    await server.request(`${uploadUrl.pathname.replace("/v1", "")}${uploadUrl.search}`, {
+      method: "PUT",
+      headers: { "content-type": "application/octet-stream", "upload-offset": "0" },
+      body: bytes,
+    });
+    await server.request(`/upload-sessions/${created.upload_session.upload_session_id}/finalise`, {
+      method: "POST",
+      headers: { "idempotency-key": "pdf-manage-finalise" },
+    });
+    assert.equal(await server.executor.runAvailable(), true);
+    const upload = await json(await server.request(`/upload-sessions/${created.upload_session.upload_session_id}`));
+    assert.equal(upload.upload_session.state, "ready");
+    assert.ok(upload.upload_session.source_facts.sensitive_metadata.includes("javascript"));
+
+    const fileId = upload.upload_session.file_id as string;
+    const response = await server.request(`/workspaces/${workspaceId}/pdf-files/${fileId}/capability-report`);
+    assert.equal(response.status, 200);
+    const report = (await json(response)).capability_report;
+    assert.equal(report.file_id, fileId);
+    assert.equal(report.source_version_id, upload.upload_session.source_version_id);
+    assert.equal(report.analysis.source_sha256, upload.upload_session.source_facts.sha256);
+    assert.equal(report.analysis.classification, "view_only");
+    assert.equal(report.analysis.opening_mode, "restricted_safe_view");
+    assert.equal(
+      report.analysis.findings.find((item: Json) => item.feature === "active_content").state,
+      "present",
+    );
+    const listed = await json(await server.request(`/workspaces/${workspaceId}/pdf-files`));
+    assert.deepEqual(listed.capability_reports.map((item: Json) => item.file_id), [fileId]);
+    assert.ok(report.analysis.operations.filter((item: Json) => item.operation !== "view_capability_report")
+      .every((item: Json) => item.state === "blocked"));
+
+    const otherHeaders = {
+      "idempotency-key": "pdf-manage-other-bootstrap",
+      "x-ipw-test-actor-id": "actor-pdf-other",
+      "x-ipw-test-actor-name": "Other PDF actor",
+    };
+    await server.request("/session/bootstrap", { method: "POST", headers: otherHeaders });
+    const denied = await server.request(
+      `/workspaces/${workspaceId}/pdf-files/${fileId}/capability-report`,
+      { headers: otherHeaders },
+    );
+    assert.equal(denied.status, 404);
+  } finally {
+    await server.close();
+  }
+});
+
+test("guest PDF capability evidence follows the preserved source into its signed-in workspace", async () => {
+  const server = await api();
+  try {
+    const bootstrap = await json(await server.request("/session/bootstrap", {
+      method: "POST",
+      headers: { "idempotency-key": "guest-pdf-bootstrap" },
+    }));
+    const workspaceId = bootstrap.workspace.workspace_id as string;
+    const guest = await json(await server.request("/guest-sessions", { method: "POST" }));
+    const bytes = activePdf();
+    const created = await json(await server.request("/guest/upload-sessions", {
+      method: "POST",
+      headers: { "idempotency-key": "guest-pdf-upload", "x-ipw-guest-token": guest.token },
+      body: JSON.stringify({ display_name: "guest-actions.pdf", media_type: "application/pdf", byte_size: bytes.byteLength }),
+    }));
+    const uploadUrl = new URL(created.authorization.upload_url, "http://local");
+    await server.request(`${uploadUrl.pathname.replace("/v1", "")}${uploadUrl.search}`, {
+      method: "PUT",
+      headers: { "content-type": "application/octet-stream", "upload-offset": "0" },
+      body: bytes,
+    });
+    await server.request(`/upload-sessions/${created.upload_session.upload_session_id}/finalise`, {
+      method: "POST",
+      headers: { "idempotency-key": "guest-pdf-finalise", "x-ipw-guest-token": guest.token },
+    });
+    assert.equal(await server.executor.runAvailable(), true);
+    const ready = await json(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}`,
+      { headers: { "x-ipw-guest-token": guest.token } },
+    ));
+    const handedOff = await json(await server.request(
+      `/upload-sessions/${created.upload_session.upload_session_id}/handoff`,
+      {
+        method: "POST",
+        headers: { "idempotency-key": "guest-pdf-handoff", "x-ipw-guest-token": guest.token },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      },
+    ));
+    assert.equal(handedOff.source_version_id, ready.upload_session.source_version_id);
+    const report = await json(await server.request(
+      `/workspaces/${workspaceId}/pdf-files/${handedOff.file.file_id}/capability-report`,
+    ));
+    assert.equal(report.capability_report.source_version_id, handedOff.source_version_id);
+    assert.equal(report.capability_report.analysis.classification, "view_only");
   } finally {
     await server.close();
   }

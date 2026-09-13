@@ -73,6 +73,7 @@ function stored(row: QueryResultRow): StoredUploadSession {
     transferProvider: String(row["transfer_provider"]) as StoredUploadSession["transferProvider"],
     protectedProviderSession: row["protected_resumable_uri"] ? String(row["protected_resumable_uri"]) : null,
     providerMetadata: (row["provider_metadata"] as ProviderObjectMetadata | null) ?? null,
+    pdfCapabilityAnalysis: (row["pdf_capability_analysis"] as StoredUploadSession["pdfCapabilityAnalysis"]) ?? null,
   };
 }
 
@@ -230,6 +231,37 @@ export class PostgresIntakeRepository implements IntakeRepository {
       [workspaceId],
     );
     return result.rows.map(stored);
+  }
+
+  async findPdfCapabilityAnalysis(workspaceId: string, sourceVersionId: string) {
+    const result = await this.pool.query(
+      `SELECT pdf_capability_analysis,storage_generation,inspected_at
+       FROM source_inspection_facts
+       WHERE workspace_id=$1 AND source_version_id=$2 AND pdf_capability_analysis IS NOT NULL`,
+      [workspaceId, sourceVersionId],
+    );
+    const row = result.rows[0];
+    return row ? {
+      analysis: row["pdf_capability_analysis"] as NonNullable<StoredUploadSession["pdfCapabilityAnalysis"]>,
+      storageGeneration: String(row["storage_generation"]),
+      inspectedAt: instant(row["inspected_at"] as Date | string),
+    } : null;
+  }
+
+  async listPdfCapabilityAnalyses(workspaceId: string, sourceVersionIds: string[]) {
+    if (sourceVersionIds.length === 0) return new Map();
+    const result = await this.pool.query(
+      `SELECT source_version_id,pdf_capability_analysis,storage_generation,inspected_at
+       FROM source_inspection_facts
+       WHERE workspace_id=$1 AND source_version_id=ANY($2::text[])
+         AND pdf_capability_analysis IS NOT NULL`,
+      [workspaceId, sourceVersionIds],
+    );
+    return new Map(result.rows.map((row) => [String(row["source_version_id"]), {
+      analysis: row["pdf_capability_analysis"] as NonNullable<StoredUploadSession["pdfCapabilityAnalysis"]>,
+      storageGeneration: String(row["storage_generation"]),
+      inspectedAt: instant(row["inspected_at"] as Date | string),
+    }]));
   }
 
   async recordUploadedBytes(
