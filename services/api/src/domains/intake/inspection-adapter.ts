@@ -402,19 +402,27 @@ export class HeaderFirstInspectionAdapter {
       return this.reject("pdf-truncated", "The PDF is incomplete or corrupt");
     }
     const body = bytes.toString("latin1");
-    if (["/JavaScript", "/JS", "/Launch", "/EmbeddedFile", "/RichMedia", "/OpenAction"].some((value) => body.includes(value))) {
-      return this.reject("pdf-dangerous-structure", "The PDF contains active or embedded content");
-    }
+    const activeMarkers = [
+      ["/JavaScript", "javascript"],
+      ["/JS", "javascript"],
+      ["/Launch", "launch-action"],
+      ["/EmbeddedFile", "embedded-file"],
+      ["/RichMedia", "rich-media"],
+      ["/OpenAction", "open-action"],
+    ] as const;
     const pages = body.match(/\/Type\s*\/Page(?!s)\b/g)?.length ?? 0;
-    if (pages < 1) return this.reject("pdf-pages-missing", "No readable PDF pages were found");
     if (pages > constraints.max_pages) return this.reject("pdf-page-limit-exceeded", "The PDF has too many pages for safe intake");
+    const sensitive = new Set<string>(
+      activeMarkers.filter(([marker]) => body.includes(marker)).map(([, label]) => label),
+    );
+    if (body.includes("/Encrypt")) sensitive.add("encrypted");
     return {
       accepted: true,
       facts: {
         schema_version: PRODUCT_SCHEMA_VERSION, sha256: digest, detected_media_type: "application/pdf",
         byte_size: bytes.byteLength, width: null, height: null, megapixels_milli: null, orientation: null,
-        frame_count: null, page_count: pages, has_alpha: null, bit_depth: null, colour_model: null, has_icc_profile: null,
-        sensitive_metadata: body.includes("/Encrypt") ? ["encrypted"] : [], malware_scan_state: "clean",
+        frame_count: null, page_count: pages || null, has_alpha: null, bit_depth: null, colour_model: null, has_icc_profile: null,
+        sensitive_metadata: [...sensitive].sort(), malware_scan_state: "clean",
       },
     };
   }

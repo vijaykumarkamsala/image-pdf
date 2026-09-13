@@ -2,6 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 import { PRODUCT_SCHEMA_VERSION } from "ipw-contracts-ts/product";
 
+import { RUNTIME_VALUES } from "../../kernel/product.types.js";
+import type { RuntimeValues } from "../../kernel/runtime.js";
 import {
   INSPECTION_ADAPTER,
   MALWARE_SCANNER,
@@ -10,8 +12,7 @@ import {
 } from "../intake/inspection-adapter.js";
 import { INTAKE_REPOSITORY, type IntakeOwner, type IntakeRepository } from "../intake/intake.types.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
-import { RUNTIME_VALUES } from "../../kernel/product.types.js";
-import type { RuntimeValues } from "../../kernel/runtime.js";
+import { localPdfCapability } from "../pdf/pdf-capability-local.js";
 import { DURABLE_JOB_REPOSITORY, type DurableJobRepository } from "./durable-job.types.js";
 
 @Injectable()
@@ -93,6 +94,9 @@ export class LocalInspectionExecutor {
         }
         return true;
       }
+      const pdfCapabilityAnalysis = outcome.facts.detected_media_type === "application/pdf"
+        ? localPdfCapability(bytes, outcome.facts)
+        : null;
       const immutable = await this.objects.promote(stored.quarantineRef, outcome.facts.sha256);
       if (!immutable.generation) throw new Error("immutable object storage generation is unavailable");
       await this.jobs.completeAccepted(
@@ -106,6 +110,7 @@ export class LocalInspectionExecutor {
           immutableObjectKey: immutable.objectKey,
           immutableStorageGeneration: immutable.generation,
           facts: outcome.facts,
+          pdfCapabilityAnalysis,
         },
         this.runtime.now(),
         "trace-local-inspection",

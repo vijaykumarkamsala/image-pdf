@@ -18,7 +18,7 @@
           "$ref": "#/$defs/ExportOutputProfile"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -93,7 +93,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -333,7 +333,7 @@
           "default": "lanczos"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -420,7 +420,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.21.0",
+          "default": "1.22.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -459,7 +459,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.21.0",
+      "default": "1.22.0",
       "title": "Schema Version",
       "type": "string"
     }

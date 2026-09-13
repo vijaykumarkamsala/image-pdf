@@ -35,6 +35,12 @@ An implementation agent must report contradictions and request product-owner app
 - [`ADR-0017`](../adr/ADR-0017-durable-batch-aggregate.md) records why batches
   coordinate independent image-export jobs instead of introducing another
   processing runtime.
+- [`NATIVE_PDF_CREATION.md`](../features/NATIVE_PDF_CREATION.md) defines the
+  active native Screen PDF creation and export boundary.
+- [`IMPORTED_PDF_SAFE_INTAKE.md`](../features/IMPORTED_PDF_SAFE_INTAKE.md)
+  defines source-bound imported-PDF inspection and restricted safe view.
+- [`ADR-0019`](../adr/ADR-0019-imported-pdf-safe-capability-boundary.md) records
+  why imported PDFs are preserved and classified before any mutation is enabled.
 
 ## Approved product scope before external tester release
 

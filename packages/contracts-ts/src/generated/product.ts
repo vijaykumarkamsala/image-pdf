@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.21.0";
+export const PRODUCT_SCHEMA_VERSION = "1.22.0";
 
 export interface Actor {
   schema_version?: string;
@@ -776,6 +776,28 @@ export interface OutputSizeEstimate {
   explanation: string;
 }
 
+export interface PdfCapabilityAnalysis {
+  schema_version?: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  source_sha256: string;
+  pdf_version?: string | null;
+  page_count?: number | null;
+  analysis_state: PdfCapabilityAnalysisState;
+  classification: PdfCapabilityClassification;
+  opening_mode: PdfOpeningMode;
+  original_protected: true;
+  findings: PdfFeatureFinding[];
+  operations: PdfOperationAvailability[];
+  compatibility_notes: string[];
+  inspector: PdfInspectorIdentity;
+}
+
+export type PdfCapabilityAnalysisState = "complete" | "restricted" | "unreadable";
+export const PdfCapabilityAnalysisStateValues: readonly PdfCapabilityAnalysisState[] = ["complete", "restricted", "unreadable"] as const;
+
+export type PdfCapabilityClassification = "fully_editable" | "limited" | "page_management_only" | "reconstructable_copy" | "view_only";
+export const PdfCapabilityClassificationValues: readonly PdfCapabilityClassification[] = ["fully_editable", "limited", "page_management_only", "reconstructable_copy", "view_only"] as const;
+
 export interface PdfDocumentSettings {
   schema_version?: string;
   title: string;
@@ -789,8 +811,47 @@ export interface PdfDocumentSettings {
 export type PdfExportState = "queued" | "running" | "succeeded" | "failed" | "cancellation_requested" | "cancelled";
 export const PdfExportStateValues: readonly PdfExportState[] = ["queued", "running", "succeeded", "failed", "cancellation_requested", "cancelled"] as const;
 
+export type PdfFeature = "encryption" | "document_permissions" | "digital_signatures" | "fonts" | "text" | "images" | "vector_content" | "forms" | "annotations" | "optional_content_layers" | "tags" | "attachments" | "active_content" | "mixed_page_sizes";
+export const PdfFeatureValues: readonly PdfFeature[] = ["encryption", "document_permissions", "digital_signatures", "fonts", "text", "images", "vector_content", "forms", "annotations", "optional_content_layers", "tags", "attachments", "active_content", "mixed_page_sizes"] as const;
+
+export interface PdfFeatureFinding {
+  schema_version?: string;
+  feature: PdfFeature;
+  state: PdfFeatureState;
+  summary: string;
+}
+
+export type PdfFeatureState = "present" | "absent" | "unknown" | "restricted";
+export const PdfFeatureStateValues: readonly PdfFeatureState[] = ["present", "absent", "unknown", "restricted"] as const;
+
 export type PdfImagePlacement = "contain";
 export const PdfImagePlacementValues: readonly PdfImagePlacement[] = ["contain"] as const;
+
+export interface PdfInspectorIdentity {
+  schema_version?: string;
+  name: string;
+  version: string;
+  library_name: string;
+  library_version: string;
+  max_object_visits: number;
+}
+
+export type PdfOpeningMode = "safe_view" | "restricted_safe_view" | "credential_required";
+export const PdfOpeningModeValues: readonly PdfOpeningMode[] = ["safe_view", "restricted_safe_view", "credential_required"] as const;
+
+export type PdfOperation = "view_capability_report" | "download_original" | "manage_pages" | "edit_content" | "unlock_with_password" | "sanitize_copy" | "reconstruct_copy";
+export const PdfOperationValues: readonly PdfOperation[] = ["view_capability_report", "download_original", "manage_pages", "edit_content", "unlock_with_password", "sanitize_copy", "reconstruct_copy"] as const;
+
+export interface PdfOperationAvailability {
+  schema_version?: string;
+  operation: PdfOperation;
+  state: PdfOperationState;
+  creates_derivative: boolean;
+  reason: string;
+}
+
+export type PdfOperationState = "available" | "blocked" | "not_released";
+export const PdfOperationStateValues: readonly PdfOperationState[] = ["available", "blocked", "not_released"] as const;
 
 export interface PdfOutputProfile {
   schema_version?: string;
@@ -1549,6 +1610,18 @@ export interface ObjectReference {
   sha256: string;
   media_type: string;
   byte_size: number;
+}
+
+export interface PdfCapabilityReport {
+  schema_version?: string;
+  pdf_capability_report_id: string;
+  workspace_id: string;
+  file_id: string;
+  asset_original_id: string;
+  source_version_id: string;
+  storage_generation: string;
+  analysis: PdfCapabilityAnalysis;
+  inspected_at: string;
 }
 
 export interface PdfCreateRequest {

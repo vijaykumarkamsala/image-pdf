@@ -123,11 +123,13 @@ class FakeRepository:
         immutable_object_key: str,
         immutable_storage_generation: str,
         facts: dict[str, Any],
+        pdf_capability_analysis: dict[str, Any] | None,
     ) -> None:
         assert lease.job_id
         assert immutable_object_key
         assert immutable_storage_generation == "a" * 64
         assert facts
+        assert pdf_capability_analysis is None
         self.calls.append("complete.accepted")
         self.terminal = True
 

@@ -15,7 +15,8 @@ export interface ProductFeatureState {
 export function createProductFeatureState(mode: string): ProductFeatureState {
   return {
     enabled(flag) {
-      return flag === "web-shell" || flag === "image-graphic-studio" || flag === "create-pdf";
+      return flag === "web-shell" || flag === "image-graphic-studio"
+        || flag === "create-pdf" || flag === "edit-manage-pdf";
     },
     showInactiveBuildIndicator: mode !== "production",
   };

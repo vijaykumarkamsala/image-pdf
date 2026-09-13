@@ -91,12 +91,12 @@ def test_spoof_truncation_zero_and_bomb_are_rejected() -> None:
     assert bomb.code == "pixel-limit-exceeded"
 
 
-def test_pdf_active_content_and_missing_eof_are_rejected() -> None:
+def test_pdf_active_content_is_flagged_for_safe_mode_and_missing_eof_is_rejected() -> None:
     safe = b"%PDF-1.7\n1 0 obj<</Type /Page>>endobj\n%%EOF"
     active = safe.replace(b">>endobj", b"/JavaScript (x)>>endobj")
 
     accepted = inspect_bytes(safe, display_name="safe.pdf", expected_media_type="application/pdf")
-    dangerous = inspect_bytes(
+    flagged = inspect_bytes(
         active, display_name="active.pdf", expected_media_type="application/pdf"
     )
     truncated = inspect_bytes(
@@ -106,7 +106,9 @@ def test_pdf_active_content_and_missing_eof_are_rejected() -> None:
     assert accepted.accepted
     assert accepted.facts is not None
     assert accepted.facts.page_count == 1
-    assert dangerous.code == "pdf-dangerous-structure"
+    assert flagged.accepted
+    assert flagged.facts is not None
+    assert flagged.facts.sensitive_metadata == ("javascript",)
     assert truncated.code == "pdf-truncated"
 
 
@@ -369,7 +371,9 @@ def test_pdf_page_limits_and_sensitive_encryption_are_recorded() -> None:
         limits=InspectionLimits(max_pages=2),
     )
 
-    assert missing.code == "pdf-pages-missing"
+    assert missing.accepted
+    assert missing.facts is not None
+    assert missing.facts.page_count is None
     assert limited.code == "pdf-page-limit-exceeded"
     assert accepted.facts is not None
     assert accepted.facts.sensitive_metadata == ("encrypted",)

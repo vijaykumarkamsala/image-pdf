@@ -44,6 +44,7 @@ import type {
   BatchReport,
   BatchRunRecord,
   PdfCreateRequest,
+  PdfCapabilityReport,
   PdfExportRequestRecord,
   PdfExportResult,
   PdfPreflightReport,
@@ -163,6 +164,8 @@ export interface PdfExportReadModel { request: PdfExportRequestRecord; result: P
 export interface PdfPreflightResponse { schema_version: string; preflight: PdfPreflightReport }
 export interface PdfExportResponse { schema_version: string; pdf_export: PdfExportReadModel; replayed?: boolean }
 export interface PdfExportListResponse { schema_version: string; pdf_exports: PdfExportReadModel[] }
+export interface PdfCapabilityReportResponse { schema_version: string; capability_report: PdfCapabilityReport }
+export interface PdfCapabilityReportListResponse { schema_version: string; capability_reports: PdfCapabilityReport[] }
 
 export type AuthSessionResponse = { authenticated: false } | {
   authenticated: true;
@@ -756,6 +759,12 @@ export const api = {
   },
   pdfPreflight(workspaceId: string, documentId: string): Promise<PdfPreflightResponse> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/pdf-preflight`);
+  },
+  pdfCapabilityReports(workspaceId: string): Promise<PdfCapabilityReportListResponse> {
+    return request(`/workspaces/${workspaceId}/pdf-files`);
+  },
+  pdfCapabilityReport(workspaceId: string, fileId: string): Promise<PdfCapabilityReportResponse> {
+    return request(`/workspaces/${workspaceId}/pdf-files/${fileId}/capability-report`);
   },
   submitPdfExport(workspaceId: string, documentId: string): Promise<PdfExportResponse> {
     return request(`/workspaces/${workspaceId}/documents/${documentId}/pdf-exports`, {

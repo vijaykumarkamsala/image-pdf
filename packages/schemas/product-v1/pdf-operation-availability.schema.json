@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "PdfOperation": {
+      "enum": [
+        "view_capability_report",
+        "download_original",
+        "manage_pages",
+        "edit_content",
+        "unlock_with_password",
+        "sanitize_copy",
+        "reconstruct_copy"
+      ],
+      "title": "PdfOperation",
+      "type": "string"
+    },
+    "PdfOperationState": {
+      "enum": [
+        "available",
+        "blocked",
+        "not_released"
+      ],
+      "title": "PdfOperationState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-operation-availability.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "creates_derivative": {
+      "title": "Creates Derivative",
+      "type": "boolean"
+    },
+    "operation": {
+      "$ref": "#/$defs/PdfOperation"
+    },
+    "reason": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.22.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/PdfOperationState"
+    }
+  },
+  "required": [
+    "operation",
+    "state",
+    "creates_derivative",
+    "reason"
+  ],
+  "title": "PdfOperationAvailability",
+  "type": "object"
+}

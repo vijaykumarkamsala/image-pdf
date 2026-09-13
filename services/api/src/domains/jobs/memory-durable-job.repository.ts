@@ -294,6 +294,7 @@ export class MemoryDurableJobRepository implements DurableJobRepository {
       sourceVersionId: result.sourceVersionId,
       fileId: result.fileId,
       sourceFacts: result.facts,
+      pdfCapabilityAnalysis: result.pdfCapabilityAnalysis,
       now,
     });
     if (current.owner_kind === "actor" && current.workspace_id && current.actor_id && result.fileId) {

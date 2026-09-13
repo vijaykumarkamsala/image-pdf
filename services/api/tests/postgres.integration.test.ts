@@ -46,6 +46,10 @@ test(
     try {
       await runMigrations(pool);
       await runMigrations(pool);
+      assert.equal(
+        (await pool.query("SELECT version FROM schema_migrations WHERE version='0022_imported_pdf_capability'")).rowCount,
+        1,
+      );
       const version = await pool.query<{ server_version_num: string }>("SHOW server_version_num");
       assert.equal(Math.floor(Number(version.rows[0].server_version_num) / 10000), 17);
 
@@ -217,6 +221,7 @@ test(
         transferProvider: "local_api" as const,
         protectedProviderSession: null,
         providerMetadata: null,
+        pdfCapabilityAnalysis: null,
       };
       const command = {
         ownerScope: first.workspace.workspace_id,
@@ -542,6 +547,7 @@ test(
           immutableObjectKey: `immutable/${first.workspace.workspace_id}/${sourceFacts.sha256}`,
           immutableStorageGeneration: sourceFacts.sha256,
           facts: sourceFacts,
+          pdfCapabilityAnalysis: null,
         },
         "2026-08-30T00:11:40.000Z",
         "trace-postgres-accepted",
@@ -823,6 +829,7 @@ test(
           immutableObjectKey: `immutable/guest-pg/${sourceFacts.sha256}`,
           immutableStorageGeneration: sourceFacts.sha256,
           facts: sourceFacts,
+          pdfCapabilityAnalysis: null,
         },
         "2026-08-30T00:12:40.000Z",
         "trace-postgres-guest",

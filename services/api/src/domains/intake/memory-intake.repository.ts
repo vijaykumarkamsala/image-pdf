@@ -11,6 +11,7 @@ import type {
   CleanupCandidate,
   IntakeOwner,
   IntakeRepository,
+  StoredPdfCapabilityAnalysis,
   StoredUploadSession,
   UploadCreateResult,
 } from "./intake.types.js";
@@ -35,6 +36,10 @@ export class MemoryIntakeRepository implements IntakeRepository {
   private readonly uploads = new Map<string, StoredUploadSession>();
   private readonly commands = new Map<string, CommandEntry>();
   private readonly classifications = new Map<string, IntakeClassificationRecord>();
+  private readonly pdfCapabilityEvidence = new Map<
+    string,
+    { workspaceId: string; evidence: StoredPdfCapabilityAnalysis }
+  >();
   private readonly cleanup = new Map<string, { workerId: string; expiresAt: string; completedAt?: string }>();
   private readonly transitionListeners = new Set<(upload: UploadSessionRecord) => void>();
 
@@ -295,6 +300,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
       sourceVersionId: string;
       fileId: string | null;
       sourceFacts: UploadSessionRecord["source_facts"];
+      pdfCapabilityAnalysis: StoredUploadSession["pdfCapabilityAnalysis"];
       now: string;
     },
   ): StoredUploadSession {
@@ -311,6 +317,7 @@ export class MemoryIntakeRepository implements IntakeRepository {
         source_facts: input.sourceFacts,
         updated_at: input.now,
       },
+      pdfCapabilityAnalysis: input.pdfCapabilityAnalysis,
     };
     updated.quarantineRef = {
       ...stored.quarantineRef,
@@ -319,8 +326,54 @@ export class MemoryIntakeRepository implements IntakeRepository {
       generation: input.immutableStorageGeneration,
     };
     this.uploads.set(uploadSessionId, updated);
+    if (
+      updated.record.workspace_id
+      && updated.record.source_version_id
+      && updated.pdfCapabilityAnalysis
+      && updated.quarantineRef.generation
+    ) {
+      this.pdfCapabilityEvidence.set(updated.record.source_version_id, {
+        workspaceId: updated.record.workspace_id,
+        evidence: {
+          analysis: updated.pdfCapabilityAnalysis,
+          storageGeneration: updated.quarantineRef.generation,
+          inspectedAt: updated.record.updated_at,
+        },
+      });
+    }
     this.notifyTransition(updated.record);
     return updated;
+  }
+
+  bindPdfCapabilityAnalysisToWorkspace(uploadSessionId: string, workspaceId: string): void {
+    const stored = this.uploads.get(uploadSessionId);
+    const sourceVersionId = stored?.record.source_version_id;
+    if (!stored || stored.record.state !== "ready" || !sourceVersionId
+      || !stored.pdfCapabilityAnalysis || !stored.quarantineRef.generation) return;
+    this.pdfCapabilityEvidence.set(sourceVersionId, {
+      workspaceId,
+      evidence: {
+        analysis: stored.pdfCapabilityAnalysis,
+        storageGeneration: stored.quarantineRef.generation,
+        inspectedAt: stored.record.updated_at,
+      },
+    });
+  }
+
+  async findPdfCapabilityAnalysis(workspaceId: string, sourceVersionId: string) {
+    const stored = this.pdfCapabilityEvidence.get(sourceVersionId);
+    return stored?.workspaceId === workspaceId ? stored.evidence : null;
+  }
+
+  async listPdfCapabilityAnalyses(workspaceId: string, sourceVersionIds: string[]) {
+    const wanted = new Set(sourceVersionIds);
+    const result = new Map<string, StoredPdfCapabilityAnalysis>();
+    for (const [sourceVersionId, stored] of this.pdfCapabilityEvidence) {
+      if (stored.workspaceId === workspaceId && wanted.has(sourceVersionId)) {
+        result.set(sourceVersionId, stored.evidence);
+      }
+    }
+    return result;
   }
 
   completeRejected(

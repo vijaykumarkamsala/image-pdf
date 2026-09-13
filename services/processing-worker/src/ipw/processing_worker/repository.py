@@ -790,6 +790,7 @@ class PostgresWorkerRepository:
         immutable_object_key: str,
         immutable_storage_generation: str,
         facts: dict[str, Any],
+        pdf_capability_analysis: dict[str, Any] | None,
         now: datetime | None = None,
     ) -> None:
         instant = now or utcnow()
@@ -847,8 +848,8 @@ class PostgresWorkerRepository:
                          source_sha256,storage_generation,media_type,byte_size,width,height,
                          malware_scan_state,inspection_schema_version,inspected_at,orientation,
                          has_alpha,bit_depth,has_icc_profile,sensitive_metadata,frame_count,
-                         colour_model)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s)""",
+                          colour_model,pdf_capability_analysis)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s::jsonb)""",
                     (
                         source_id,
                         lease.workspace_id,
@@ -870,6 +871,7 @@ class PostgresWorkerRepository:
                         json.dumps(facts.get("sensitive_metadata", [])),
                         facts.get("frame_count"),
                         facts.get("colour_model"),
+                        json.dumps(pdf_capability_analysis) if pdf_capability_analysis else None,
                     ),
                 )
                 cursor.execute(
@@ -895,7 +897,8 @@ class PostgresWorkerRepository:
             cursor.execute(
                 """UPDATE upload_sessions SET state='ready',immutable_object_key=%s,
                      immutable_provider_generation=%s,asset_original_id=%s,source_version_id=%s,
-                     file_id=%s,source_facts=%s::jsonb,verified_sha256=%s,updated_at=%s
+                     file_id=%s,source_facts=%s::jsonb,pdf_capability_analysis=%s::jsonb,
+                     verified_sha256=%s,updated_at=%s
                    WHERE upload_session_id=%s AND state='inspecting'""",
                 (
                     immutable_object_key,
@@ -904,6 +907,7 @@ class PostgresWorkerRepository:
                     source_id,
                     file_id,
                     json.dumps(facts),
+                    json.dumps(pdf_capability_analysis) if pdf_capability_analysis else None,
                     facts["sha256"],
                     instant,
                     lease.upload_session_id,

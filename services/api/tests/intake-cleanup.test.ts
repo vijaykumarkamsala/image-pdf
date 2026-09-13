@@ -71,6 +71,7 @@ test("independent cleanup expires, removes, audits, and does not repeat an actor
     transferProvider: "local_api",
     protectedProviderSession: null,
     providerMetadata: null,
+    pdfCapabilityAnalysis: null,
   }, {
     ownerScope: workspaceId,
     idempotencyKey: "upload-cleanup-create",

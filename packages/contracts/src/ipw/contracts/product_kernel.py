@@ -17,6 +17,7 @@ from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
 from ipw.contracts.enhancement import ENHANCEMENT_SCHEMA_EXPORTS
 from ipw.contracts.pdf_creation import PDF_SCHEMA_EXPORTS
+from ipw.contracts.pdf_management import PDF_MANAGEMENT_SCHEMA_EXPORTS
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
 
 
@@ -859,3 +860,4 @@ PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(ENHANCEMENT_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(BATCH_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(PDF_SCHEMA_EXPORTS)
+PRODUCT_SCHEMA_EXPORTS.update(PDF_MANAGEMENT_SCHEMA_EXPORTS)

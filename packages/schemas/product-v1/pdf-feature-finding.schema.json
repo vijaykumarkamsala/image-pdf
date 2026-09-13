@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "PdfFeature": {
+      "enum": [
+        "encryption",
+        "document_permissions",
+        "digital_signatures",
+        "fonts",
+        "text",
+        "images",
+        "vector_content",
+        "forms",
+        "annotations",
+        "optional_content_layers",
+        "tags",
+        "attachments",
+        "active_content",
+        "mixed_page_sizes"
+      ],
+      "title": "PdfFeature",
+      "type": "string"
+    },
+    "PdfFeatureState": {
+      "enum": [
+        "present",
+        "absent",
+        "unknown",
+        "restricted"
+      ],
+      "title": "PdfFeatureState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-feature-finding.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "feature": {
+      "$ref": "#/$defs/PdfFeature"
+    },
+    "schema_version": {
+      "default": "1.22.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/PdfFeatureState"
+    },
+    "summary": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "feature",
+    "state",
+    "summary"
+  ],
+  "title": "PdfFeatureFinding",
+  "type": "object"
+}

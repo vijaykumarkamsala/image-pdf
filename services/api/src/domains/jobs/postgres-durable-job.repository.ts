@@ -540,15 +540,15 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
           `INSERT INTO source_inspection_facts(source_version_id,workspace_id,asset_original_id,object_reference_id,
            source_sha256,storage_generation,media_type,byte_size,width,height,malware_scan_state,
            inspection_schema_version,inspected_at,orientation,has_alpha,bit_depth,has_icc_profile,
-           sensitive_metadata,frame_count,colour_model)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+           sensitive_metadata,frame_count,colour_model,pdf_capability_analysis)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
           [result.sourceVersionId, current.workspace_id, result.assetOriginalId, objectReferenceId,
             result.facts.sha256, result.immutableStorageGeneration, result.facts.detected_media_type,
             result.facts.byte_size, result.facts.width, result.facts.height,
             result.facts.malware_scan_state, result.facts.schema_version, now, result.facts.orientation,
             result.facts.has_alpha, result.facts.bit_depth, result.facts.has_icc_profile,
             JSON.stringify(result.facts.sensitive_metadata), result.facts.frame_count,
-            result.facts.colour_model],
+            result.facts.colour_model, result.pdfCapabilityAnalysis],
         );
         const defaults = await client.query(
           "SELECT default_files_id FROM default_files_locations WHERE workspace_id=$1",
@@ -581,10 +581,12 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       }
       const readyResult = await client.query(
         `UPDATE upload_sessions SET state='ready',immutable_object_key=$1,immutable_provider_generation=$2,
-         asset_original_id=$3,source_version_id=$4,file_id=$5,source_facts=$6,updated_at=$7
-         WHERE upload_session_id=$8 RETURNING *`,
+         asset_original_id=$3,source_version_id=$4,file_id=$5,source_facts=$6,
+         pdf_capability_analysis=$7,updated_at=$8
+         WHERE upload_session_id=$9 RETURNING *`,
         [result.immutableObjectKey, result.immutableStorageGeneration, result.assetOriginalId,
-          result.sourceVersionId, fileId, result.facts, now, current.upload_session_id],
+          result.sourceVersionId, fileId, result.facts, result.pdfCapabilityAnalysis,
+          now, current.upload_session_id],
       );
       const completedResult = await client.query(
         `UPDATE processing_jobs SET state='succeeded',progress_percent=100,updated_at=$1
