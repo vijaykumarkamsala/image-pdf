@@ -23,7 +23,7 @@ import type { PrivateObjectStore } from "../src/domains/intake/private-object-st
 import { runMigrations } from "../src/kernel/migrations.js";
 import { PostgresProductKernelRepository } from "../src/kernel/postgres.repository.js";
 import type { CommandContext } from "../src/kernel/product.types.js";
-import { DeterministicRuntimeValues, requestDigest } from "../src/kernel/runtime.js";
+import { DeterministicRuntimeValues, requestDigest, SystemRuntimeValues } from "../src/kernel/runtime.js";
 
 const connectionString = process.env["IPW_TEST_DATABASE_URL"];
 
@@ -875,7 +875,10 @@ test(
   async () => {
     assert.ok(connectionString);
     const pool = new Pool({ connectionString });
-    const runtime = new DeterministicRuntimeValues("2026-09-12T09:00:00.000Z");
+    // This suite shares the canonical CI database with concurrently scheduled
+    // integration tests. Production-style UUIDs keep its records independent
+    // without relying on fragile, manually reserved deterministic ID ranges.
+    const runtime = new SystemRuntimeValues();
     const product = new PostgresProductKernelRepository(pool, runtime);
     const documents = new PostgresDocumentRepository(pool, runtime);
     const exports = new PostgresPdfExportRepository(pool, runtime);

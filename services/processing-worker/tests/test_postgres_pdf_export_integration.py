@@ -234,8 +234,10 @@ def test_real_postgres_pdf_export_is_durable_verified_and_zero_charge(tmp_path: 
                       result.media_type,object.sha256,object.storage_generation
                FROM pdf_export_requests request
                JOIN processing_jobs job ON job.job_id=request.job_id
-               JOIN pdf_export_results result USING(pdf_export_request_id)
-               JOIN object_references object USING(object_reference_id)
+               JOIN pdf_export_results result
+                 ON result.pdf_export_request_id=request.pdf_export_request_id
+               JOIN object_references object
+                 ON object.object_reference_id=result.object_reference_id
                WHERE request.pdf_export_request_id=%s""",
             (ids["request"],),
         )
