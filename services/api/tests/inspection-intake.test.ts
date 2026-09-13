@@ -361,6 +361,11 @@ test("guest handoff preserves inspected source identity and requires explicit wo
     const files = await json(await server.request(`/workspaces/${workspaceId}/files`));
     assert.equal(files.files.length, 1);
     assert.equal(files.files[0].asset_original_id, ready.upload_session.asset_original_id);
+    const studioSources = await json(await server.request(`/workspaces/${workspaceId}/documents/studio-sources`));
+    assert.equal(studioSources.sources.length, 1);
+    assert.equal(studioSources.sources[0].file_id, files.files[0].file_id);
+    assert.equal(studioSources.sources[0].display_name, "guest-ready.png");
+    assert.equal(studioSources.sources[0].editable, true);
     const notifications = await json(await server.request(`/workspaces/${workspaceId}/notifications`));
     assert.equal(notifications.notifications.filter((item: any) => item.kind === "guest_handoff_completed").length, 1);
     assert.equal(notifications.notifications.find((item: any) => item.kind === "guest_handoff_completed").resource_id, files.files[0].file_id);

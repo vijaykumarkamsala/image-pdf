@@ -75,6 +75,16 @@ export class MemoryGuestHandoffRepository implements GuestHandoffRepository {
       mediaType: input.mediaType,
       byteSize: input.byteSize,
     });
+    this.intake.handoffReadyUpload({
+      uploadSessionId: input.uploadSessionId,
+      guestSessionId: input.guestSessionId,
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      fileId: input.fileId,
+      immutableObjectKey: input.immutableObjectKey,
+      immutableStorageGeneration: input.immutableStorageGeneration,
+      now: input.now,
+    });
     this.intake.bindPdfCapabilityAnalysisToWorkspace(input.uploadSessionId, input.workspaceId);
     await this.product.recordExternalMutation(
       input.command,
@@ -205,6 +215,13 @@ export class PostgresGuestHandoffRepository implements GuestHandoffRepository {
         [input.uploadSessionId, input.guestSessionId, input.workspaceId, input.actorId,
           objectReferenceId, input.assetOriginalId, input.sourceVersionId, input.fileId,
           input.now, input.command.traceId],
+      );
+      await client.query(
+        `UPDATE upload_sessions SET owner_kind='actor',workspace_id=$1,actor_id=$2,guest_session_id=NULL,
+         file_id=$3,immutable_object_key=$4,immutable_provider_generation=$5,updated_at=$6
+         WHERE upload_session_id=$7`,
+        [input.workspaceId, input.actorId, input.fileId, input.immutableObjectKey,
+          input.immutableStorageGeneration, input.now, input.uploadSessionId],
       );
       const auditId = `audit-${randomUUID()}`;
       const usageId = `usage-${randomUUID()}`;

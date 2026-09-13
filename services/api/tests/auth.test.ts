@@ -96,11 +96,33 @@ test("an elapsed rotation deadline replaces and revokes the old opaque session",
   assert.equal((await auth.current({ cookie: `${SESSION_COOKIE}=${rotated.authenticated ? rotated.issued!.sessionToken : ""}` })).authenticated, true);
 });
 
-test("customer actor headers are rejected and production configuration fails closed", async () => {
+test("customer actor headers and deterministic production sign-in fail closed", async () => {
   const boundary = new IdentityBoundary(new MemoryAuthRepository());
   await assert.rejects(boundary.resolve({ "x-ipw-actor-id": "actor-spoofed", "x-ipw-actor-name": "Spoofed" }), /Sign in is required/);
   assert.throws(() => loadOidcConfig({ NODE_ENV: "production" }), /OIDC configuration is required/);
   assert.throws(() => loadOidcConfig({ NODE_ENV: "production", IPW_OIDC_ISSUER: "http://issuer" }), /required together/);
+
+  const previousNodeEnv = process.env["NODE_ENV"];
+  const previousDevIdentity = process.env["IPW_DEV_IDENTITY_ENABLED"];
+  process.env["NODE_ENV"] = "production";
+  process.env["IPW_DEV_IDENTITY_ENABLED"] = "1";
+  try {
+    const auth = new AuthService(
+      new MemoryAuthRepository(),
+      new DeterministicOidcProvider(),
+      new MemoryProductKernelRepository(new DeterministicRuntimeValues()),
+    );
+    assert.equal(auth.developmentLoginAvailable(), false);
+    await assert.rejects(
+      auth.developmentLogin({ "x-trace-id": "trace-production" }, "/app", undefined),
+      /unavailable/i,
+    );
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env["NODE_ENV"];
+    else process.env["NODE_ENV"] = previousNodeEnv;
+    if (previousDevIdentity === undefined) delete process.env["IPW_DEV_IDENTITY_ENABLED"];
+    else process.env["IPW_DEV_IDENTITY_ENABLED"] = previousDevIdentity;
+  }
 });
 
 test("developer identity is isolated behind server sessions and logout requires CSRF", async () => {
@@ -118,6 +140,31 @@ test("developer identity is isolated behind server sessions and logout requires 
     assert.equal(guestCreated.status, 201);
     const guestCookie = guestCreated.headers.getSetCookie().map((value) => value.split(";", 1)[0]).join("; ");
     assert.equal((await fetch(`${base}/guest-sessions`, { method: "POST", headers: { cookie: guestCookie } })).status, 201);
+
+    const localSignIn = await fetch(`${base}/auth/login?return_to=/app`, { redirect: "manual" });
+    assert.equal(localSignIn.status, 302);
+    assert.equal(localSignIn.headers.get("location"), "/app");
+    const localSessionCookie = localSignIn.headers.getSetCookie()
+      .find((value) => value.startsWith(`${SESSION_COOKIE}=`))!.split(";", 1)[0];
+    const localSession = await fetch(`${base}/auth/session`, { headers: { cookie: localSessionCookie } });
+    assert.equal(localSession.status, 200);
+    const firstLocalActor = (await localSession.json() as { actor: { actor_id: string } }).actor.actor_id;
+
+    const returningSignIn = await fetch(`${base}/auth/login?return_to=/app`, { redirect: "manual" });
+    const returningSessionCookie = returningSignIn.headers.getSetCookie()
+      .find((value) => value.startsWith(`${SESSION_COOKIE}=`))!.split(";", 1)[0];
+    const returningSession = await fetch(`${base}/auth/session`, { headers: { cookie: returningSessionCookie } });
+    assert.equal(returningSession.status, 200);
+    const returningLocalActor = (await returningSession.json() as { actor: { actor_id: string } }).actor.actor_id;
+    assert.equal(returningLocalActor, firstLocalActor);
+
+    const localHandoff = await fetch(
+      `${base}/auth/login?return_to=/guest/upload&handoff=upload-local-handoff`,
+      { headers: { cookie: guestCookie }, redirect: "manual" },
+    );
+    assert.equal(localHandoff.status, 302);
+    assert.match(localHandoff.headers.get("location") ?? "", /^\/auth\/complete\?handoff=upload-local-handoff&return_to=/);
+    assert.ok(localHandoff.headers.getSetCookie().some((value) => value.startsWith(`${SESSION_COOKIE}=`)));
 
     const created = await fetch(`${base}/auth/developer-session`, {
       method: "POST", headers: { "content-type": "application/json" },

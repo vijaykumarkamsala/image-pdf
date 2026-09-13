@@ -62,6 +62,7 @@ export interface OidcExchangeInput {
 export interface OidcProvider {
   authorizationUrl(input: OidcAuthorizationInput): Promise<string>;
   exchange(input: OidcExchangeInput): Promise<OidcIdentity>;
+  developmentCode?(state: string): string;
 }
 
 export const AUTH_REPOSITORY = Symbol("AUTH_REPOSITORY");

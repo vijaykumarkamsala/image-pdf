@@ -835,6 +835,14 @@ test(
         "trace-postgres-guest",
       );
       assert.equal(guestCompletion.upload.file_id, null);
+      await assert.rejects(
+        pool.query(
+          `UPDATE upload_sessions SET owner_kind='actor',workspace_id=$1,actor_id='actor-pg',guest_session_id=NULL
+           WHERE upload_session_id='upload-guest-ready-pg'`,
+          [first.workspace.workspace_id],
+        ),
+        /upload ownership and expected source facts are immutable/,
+      );
       const handoffs = new PostgresGuestHandoffRepository(pool);
       const handedOff = await handoffs.handoff({
         uploadSessionId: "upload-guest-ready-pg",
@@ -862,6 +870,13 @@ test(
         .find((file) => file.file_id === handedOff.fileId);
       assert.equal(guestFile?.asset_original_id, "asset-guest-preserved");
       assert.equal(guestFile?.current_source_version_id, "source-guest-preserved");
+      const handedOffUpload = (await intake.listWorkspaceUploads(first.workspace.workspace_id))
+        .find((upload) => upload.record.upload_session_id === "upload-guest-ready-pg");
+      assert.equal(handedOffUpload?.record.owner_kind, "actor");
+      assert.equal(handedOffUpload?.record.actor_id, "actor-pg");
+      assert.equal(handedOffUpload?.record.file_id, handedOff.fileId);
+      assert.equal(handedOffUpload?.quarantineRef.ownerScope, first.workspace.workspace_id);
+      assert.equal(handedOffUpload?.quarantineRef.zone, "immutable");
       const handoffAudit = await repository.listAuditEvents("actor-pg", first.workspace.workspace_id);
       assert.ok(handoffAudit.some((event) => event.action === "guest-source.handed-off"
         && event.resource_id === handedOff.fileId));

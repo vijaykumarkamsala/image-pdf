@@ -131,6 +131,41 @@ export class MemoryIntakeRepository implements IntakeRepository {
       .sort((left, right) => right.record.updated_at.localeCompare(left.record.updated_at));
   }
 
+  handoffReadyUpload(input: {
+    uploadSessionId: string;
+    guestSessionId: string;
+    workspaceId: string;
+    actorId: string;
+    fileId: string;
+    immutableObjectKey: string;
+    immutableStorageGeneration: string;
+    now: string;
+  }): void {
+    const stored = this.uploads.get(input.uploadSessionId);
+    if (!stored || stored.record.owner_kind !== "guest"
+      || stored.record.guest_session_id !== input.guestSessionId || stored.record.state !== "ready") {
+      throw new DomainError(409, "upload-not-ready", "Guest upload is not ready to save");
+    }
+    this.uploads.set(input.uploadSessionId, {
+      ...stored,
+      record: {
+        ...stored.record,
+        owner_kind: "actor",
+        workspace_id: input.workspaceId,
+        actor_id: input.actorId,
+        guest_session_id: null,
+        file_id: input.fileId,
+        updated_at: input.now,
+      },
+      quarantineRef: {
+        ownerScope: input.workspaceId,
+        objectKey: input.immutableObjectKey,
+        zone: "immutable",
+        generation: input.immutableStorageGeneration,
+      },
+    });
+  }
+
   async recordUploadedBytes(
     uploadSessionId: string,
     tokenHash: string,

@@ -1,27 +1,26 @@
 # Image & PDF Workspace — monorepo
 
-Standalone image and PDF workspace. This repository currently holds the technical
-proof of concept described in [`docs/`](docs/); production application workspaces
-arrive after architecture approval.
+Standalone image and PDF workspace. The active Product V2 customer application is
+owned by `apps/web`, `services/api` and the production processing boundaries. Its
+authority is [`docs/product-v2/`](docs/product-v2/README.md). Earlier benchmark
+work remains preserved as evidence and is not the customer product definition.
 
-The POC validates image-processing quality, performance, commercial eligibility
-and cost **before** the production architecture is approved. It is not the
-customer-facing application, and it is not permission to build one. Read
-[`AGENTS.md`](AGENTS.md) before making any change.
-
-**Current state: POC-001 through POC-005 complete** — monorepo layout, benchmark
-contract, purpose-based licence and rights gates, header-first input inspection,
-the deterministic standard-processing baseline on two engines, and the browser
-laboratory with a cross-language-verified contract. No model, no model weights and
-no external inference provider are integrated. That is enforced by tests, not just
-by policy.
+**Current state:** the production foundation includes private guest intake,
+authenticated workspaces, Image & Graphic Studio, image enhancement/export,
+native Screen PDF creation, and safe imported-PDF capability inspection. The
+larger external-tester scope remains incremental. Read [`AGENTS.md`](AGENTS.md)
+before making any change.
 
 ---
 
 ## Setup
 
-Requires Python 3.11+ (verified on CPython 3.14.5, Windows 11). No compiler, no
-GPU, no Docker, and no network access at test time.
+For the React and NestJS product application, including the explicitly gated
+local sign-in simulator, follow
+[`docs/LOCAL_PRODUCT_TESTING.md`](docs/LOCAL_PRODUCT_TESTING.md).
+
+The Python benchmark and processing workspaces require Python 3.11+ (the pinned
+canonical and compatibility versions are defined by CI):
 
 ```powershell
 python -m venv .venv
@@ -133,8 +132,7 @@ the benchmark runner.
 Every workspace declares `stage` in `workspaces.toml`: `poc`, `shared`,
 `production` or `tooling`. A `production` workspace may never import from a `poc`
 workspace, so promoting code is an explicit, reviewable move rather than a quiet
-import. There are no production workspaces yet — architecture approval is a
-prerequisite (blueprint §29).
+import.
 
 ## Core design decisions
 

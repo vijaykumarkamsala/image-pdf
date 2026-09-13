@@ -7,7 +7,6 @@ import { PRODUCT_SCHEMA_VERSION, type ProcessingJobRecord } from "ipw-contracts-
 import { transformWithOxc } from "vite";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
-const playwrightBaseUrl = (process.env["IPW_PLAYWRIGHT_BASE_URL"] ?? "http://127.0.0.1:4174").replace(/\/$/, "");
 let editorJournalBridge: Promise<string> | null = null;
 
 async function installEditorJournalTestBridge(page: Page) {
@@ -46,20 +45,6 @@ async function openWorkspace(page: Page, suffix: string, theme: "light" | "dark"
   await identify(page, suffix, theme);
   await page.goto("/app");
   await expect(page.getByTestId("workspace-home")).toBeVisible();
-}
-
-async function routeDeterministicOidcSignIn(page: Page, code: string) {
-  await page.route("**/v1/auth/login**", async (route) => {
-    const response = await route.fetch({ maxRedirects: 0 });
-    const authorizationUrl = response.headers()["location"];
-    const state = authorizationUrl ? new URL(authorizationUrl).searchParams.get("state") : null;
-    await route.fulfill({
-      status: 302,
-      headers: {
-        location: `${playwrightBaseUrl}/v1/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state ?? "")}`,
-      },
-    });
-  });
 }
 
 async function clearFocus(page: Page) {
@@ -369,8 +354,7 @@ test("an interrupted transfer resumes the same file after browser refresh", asyn
   await expect(page.getByText("File not accepted")).toBeVisible({ timeout: 15_000 });
 });
 
-test("guest upload signs in to save the exact accepted source", async ({ page, context }) => {
-  await routeDeterministicOidcSignIn(page, "code-guest-customer");
+test("guest upload signs in to preserve the exact source and continue", async ({ page, context }) => {
   await page.goto("/guest/upload");
   await expect(page.getByTestId("guest-home")).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.cookie)).toContain("ipw-csrf=");
@@ -385,11 +369,37 @@ test("guest upload signs in to save the exact accepted source", async ({ page, c
   const otherTab = await context.newPage();
   await otherTab.goto("/guest/upload");
   await expect(otherTab.getByTestId("guest-home")).toBeVisible();
-  await page.getByRole("button", { name: "Sign in to save" }).click();
+  await page.getByRole("button", { name: "Sign in to continue" }).click();
   await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("synthetic-alpha-32.png")).toBeVisible();
   await expect(otherTab.getByRole("heading", { name: "Default Files" })).toBeVisible({ timeout: 15_000 });
   await expect(otherTab.getByText("synthetic-alpha-32.png")).toBeVisible();
+  const handedOffFile = page.getByRole("listitem").filter({ hasText: "synthetic-alpha-32.png" }).first();
+  await handedOffFile.getByRole("button", { name: "Create in Studio" }).click();
+  await expect(page.getByTestId("studio-start")).toBeVisible();
+  const selectedSource = page.getByRole("radiogroup", { name: "Source file" })
+    .getByRole("radio")
+    .filter({ hasText: "synthetic-alpha-32.png" });
+  await expect(selectedSource).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "Create graphic" }).click();
+  await expect(page.getByRole("tab", { name: "Layers" })).toBeVisible();
+});
+
+test("guest PDF signs in, enters Files and opens the safe capability workspace", async ({ page }) => {
+  await page.goto("/guest/upload");
+  await expect(page.getByTestId("guest-home")).toBeVisible();
+  await page.locator('input[type="file"]').setInputFiles(activePdfFile);
+  await page.getByRole("button", { name: "Upload 1" }).click();
+  await expect(page.getByText("File ready")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Sign in to continue" }).click();
+
+  await expect(page.getByRole("heading", { name: "Default Files" })).toBeVisible({ timeout: 15_000 });
+  const handedOffFile = page.getByRole("listitem").filter({ hasText: activePdfFile.name }).first();
+  await expect(handedOffFile.getByRole("button", { name: "Review PDF safely" })).toBeVisible();
+  await handedOffFile.getByRole("button", { name: "Review PDF safely" }).click();
+  await expect(page.getByTestId("pdf-capability-workspace")).toBeVisible();
+  await expect(page.getByRole("heading", { name: activePdfFile.name })).toBeVisible();
+  await expect(page.getByText("Immutable original", { exact: true })).toBeVisible();
 });
 
 test("duplicate guest tabs recover from server state without sharing credentials", async ({ page, context }) => {
@@ -483,13 +493,20 @@ test("guest upload has no detectable accessibility violations", async ({ page })
 });
 
 test("returning guests can sign in through the existing BFF journey", async ({ page }) => {
-  await routeDeterministicOidcSignIn(page, "code-returning-customer");
   await page.goto("/guest/upload");
   const signIn = page.getByRole("button", { name: "Sign in", exact: true });
   await expect(signIn).toBeVisible();
   await signIn.click();
   await expect(page.getByTestId("workspace-home")).toBeVisible();
   await expect(page).toHaveURL(/\/w\/[^/]+$/);
+});
+
+test("a failed identity-provider return explains recovery without discarding temporary work", async ({ page }) => {
+  await page.goto("/guest/upload?sign_in=failed");
+  const notice = page.getByRole("alert");
+  await expect(notice.getByText("Sign in did not complete", { exact: true })).toBeVisible();
+  await expect(notice.getByText("Your temporary uploads are still available.", { exact: false })).toBeVisible();
+  await expect(page.getByTestId("guest-home")).toBeVisible();
 });
 
 test("guest upload shows one clear action only after file selection", async ({ page }) => {

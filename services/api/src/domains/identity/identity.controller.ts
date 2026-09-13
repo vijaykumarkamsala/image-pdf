@@ -21,6 +21,16 @@ export class IdentityController {
     @Query("handoff") handoff: string | undefined,
     @Res() response: Response,
   ) {
+    if (this.auth.developmentLoginAvailable()) {
+      try {
+        const completed = await this.auth.developmentLogin(headers, returnTo, handoff);
+        this.setSession(response, completed.issued);
+        response.redirect(302, completed.redirectTo);
+      } catch {
+        response.redirect(302, "/guest/upload?sign_in=failed");
+      }
+      return;
+    }
     response.redirect(302, await this.auth.login(headers, returnTo, handoff));
   }
 
