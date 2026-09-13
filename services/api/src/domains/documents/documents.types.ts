@@ -22,10 +22,16 @@ export interface VerifiedRasterSource {
   width: number | null;
   height: number | null;
   byteSize: number;
+  orientation: number | null;
+  bitDepth: number | null;
+  frameCount: number | null;
+  hasIccProfile: boolean | null;
+  colourModel: string | null;
   requiresPreview: boolean;
 }
 
 export interface CreateDocumentInput {
+  kind?: "graphic" | "pdf";
   workspaceId: string;
   projectId?: string;
   defaultFilesId: string;
@@ -35,6 +41,10 @@ export interface CreateDocumentInput {
   width?: number;
   height?: number;
   source?: VerifiedRasterSource;
+  sources?: VerifiedRasterSource[];
+  pagePreset?: "a4" | "letter";
+  pageOrientation?: "portrait" | "landscape";
+  language?: string;
 }
 
 export interface DocumentMutationInput {

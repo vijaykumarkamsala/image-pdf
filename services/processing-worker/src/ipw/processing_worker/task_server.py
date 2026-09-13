@@ -9,7 +9,8 @@ import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Protocol
+from pathlib import Path
+from typing import Protocol, cast
 
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
@@ -24,6 +25,8 @@ from ipw.processing_worker.image_export import (
     DurableExportBundleProcessor,
     DurableImageExportProcessor,
 )
+from ipw.processing_worker.pdf_export import DurablePdfExportProcessor
+from ipw.processing_worker.pdf_export_repository import PostgresPdfExportWorkerRepository
 from ipw.processing_worker.preview import DurablePreviewProcessor
 from ipw.processing_worker.repository import PostgresWorkerRepository
 from ipw.storage import GcsWorkerPrivateObjectStore
@@ -47,12 +50,14 @@ class DurableJobRouter:
         preview: DurablePreviewProcessor,
         image_export: DurableImageExportProcessor,
         export_bundle: DurableExportBundleProcessor,
+        pdf_export: DurablePdfExportProcessor | None = None,
     ) -> None:
         self._repository = repository
         self._intake = intake
         self._preview = preview
         self._image_export = image_export
         self._export_bundle = export_bundle
+        self._pdf_export = pdf_export
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
         kind = self._repository.job_kind(message.job_id)
@@ -64,6 +69,8 @@ class DurableJobRouter:
             return self._image_export.process(message)
         if kind == "export_bundle":
             return self._export_bundle.process(message)
+        if kind == "pdf_export" and self._pdf_export is not None:
+            return self._pdf_export.process(message)
         raise LookupError("processing job kind is not supported")
 
 
@@ -147,6 +154,10 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
 
     repository = PostgresWorkerRepository.connect(env["IPW_DATABASE_URL"])
     export_repository = PostgresImageExportWorkerRepository.connect(env["IPW_DATABASE_URL"])
+    pdf_export_repository = cast(
+        PostgresPdfExportWorkerRepository,
+        PostgresPdfExportWorkerRepository.connect(env["IPW_DATABASE_URL"]),
+    )
     objects = GcsWorkerPrivateObjectStore(env["IPW_GCS_BUCKET"])
     intake = DurableIntakeProcessor(
         repository,
@@ -173,7 +184,21 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         worker_id=env.get("HOSTNAME", "processing-worker"),
         execution_lock=heavy_execution_lock,
     )
-    processor = DurableJobRouter(repository, intake, preview, image_export, export_bundle)
+    pdf_export = DurablePdfExportProcessor(
+        pdf_export_repository,
+        objects,
+        worker_id=env.get("HOSTNAME", "processing-worker"),
+        font_path=Path(
+            env.get(
+                "IPW_STANDARD_FONT_PATH",
+                "/opt/ipw/apps/web/public/fonts/ipw-standard.ttf",
+            )
+        ),
+        execution_lock=heavy_execution_lock,
+    )
+    processor = DurableJobRouter(
+        repository, intake, preview, image_export, export_bundle, pdf_export
+    )
     verifier = GoogleOidcTaskIdentityVerifier(
         env["IPW_WORKER_OIDC_AUDIENCE"],
         env["IPW_CLOUD_TASKS_SERVICE_ACCOUNT"],

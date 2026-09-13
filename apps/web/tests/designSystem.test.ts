@@ -68,6 +68,6 @@ test("intake and search presentation keep customer facts friendly and evidence a
 });
 
 test("inactive outcome cards remain outside the interaction model", () => {
-  assert.match(outcomes, /aria-disabled=\{active \? undefined : true\}/);
+  assert.match(outcomes, /aria-disabled=\{!publicView && !active \? true : undefined\}/);
   assert.doesNotMatch(outcomes, /<a(?:\s|>)|<button|tabIndex|onClick/);
 });

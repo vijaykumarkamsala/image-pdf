@@ -185,6 +185,15 @@ class SharedAssetRecord(EditorContractModel):
     source_version_id: SlugId | None = None
     object_reference_id: SlugId | None = None
     preview_object_reference_id: SlugId | None = None
+    source_media_type: str | None = None
+    source_width_px: int | None = Field(default=None, ge=1, le=100_000)
+    source_height_px: int | None = Field(default=None, ge=1, le=100_000)
+    source_byte_size: int | None = Field(default=None, ge=1)
+    source_orientation: int | None = Field(default=None, ge=1, le=8)
+    source_bit_depth: int | None = Field(default=None, ge=1, le=64)
+    source_frame_count: int | None = Field(default=None, ge=1, le=100_000)
+    source_has_icc_profile: bool | None = None
+    source_colour_model: str | None = None
     linked_by_default: bool = False
 
 
@@ -339,6 +348,38 @@ class GroupLayerData(EditorContractModel):
     collapsed: bool = False
 
 
+class LayerAccessibilityRole(StrEnum):
+    PARAGRAPH = "paragraph"
+    HEADING_1 = "heading_1"
+    HEADING_2 = "heading_2"
+    HEADING_3 = "heading_3"
+    FIGURE = "figure"
+    DECORATIVE = "decorative"
+    ARTIFACT = "artifact"
+
+
+class LayerAccessibility(EditorContractModel):
+    role: LayerAccessibilityRole
+    alt_text: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def _alternative_text_matches_role(self) -> LayerAccessibility:
+        if self.role is LayerAccessibilityRole.FIGURE and not (
+            self.alt_text and self.alt_text.strip()
+        ):
+            raise ValueError("figure accessibility requires alternative text")
+        if (
+            self.role
+            in {
+                LayerAccessibilityRole.DECORATIVE,
+                LayerAccessibilityRole.ARTIFACT,
+            }
+            and self.alt_text is not None
+        ):
+            raise ValueError("decorative and artifact layers cannot carry alternative text")
+        return self
+
+
 class LayerType(StrEnum):
     RASTER_IMAGE = "raster_image"
     VECTOR_SVG = "vector_svg"
@@ -372,6 +413,7 @@ class LayerRecord(EditorContractModel):
     rich_text: RichTextLayerData | None = None
     shape: ShapeLayerData | None = None
     group: GroupLayerData | None = None
+    accessibility: LayerAccessibility | None = None
     extension_payload: dict[str, ScalarValue] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -401,6 +443,26 @@ class DocumentVariantRecord(EditorContractModel):
     active: bool = False
 
 
+class PdfPageSizePolicy(StrEnum):
+    UNIFORM = "uniform"
+    MIXED = "mixed"
+
+
+class PdfPageRecord(EditorContractModel):
+    artboard_id: SlugId
+    label: NonEmptyStr
+    master_page_id: SlugId | None = None
+
+
+class PdfDocumentSettings(EditorContractModel):
+    title: NonEmptyStr
+    language: str = Field(default="en", pattern=r"^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$")
+    subject: str | None = Field(default=None, max_length=500)
+    page_size_policy: PdfPageSizePolicy = PdfPageSizePolicy.UNIFORM
+    default_page_name: NonEmptyStr = "A4"
+    pages: tuple[PdfPageRecord, ...] = Field(min_length=1, max_length=500)
+
+
 class EditorDocumentSnapshot(EditorContractModel):
     document_id: SlugId
     revision: int = Field(ge=0)
@@ -410,6 +472,7 @@ class EditorDocumentSnapshot(EditorContractModel):
     shared_assets: tuple[SharedAssetRecord, ...] = ()
     shared_styles: tuple[SharedStyleRecord, ...] = ()
     variants: tuple[DocumentVariantRecord, ...] = ()
+    pdf_settings: PdfDocumentSettings | None = None
 
     @model_validator(mode="after")
     def _references_are_consistent(self) -> EditorDocumentSnapshot:
@@ -419,6 +482,20 @@ class EditorDocumentSnapshot(EditorContractModel):
             raise ValueError("artboard and layer identifiers must be unique")
         if len({item.order for item in self.artboards}) != len(self.artboards):
             raise ValueError("artboard order must be unique and deterministic")
+        if self.pdf_settings is not None:
+            page_ids = [item.artboard_id for item in self.pdf_settings.pages]
+            if len(set(page_ids)) != len(page_ids) or set(page_ids) != artboard_ids:
+                raise ValueError("PDF pages must reference every artboard exactly once")
+            if page_ids != [
+                item.artboard_id for item in sorted(self.artboards, key=lambda item: item.order)
+            ]:
+                raise ValueError("PDF page order must match artboard order")
+            if any(item.unit is not ArtboardUnit.POINTS for item in self.artboards):
+                raise ValueError("PDF pages must use point units")
+            if self.pdf_settings.page_size_policy is PdfPageSizePolicy.UNIFORM:
+                sizes = {(item.width, item.height) for item in self.artboards}
+                if len(sizes) != 1:
+                    raise ValueError("uniform PDF pages must use one page size")
         if any(layer.artboard_id not in artboard_ids for layer in self.layers):
             raise ValueError("every layer must reference an artboard in the snapshot")
         if any(
@@ -686,9 +763,12 @@ EDITOR_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
     "editor-operation-record": EditorOperationRecord,
     "import-compatibility-report": ImportCompatibilityReport,
     "layer-record": LayerRecord,
+    "layer-accessibility": LayerAccessibility,
     "layer-transform": LayerTransform,
     "lease-takeover-result": LeaseTakeoverResult,
     "preview-provenance": PreviewProvenance,
+    "pdf-document-settings": PdfDocumentSettings,
+    "pdf-page-record": PdfPageRecord,
     "shared-asset-record": SharedAssetRecord,
     "shared-style-record": SharedStyleRecord,
     "visual-adjustments": VisualAdjustments,

@@ -16,6 +16,7 @@ from ipw.processing_worker.durable_intake import (
 )
 from ipw.processing_worker.repository import LeasedIntakeJob
 from ipw.processing_worker.task_server import (
+    DurableJobRouter,
     GoogleOidcTaskIdentityVerifier,
     IntakeTaskApplication,
     build_production_application,
@@ -29,6 +30,30 @@ def png() -> bytes:
         + struct.pack(">I4sIIBBBBB", 13, b"IHDR", 2, 3, 8, 2, 0, 0, 0)
         + b"\x00\x00\x00\x00"
     )
+
+
+def test_durable_job_router_dispatches_pdf_exports_to_the_pinned_processor() -> None:
+    class Repository:
+        def job_kind(self, job_id: str) -> str:
+            assert job_id == "job-pdf"
+            return "pdf_export"
+
+    class Processor:
+        def __init__(self) -> None:
+            self.messages: list[DispatchMessage] = []
+
+        def process(self, message: DispatchMessage) -> WorkerOutcome:
+            self.messages.append(message)
+            return WorkerOutcome("succeeded", message.job_id)
+
+    unused = Processor()
+    pdf = Processor()
+    router = DurableJobRouter(Repository(), unused, unused, unused, unused, pdf)  # type: ignore[arg-type]
+    message = DispatchMessage("dispatch-pdf", "job-pdf", "trace-pdf")
+
+    assert router.process(message) == WorkerOutcome("succeeded", "job-pdf")
+    assert pdf.messages == [message]
+    assert unused.messages == []
 
 
 class FakeRepository:

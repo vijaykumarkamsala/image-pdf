@@ -17,8 +17,13 @@ export function OutcomeGrid({ publicView = false, features, workspaceId }: { pub
       {!active && productFeatureState.showInactiveBuildIndicator && <span className="build-indicator"><CircleDashed aria-hidden="true" />Not active in this build</span>}
     </>;
     const className = `outcome-card outcome-card-${index + 1}`;
-    return active && workspaceId && outcome.feature === "image-graphic-studio"
-      ? <Link className={className} data-feature-state="active" key={outcome.feature} to={`/w/${encodeURIComponent(workspaceId)}/studio/new`}>{content}</Link>
-      : <article className={className} data-feature-state={active ? "active" : "inactive"} aria-disabled={active ? undefined : true} key={outcome.feature}>{content}</article>;
+    const destination = outcome.feature === "image-graphic-studio"
+      ? `/w/${encodeURIComponent(workspaceId ?? "")}/studio/new`
+      : outcome.feature === "create-pdf"
+        ? `/w/${encodeURIComponent(workspaceId ?? "")}/pdf/new`
+        : null;
+    return active && workspaceId && destination
+      ? <Link className={className} data-feature-state="active" key={outcome.feature} to={destination}>{content}</Link>
+      : <article className={className} data-feature-state={publicView ? "informational" : active ? "active" : "inactive"} aria-disabled={!publicView && !active ? true : undefined} key={outcome.feature}>{content}</article>;
   })}</div>;
 }

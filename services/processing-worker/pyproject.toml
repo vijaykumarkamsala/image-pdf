@@ -18,6 +18,9 @@ dependencies = [
   "pg8000==1.31.5",
   # HPND; bounded raster preview decode/encode only. No POC processor import.
   "Pillow>=11,<14",
+  # BSD-3-Clause; native Screen PDF renderer and independent output validator.
+  "reportlab==5.0.1",
+  "pypdf==6.18.1",
 ]
 
 [project.scripts]

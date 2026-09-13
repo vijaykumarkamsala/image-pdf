@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "PdfImagePlacement": {
+      "enum": [
+        "contain"
+      ],
+      "title": "PdfImagePlacement",
+      "type": "string"
+    },
+    "PdfPageOrientation": {
+      "enum": [
+        "portrait",
+        "landscape"
+      ],
+      "title": "PdfPageOrientation",
+      "type": "string"
+    },
+    "PdfPagePreset": {
+      "enum": [
+        "a4",
+        "letter"
+      ],
+      "title": "PdfPagePreset",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-create-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "image_placement": {
+      "$ref": "#/$defs/PdfImagePlacement",
+      "default": "contain"
+    },
+    "language": {
+      "default": "en",
+      "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+      "title": "Language",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "orientation": {
+      "$ref": "#/$defs/PdfPageOrientation",
+      "default": "portrait"
+    },
+    "page_preset": {
+      "$ref": "#/$defs/PdfPagePreset",
+      "default": "a4"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "default": "1.21.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_file_ids": {
+      "default": [],
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+        "type": "string"
+      },
+      "maxItems": 50,
+      "title": "Source File Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "title": "PdfCreateRequest",
+  "type": "object"
+}

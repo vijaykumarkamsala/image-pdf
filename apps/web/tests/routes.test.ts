@@ -8,6 +8,7 @@ import { futureOutcomes, workspacePath, workspaceRoutes } from "../src/routes.ts
 test("workspace navigation is outcome-oriented and mobile-safe", () => {
   assert.deepEqual(workspaceRoutes.map((route) => route.label), ["Home", "Projects", "Files", "Jobs"]);
   assert.equal(workspacePath("workspace-001", "projects"), "/w/workspace-001/projects");
+  assert.equal(workspacePath("workspace-001", "pdf/new"), "/w/workspace-001/pdf/new");
 });
 
 test("the four approved parent outcomes remain equally represented", () => {
@@ -22,7 +23,11 @@ test("the four approved parent outcomes remain equally represented", () => {
 test("inactive product areas disclose build status only outside production", () => {
   const development = createProductFeatureState("development");
   const production = createProductFeatureState("production");
-  for (const outcome of futureOutcomes) {
+  for (const outcome of futureOutcomes.slice(0, 2)) {
+    assert.equal(development.enabled(outcome.feature), true);
+    assert.equal(production.enabled(outcome.feature), true);
+  }
+  for (const outcome of futureOutcomes.slice(2)) {
     assert.equal(development.enabled(outcome.feature), false);
     assert.equal(production.enabled(outcome.feature), false);
   }

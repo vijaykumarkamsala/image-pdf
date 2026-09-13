@@ -62,7 +62,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -153,7 +153,7 @@
       "type": "array"
     },
     "schema_version": {
-      "default": "1.20.0",
+      "default": "1.21.0",
       "title": "Schema Version",
       "type": "string"
     },

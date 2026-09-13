@@ -36,6 +36,7 @@ import { workspacePath, workspaceRoutes } from "./routes";
 const StudioStartPage = lazy(() => import("./editor/ImageGraphicStudio").then((module) => ({ default: module.StudioStartPage })));
 const ImageGraphicStudio = lazy(() => import("./editor/ImageGraphicStudio").then((module) => ({ default: module.ImageGraphicStudio })));
 const BatchWorkspace = lazy(() => import("./editor/BatchWorkspace").then((module) => ({ default: module.BatchWorkspace })));
+const PdfStartPage = lazy(() => import("./editor/PdfStartPage").then((module) => ({ default: module.PdfStartPage })));
 
 const developmentBuild = (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV ?? false;
 
@@ -176,6 +177,8 @@ function WorkspaceShell({ context, workspaces, preference, setPreference }: {
         <Route path=":workspaceId/studio/batch" element={<Suspense fallback={<AppLoading />}><BatchWorkspace canCreate={context.effective_permissions.some((permission) => permission.permission === "batch.create" && permission.allowed)} /></Suspense>} />
         <Route path=":workspaceId/studio/new" element={<Suspense fallback={<AppLoading />}><StudioStartPage /></Suspense>} />
         <Route path=":workspaceId/studio/:documentId" element={<Suspense fallback={<AppLoading />}><ImageGraphicStudio /></Suspense>} />
+        <Route path=":workspaceId/pdf/new" element={<Suspense fallback={<AppLoading />}><PdfStartPage /></Suspense>} />
+        <Route path=":workspaceId/pdf/:documentId" element={<Suspense fallback={<AppLoading />}><ImageGraphicStudio /></Suspense>} />
         <Route path="*" element={<Navigate replace to={workspacePath(id)} />} />
       </Routes>
     </div>
@@ -269,7 +272,7 @@ function NativeDocumentCard({ document, projects, workspaceId, onMoved }: {
     <span className="file-type-icon native-document-thumbnail"><FilePenLine aria-hidden="true" /></span>
     <div><strong>{document.name}</strong><span>Native document</span><small>Updated {new Date(document.updated_at).toLocaleString()}</small></div>
     <label className="document-location">Location<select disabled={moving} value={document.project_id ?? ""} onChange={(event) => void move(event.target.value)}><option value="">Default Files</option>{projects.map((project) => <option key={project.project_id} value={project.project_id}>{project.name}</option>)}</select></label>
-    <Button size="compact" onClick={() => navigate(workspacePath(workspaceId, `studio/${document.document_id}`))}>Open</Button>
+    <Button size="compact" onClick={() => navigate(workspacePath(workspaceId, `${document.kind === "pdf" ? "pdf" : "studio"}/${document.document_id}`))}>Open</Button>
   </article>;
 }
 

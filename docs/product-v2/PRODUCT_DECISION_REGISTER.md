@@ -79,6 +79,12 @@ All items below are approved unless marked Open.
 - D2-055 Forms/links/bookmarks/signature fields are editable validated objects.
 - D2-056 Multiple PDF output profiles from one master.
 
+Implementation note (Native-PDF-001, 12 September 2026): the first bounded
+release slice activates blank/ordered-image creation in the shared native editor
+and one truthful untagged, non-PDF/A Screen profile. It preserves the broader
+decisions above as future increments; it does not reinterpret a deferred profile
+or editor capability as already delivered. See `docs/adr/ADR-0018-native-screen-pdf-renderer.md`.
+
 ## Edit/manage PDF
 
 - D2-057 Never silently flatten unsupported PDF content.

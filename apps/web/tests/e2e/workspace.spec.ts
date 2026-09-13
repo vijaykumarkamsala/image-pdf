@@ -495,19 +495,19 @@ test("customer copy discloses testing and inactive product areas without interna
   await expect(testingStatus).not.toContainText(/\$|price|credit/i);
 
   const expectedOutcomes = [
-    ["Image & Graphic Studio", "Enhance, design and prepare visuals"],
-    ["Create PDF", "Build PDFs from pages, images and rich content"],
-    ["Edit & Manage PDF", "Edit, organize, protect and convert PDFs"],
-    ["Print & Production", "Check quality and prepare production outputs"],
+    ["Image & Graphic Studio", "Enhance, design and prepare visuals", "active", /studio\/new/],
+    ["Create PDF", "Build PDFs from pages, images and rich content", "active", /pdf\/new/],
+    ["Edit & Manage PDF", "Edit, organize, protect and convert PDFs", "inactive", null],
+    ["Print & Production", "Check quality and prepare production outputs", "inactive", null],
   ] as const;
   const tiles = page.locator(".outcome-card");
   await expect(tiles).toHaveCount(4);
-  for (const [index, [label, description]] of expectedOutcomes.entries()) {
+  for (const [label, description, featureState, destination] of expectedOutcomes) {
     const tile = tiles.filter({ hasText: label });
     await expect(tile).toContainText(description);
-    await expect(tile).toHaveAttribute("data-feature-state", index === 0 ? "active" : "inactive");
-    if (index === 0) {
-      await expect(tile).toHaveAttribute("href", /studio\/new/);
+    await expect(tile).toHaveAttribute("data-feature-state", featureState);
+    if (destination) {
+      await expect(tile).toHaveAttribute("href", destination);
       await expect(tile).not.toHaveAttribute("aria-disabled", "true");
     } else {
       await expect(tile).toHaveAttribute("aria-disabled", "true");
@@ -518,7 +518,9 @@ test("customer copy discloses testing and inactive product areas without interna
   await expect(page.locator("body")).not.toContainText(/recovery/i);
   await expect(tiles.locator("button")).toHaveCount(0);
   await expect(tiles.locator("a")).toHaveCount(0);
-  expect(await tiles.evaluateAll((elements) => elements.slice(1).every((element) => (element as HTMLElement).tabIndex === -1))).toBe(true);
+  expect(await tiles.evaluateAll((elements) => elements
+    .filter((element) => element.getAttribute("data-feature-state") === "inactive")
+    .every((element) => (element as HTMLElement).tabIndex === -1))).toBe(true);
 });
 
 test("Image & Graphic Studio uses real native document APIs and deterministic renderer interaction", async ({ page }) => {

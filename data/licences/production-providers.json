@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "name": "production-provider-licence-register",
-  "description": "Recovery 2B production provider SDK, transitive dependency and ClamAV service licence evidence. Composed with the historical register only for production release gates so benchmark evidence remains unchanged.",
+  "description": "Production provider SDK, runtime dependency and ClamAV service licence evidence. Composed with the historical register only for production release gates so benchmark evidence remains unchanged.",
   "components": [
     {
       "component_id": "certifi",
@@ -32,6 +32,47 @@
       "reviewed_by": "Recovery-2B",
       "reviewed_on": "2026-08-30",
       "evidence": "Reviewed installed distribution metadata and charset_normalizer-3.5.1.dist-info/licenses/LICENSE; both identify the MIT licence."
+    },
+    {
+      "component_id": "pypdf",
+      "display_name": "pypdf",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "BSD-3-Clause",
+      "official_source": "https://pypi.org/project/pypdf/",
+      "pinned_version": "6.18.1",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [],
+      "required_notices": [
+        "Retain the BSD-3-Clause copyright notice, conditions and disclaimer."
+      ],
+      "reviewed_by": "Native-PDF-001",
+      "reviewed_on": "2026-09-12",
+      "evidence": "Read the full BSD three-clause licence shipped at pypdf-6.18.1.dist-info/licenses/LICENSE and confirmed License-Expression: BSD-3-Clause in the installed wheel metadata. It permits source and binary redistribution with notice retention and contains no commercial, field-of-use or copyleft restriction.",
+      "notes": "Independent post-render structural validator. It is not used to author the PDF."
+    },
+    {
+      "component_id": "reportlab",
+      "display_name": "ReportLab Open Source",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "BSD-3-Clause",
+      "official_source": "https://pypi.org/project/reportlab/",
+      "pinned_version": "5.0.1",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "pillow",
+        "charset-normalizer"
+      ],
+      "required_notices": [
+        "Retain the ReportLab BSD-3-Clause copyright notice, conditions and disclaimer."
+      ],
+      "reviewed_by": "Native-PDF-001",
+      "reviewed_on": "2026-09-12",
+      "evidence": "Read the full licence shipped at reportlab-5.0.1.dist-info/licenses/LICENSE. It is the BSD three-clause grant with source and binary notice retention and no commercial, field-of-use or copyleft restriction. The open-source edition does not provide full tagged-PDF support, so this release truthfully labels the profile untagged.",
+      "notes": "Pinned production Screen PDF renderer behind the Python worker adapter; not a dependency of the API or browser."
     },
     {
       "component_id": "google-api-core",

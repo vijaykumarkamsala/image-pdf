@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.20.0";
+export const PRODUCT_SCHEMA_VERSION = "1.21.0";
 
 export interface Actor {
   schema_version?: string;
@@ -358,6 +358,7 @@ export interface EditorDocumentSnapshot {
   shared_assets?: SharedAssetRecord[];
   shared_styles?: SharedStyleRecord[];
   variants?: DocumentVariantRecord[];
+  pdf_settings?: PdfDocumentSettings | null;
 }
 
 export interface EditorLeaseGrant {
@@ -641,6 +642,15 @@ export interface JobEventRecord {
   trace_id: string;
 }
 
+export interface LayerAccessibility {
+  schema_version?: string;
+  role: LayerAccessibilityRole;
+  alt_text?: string | null;
+}
+
+export type LayerAccessibilityRole = "paragraph" | "heading_1" | "heading_2" | "heading_3" | "figure" | "decorative" | "artifact";
+export const LayerAccessibilityRoleValues: readonly LayerAccessibilityRole[] = ["paragraph", "heading_1", "heading_2", "heading_3", "figure", "decorative", "artifact"] as const;
+
 export interface LayerRecord {
   schema_version?: string;
   layer_id: string;
@@ -660,6 +670,7 @@ export interface LayerRecord {
   rich_text?: RichTextLayerData | null;
   shape?: ShapeLayerData | null;
   group?: GroupLayerData | null;
+  accessibility?: LayerAccessibility | null;
   extension_payload?: Partial<Record<string, string | number | boolean | null>>;
 }
 
@@ -765,14 +776,99 @@ export interface OutputSizeEstimate {
   explanation: string;
 }
 
+export interface PdfDocumentSettings {
+  schema_version?: string;
+  title: string;
+  language?: string;
+  subject?: string | null;
+  page_size_policy?: PdfPageSizePolicy;
+  default_page_name?: string;
+  pages: PdfPageRecord[];
+}
+
+export type PdfExportState = "queued" | "running" | "succeeded" | "failed" | "cancellation_requested" | "cancelled";
+export const PdfExportStateValues: readonly PdfExportState[] = ["queued", "running", "succeeded", "failed", "cancellation_requested", "cancelled"] as const;
+
+export type PdfImagePlacement = "contain";
+export const PdfImagePlacementValues: readonly PdfImagePlacement[] = ["contain"] as const;
+
+export interface PdfOutputProfile {
+  schema_version?: string;
+  profile_id?: PdfOutputProfileId;
+  profile_version?: string;
+  label?: string;
+  tagged_pdf?: false;
+  archival_conformance?: null;
+  colour_space?: "srgb";
+  image_quality?: number;
+  metadata_policy?: "safe";
+}
+
+export type PdfOutputProfileId = "screen";
+export const PdfOutputProfileIdValues: readonly PdfOutputProfileId[] = ["screen"] as const;
+
+export type PdfPageOrientation = "portrait" | "landscape";
+export const PdfPageOrientationValues: readonly PdfPageOrientation[] = ["portrait", "landscape"] as const;
+
+export type PdfPagePreset = "a4" | "letter";
+export const PdfPagePresetValues: readonly PdfPagePreset[] = ["a4", "letter"] as const;
+
+export interface PdfPageRecord {
+  schema_version?: string;
+  artboard_id: string;
+  label: string;
+  master_page_id?: string | null;
+}
+
+export type PdfPageSizePolicy = "uniform" | "mixed";
+export const PdfPageSizePolicyValues: readonly PdfPageSizePolicy[] = ["uniform", "mixed"] as const;
+
+export interface PdfPreflightIssue {
+  schema_version?: string;
+  code: string;
+  severity: PdfPreflightSeverity;
+  message: string;
+  page_artboard_id?: string | null;
+  layer_id?: string | null;
+  blocks_export?: boolean;
+}
+
+export interface PdfPreflightReport {
+  schema_version?: string;
+  document_id: string;
+  document_version_id: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  snapshot_sha256: string;
+  profile: PdfOutputProfile;
+  state: PdfPreflightState;
+  page_count: number;
+  issues?: PdfPreflightIssue[];
+  generated_at: string;
+}
+
+export type PdfPreflightSeverity = "info" | "warning" | "error";
+export const PdfPreflightSeverityValues: readonly PdfPreflightSeverity[] = ["info", "warning", "error"] as const;
+
+export type PdfPreflightState = "ready" | "blocked";
+export const PdfPreflightStateValues: readonly PdfPreflightState[] = ["ready", "blocked"] as const;
+
+export interface PdfRendererIdentity {
+  schema_version?: string;
+  name: string;
+  version: string;
+  licence_component_ids: string[];
+  /** Lower-case hexadecimal SHA-256 digest. */
+  standard_font_sha256: string;
+}
+
 export type Permission = "workspace.read" | "project.create" | "project.read" | "file.create" | "file.read" | "file.move" | "audit.read" | "usage.read" | "upload.create" | "upload.read" | "upload.cancel" | "job.read" | "job.cancel" | "job.retry" | "notification.read" | "notification.update" | "search.read" | "document.create" | "document.read" | "document.edit" | "document.version" | "document.lease.takeover" | "recipe.create" | "recipe.read" | "recipe.update" | "export.create" | "export.read" | "export.cancel" | "export.retry" | "batch.create" | "batch.read" | "batch.cancel" | "batch.retry";
 export const PermissionValues: readonly Permission[] = ["workspace.read", "project.create", "project.read", "file.create", "file.read", "file.move", "audit.read", "usage.read", "upload.create", "upload.read", "upload.cancel", "job.read", "job.cancel", "job.retry", "notification.read", "notification.update", "search.read", "document.create", "document.read", "document.edit", "document.version", "document.lease.takeover", "recipe.create", "recipe.read", "recipe.update", "export.create", "export.read", "export.cancel", "export.retry", "batch.create", "batch.read", "batch.cancel", "batch.retry"] as const;
 
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
 
-export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "export_bundle";
-export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "export_bundle"] as const;
+export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "pdf_export" | "export_bundle";
+export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "pdf_export", "export_bundle"] as const;
 
 export interface ProcessingJobRecord {
   schema_version?: string;
@@ -785,6 +881,7 @@ export interface ProcessingJobRecord {
   upload_session_id?: string | null;
   document_id?: string | null;
   export_request_id?: string | null;
+  pdf_export_request_id?: string | null;
   bundle_id?: string | null;
   state: ProcessingJobState;
   attempt: number;
@@ -953,6 +1050,15 @@ export interface SharedAssetRecord {
   source_version_id?: string | null;
   object_reference_id?: string | null;
   preview_object_reference_id?: string | null;
+  source_media_type?: string | null;
+  source_width_px?: number | null;
+  source_height_px?: number | null;
+  source_byte_size?: number | null;
+  source_orientation?: number | null;
+  source_bit_depth?: number | null;
+  source_frame_count?: number | null;
+  source_has_icc_profile?: boolean | null;
+  source_colour_model?: string | null;
   linked_by_default?: boolean;
 }
 
@@ -1443,6 +1549,54 @@ export interface ObjectReference {
   sha256: string;
   media_type: string;
   byte_size: number;
+}
+
+export interface PdfCreateRequest {
+  schema_version?: string;
+  name: string;
+  project_id?: string | null;
+  source_file_ids?: string[];
+  page_preset?: PdfPagePreset;
+  orientation?: PdfPageOrientation;
+  image_placement?: PdfImagePlacement;
+  language?: string;
+}
+
+export interface PdfExportRequestRecord {
+  schema_version?: string;
+  pdf_export_request_id: string;
+  workspace_id: string;
+  document_id: string;
+  document_version_id: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  snapshot_sha256: string;
+  profile: PdfOutputProfile;
+  preflight: PdfPreflightReport;
+  state: PdfExportState;
+  job_id: string;
+  created_by_actor_id: string;
+  created_at: string;
+  updated_at: string;
+  failure_code?: string | null;
+  failure_message?: string | null;
+}
+
+export interface PdfExportResult {
+  schema_version?: string;
+  pdf_export_result_id: string;
+  pdf_export_request_id: string;
+  workspace_id: string;
+  document_id: string;
+  document_version_id: string;
+  filename: string;
+  media_type?: "application/pdf";
+  byte_size: number;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  sha256: string;
+  page_count: number;
+  renderer: PdfRendererIdentity;
+  object_reference_id: string;
+  created_at: string;
 }
 
 export interface PermissionGrant {

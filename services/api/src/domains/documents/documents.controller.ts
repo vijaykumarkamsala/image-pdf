@@ -20,6 +20,11 @@ export class DocumentsController {
     return this.documents.create(headers, workspaceId, body);
   }
 
+  @Post("pdf")
+  createPdf(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string, @Body() body: RequestBody) {
+    return this.documents.createPdf(headers, workspaceId, body);
+  }
+
   @Get("studio-sources")
   sources(@Headers() headers: RequestHeaders, @Param("workspaceId") workspaceId: string) {
     return this.documents.sources(headers, workspaceId);

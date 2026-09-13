@@ -25,7 +25,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -77,7 +77,7 @@
           "$ref": "#/$defs/ArtboardOrientation"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -148,7 +148,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -228,7 +228,7 @@
           "title": "Path Data"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -327,7 +327,7 @@
           "type": "object"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -422,7 +422,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -476,7 +476,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -488,9 +488,64 @@
       "title": "IntendedUseMetadata",
       "type": "object"
     },
+    "LayerAccessibility": {
+      "additionalProperties": false,
+      "properties": {
+        "alt_text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alt Text"
+        },
+        "role": {
+          "$ref": "#/$defs/LayerAccessibilityRole"
+        },
+        "schema_version": {
+          "default": "1.21.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "LayerAccessibility",
+      "type": "object"
+    },
+    "LayerAccessibilityRole": {
+      "enum": [
+        "paragraph",
+        "heading_1",
+        "heading_2",
+        "heading_3",
+        "figure",
+        "decorative",
+        "artifact"
+      ],
+      "title": "LayerAccessibilityRole",
+      "type": "string"
+    },
     "LayerRecord": {
       "additionalProperties": false,
       "properties": {
+        "accessibility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayerAccessibility"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "artboard_id": {
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
           "title": "Artboard Id",
@@ -604,7 +659,7 @@
           "default": null
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -700,7 +755,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -796,7 +851,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -845,7 +900,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -880,7 +935,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -961,7 +1016,7 @@
           "type": "array"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -998,7 +1053,7 @@
       "additionalProperties": false,
       "properties": {
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1088,7 +1143,7 @@
           "title": "Preview Object Reference Id"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1096,6 +1151,111 @@
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
           "title": "Shared Asset Id",
           "type": "string"
+        },
+        "source_bit_depth": {
+          "anyOf": [
+            {
+              "maximum": 64,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Bit Depth"
+        },
+        "source_byte_size": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Byte Size"
+        },
+        "source_colour_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Colour Model"
+        },
+        "source_frame_count": {
+          "anyOf": [
+            {
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Frame Count"
+        },
+        "source_has_icc_profile": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Has Icc Profile"
+        },
+        "source_height_px": {
+          "anyOf": [
+            {
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Height Px"
+        },
+        "source_media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Media Type"
+        },
+        "source_orientation": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Orientation"
         },
         "source_version_id": {
           "anyOf": [
@@ -1109,6 +1269,20 @@
           ],
           "default": null,
           "title": "Source Version Id"
+        },
+        "source_width_px": {
+          "anyOf": [
+            {
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Width Px"
         },
         "workspace_id": {
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
@@ -1172,7 +1346,7 @@
           "type": "object"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1253,7 +1427,7 @@
           "title": "Sanitised Svg Object Reference Id"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1325,7 +1499,7 @@
           "type": "number"
         },
         "schema_version": {
-          "default": "1.20.0",
+          "default": "1.21.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1399,7 +1573,7 @@
       "type": "integer"
     },
     "schema_version": {
-      "default": "1.20.0",
+      "default": "1.21.0",
       "title": "Schema Version",
       "type": "string"
     },

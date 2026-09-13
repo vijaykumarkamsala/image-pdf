@@ -1,0 +1,42 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-page-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artboard_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Artboard Id",
+      "type": "string"
+    },
+    "label": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "master_page_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Master Page Id"
+    },
+    "schema_version": {
+      "default": "1.21.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artboard_id",
+    "label"
+  ],
+  "title": "PdfPageRecord",
+  "type": "object"
+}

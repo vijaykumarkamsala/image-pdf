@@ -1,0 +1,335 @@
+{
+  "$defs": {
+    "PdfExportState": {
+      "enum": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancellation_requested",
+        "cancelled"
+      ],
+      "title": "PdfExportState",
+      "type": "string"
+    },
+    "PdfOutputProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "archival_conformance": {
+          "const": null,
+          "default": null,
+          "title": "Archival Conformance",
+          "type": "null"
+        },
+        "colour_space": {
+          "const": "srgb",
+          "default": "srgb",
+          "title": "Colour Space",
+          "type": "string"
+        },
+        "image_quality": {
+          "default": 90,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Image Quality",
+          "type": "integer"
+        },
+        "label": {
+          "default": "Screen PDF",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "metadata_policy": {
+          "const": "safe",
+          "default": "safe",
+          "title": "Metadata Policy",
+          "type": "string"
+        },
+        "profile_id": {
+          "$ref": "#/$defs/PdfOutputProfileId",
+          "default": "screen"
+        },
+        "profile_version": {
+          "default": "1.0.0",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Profile Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.21.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tagged_pdf": {
+          "const": false,
+          "default": false,
+          "title": "Tagged Pdf",
+          "type": "boolean"
+        }
+      },
+      "title": "PdfOutputProfile",
+      "type": "object"
+    },
+    "PdfOutputProfileId": {
+      "enum": [
+        "screen"
+      ],
+      "title": "PdfOutputProfileId",
+      "type": "string"
+    },
+    "PdfPreflightIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks_export": {
+          "default": false,
+          "title": "Blocks Export",
+          "type": "boolean"
+        },
+        "code": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "layer_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layer Id"
+        },
+        "message": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "page_artboard_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Artboard Id"
+        },
+        "schema_version": {
+          "default": "1.21.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/PdfPreflightSeverity"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "title": "PdfPreflightIssue",
+      "type": "object"
+    },
+    "PdfPreflightReport": {
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Document Id",
+          "type": "string"
+        },
+        "document_version_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Document Version Id",
+          "type": "string"
+        },
+        "generated_at": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Generated At",
+          "type": "string"
+        },
+        "issues": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PdfPreflightIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "page_count": {
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Page Count",
+          "type": "integer"
+        },
+        "profile": {
+          "$ref": "#/$defs/PdfOutputProfile"
+        },
+        "schema_version": {
+          "default": "1.21.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "snapshot_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Snapshot Sha256",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/PdfPreflightState"
+        }
+      },
+      "required": [
+        "document_id",
+        "document_version_id",
+        "snapshot_sha256",
+        "profile",
+        "state",
+        "page_count",
+        "generated_at"
+      ],
+      "title": "PdfPreflightReport",
+      "type": "object"
+    },
+    "PdfPreflightSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ],
+      "title": "PdfPreflightSeverity",
+      "type": "string"
+    },
+    "PdfPreflightState": {
+      "enum": [
+        "ready",
+        "blocked"
+      ],
+      "title": "PdfPreflightState",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/pdf-export-request-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "created_by_actor_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Created By Actor Id",
+      "type": "string"
+    },
+    "document_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Id",
+      "type": "string"
+    },
+    "document_version_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Document Version Id",
+      "type": "string"
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Code"
+    },
+    "failure_message": {
+      "anyOf": [
+        {
+          "maxLength": 1000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Message"
+    },
+    "job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "pdf_export_request_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Pdf Export Request Id",
+      "type": "string"
+    },
+    "preflight": {
+      "$ref": "#/$defs/PdfPreflightReport"
+    },
+    "profile": {
+      "$ref": "#/$defs/PdfOutputProfile"
+    },
+    "schema_version": {
+      "default": "1.21.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "snapshot_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Snapshot Sha256",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/PdfExportState"
+    },
+    "updated_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Updated At",
+      "type": "string"
+    },
+    "workspace_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Workspace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pdf_export_request_id",
+    "workspace_id",
+    "document_id",
+    "document_version_id",
+    "snapshot_sha256",
+    "profile",
+    "preflight",
+    "state",
+    "job_id",
+    "created_by_actor_id",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "PdfExportRequestRecord",
+  "type": "object"
+}

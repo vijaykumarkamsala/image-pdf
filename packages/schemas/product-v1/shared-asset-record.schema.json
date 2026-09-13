@@ -68,7 +68,7 @@
       "title": "Preview Object Reference Id"
     },
     "schema_version": {
-      "default": "1.20.0",
+      "default": "1.21.0",
       "title": "Schema Version",
       "type": "string"
     },
@@ -76,6 +76,111 @@
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
       "title": "Shared Asset Id",
       "type": "string"
+    },
+    "source_bit_depth": {
+      "anyOf": [
+        {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Bit Depth"
+    },
+    "source_byte_size": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Byte Size"
+    },
+    "source_colour_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Colour Model"
+    },
+    "source_frame_count": {
+      "anyOf": [
+        {
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Frame Count"
+    },
+    "source_has_icc_profile": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Has Icc Profile"
+    },
+    "source_height_px": {
+      "anyOf": [
+        {
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Height Px"
+    },
+    "source_media_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Media Type"
+    },
+    "source_orientation": {
+      "anyOf": [
+        {
+          "maximum": 8,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Orientation"
     },
     "source_version_id": {
       "anyOf": [
@@ -89,6 +194,20 @@
       ],
       "default": null,
       "title": "Source Version Id"
+    },
+    "source_width_px": {
+      "anyOf": [
+        {
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Width Px"
     },
     "workspace_id": {
       "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",

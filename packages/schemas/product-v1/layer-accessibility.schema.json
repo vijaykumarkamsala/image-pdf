@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "LayerAccessibilityRole": {
+      "enum": [
+        "paragraph",
+        "heading_1",
+        "heading_2",
+        "heading_3",
+        "figure",
+        "decorative",
+        "artifact"
+      ],
+      "title": "LayerAccessibilityRole",
+      "type": "string"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/layer-accessibility.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "alt_text": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Alt Text"
+    },
+    "role": {
+      "$ref": "#/$defs/LayerAccessibilityRole"
+    },
+    "schema_version": {
+      "default": "1.21.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "role"
+  ],
+  "title": "LayerAccessibility",
+  "type": "object"
+}
