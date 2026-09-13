@@ -50,7 +50,7 @@ export const initialImageQualitySession: ImageQualitySessionState = {
   source: null,
   result: null,
   error: null,
-  strength: 55,
+  strength: 65,
   mode: "side-by-side",
   zoom: "fit",
   pan: { x: 0, y: 0 },

@@ -59,13 +59,31 @@ test("image quality editor uploads, processes, compares, resets and downloads re
       };
     };
     const [before, after] = await Promise.all([pixels(originalSrc!), pixels(enhancedSrc!)]);
+    let totalDifference = 0;
+    let materiallyChanged = 0;
+    for (let offset = 0; offset < after.values.length; offset += 4) {
+      const difference = (
+        Math.abs(after.values[offset] - before.values[offset])
+        + Math.abs(after.values[offset + 1] - before.values[offset + 1])
+        + Math.abs(after.values[offset + 2] - before.values[offset + 2])
+      ) / 3;
+      totalDifference += difference;
+      if (difference >= 2) materiallyChanged += 1;
+    }
+    const pixelCount = after.values.length / 4;
     return {
       width: after.width,
       height: after.height,
       changed: after.values.some((value, index) => value !== before.values[index]),
+      meanRgbDifference: totalDifference / pixelCount,
+      materiallyChangedFraction: materiallyChanged / pixelCount,
     };
   }, { originalSrc: originalUrl, enhancedSrc: enhancedUrl });
-  expect(pixelEvidence).toEqual({ width: 32, height: 32, changed: true });
+  expect(pixelEvidence.width).toBe(32);
+  expect(pixelEvidence.height).toBe(32);
+  expect(pixelEvidence.changed).toBe(true);
+  expect(pixelEvidence.meanRgbDifference).toBeGreaterThan(5);
+  expect(pixelEvidence.materiallyChangedFraction).toBeGreaterThan(0.9);
 
   const resultUrlBeforeZoom = enhancedUrl;
   await page.getByRole("button", { name: "200%" }).click();
