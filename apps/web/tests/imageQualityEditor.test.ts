@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildSourceTextureMap,
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
   enhancePixels,
+  fuseRestoredPixel,
   prepareFlatGraphicTracePixels,
   reconstructPixels,
 } from "../src/image-quality/imageQualityPipeline.ts";
@@ -237,9 +239,10 @@ test("trace preparation collapses a noisy uniform background without deleting re
       const offset = (y * width + x) * 4;
       const noise = (x * 17 + y * 29) % 7 - 3;
       const artwork = x >= 26 && x < 102 && y >= 24 && y < 72;
-      source[offset] = artwork ? 12 : 244 + noise;
-      source[offset + 1] = artwork ? 86 : 244 + noise;
-      source[offset + 2] = artwork ? 210 : 244 + noise;
+      const blendedEdge = artwork && (x === 26 || x === 101 || y === 24 || y === 71);
+      source[offset] = blendedEdge ? 128 : artwork ? 12 : 244 + noise;
+      source[offset + 1] = blendedEdge ? 165 : artwork ? 86 : 244 + noise;
+      source[offset + 2] = blendedEdge ? 226 : artwork ? 210 : 244 + noise;
       source[offset + 3] = 255;
     }
   }
@@ -252,6 +255,8 @@ test("trace preparation collapses a noisy uniform background without deleting re
 
   const prepared = prepareFlatGraphicTracePixels(source, width, height);
   assert.equal(prepared.backgroundSimplified, true);
+  assert.ok(prepared.decontaminatedEdgePixels > 0);
+  assert.ok(prepared.foregroundMask);
   assert.ok(prepared.removedComponents >= 3);
   assert.ok(prepared.background);
   const background = prepared.background;
@@ -263,10 +268,57 @@ test("trace preparation collapses a noisy uniform background without deleting re
     );
   }
   const artworkOffset = (48 * width + 64) * 4;
+  assert.equal(prepared.foregroundMask[48 * width + 64], 255);
+  assert.equal(prepared.foregroundMask[0], 0);
   assert.deepEqual(
     prepared.pixels.slice(artworkOffset, artworkOffset + 4),
     source.slice(artworkOffset, artworkOffset + 4),
   );
+  const blendedEdgeOffset = (48 * width + 26) * 4;
+  assert.deepEqual(
+    prepared.pixels.slice(blendedEdgeOffset, blendedEdgeOffset + 3),
+    source.slice(artworkOffset, artworkOffset + 3),
+  );
+  const adjacentBackgroundOffset = (48 * width + 25) * 4;
+  assert.deepEqual(
+    prepared.mattePixels.slice(adjacentBackgroundOffset, adjacentBackgroundOffset + 3),
+    source.slice(artworkOffset, artworkOffset + 3),
+  );
+  assert.deepEqual(
+    Array.from(prepared.pixels.slice(adjacentBackgroundOffset, adjacentBackgroundOffset + 3)),
+    background.slice(0, 3),
+  );
+});
+
+test("restoration fusion preserves flat source colour while allowing textured luminance detail", () => {
+  const flatReference = new Uint8ClampedArray([232, 218, 194, 255]);
+  fuseRestoredPixel(flatReference, 0, 210, 224, 236, 2, 100);
+  assert.ok(Math.abs(flatReference[0] - 232) <= 2);
+  assert.ok(Math.abs(flatReference[1] - 218) <= 2);
+  assert.ok(Math.abs(flatReference[2] - 194) <= 2);
+
+  const texturedReference = new Uint8ClampedArray([110, 92, 76, 255]);
+  fuseRestoredPixel(texturedReference, 0, 178, 152, 126, 64, 100);
+  assert.ok(texturedReference[0] > 120, "real detail may change luminance in textured regions");
+  assert.ok(texturedReference[0] - texturedReference[2] < 50, "model chroma cannot replace source colour");
+  assert.equal(texturedReference[3], 255);
+});
+
+test("source texture mapping separates uniform fields from real edges", () => {
+  const width = 7;
+  const height = 5;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const value = x < 4 ? 210 : 70;
+      source.set([value, value, value, 255], offset);
+    }
+  }
+  const texture = buildSourceTextureMap(source, width, height);
+  assert.equal(texture[2 * width + 1], 0);
+  assert.ok(texture[2 * width + 3] > 100);
+  assert.ok(texture[2 * width + 4] > 100);
 });
 
 test("moderate edge-directed reconstruction retains every corrected source sample", () => {

@@ -25,6 +25,9 @@ export interface GraphicClassification {
 export interface FlatGraphicTracePreparation {
   background: readonly [number, number, number, number] | null;
   backgroundSimplified: boolean;
+  decontaminatedEdgePixels: number;
+  foregroundMask: Uint8Array | null;
+  mattePixels: Uint8ClampedArray;
   pixels: Uint8ClampedArray;
   removedComponents: number;
 }
@@ -246,7 +249,15 @@ export function prepareFlatGraphicTracePixels(
   const opaqueBorderFraction = opaqueBorderSamples / borderPixels;
   const dominantFraction = dominantSamples / Math.max(1, opaqueBorderSamples);
   if (opaqueBorderFraction < 0.9 || dominantFraction < 0.55) {
-    return { background: null, backgroundSimplified: false, pixels: output, removedComponents: 0 };
+    return {
+      background: null,
+      backgroundSimplified: false,
+      decontaminatedEdgePixels: 0,
+      foregroundMask: null,
+      mattePixels: output,
+      pixels: output,
+      removedComponents: 0,
+    };
   }
 
   let redTotal = 0;
@@ -292,7 +303,7 @@ export function prepareFlatGraphicTracePixels(
     }
   }
   const noiseLimit = percentile(borderDistanceHistogram, measuredBorderSamples, 0.995);
-  const foregroundThreshold = Math.round(clamp(noiseLimit + 8, 12, 28));
+  const baseForegroundThreshold = Math.round(clamp(noiseLimit + 8, 12, 28));
   const pixelCount = width * height;
   const componentState = new Uint8Array(pixelCount);
   const distanceFromBackground = (pixel: number) => {
@@ -303,6 +314,28 @@ export function prepareFlatGraphicTracePixels(
       Math.abs(source[offset + 2] - background[2]),
     );
   };
+  const distanceHistogram = new Uint32Array(256);
+  let candidatePixels = 0;
+  let opaquePixels = 0;
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    if (source[pixel * 4 + 3] < 16) continue;
+    opaquePixels += 1;
+    const distance = distanceFromBackground(pixel);
+    distanceHistogram[distance] += 1;
+    if (distance > baseForegroundThreshold) candidatePixels += 1;
+  }
+  const separationThreshold = otsuThreshold(distanceHistogram, opaquePixels);
+  let separatedPixels = 0;
+  for (let distance = separationThreshold + 1; distance < distanceHistogram.length; distance += 1) {
+    separatedPixels += distanceHistogram[distance];
+  }
+  // Prefer the natural background/foreground valley when it only removes a
+  // narrow fringe. If it would discard a meaningful gradient, retain the
+  // conservative noise-derived threshold instead.
+  const foregroundThreshold = separationThreshold > baseForegroundThreshold
+    && separatedPixels >= candidatePixels * 0.94
+    ? separationThreshold
+    : baseForegroundThreshold;
   for (let pixel = 0; pixel < pixelCount; pixel += 1) {
     const offset = pixel * 4;
     if (source[offset + 3] >= 16 && distanceFromBackground(pixel) > foregroundThreshold) {
@@ -341,6 +374,41 @@ export function prepareFlatGraphicTracePixels(
     for (let index = 0; index < written; index += 1) componentState[queue[index]] = keep ? 3 : 0;
   }
 
+  const isInterior = (x: number, y: number) => {
+    if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) return false;
+    for (let neighbourY = y - 1; neighbourY <= y + 1; neighbourY += 1) {
+      for (let neighbourX = x - 1; neighbourX <= x + 1; neighbourX += 1) {
+        if (componentState[neighbourY * width + neighbourX] !== 3) return false;
+      }
+    }
+    return true;
+  };
+  let decontaminatedEdgePixels = 0;
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    if (componentState[pixel] !== 3) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    if (isInterior(x, y)) continue;
+    let nearestInterior = -1;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (let searchY = Math.max(1, y - 4); searchY <= Math.min(height - 2, y + 4); searchY += 1) {
+      for (let searchX = Math.max(1, x - 4); searchX <= Math.min(width - 2, x + 4); searchX += 1) {
+        if (!isInterior(searchX, searchY)) continue;
+        const distance = (searchX - x) ** 2 + (searchY - y) ** 2;
+        if (distance >= nearestDistance) continue;
+        nearestDistance = distance;
+        nearestInterior = searchY * width + searchX;
+      }
+    }
+    if (nearestInterior < 0) continue;
+    const offset = pixel * 4;
+    const interiorOffset = nearestInterior * 4;
+    output[offset] = source[interiorOffset];
+    output[offset + 1] = source[interiorOffset + 1];
+    output[offset + 2] = source[interiorOffset + 2];
+    decontaminatedEdgePixels += 1;
+  }
+
   for (let pixel = 0; pixel < pixelCount; pixel += 1) {
     if (componentState[pixel] === 3) continue;
     const offset = pixel * 4;
@@ -349,7 +417,148 @@ export function prepareFlatGraphicTracePixels(
     output[offset + 2] = background[2];
     output[offset + 3] = background[3];
   }
-  return { background, backgroundSimplified: true, pixels: output, removedComponents };
+  const foregroundMask = new Uint8Array(pixelCount);
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    if (componentState[pixel] === 3) foregroundMask[pixel] = 255;
+  }
+  // Colour is extended just beyond the binary contour so resampling the
+  // source under an antialiased mask cannot pull the old background into the
+  // new edge. This is the same matte decontamination principle used for clean
+  // compositing, while `pixels` still retains the exact measured background.
+  const mattePixels = new Uint8ClampedArray(output);
+  const matteDistance = new Uint8Array(pixelCount);
+  let matteRead = 0;
+  let matteWritten = 0;
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    if (componentState[pixel] !== 3) continue;
+    matteDistance[pixel] = 1;
+    queue[matteWritten] = pixel;
+    matteWritten += 1;
+  }
+  while (matteRead < matteWritten) {
+    const pixel = queue[matteRead];
+    matteRead += 1;
+    const distance = matteDistance[pixel];
+    if (distance > 4) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const neighbours = [
+      x > 0 ? pixel - 1 : -1,
+      x + 1 < width ? pixel + 1 : -1,
+      y > 0 ? pixel - width : -1,
+      y + 1 < height ? pixel + width : -1,
+    ];
+    for (const neighbour of neighbours) {
+      if (neighbour < 0 || matteDistance[neighbour] !== 0) continue;
+      matteDistance[neighbour] = distance + 1;
+      queue[matteWritten] = neighbour;
+      matteWritten += 1;
+      const offset = neighbour * 4;
+      const sourceOffset = pixel * 4;
+      mattePixels[offset] = mattePixels[sourceOffset];
+      mattePixels[offset + 1] = mattePixels[sourceOffset + 1];
+      mattePixels[offset + 2] = mattePixels[sourceOffset + 2];
+    }
+  }
+  return {
+    background,
+    backgroundSimplified: true,
+    decontaminatedEdgePixels,
+    foregroundMask,
+    mattePixels,
+    pixels: output,
+    removedComponents,
+  };
+}
+
+function otsuThreshold(histogram: Uint32Array, count: number): number {
+  if (count <= 0) return 0;
+  let weightedTotal = 0;
+  for (let value = 0; value < histogram.length; value += 1) {
+    weightedTotal += value * histogram[value];
+  }
+  let lowerCount = 0;
+  let lowerWeighted = 0;
+  let bestThreshold = 0;
+  let maximumVariance = -1;
+  for (let value = 0; value < histogram.length; value += 1) {
+    lowerCount += histogram[value];
+    lowerWeighted += value * histogram[value];
+    const upperCount = count - lowerCount;
+    if (lowerCount === 0 || upperCount === 0) continue;
+    const meanDifference = lowerWeighted / lowerCount
+      - (weightedTotal - lowerWeighted) / upperCount;
+    const variance = lowerCount * upperCount * meanDifference * meanDifference;
+    if (variance <= maximumVariance) continue;
+    maximumVariance = variance;
+    bestThreshold = value;
+  }
+  return bestThreshold;
+}
+
+export function buildSourceTextureMap(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8Array {
+  if (source.length !== width * height * 4) throw new Error("Decoded pixel data is incomplete.");
+  const texture = new Uint8Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let minimum = 255;
+      let maximum = 0;
+      for (let neighbourY = Math.max(0, y - 1); neighbourY <= Math.min(height - 1, y + 1); neighbourY += 1) {
+        for (let neighbourX = Math.max(0, x - 1); neighbourX <= Math.min(width - 1, x + 1); neighbourX += 1) {
+          const offset = (neighbourY * width + neighbourX) * 4;
+          const value = luma(source[offset], source[offset + 1], source[offset + 2]);
+          minimum = Math.min(minimum, value);
+          maximum = Math.max(maximum, value);
+        }
+      }
+      texture[y * width + x] = Math.round(maximum - minimum);
+    }
+  }
+  return texture;
+}
+
+/**
+ * Adds learned luminance detail without allowing a perceptual model to replace
+ * source colour or repaint low-texture regions. The reference pixel already in
+ * `output` remains the authority for low-frequency tone and chroma.
+ */
+export function fuseRestoredPixel(
+  output: Uint8ClampedArray,
+  offset: number,
+  learnedRed: number,
+  learnedGreen: number,
+  learnedBlue: number,
+  sourceTexture: number,
+  strength: number,
+): void {
+  const amount = clamp(strength / MAX_STRENGTH, 0, 1);
+  const texture = clamp((sourceTexture - 3) / 28, 0, 1);
+  const learnedMix = (0.12 + amount * 0.48) * (0.04 + texture * 0.96);
+  const referenceRed = output[offset];
+  const referenceGreen = output[offset + 1];
+  const referenceBlue = output[offset + 2];
+  const referenceY = (referenceRed + referenceGreen * 2 + referenceBlue) / 4;
+  const referenceCo = referenceRed - referenceBlue;
+  const referenceCg = referenceGreen - (referenceRed + referenceBlue) / 2;
+  const learnedY = (learnedRed + learnedGreen * 2 + learnedBlue) / 4;
+  const learnedCo = learnedRed - learnedBlue;
+  const learnedCg = learnedGreen - (learnedRed + learnedBlue) / 2;
+  const maximumLumaChange = 2 + amount * (2 + texture * 22);
+  const targetY = referenceY + clamp(
+    (learnedY - referenceY) * learnedMix,
+    -maximumLumaChange,
+    maximumLumaChange,
+  );
+  const chromaMix = Math.min(0.12, learnedMix * (0.08 + texture * 0.12));
+  const targetCo = referenceCo + (learnedCo - referenceCo) * chromaMix;
+  const targetCg = referenceCg + (learnedCg - referenceCg) * chromaMix;
+  output[offset] = Math.round(clamp(targetY - targetCg / 2 + targetCo / 2));
+  output[offset + 1] = Math.round(clamp(targetY + targetCg / 2));
+  output[offset + 2] = Math.round(clamp(targetY - targetCg / 2 - targetCo / 2));
 }
 
 function percentile(histogram: Uint32Array, count: number, fraction: number): number {

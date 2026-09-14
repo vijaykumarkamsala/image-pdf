@@ -4,9 +4,11 @@ import ImageTracer from "imagetracerjs";
 
 import type { ImageQualityAnalysis } from "./ImageQualityEngine";
 import {
+  buildSourceTextureMap,
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
   enhancePixels,
+  fuseRestoredPixel,
   prepareFlatGraphicTracePixels,
 } from "./imageQualityPipeline";
 
@@ -104,12 +106,13 @@ async function enhance(strength: number) {
   }
   const ort = await getOrtModule();
   const session = await getModelSession(ort);
-  const corrected = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
-  const correctedCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
-  const correctedContext = correctedCanvas.getContext("2d");
-  if (!correctedContext) throw new Error("Your browser could not prepare corrected source pixels.");
-  correctedContext.putImageData(
-    new ImageData(new Uint8ClampedArray(corrected.pixels), sourceWidth, sourceHeight),
+  const analysis = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength).analysis;
+  const sourceTexture = buildSourceTextureMap(sourcePixels, sourceWidth, sourceHeight);
+  const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
+  const sourceContext = sourceCanvas.getContext("2d");
+  if (!sourceContext) throw new Error("Your browser could not prepare source-reference pixels.");
+  sourceContext.putImageData(
+    new ImageData(new Uint8ClampedArray(sourcePixels), sourceWidth, sourceHeight),
     0,
     0,
   );
@@ -121,15 +124,14 @@ async function enhance(strength: number) {
   if (!outputContext) throw new Error("Your browser could not allocate the enhanced image.");
   outputContext.imageSmoothingEnabled = true;
   outputContext.imageSmoothingQuality = "high";
-  outputContext.drawImage(correctedCanvas, 0, 0, width, height);
+  outputContext.drawImage(sourceCanvas, 0, 0, width, height);
   const outputImage = outputContext.getImageData(0, 0, width, height);
-  const learnedFraction = 0.2 + Math.max(1, Math.min(100, strength)) / 100 * 0.8;
   let completedTiles = 0;
   const inferenceStarted = performance.now();
 
   for (let top = 0; top < sourceHeight; top += CORE_TILE) {
     for (let left = 0; left < sourceWidth; left += CORE_TILE) {
-      const input = modelInput(corrected.pixels, sourceWidth, sourceHeight, left, top);
+      const input = modelInput(sourcePixels, sourceWidth, sourceHeight, left, top);
       const tensor = new ort.Tensor("float32", input, [1, 3, MODEL_TILE, MODEL_TILE]);
       let restored: import("onnxruntime-web").Tensor | undefined;
       try {
@@ -147,13 +149,15 @@ async function enhance(strength: number) {
         blendModelTile(
           outputImage.data,
           width,
+          sourceTexture,
+          sourceWidth,
           restored.data,
           left,
           top,
           coreWidth,
           coreHeight,
           outputScale,
-          learnedFraction,
+          strength,
         );
       } finally {
         restored?.dispose();
@@ -169,9 +173,9 @@ async function enhance(strength: number) {
     bytes,
     width,
     height,
-    engine: "Real-ESRGAN General x4v3 · WebGPU",
+    engine: "Fidelity-constrained Real-ESRGAN x4v3 · WebGPU",
     route: `photo-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
-    analysis: corrected.analysis,
+    analysis,
   };
 }
 
@@ -201,13 +205,29 @@ async function renderFlatGraphic(
     traceHeight,
   );
   const amount = strength / 100;
+  const outputWidth = sourceWidth * outputScale;
+  const outputHeight = sourceHeight * outputScale;
+  if (preparedTrace.background && preparedTrace.foregroundMask) {
+    return renderSourceColourMask(
+      preparedTrace.mattePixels,
+      preparedTrace.foregroundMask,
+      preparedTrace.background,
+      traceWidth,
+      traceHeight,
+      outputWidth,
+      outputHeight,
+      analysis,
+      amount,
+      outputScale,
+    );
+  }
   const rawSvg = ImageTracer.imagedataToSVG({
     data: preparedTrace.pixels,
     height: traceHeight,
     width: traceWidth,
   }, {
-    blurradius: 1,
-    blurdelta: 24,
+    blurradius: 5,
+    blurdelta: 64,
     colorquantcycles: 3,
     colorsampling: 2,
     desc: false,
@@ -224,11 +244,120 @@ async function renderFlatGraphic(
     strokewidth: 0,
     viewbox: true,
   });
+  const png = await renderVectorPng(rawSvg, outputWidth, outputHeight);
+  return {
+    bytes: png.buffer,
+    width: outputWidth,
+    height: outputHeight,
+    engine: "Bézier vector contour reconstruction · Worker",
+    route: `flat-graphic-vector-x${outputScale}`,
+    analysis,
+  };
+}
+
+async function renderSourceColourMask(
+  preparedPixels: Uint8ClampedArray,
+  foregroundMask: Uint8Array,
+  background: readonly [number, number, number, number],
+  traceWidth: number,
+  traceHeight: number,
+  outputWidth: number,
+  outputHeight: number,
+  analysis: ImageQualityAnalysis,
+  amount: number,
+  outputScale: 1 | 2 | 4,
+) {
+  const maskPixels = new Uint8ClampedArray(foregroundMask.length * 4);
+  for (let pixel = 0; pixel < foregroundMask.length; pixel += 1) {
+    const offset = pixel * 4;
+    maskPixels[offset] = foregroundMask[pixel];
+    maskPixels[offset + 1] = foregroundMask[pixel];
+    maskPixels[offset + 2] = foregroundMask[pixel];
+    maskPixels[offset + 3] = 255;
+  }
+  const contourSamples = Math.max(traceWidth, traceHeight);
+  const contourFit = Math.max(0, Math.min(1, (contourSamples - 64) / 448));
+  const tracedMaskSvg = ImageTracer.imagedataToSVG({
+    data: maskPixels,
+    height: traceHeight,
+    width: traceWidth,
+  }, {
+    blurradius: 1,
+    blurdelta: 24,
+    colorquantcycles: 1,
+    colorsampling: 0,
+    desc: false,
+    layering: 0,
+    linefilter: true,
+    ltres: 1 + contourFit * 2,
+    mincolorratio: 0,
+    numberofcolors: 2,
+    pathomit: Math.max(1, Math.round(Math.max(traceWidth, traceHeight) / 512)),
+    qtres: 1.5 + amount + contourFit * 2.5,
+    rightangleenhance: false,
+    roundcoords: 3,
+    scale: 1,
+    strokewidth: 0,
+    viewbox: true,
+  });
+  const rawMaskSvg = tracedMaskSvg.replace(
+    /fill="rgb\((\d+),(\d+),(\d+)\)" stroke="rgb\(\d+,\d+,\d+\)" stroke-width="0" opacity="[^"]+"/g,
+    (_match, red: string, green: string, blue: string) => {
+      const foreground = Number(red) + Number(green) + Number(blue) >= 384;
+      return `fill="white" stroke="white" stroke-width="0" opacity="${foreground ? 1 : 0}"`;
+    },
+  );
+  const maskPng = await renderVectorPng(rawMaskSvg, outputWidth, outputHeight);
+  let maskBitmap: ImageBitmap;
+  try {
+    maskBitmap = await createImageBitmap(new Blob([maskPng.buffer], { type: "image/png" }));
+  } catch {
+    throw new Error("The reconstructed contour mask could not be decoded. Your original is unchanged.");
+  }
+  try {
+    const preparedCanvas = new OffscreenCanvas(traceWidth, traceHeight);
+    const preparedContext = preparedCanvas.getContext("2d");
+    if (!preparedContext) throw new Error("Your browser could not prepare source-colour pixels.");
+    preparedContext.putImageData(
+      new ImageData(new Uint8ClampedArray(preparedPixels), traceWidth, traceHeight),
+      0,
+      0,
+    );
+    const outputCanvas = new OffscreenCanvas(outputWidth, outputHeight);
+    const outputContext = outputCanvas.getContext("2d");
+    if (!outputContext) throw new Error("Your browser could not allocate the reconstructed graphic.");
+    outputContext.imageSmoothingEnabled = true;
+    // The vector mask owns edge smoothness. Linear colour interpolation avoids
+    // cubic overshoot inventing dark or bright contour colours at hard edges.
+    outputContext.imageSmoothingQuality = "low";
+    outputContext.drawImage(preparedCanvas, 0, 0, outputWidth, outputHeight);
+    outputContext.globalCompositeOperation = "destination-in";
+    outputContext.drawImage(maskBitmap, 0, 0, outputWidth, outputHeight);
+    outputContext.globalCompositeOperation = "destination-over";
+    outputContext.fillStyle = `rgba(${background[0]}, ${background[1]}, ${background[2]}, ${background[3] / 255})`;
+    outputContext.fillRect(0, 0, outputWidth, outputHeight);
+    const blob = await outputCanvas.convertToBlob({ type: "image/png" });
+    return {
+      bytes: await blob.arrayBuffer(),
+      width: outputWidth,
+      height: outputHeight,
+      engine: "Source-colour Bézier mask reconstruction · Worker",
+      route: `flat-graphic-mask-x${outputScale}`,
+      analysis,
+    };
+  } finally {
+    maskBitmap.close();
+  }
+}
+
+async function renderVectorPng(
+  rawSvg: string,
+  outputWidth: number,
+  outputHeight: number,
+): Promise<Uint8Array<ArrayBuffer>> {
   if (rawSvg.length > MAX_VECTOR_MARKUP_BYTES || /<(?:script|foreignObject)|\b(?:href|src)=|url\s*\(/i.test(rawSvg)) {
     throw new Error("The reconstructed graphic exceeded the safe vector complexity budget. Your original is unchanged.");
   }
-  const outputWidth = sourceWidth * outputScale;
-  const outputHeight = sourceHeight * outputScale;
   const svg = rawSvg.replace(
     "<svg ",
     `<svg width="${outputWidth}" height="${outputHeight}" `,
@@ -253,17 +382,10 @@ async function renderFlatGraphic(
     if (rendered.width !== outputWidth || rendered.height !== outputHeight) {
       throw new Error("The vector renderer returned unexpected dimensions.");
     }
-    const png = new Uint8Array(rendered.asPng());
-    return {
-      bytes: png.buffer,
-      width: outputWidth,
-      height: outputHeight,
-      engine: preparedTrace.backgroundSimplified
-        ? "Background-aware Bézier reconstruction · Worker"
-        : "Bézier vector contour reconstruction · Worker",
-      route: `flat-graphic-vector-x${outputScale}`,
-      analysis,
-    };
+    const renderedPng = rendered.asPng();
+    const png = new Uint8Array(renderedPng.byteLength);
+    png.set(renderedPng);
+    return png;
   } catch {
     throw new Error("The reconstructed curves could not be rendered within the local memory budget. Your original is unchanged.");
   } finally {
@@ -359,13 +481,15 @@ function modelInput(
 function blendModelTile(
   output: Uint8ClampedArray,
   outputWidth: number,
+  sourceTexture: Uint8Array,
+  sourceWidth: number,
   restored: Float32Array,
   left: number,
   top: number,
   coreWidth: number,
   coreHeight: number,
   outputScale: 1 | 2 | 4,
-  learnedFraction: number,
+  strength: number,
 ): void {
   const restoredPlane = MODEL_OUTPUT_TILE * MODEL_OUTPUT_TILE;
   const samplingStep = MODEL_SCALE / outputScale;
@@ -377,6 +501,11 @@ function blendModelTile(
     for (let x = 0; x < targetWidth; x += 1) {
       const modelX = TILE_CONTEXT * MODEL_SCALE + x * samplingStep;
       const outputOffset = (outputY * outputWidth + left * outputScale + x) * 4;
+      const sourceX = Math.min(sourceWidth - 1, left + Math.floor(x / outputScale));
+      const sourceY = top + Math.floor(y / outputScale);
+      let learnedRed = 0;
+      let learnedGreen = 0;
+      let learnedBlue = 0;
       for (let channel = 0; channel < 3; channel += 1) {
         let sum = 0;
         for (let sampleY = 0; sampleY < samplingStep; sampleY += 1) {
@@ -386,8 +515,19 @@ function blendModelTile(
           }
         }
         const learned = Math.max(0, Math.min(255, Math.round(sum * 255 / (samplingStep * samplingStep))));
-        output[outputOffset + channel] = Math.round(output[outputOffset + channel] * (1 - learnedFraction) + learned * learnedFraction);
+        if (channel === 0) learnedRed = learned;
+        else if (channel === 1) learnedGreen = learned;
+        else learnedBlue = learned;
       }
+      fuseRestoredPixel(
+        output,
+        outputOffset,
+        learnedRed,
+        learnedGreen,
+        learnedBlue,
+        sourceTexture[sourceY * sourceWidth + sourceX],
+        strength,
+      );
     }
   }
 }

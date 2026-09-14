@@ -56,6 +56,34 @@ function flatCurvePng(size: number): Buffer {
   ]);
 }
 
+function warmIllustrationPng(size: number): Buffer {
+  const scanlines = Buffer.alloc((size * 4 + 1) * size);
+  const centre = size / 2;
+  for (let y = 0; y < size; y += 1) {
+    const row = y * (size * 4 + 1);
+    for (let x = 0; x < size; x += 1) {
+      const offset = row + 1 + x * 4;
+      const subject = Math.hypot(x - centre, y - centre) < size * 0.36;
+      const backgroundNoise = (x * 11 + y * 7) % 3 - 1;
+      const subjectTexture = (x * 37 + y * 53 + x * y * 3) % 81 - 40;
+      scanlines[offset] = subject ? 121 + subjectTexture : 232 + backgroundNoise;
+      scanlines[offset + 1] = subject ? 82 + Math.round(subjectTexture * 0.7) : 218 + backgroundNoise;
+      scanlines[offset + 2] = subject ? 54 + Math.round(subjectTexture * 0.45) : 194 + backgroundNoise;
+      scanlines[offset + 3] = 255;
+    }
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   await page.addInitScript(() => {
@@ -82,7 +110,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const originalUrl = await original.getAttribute("src");
   expect(originalUrl).toMatch(/^blob:/);
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText(/Enhanced image ready \(Fidelity-constrained Real-ESRGAN x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText("256 × 256 px")).toBeVisible();
 
   const enhanced = page.getByTestId("enhanced-image");
@@ -163,7 +191,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
 
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText(/Enhanced image ready \(Fidelity-constrained Real-ESRGAN x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
   const finalUrl = await page.getByTestId("enhanced-image").getAttribute("src");
   const expectedDigest = await page.evaluate(async (url) => {
@@ -183,6 +211,70 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await page.goto("about:blank");
 });
 
+test("photo restoration preserves a warm low-texture background", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("/image-quality");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "warm-illustration.png",
+    mimeType: "image/png",
+    buffer: warmIllustrationPng(64),
+  });
+  await page.locator('input[type="range"]').fill("100");
+  const originalUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+  await expect(page.getByText(/Enhanced image ready \(Fidelity-constrained Real-ESRGAN x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
+  const enhancedUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  const evidence = await page.evaluate(async ({ originalSrc, enhancedSrc }) => {
+    const decode = async (src: string) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return { data: context.getImageData(0, 0, canvas.width, canvas.height).data, width: canvas.width };
+    };
+    const [before, after] = await Promise.all([decode(originalSrc!), decode(enhancedSrc!)]);
+    const backgroundBefore = [0, 0, 0];
+    const backgroundAfter = [0, 0, 0];
+    let backgroundSamples = 0;
+    let subjectDifference = 0;
+    let subjectSamples = 0;
+    for (let y = 0; y < 64; y += 1) {
+      for (let x = 0; x < 64; x += 1) {
+        const beforeOffset = (y * before.width + x) * 4;
+        const afterOffset = ((y * 4 + 2) * after.width + x * 4 + 2) * 4;
+        if (x < 12 && y < 12) {
+          for (let channel = 0; channel < 3; channel += 1) {
+            backgroundBefore[channel] += before.data[beforeOffset + channel];
+            backgroundAfter[channel] += after.data[afterOffset + channel];
+          }
+          backgroundSamples += 1;
+        }
+        if (Math.hypot(x - 32, y - 32) < 18) {
+          subjectDifference += (
+            Math.abs(before.data[beforeOffset] - after.data[afterOffset])
+            + Math.abs(before.data[beforeOffset + 1] - after.data[afterOffset + 1])
+            + Math.abs(before.data[beforeOffset + 2] - after.data[afterOffset + 2])
+          ) / 3;
+          subjectSamples += 1;
+        }
+      }
+    }
+    return {
+      backgroundChannelShift: backgroundBefore.map((sum, channel) => (
+        Math.abs(sum - backgroundAfter[channel]) / backgroundSamples
+      )),
+      subjectMeanDifference: subjectDifference / subjectSamples,
+    };
+  }, { originalSrc: originalUrl, enhancedSrc: enhancedUrl });
+  expect(Math.max(...evidence.backgroundChannelShift)).toBeLessThanOrEqual(2);
+  expect(evidence.subjectMeanDifference).toBeGreaterThan(2);
+  await page.goto("about:blank");
+});
+
 test("flat graphics reconstruct curves without tracing background noise", async ({ page }, testInfo) => {
   const flatGraphic = flatCurvePng(64);
   await page.goto("/image-quality");
@@ -195,7 +287,7 @@ test("flat graphics reconstruct curves without tracing background noise", async 
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await page.locator('input[type="range"]').fill("100");
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Background-aware Bézier reconstruction · Worker\)/)).toBeVisible();
+  await expect(page.getByText(/Enhanced image ready \(Source-colour Bézier mask reconstruction · Worker\)/)).toBeVisible();
   await expect(page.getByText("256 × 256 px")).toBeVisible();
   const evidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const image = node as HTMLImageElement;
@@ -211,6 +303,7 @@ test("flat graphics reconstruct curves without tracing background noise", async 
     let transparent = 0;
     let visible = 0;
     let falseBackgroundMarks = 0;
+    let unexpectedEdgeColours = 0;
     for (let offset = 0; offset < pixels.length; offset += 4) {
       if (pixels[offset + 3] < 250) {
         transparent += 1;
@@ -226,11 +319,19 @@ test("flat graphics reconstruct curves without tracing background noise", async 
         && Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]) < 225) {
         falseBackgroundMarks += 1;
       }
+      const blueFraction = Math.max(0, Math.min(1, (244 - pixels[offset]) / (244 - 16)));
+      const expectedGreen = 244 + (112 - 244) * blueFraction;
+      const expectedBlue = 244 + (228 - 244) * blueFraction;
+      if (Math.abs(pixels[offset + 1] - expectedGreen) > 7
+        || Math.abs(pixels[offset + 2] - expectedBlue) > 7) {
+        unexpectedEdgeColours += 1;
+      }
     }
     return {
       maximum,
       minimum,
       falseBackgroundMarks,
+      unexpectedEdgeColours,
       transparentFraction: transparent / (transparent + visible),
       width: canvas.width,
       height: canvas.height,
@@ -241,6 +342,7 @@ test("flat graphics reconstruct curves without tracing background noise", async 
   expect(evidence.minimum).toBeGreaterThanOrEqual(12);
   expect(evidence.maximum).toBeLessThanOrEqual(252);
   expect(evidence.falseBackgroundMarks).toBe(0);
+  expect(evidence.unexpectedEdgeColours).toBe(0);
   expect(evidence.transparentFraction).toBeLessThan(0.02);
   await expect(page.getByTestId("enhanced-image")).toHaveCSS("filter", "none");
   await page.getByRole("button", { name: "400%" }).click();
@@ -258,7 +360,7 @@ test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) 
   });
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Background-aware Bézier reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByText(/Enhanced image ready \(Source-colour Bézier mask reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText("8192 × 8192 px")).toBeVisible();
   const header = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const bytes = new Uint8Array(await (await fetch((node as HTMLImageElement).src)).arrayBuffer());
