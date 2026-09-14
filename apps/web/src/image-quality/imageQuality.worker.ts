@@ -497,7 +497,10 @@ function blendModelTile(
         else learnedBlue = learned;
       }
       const learnedY = (learnedRed + learnedGreen * 2 + learnedBlue) / 4;
-      const detailRadius = Math.max(1, samplingStep);
+      // Measure learned detail at one source-pixel radius. A one-output-pixel
+      // residual disappears when a 4x result is viewed at matching source
+      // coordinates and was making illustrated photographs look softer.
+      const detailRadius = MODEL_SCALE;
       const localLearnedY = (
         learnedY * 4
         + restoredLuma(restored, restoredPlane, modelX - detailRadius, modelY)

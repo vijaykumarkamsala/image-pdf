@@ -556,7 +556,10 @@ export function fuseRestoredPixel(
   learnedDetailLuma = 0,
 ): void {
   const amount = clamp(strength / MAX_STRENGTH, 0, 1);
-  const texture = clamp((sourceTexture - 4) / 32, 0, 1);
+  // A square-root response lets softly printed fur, feathers and brush lines
+  // participate in restoration without treating truly uniform pixels as
+  // detail. Linear gating was protecting these mid-frequency features away.
+  const texture = Math.sqrt(clamp((sourceTexture - 3) / 28, 0, 1));
   const referenceRed = output[offset];
   const referenceGreen = output[offset + 1];
   const referenceBlue = output[offset + 2];
@@ -564,19 +567,28 @@ export function fuseRestoredPixel(
   const referenceCo = referenceRed - referenceBlue;
   const referenceCg = referenceGreen - (referenceRed + referenceBlue) / 2;
   const learnedY = (learnedRed + learnedGreen * 2 + learnedBlue) / 4;
-  const structureLimit = amount * (2 + texture * 7);
+  // Restore the model's useful source-scale structure response in textured
+  // regions. Low-texture fields retain only a 2.4% contribution at maximum
+  // strength, so paper, skies, walls and skin cannot be repainted wholesale.
+  const learnedMix = (0.12 + amount * 0.48) * (0.04 + texture * 0.96);
+  const structureLimit = 2 + amount * (2 + texture * 22);
   const structureChange = clamp(
-    (learnedY - referenceY) * texture * (0.04 + amount * 0.28),
+    (learnedY - referenceY) * learnedMix,
     -structureLimit,
     structureLimit,
   );
-  const detailLimit = amount * (2 + texture * 16);
+  const detailLimit = amount * (1 + texture * 12);
   const detailChange = clamp(
-    learnedDetailLuma * texture * (0.35 + amount * 1.05),
+    learnedDetailLuma * texture * (0.25 + amount * 0.9),
     -detailLimit,
     detailLimit,
   );
-  const targetY = referenceY + structureChange + detailChange;
+  const combinedLimit = 2 + amount * (2 + texture * 23);
+  const targetY = referenceY + clamp(
+    structureChange + detailChange,
+    -combinedLimit,
+    combinedLimit,
+  );
   // Chroma remains source-authoritative. Neural colour transfer is the cause
   // of the background/skin/brand-colour shifts users reported.
   output[offset] = Math.round(clamp(targetY - referenceCg / 2 + referenceCo / 2));

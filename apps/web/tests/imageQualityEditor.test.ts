@@ -305,6 +305,15 @@ test("restoration fusion preserves flat source colour while allowing textured lu
   assert.equal(texturedReference[3], 255);
 });
 
+test("restoration keeps softly printed illustration strokes eligible for visible detail recovery", () => {
+  const softStroke = new Uint8ClampedArray([180, 160, 140, 255]);
+  fuseRestoredPixel(softStroke, 0, 110, 100, 90, 10, 100, -10);
+  const recoveredLuma = (softStroke[0] + softStroke[1] * 2 + softStroke[2]) / 4;
+  assert.ok(recoveredLuma <= 148, "mid-frequency strokes receive a visible source-scale correction");
+  assert.ok(recoveredLuma >= 143, "the correction remains bounded against halos and crushed detail");
+  assert.ok(Math.abs((softStroke[0] - softStroke[2]) - (180 - 140)) <= 1, "source chroma remains authoritative");
+});
+
 test("restoration strength increases bounded detail without changing source chroma", () => {
   const weak = new Uint8ClampedArray([142, 106, 78, 255]);
   const strong = new Uint8ClampedArray(weak);
