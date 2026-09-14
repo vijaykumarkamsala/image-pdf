@@ -100,6 +100,42 @@ function simplifyClosed(points: Point[], tolerance: number): Point[] {
 
 const format = (value: number) => Number(value.toFixed(3)).toString();
 
+function contourPerimeter(points: Point[]): number {
+  let perimeter = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const next = points[(index + 1) % points.length];
+    perimeter += Math.hypot(next.x - points[index].x, next.y - points[index].y);
+  }
+  return perimeter;
+}
+
+function pointAtArcDistance(
+  points: Point[],
+  startIndex: number,
+  step: -1 | 1,
+  targetDistance: number,
+): Point {
+  let currentIndex = startIndex;
+  let current = points[currentIndex];
+  let remaining = targetDistance;
+  for (let traversed = 0; traversed < points.length; traversed += 1) {
+    const nextIndex = (currentIndex + step + points.length) % points.length;
+    const next = points[nextIndex];
+    const segmentLength = Math.hypot(next.x - current.x, next.y - current.y);
+    if (segmentLength >= remaining && segmentLength > 0) {
+      const position = remaining / segmentLength;
+      return {
+        x: current.x + (next.x - current.x) * position,
+        y: current.y + (next.y - current.y) * position,
+      };
+    }
+    remaining -= segmentLength;
+    currentIndex = nextIndex;
+    current = next;
+  }
+  return current;
+}
+
 function ellipsePathIfApplicable(points: Point[]): string | null {
   if (points.length < 8) return null;
   let minimumX = points[0].x;
@@ -154,10 +190,10 @@ function pathForContour(points: Point[]): string {
   if (points.length < 3) return "";
   const ellipsePath = ellipsePathIfApplicable(points);
   if (ellipsePath) return ellipsePath;
+  const lookDistance = Math.max(4, Math.min(16, contourPerimeter(points) / 300));
   const corner = points.map((point, index) => {
-    const offset = points.length >= 10 ? 2 : 1;
-    const previous = points[(index - offset + points.length) % points.length];
-    const next = points[(index + offset) % points.length];
+    const previous = pointAtArcDistance(points, index, -1, lookDistance);
+    const next = pointAtArcDistance(points, index, 1, lookDistance);
     const incomingX = point.x - previous.x;
     const incomingY = point.y - previous.y;
     const outgoingX = next.x - point.x;
@@ -165,37 +201,31 @@ function pathForContour(points: Point[]): string {
     const denominator = Math.hypot(incomingX, incomingY) * Math.hypot(outgoingX, outgoingY);
     if (denominator === 0) return true;
     const cosine = Math.max(-1, Math.min(1, (incomingX * outgoingX + incomingY * outgoingY) / denominator));
-    return Math.acos(cosine) * 180 / Math.PI >= 75;
+    return Math.acos(cosine) * 180 / Math.PI >= 55;
   });
-  const tangents = points.map((point, index) => {
-    if (corner[index]) return { x: 0, y: 0 };
-    const previous = points[(index - 1 + points.length) % points.length];
-    const next = points[(index + 1) % points.length];
-    const dx = next.x - previous.x;
-    const dy = next.y - previous.y;
-    const localLength = Math.min(
-      Math.hypot(point.x - previous.x, point.y - previous.y),
-      Math.hypot(next.x - point.x, next.y - point.y),
-    );
-    const tangent = { x: dx / 6, y: dy / 6 };
-    const tangentLength = Math.hypot(tangent.x, tangent.y);
-    const maximumLength = localLength * 0.45;
-    if (tangentLength <= maximumLength || tangentLength === 0) return tangent;
-    const scale = maximumLength / tangentLength;
-    return { x: tangent.x * scale, y: tangent.y * scale };
+  const midpoint = (first: Point, second: Point): Point => ({
+    x: (first.x + second.x) / 2,
+    y: (first.y + second.y) / 2,
   });
-  let path = `M${format(points[0].x)} ${format(points[0].y)}`;
+  const start = corner[0] ? points[0] : midpoint(points[points.length - 1], points[0]);
+  let current = start;
+  let path = `M${format(start.x)} ${format(start.y)}`;
   for (let index = 0; index < points.length; index += 1) {
-    const start = points[index];
+    const point = points[index];
     const endIndex = (index + 1) % points.length;
-    const end = points[endIndex];
-    if (corner[index] && corner[endIndex]) {
-      path += `L${format(end.x)} ${format(end.y)}`;
+    const next = points[endIndex];
+    if (corner[index]) {
+      if (current.x !== point.x || current.y !== point.y) {
+        path += `L${format(point.x)} ${format(point.y)}`;
+      }
+      const end = corner[endIndex] ? next : midpoint(point, next);
+      if (end.x !== point.x || end.y !== point.y) path += `L${format(end.x)} ${format(end.y)}`;
+      current = end;
       continue;
     }
-    path += `C${format(start.x + tangents[index].x)} ${format(start.y + tangents[index].y)} `
-      + `${format(end.x - tangents[endIndex].x)} ${format(end.y - tangents[endIndex].y)} `
-      + `${format(end.x)} ${format(end.y)}`;
+    const end = corner[endIndex] ? next : midpoint(point, next);
+    path += `Q${format(point.x)} ${format(point.y)} ${format(end.x)} ${format(end.y)}`;
+    current = end;
   }
   return `${path}Z`;
 }
@@ -256,7 +286,7 @@ export function traceSmoothMaskSvg(mask: Uint8Array, width: number, height: numb
   }
   // A tolerance just above a one-pixel diagonal staircase removes raster
   // wobble while remaining below the distance that would erase real detail.
-  const tolerance = 0.8 + Math.min(0.2, Math.max(width, height) / 5_120);
+  const tolerance = 0.75 + Math.min(0.75, Math.max(width, height) / 1_024 * 0.75);
   const path = contours
     .map((contour) => pathForContour(simplifyClosed(contour, tolerance)))
     .filter(Boolean)

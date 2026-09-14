@@ -317,7 +317,7 @@ test("restoration strength increases bounded detail without changing source chro
   assert.ok(Math.max(...Array.from(strong.slice(0, 3), (value, channel) => Math.abs(value - [142, 106, 78][channel]))) <= 27);
 });
 
-test("smooth mask tracing deterministically recovers circular contours as cubic curves", () => {
+test("smooth mask tracing deterministically recovers circular contours as curves", () => {
   const size = 64;
   const mask = new Uint8Array(size * size);
   for (let y = 0; y < size; y += 1) {
@@ -330,8 +330,25 @@ test("smooth mask tracing deterministically recovers circular contours as cubic 
   const second = traceSmoothMaskSvg(mask, size, size);
   assert.equal(first, second);
   assert.match(first, /viewBox="0 0 64 64"/);
-  assert.ok((first.match(/C/g) ?? []).length >= 8, "outer and inner contours use cubic ellipse segments");
+  assert.ok((first.match(/C/g) ?? []).length >= 4, "the supported circular contour uses exact cubic ellipse segments");
+  assert.ok((first.match(/[CQ]/g) ?? []).length >= 12, "both circular contours remain smooth curves");
   assert.doesNotMatch(first, /NaN|Infinity|<script|href=/i);
+});
+
+test("smooth mask tracing does not promote curved raster stairs into false corners", () => {
+  const size = 128;
+  const mask = new Uint8Array(size * size);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const horizontal = (x - size / 2) / 50;
+      const centre = size / 2 + 18 * horizontal ** 2;
+      const halfWidth = 14 + 4 * Math.cos(horizontal * 2);
+      if (x > 10 && x < size - 10 && Math.abs(y - centre) < halfWidth) mask[y * size + x] = 255;
+    }
+  }
+  const svg = traceSmoothMaskSvg(mask, size, size);
+  assert.ok((svg.match(/Q/g) ?? []).length > 20, "curved boundaries are emitted as local quadratic splines");
+  assert.ok((svg.match(/L/g) ?? []).length <= 4, "only intentional end corners remain straight");
 });
 
 test("source texture mapping separates uniform fields from real edges", () => {
