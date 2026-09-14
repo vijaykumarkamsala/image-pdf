@@ -47,6 +47,8 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
       width: response.width,
       height: response.height,
       analysis: response.analysis,
+      engine: response.engine,
+      route: response.route,
     };
   }
 

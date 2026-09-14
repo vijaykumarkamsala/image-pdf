@@ -19,6 +19,8 @@ export interface ImageQualityResult {
   width: number;
   height: number;
   analysis: ImageQualityAnalysis;
+  engine: string;
+  route: string;
 }
 
 export interface ImageQualityEngine {

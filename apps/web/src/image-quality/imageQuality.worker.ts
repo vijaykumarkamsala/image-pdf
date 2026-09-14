@@ -1,5 +1,7 @@
 import type { ImageQualityAnalysis } from "./ImageQualityEngine";
-import { enhancePixels, reconstructPixels } from "./imageQualityPipeline";
+import { enhancePixels } from "./imageQualityPipeline";
+
+type OrtModule = typeof import("onnxruntime-web/webgpu");
 
 type WorkerRequest =
   | { id: number; type: "load"; source: Blob }
@@ -7,7 +9,7 @@ type WorkerRequest =
 
 type WorkerResponse =
   | { id: number; ok: true; type: "loaded"; width: number; height: number; mediaType: string }
-  | { id: number; ok: true; type: "enhanced"; width: number; height: number; mediaType: "image/png"; bytes: ArrayBuffer; analysis: ImageQualityAnalysis }
+  | { id: number; ok: true; type: "enhanced"; width: number; height: number; mediaType: "image/png"; bytes: ArrayBuffer; analysis: ImageQualityAnalysis; engine: string; route: string }
   | { id: number; ok: false; message: string };
 
 const workerScope = globalThis as unknown as {
@@ -16,10 +18,22 @@ const workerScope = globalThis as unknown as {
 };
 
 const MAX_PIXELS = 80_000_000;
+const MAX_OUTPUT_PIXELS = 100_000_000;
+const MAX_CANVAS_EDGE = 16_384;
+const MODEL_TILE = 128;
+const TILE_CONTEXT = 10;
+const CORE_TILE = MODEL_TILE - TILE_CONTEXT * 2;
+const MODEL_SCALE = 4;
+const MODEL_OUTPUT_TILE = MODEL_TILE * MODEL_SCALE;
+const MODEL_URL = "/quality-models/realesr-general-x4v3-tile128.onnx";
+const MODEL_BYTES = 4_959_082;
+const MODEL_SHA256 = "5c5af5908e7438a965cffb1ba62a764e319aac069c35c50ba6851bb4a300760c";
 let sourcePixels: Uint8ClampedArray | null = null;
 let sourceWidth = 0;
 let sourceHeight = 0;
 let sourceMediaType = "";
+let ortModule: Promise<OrtModule> | null = null;
+let modelSession: Promise<import("onnxruntime-web").InferenceSession> | null = null;
 
 async function loadSource(source: Blob) {
   const filename = source instanceof File ? source.name.toLowerCase() : "";
@@ -61,17 +75,259 @@ async function loadSource(source: Blob) {
 
 async function enhance(strength: number) {
   if (!sourcePixels) throw new Error("Choose an image before enhancing it.");
-  const result = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
-  const reconstructed = reconstructPixels(result.pixels, sourceWidth, sourceHeight);
-  const canvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Your browser could not create the enhanced image.");
-  const outputPixels = new Uint8ClampedArray(reconstructed.pixels.length);
-  outputPixels.set(reconstructed.pixels);
-  context.putImageData(new ImageData(outputPixels, reconstructed.width, reconstructed.height), 0, 0);
-  const blob = await canvas.convertToBlob({ type: "image/png" });
+  const gpu = (navigator as typeof navigator & {
+    gpu?: { requestAdapter(options: { powerPreference: string }): Promise<unknown | null> };
+  }).gpu;
+  if (!gpu) {
+    throw new Error("WebGPU is unavailable. Open this page in a current Chrome or Edge browser.");
+  }
+  const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+  if (!adapter) {
+    throw new Error("No usable WebGPU device was found. Enable hardware acceleration in Chrome or Edge.");
+  }
+  const ort = await getOrtModule();
+  const session = await getModelSession(ort);
+  const corrected = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
+  const graphics = isFlatColourGraphic(corrected.pixels, sourceWidth, sourceHeight);
+  const edgeMask = graphics
+    ? graphicEdgeMask(corrected.pixels, sourceWidth, sourceHeight)
+    : null;
+  const correctedCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
+  const correctedContext = correctedCanvas.getContext("2d");
+  if (!correctedContext) throw new Error("Your browser could not prepare corrected source pixels.");
+  correctedContext.putImageData(
+    new ImageData(new Uint8ClampedArray(corrected.pixels), sourceWidth, sourceHeight),
+    0,
+    0,
+  );
+  const outputScale = chooseOutputScale(sourceWidth, sourceHeight);
+  const width = sourceWidth * outputScale;
+  const height = sourceHeight * outputScale;
+  const outputCanvas = new OffscreenCanvas(width, height);
+  const outputContext = outputCanvas.getContext("2d", { willReadFrequently: true });
+  if (!outputContext) throw new Error("Your browser could not allocate the enhanced image.");
+  outputContext.imageSmoothingEnabled = true;
+  outputContext.imageSmoothingQuality = "high";
+  outputContext.drawImage(correctedCanvas, 0, 0, width, height);
+  const outputImage = outputContext.getImageData(0, 0, width, height);
+  const learnedFraction = 0.2 + Math.max(1, Math.min(100, strength)) / 100 * 0.8;
+  let completedTiles = 0;
+  const inferenceStarted = performance.now();
+
+  for (let top = 0; top < sourceHeight; top += CORE_TILE) {
+    for (let left = 0; left < sourceWidth; left += CORE_TILE) {
+      const input = modelInput(corrected.pixels, sourceWidth, sourceHeight, left, top);
+      const tensor = new ort.Tensor("float32", input, [1, 3, MODEL_TILE, MODEL_TILE]);
+      let restored: import("onnxruntime-web").Tensor | undefined;
+      try {
+        const results = await session.run({ input: tensor });
+        completedTiles += 1;
+        if (completedTiles === 1) {
+          console.info(`[image-quality] first WebGPU tile completed in ${Math.round(performance.now() - inferenceStarted)} ms`);
+        }
+        restored = results["output"];
+        if (!restored || !(restored.data instanceof Float32Array)) {
+          throw new Error("The restoration model returned invalid pixels. Your original is unchanged.");
+        }
+        const coreWidth = Math.min(CORE_TILE, sourceWidth - left);
+        const coreHeight = Math.min(CORE_TILE, sourceHeight - top);
+        blendModelTile(
+          outputImage.data,
+          width,
+          restored.data,
+          left,
+          top,
+          coreWidth,
+          coreHeight,
+          outputScale,
+          learnedFraction,
+          edgeMask,
+          sourceWidth,
+        );
+      } finally {
+        restored?.dispose();
+        tensor.dispose();
+      }
+    }
+  }
+  console.info(`[image-quality] ${completedTiles} WebGPU tiles completed in ${Math.round(performance.now() - inferenceStarted)} ms`);
+  outputContext.putImageData(outputImage, 0, 0);
+  const blob = await outputCanvas.convertToBlob({ type: "image/png" });
   const bytes = await blob.arrayBuffer();
-  return { bytes, width: reconstructed.width, height: reconstructed.height, analysis: result.analysis };
+  return {
+    bytes,
+    width,
+    height,
+    engine: "Real-ESRGAN General x4v3 · WebGPU",
+    route: `${graphics ? "graphics-contour" : "photo"}-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
+    analysis: corrected.analysis,
+  };
+}
+
+function chooseOutputScale(width: number, height: number): 1 | 2 | 4 {
+  const pixels = width * height;
+  if (pixels * 16 <= MAX_OUTPUT_PIXELS && width * 4 <= MAX_CANVAS_EDGE && height * 4 <= MAX_CANVAS_EDGE) return 4;
+  if (pixels * 4 <= MAX_OUTPUT_PIXELS && width * 2 <= MAX_CANVAS_EDGE && height * 2 <= MAX_CANVAS_EDGE) return 2;
+  return 1;
+}
+
+function getOrtModule(): Promise<OrtModule> {
+  ortModule ??= import("onnxruntime-web/webgpu");
+  return ortModule;
+}
+
+async function getModelSession(ort: OrtModule): Promise<import("onnxruntime-web").InferenceSession> {
+  if (modelSession) return modelSession;
+  modelSession = (async () => {
+    const started = performance.now();
+    ort.env.logLevel = "warning";
+    let response: Response;
+    try {
+      response = await fetch(MODEL_URL, { cache: "no-store" });
+    } catch {
+      throw new Error("The local restoration model could not be loaded. Your original is unchanged.");
+    }
+    if (!response.ok) {
+      throw new Error("The governed local restoration model is missing. Your original is unchanged.");
+    }
+    const announcedLength = response.headers.get("Content-Length");
+    const announcedBytes = announcedLength === null ? null : Number(announcedLength);
+    if (announcedBytes !== null && Number.isFinite(announcedBytes) && announcedBytes !== MODEL_BYTES) {
+      throw new Error("The restoration model failed its size check. Your original is unchanged.");
+    }
+    const model = await response.arrayBuffer();
+    if (model.byteLength !== MODEL_BYTES) {
+      throw new Error("The restoration model failed its size check. Your original is unchanged.");
+    }
+    console.info(`[image-quality] model fetched in ${Math.round(performance.now() - started)} ms`);
+    const digest = await crypto.subtle.digest("SHA-256", model);
+    const actual = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+    if (actual !== MODEL_SHA256) {
+      throw new Error("The restoration model failed its integrity check. Your original is unchanged.");
+    }
+    console.info(`[image-quality] model integrity verified in ${Math.round(performance.now() - started)} ms`);
+    try {
+      const session = await ort.InferenceSession.create(model, {
+        executionProviders: ["webgpu"],
+        graphOptimizationLevel: "all",
+      });
+      console.info(`[image-quality] WebGPU session ready in ${Math.round(performance.now() - started)} ms`);
+      return session;
+    } catch {
+      throw new Error("The WebGPU restoration model could not start on this device. Your original is unchanged.");
+    }
+  })();
+  try {
+    return await modelSession;
+  } catch (error) {
+    modelSession = null;
+    throw error;
+  }
+}
+
+function modelInput(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  left: number,
+  top: number,
+): Float32Array {
+  const plane = MODEL_TILE * MODEL_TILE;
+  const input = new Float32Array(plane * 3);
+  for (let y = 0; y < MODEL_TILE; y += 1) {
+    const sourceY = Math.max(0, Math.min(height - 1, top - TILE_CONTEXT + y));
+    for (let x = 0; x < MODEL_TILE; x += 1) {
+      const sourceX = Math.max(0, Math.min(width - 1, left - TILE_CONTEXT + x));
+      const sourceOffset = (sourceY * width + sourceX) * 4;
+      const targetOffset = y * MODEL_TILE + x;
+      input[targetOffset] = pixels[sourceOffset] / 255;
+      input[plane + targetOffset] = pixels[sourceOffset + 1] / 255;
+      input[plane * 2 + targetOffset] = pixels[sourceOffset + 2] / 255;
+    }
+  }
+  return input;
+}
+
+function blendModelTile(
+  output: Uint8ClampedArray,
+  outputWidth: number,
+  restored: Float32Array,
+  left: number,
+  top: number,
+  coreWidth: number,
+  coreHeight: number,
+  outputScale: 1 | 2 | 4,
+  learnedFraction: number,
+  edgeMask: Uint8Array | null,
+  sourceWidth: number,
+): void {
+  const restoredPlane = MODEL_OUTPUT_TILE * MODEL_OUTPUT_TILE;
+  const samplingStep = MODEL_SCALE / outputScale;
+  const targetWidth = coreWidth * outputScale;
+  const targetHeight = coreHeight * outputScale;
+  for (let y = 0; y < targetHeight; y += 1) {
+    const modelY = TILE_CONTEXT * MODEL_SCALE + y * samplingStep;
+    const outputY = top * outputScale + y;
+    for (let x = 0; x < targetWidth; x += 1) {
+      const modelX = TILE_CONTEXT * MODEL_SCALE + x * samplingStep;
+      const outputOffset = (outputY * outputWidth + left * outputScale + x) * 4;
+      const sourceX = left + Math.min(coreWidth - 1, Math.floor(x / outputScale));
+      const sourceY = top + Math.min(coreHeight - 1, Math.floor(y / outputScale));
+      const pixelLearnedFraction = edgeMask && edgeMask[sourceY * sourceWidth + sourceX] === 0
+        ? Math.min(0.18, learnedFraction)
+        : learnedFraction;
+      for (let channel = 0; channel < 3; channel += 1) {
+        let sum = 0;
+        for (let sampleY = 0; sampleY < samplingStep; sampleY += 1) {
+          for (let sampleX = 0; sampleX < samplingStep; sampleX += 1) {
+            const modelOffset = (modelY + sampleY) * MODEL_OUTPUT_TILE + modelX + sampleX;
+            sum += restored[channel * restoredPlane + modelOffset];
+          }
+        }
+        const learned = Math.max(0, Math.min(255, Math.round(sum * 255 / (samplingStep * samplingStep))));
+        output[outputOffset + channel] = Math.round(output[outputOffset + channel] * (1 - pixelLearnedFraction) + learned * pixelLearnedFraction);
+      }
+    }
+  }
+}
+
+function isFlatColourGraphic(pixels: Uint8ClampedArray, width: number, height: number): boolean {
+  const stride = Math.max(1, Math.floor(Math.sqrt((width * height) / 32_768)));
+  const colours = new Set<number>();
+  for (let y = 0; y < height; y += stride) {
+    for (let x = 0; x < width; x += stride) {
+      const offset = (y * width + x) * 4;
+      colours.add((pixels[offset] >> 4) << 8 | (pixels[offset + 1] >> 4) << 4 | (pixels[offset + 2] >> 4));
+      if (colours.size > 192) return false;
+    }
+  }
+  return true;
+}
+
+function graphicEdgeMask(pixels: Uint8ClampedArray, width: number, height: number): Uint8Array {
+  const mask = new Uint8Array(width * height);
+  const mark = (x: number, y: number) => {
+    if (x >= 0 && y >= 0 && x < width && y < height) mask[y * width + x] = 1;
+  };
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const neighbours = [
+        x + 1 < width ? offset + 4 : offset,
+        y + 1 < height ? offset + width * 4 : offset,
+      ];
+      const edge = neighbours.some((other) => (
+        Math.abs(pixels[offset] - pixels[other])
+        + Math.abs(pixels[offset + 1] - pixels[other + 1])
+        + Math.abs(pixels[offset + 2] - pixels[other + 2])
+      ) >= 36);
+      if (!edge) continue;
+      for (let spreadY = -1; spreadY <= 1; spreadY += 1) {
+        for (let spreadX = -1; spreadX <= 1; spreadX += 1) mark(x + spreadX, y + spreadY);
+      }
+    }
+  }
+  return mask;
 }
 
 workerScope.onmessage = (event) => {

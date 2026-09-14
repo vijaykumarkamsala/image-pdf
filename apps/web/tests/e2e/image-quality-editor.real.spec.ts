@@ -6,10 +6,11 @@ import { expect, test } from "@playwright/test";
 
 const fixture = resolve(
   fileURLToPath(new URL("../../../../", import.meta.url)),
-  "data/fixtures/images/recovery2e/photographic-640x400.jpg",
+  "data/fixtures/images/synthetic-noise-64.png",
 );
 
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
   await page.addInitScript(() => {
     const NativeWorker = window.Worker;
     Object.defineProperty(window, "__qualityWorkerCount", { value: 0, writable: true });
@@ -25,8 +26,8 @@ test("image quality editor uploads, processes, compares, resets and downloads re
 
   await expect(page).toHaveURL(/\/image-quality\/editor$/);
   await expect(page.getByTestId("image-quality-editor")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "photographic-640x400.jpg" })).toBeVisible();
-  await expect(page.getByText("640 × 400 px")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "synthetic-noise-64.png" })).toBeVisible();
+  await expect(page.getByText("64 × 64 px")).toBeVisible();
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __qualityWorkerCount: number }).__qualityWorkerCount)).toBe(1);
 
@@ -34,8 +35,8 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const originalUrl = await original.getAttribute("src");
   expect(originalUrl).toMatch(/^blob:/);
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText("Enhanced image ready. Compare it closely before downloading.")).toBeVisible();
-  await expect(page.getByText("1280 × 800 px")).toBeVisible();
+  await expect(page.getByText(/AI-restored image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText("256 × 256 px")).toBeVisible();
 
   const enhanced = page.getByTestId("enhanced-image");
   const enhancedUrl = await enhanced.getAttribute("src");
@@ -86,8 +87,8 @@ test("image quality editor uploads, processes, compares, resets and downloads re
       materiallyChangedFraction: materiallyChanged / pixelCount,
     };
   }, { originalSrc: originalUrl, enhancedSrc: enhancedUrl });
-  expect(pixelEvidence.width).toBe(1280);
-  expect(pixelEvidence.height).toBe(800);
+  expect(pixelEvidence.width).toBe(256);
+  expect(pixelEvidence.height).toBe(256);
   expect(pixelEvidence.changed).toBe(true);
   expect(pixelEvidence.meanRgbDifference).toBeGreaterThan(5);
   expect(pixelEvidence.materiallyChangedFraction).toBeGreaterThan(0.9);
@@ -115,7 +116,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
 
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText("Enhanced image ready. Compare it closely before downloading.")).toBeVisible();
+  await expect(page.getByText(/AI-restored image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
   const finalUrl = await page.getByTestId("enhanced-image").getAttribute("src");
   const expectedDigest = await page.evaluate(async (url) => {
@@ -126,10 +127,11 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download enhanced image" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("photographic-640x400-enhanced.png");
+  expect(download.suggestedFilename()).toBe("synthetic-noise-64-enhanced.png");
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   expect(createHash("sha256").update(Buffer.concat(chunks)).digest("hex")).toBe(expectedDigest);
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
+  await page.goto("about:blank");
 });

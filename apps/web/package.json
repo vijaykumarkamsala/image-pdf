@@ -10,6 +10,7 @@
     "fabric": "7.4.0",
     "ipw-contracts-ts": "*",
     "lucide-react": "1.37.0",
+    "onnxruntime-web": "1.29.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router-dom": "7.18.3",

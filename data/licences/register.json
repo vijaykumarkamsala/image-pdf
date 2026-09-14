@@ -247,6 +247,25 @@
       "notes": "Enters the register at POC-006. Used for exactly one thing: handing pixel data between Pillow and torch without a Python-level copy. Confined to the AI adapter package by test."
     },
     {
+      "component_id": "onnxruntime-web",
+      "display_name": "ONNX Runtime Web",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "licence_text_url": "https://github.com/microsoft/onnxruntime/blob/main/LICENSE",
+      "official_source": "https://www.npmjs.com/package/onnxruntime-web",
+      "pinned_version": "1.29.0",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the ONNX Runtime MIT licence and copyright notice.",
+        "Copyright (c) Microsoft Corporation. All rights reserved."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-14",
+      "evidence": "The installed npm package declares MIT and links to the official microsoft/onnxruntime repository. The browser build is used as an execution runtime only; model weights remain separately licensed and gated."
+    },
+    {
       "component_id": "ost-dataset",
       "display_name": "OutdoorSceneTraining (OST) dataset",
       "kind": "dataset",
@@ -395,6 +414,7 @@
       "disposition": "review_required",
       "depends_on": [
         "real-esrgan-code",
+        "real-esrgan-weights-general-x4v3",
         "real-esrgan-weights-x4plus",
         "real-esrgan-weights-x2plus",
         "torch",
@@ -428,6 +448,26 @@
       ],
       "reviewed_by": "POC-006",
       "reviewed_on": "2026-08-24"
+    },
+    {
+      "component_id": "real-esrgan-weights-general-x4v3",
+      "display_name": "Real-ESRGAN general-x4v3 compact generator weights",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
+      "pinned_version": "v0.2.5.0",
+      "weight_format": "pickle",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "ost-dataset"
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-14",
+      "evidence": "The official model zoo identifies this as the tiny general-image x4v3 model and the official inference script fixes its SRVGGNetCompact architecture at 64 features and 32 convolution blocks. No separate licence is stated for the checkpoint. The official training guide names DF2K plus OST, including research-restricted DIV2K, so commercial use remains blocked while marked local research is permitted.",
+      "notes": "Verified 4,885,111 bytes and SHA-256 before restricted weights-only loading. The local ONNX derivative is also gitignored and is never a distributable production asset.",
+      "weights_sha256": "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292"
     },
     {
       "component_id": "real-esrgan-weights-x2plus",

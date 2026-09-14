@@ -75,6 +75,16 @@ PINNED: tuple[PinnedWeight, ...] = (
         bytes_expected=67_061_725,
         note="RRDBNet generator, native x2",
     ),
+    PinnedWeight(
+        model="real-esrgan",
+        component_id="real-esrgan-weights-general-x4v3",
+        filename="realesr-general-x4v3.pth",
+        release_base=REAL_ESRGAN,
+        release_tag="v0.2.5.0",
+        sha256="8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292",
+        bytes_expected=4_885_111,
+        note="compact SRVGGNet generator, native x4; local research only",
+    ),
     # --- SwinIR (POC-007) -----------------------------------------------------
     PinnedWeight(
         model="swinir",

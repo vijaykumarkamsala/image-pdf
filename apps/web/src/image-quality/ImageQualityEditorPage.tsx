@@ -249,7 +249,7 @@ export function ImageQualityEditorPage() {
     <section className="quality-upload-card">
       <span className="quality-kicker"><Sparkles aria-hidden="true" />Image Quality Editor</span>
       <h1>Improve one photograph</h1>
-      <p>Choose a JPEG, PNG or WebP image. Processing stays in your browser and your original file is never changed.</p>
+      <p>Choose a JPEG, PNG or WebP image. Your original file remains untouched; enhancement creates a separate reconstructed result.</p>
       <Dropzone
         label="Choose a photograph"
         description="JPEG, PNG or WebP"
@@ -269,9 +269,9 @@ export function ImageQualityEditorPage() {
   const statusMessage = state.status === "loading"
     ? "Preparing decoded source pixels…"
     : processing
-      ? "Analysing and enhancing pixels in a background worker…"
+      ? "Reconstructing image detail in the local AI worker. Large photographs can take several minutes on this computer…"
       : state.status === "success"
-        ? "Enhanced image ready. Compare it closely before downloading."
+        ? `AI-restored image ready (${state.result?.engine ?? "restoration model"}). Compare it closely before downloading.`
         : state.status === "ready" && !state.result
           ? "Original ready. Choose a strength and enhance quality."
           : null;

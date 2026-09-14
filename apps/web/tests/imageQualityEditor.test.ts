@@ -219,6 +219,8 @@ test("view changes do not replace image bytes and reset restores the exact origi
     width: 12,
     height: 10,
     analysis: { noiseLevel: 0.2, edgeDefinition: 0.4, tonalRange: 0.5, colourCast: 0.1 },
+    engine: "test-engine",
+    route: "test-route",
   } satisfies QualityResultState;
   let state = imageQualitySessionReducer(initialImageQualitySession, { type: "source-selected", source });
   state = imageQualitySessionReducer(state, { type: "source-ready", width: 12, height: 10 });
