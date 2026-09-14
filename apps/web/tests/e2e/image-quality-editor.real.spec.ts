@@ -35,7 +35,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const originalUrl = await original.getAttribute("src");
   expect(originalUrl).toMatch(/^blob:/);
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/AI-restored image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText(/Enhanced image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText("256 × 256 px")).toBeVisible();
 
   const enhanced = page.getByTestId("enhanced-image");
@@ -116,7 +116,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
 
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/AI-restored image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText(/Enhanced image ready \(Real-ESRGAN General x4v3 · WebGPU\)/)).toBeVisible({ timeout: 120_000 });
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
   const finalUrl = await page.getByTestId("enhanced-image").getAttribute("src");
   const expectedDigest = await page.evaluate(async (url) => {
@@ -133,5 +133,41 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   expect(createHash("sha256").update(Buffer.concat(chunks)).digest("hex")).toBe(expectedDigest);
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
+  await page.goto("about:blank");
+});
+
+test("flat graphics use clean contour reconstruction without neural ringing", async ({ page }) => {
+  const flatGraphic = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABOklEQVR42u2b0RHCMAxDW11H4INRGaGj8sEA/YMFuCMltiI3yjdXyw/nsIy7HsfxXiY+WCY/BmAABmAABmAABjDv2dgB74/Xz8889xtNz8pohVuSHgUjDUBP0kwYqJJ81nNDKyAr8cxqQMXkI+OhYvKRcVE1+aj4qJx8hA5UT75Xj73AFb79Hl24SvL/6rMbHBX4Wyc3orpOtcIRAltaWFYc+hVoFcWcB0DVvLAgQHmo0QOhVa8bIXXfnn0VXAEGYAAGID2xyW6PXQFKTcmI5guqPp3lDKE4rGDa4tP/DEWJy5wHnLmuW9V5vn8FRgFgDisY5gmKDo3pHH0FVH06Sw+UhxUMHVDc22HGh+ryEisulDe4GPFS1uQyu7xo0KggMvO53hRlvzU25a6wp8IGYAAGYAAGYAAGoHg+WxOa/ws8D5oAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await page.goto("/image-quality");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "flat-curves.png",
+    mimeType: "image/png",
+    buffer: flatGraphic,
+  });
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+  await expect(page.getByText(/Enhanced image ready \(Clean graphics contour reconstruction · Worker\)/)).toBeVisible();
+  await expect(page.getByText("256 × 256 px")).toBeVisible();
+  const evidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true })!;
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let minimum = 255;
+    let maximum = 0;
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      minimum = Math.min(minimum, pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+      maximum = Math.max(maximum, pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+    }
+    return { minimum, maximum, width: canvas.width, height: canvas.height };
+  });
+  expect(evidence).toEqual({ minimum: 16, maximum: 248, width: 256, height: 256 });
+  await expect(page.getByTestId("enhanced-image")).toHaveCSS("filter", "none");
   await page.goto("about:blank");
 });

@@ -269,9 +269,9 @@ export function ImageQualityEditorPage() {
   const statusMessage = state.status === "loading"
     ? "Preparing decoded source pixels…"
     : processing
-      ? "Reconstructing image detail in the local AI worker. Large photographs can take several minutes on this computer…"
+      ? "Analysing the image and running its dedicated reconstruction path in a background worker…"
       : state.status === "success"
-        ? `AI-restored image ready (${state.result?.engine ?? "restoration model"}). Compare it closely before downloading.`
+        ? `Enhanced image ready (${state.result?.engine ?? "reconstruction engine"}). Compare it closely before downloading.`
         : state.status === "ready" && !state.result
           ? "Original ready. Choose a strength and enhance quality."
           : null;

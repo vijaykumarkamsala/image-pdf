@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { enhancePixels, reconstructPixels } from "../src/image-quality/imageQualityPipeline.ts";
+import {
+  classifyFlatGraphic,
+  enhanceFlatGraphicPixels,
+  enhancePixels,
+  reconstructPixels,
+} from "../src/image-quality/imageQualityPipeline.ts";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -168,6 +173,58 @@ test("robust colour balancing reduces a broad warm cast", () => {
   const after = channelMeans(enhanced.pixels);
   assert.ok(Math.max(...after) - Math.min(...after) < (Math.max(...before) - Math.min(...before)) * 0.6);
   assert.ok(enhanced.analysis.colourCast > 0.1);
+});
+
+test("dominant flat graphics are separated from textured photographic pixels", () => {
+  const width = 96;
+  const height = 96;
+  const graphic = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const inside = (x - 48) ** 2 + (y - 48) ** 2 < 30 ** 2;
+      graphic[offset] = inside ? 16 : 248;
+      graphic[offset + 1] = inside ? 112 : 248;
+      graphic[offset + 2] = inside ? 228 : 248;
+      graphic[offset + 3] = 255;
+    }
+  }
+
+  const graphicResult = classifyFlatGraphic(graphic, width, height);
+  const texturedResult = classifyFlatGraphic(testPixels(width, height), width, height);
+  assert.equal(graphicResult.isFlatGraphic, true);
+  assert.ok(graphicResult.dominantPaletteFraction > 0.95);
+  assert.equal(texturedResult.isFlatGraphic, false);
+});
+
+test("flat-graphic cleanup removes isolated field noise without shifting hard contours or alpha", () => {
+  const width = 64;
+  const height = 48;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      source[offset] = x < 32 ? 245 : 12;
+      source[offset + 1] = x < 32 ? 245 : 102;
+      source[offset + 2] = x < 32 ? 245 : 226;
+      source[offset + 3] = 255;
+    }
+  }
+  const noisyOffset = (24 * width + 16) * 4;
+  source[noisyOffset] = 225;
+  source[noisyOffset + 1] = 229;
+  source[noisyOffset + 2] = 231;
+  source[noisyOffset + 3] = 255;
+  source[(5 * width + 5) * 4 + 3] = 128;
+  const contourOffset = (24 * width + 31) * 4;
+
+  const result = enhanceFlatGraphicPixels(source, width, height, 80).pixels;
+  assert.ok(Math.abs(result[noisyOffset] - 245) < Math.abs(source[noisyOffset] - 245));
+  assert.deepEqual(
+    result.slice(contourOffset, contourOffset + 3),
+    source.slice(contourOffset, contourOffset + 3),
+  );
+  for (let offset = 3; offset < source.length; offset += 4) assert.equal(result[offset], source[offset]);
 });
 
 test("moderate edge-directed reconstruction retains every corrected source sample", () => {

@@ -15,6 +15,13 @@ export interface PixelReconstructionResult {
   scale: 1 | 2;
 }
 
+export interface GraphicClassification {
+  dominantPaletteFraction: number;
+  flatNeighbourFraction: number;
+  isFlatGraphic: boolean;
+  quantizedColours: number;
+}
+
 interface MeasuredImage extends ImageQualityAnalysis {
   blockiness: number;
   illuminantBlue: number;
@@ -37,14 +44,152 @@ interface LocalToneMap {
 const LUMA_RED = 0.2126;
 const LUMA_GREEN = 0.7152;
 const LUMA_BLUE = 0.0722;
-const MAX_RECONSTRUCTED_PIXELS = 16_000_000;
-const MAX_SOURCE_PIXELS_FOR_RECONSTRUCTION = 4_000_000;
+const MAX_RECONSTRUCTED_PIXELS = 17_000_000;
+const MAX_SOURCE_PIXELS_FOR_RECONSTRUCTION = 4_300_000;
 const MIN_SOURCE_EDGE_FOR_RECONSTRUCTION = 256;
 
 const clamp = (value: number, minimum = 0, maximum = 255) => Math.min(maximum, Math.max(minimum, value));
 const luma = (red: number, green: number, blue: number) => (
   LUMA_RED * red + LUMA_GREEN * green + LUMA_BLUE * blue
 );
+
+export function classifyFlatGraphic(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): GraphicClassification {
+  if (source.length !== width * height * 4) throw new Error("Decoded pixel data is incomplete.");
+  const stride = Math.max(1, Math.floor(Math.sqrt(width * height / 100_000)));
+  const palette = new Map<number, number>();
+  let flatNeighbours = 0;
+  let neighbourSamples = 0;
+  let visibleSamples = 0;
+  for (let y = 0; y < height; y += stride) {
+    for (let x = 0; x < width; x += stride) {
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] < 16) continue;
+      const key = (source[offset] >> 4) << 8
+        | (source[offset + 1] >> 4) << 4
+        | (source[offset + 2] >> 4);
+      palette.set(key, (palette.get(key) ?? 0) + 1);
+      visibleSamples += 1;
+      let maximumDifference = 0;
+      if (x + 1 < width) {
+        const right = offset + 4;
+        maximumDifference = Math.max(
+          maximumDifference,
+          Math.abs(source[offset] - source[right]),
+          Math.abs(source[offset + 1] - source[right + 1]),
+          Math.abs(source[offset + 2] - source[right + 2]),
+        );
+      }
+      if (y + 1 < height) {
+        const below = offset + width * 4;
+        maximumDifference = Math.max(
+          maximumDifference,
+          Math.abs(source[offset] - source[below]),
+          Math.abs(source[offset + 1] - source[below + 1]),
+          Math.abs(source[offset + 2] - source[below + 2]),
+        );
+      }
+      if (x + 1 < width || y + 1 < height) {
+        neighbourSamples += 1;
+        if (maximumDifference <= 6) flatNeighbours += 1;
+      }
+    }
+  }
+  if (visibleSamples === 0) throw new Error("The image does not contain visible pixels to enhance.");
+  const dominantPaletteSamples = [...palette.values()]
+    .sort((first, second) => second - first)
+    .slice(0, 8)
+    .reduce((total, count) => total + count, 0);
+  const dominantPaletteFraction = dominantPaletteSamples / visibleSamples;
+  const flatNeighbourFraction = flatNeighbours / Math.max(1, neighbourSamples);
+  return {
+    dominantPaletteFraction,
+    flatNeighbourFraction,
+    isFlatGraphic: palette.size <= 512
+      && dominantPaletteFraction >= 0.72
+      && flatNeighbourFraction >= 0.72,
+    quantizedColours: palette.size,
+  };
+}
+
+export function enhanceFlatGraphicPixels(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+  strength: number,
+): PixelEnhancementResult {
+  if (!Number.isFinite(strength) || strength < MIN_STRENGTH || strength > MAX_STRENGTH) {
+    throw new Error("Enhancement strength is outside the supported range.");
+  }
+  if (source.length !== width * height * 4) throw new Error("Decoded pixel data is incomplete.");
+  const measured = analyse(source, width, height);
+  const output = new Uint8ClampedArray(source);
+  const mixLimit = 0.16 + strength / MAX_STRENGTH * 0.38;
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] === 0) continue;
+      let minimumRed = 255;
+      let minimumGreen = 255;
+      let minimumBlue = 255;
+      let maximumRed = 0;
+      let maximumGreen = 0;
+      let maximumBlue = 0;
+      let redTotal = 0;
+      let greenTotal = 0;
+      let blueTotal = 0;
+      let samples = 0;
+      let alphaCompatible = true;
+      for (let neighbourY = -1; neighbourY <= 1; neighbourY += 1) {
+        for (let neighbourX = -1; neighbourX <= 1; neighbourX += 1) {
+          if (neighbourX === 0 && neighbourY === 0) continue;
+          const neighbour = ((y + neighbourY) * width + x + neighbourX) * 4;
+          if (Math.abs(source[neighbour + 3] - source[offset + 3]) > 8) {
+            alphaCompatible = false;
+            continue;
+          }
+          minimumRed = Math.min(minimumRed, source[neighbour]);
+          minimumGreen = Math.min(minimumGreen, source[neighbour + 1]);
+          minimumBlue = Math.min(minimumBlue, source[neighbour + 2]);
+          maximumRed = Math.max(maximumRed, source[neighbour]);
+          maximumGreen = Math.max(maximumGreen, source[neighbour + 1]);
+          maximumBlue = Math.max(maximumBlue, source[neighbour + 2]);
+          redTotal += source[neighbour];
+          greenTotal += source[neighbour + 1];
+          blueTotal += source[neighbour + 2];
+          samples += 1;
+        }
+      }
+      const spread = Math.max(maximumRed - minimumRed, maximumGreen - minimumGreen, maximumBlue - minimumBlue);
+      if (!alphaCompatible || samples < 5 || spread > 18) continue;
+      const redMean = redTotal / samples;
+      const greenMean = greenTotal / samples;
+      const blueMean = blueTotal / samples;
+      const centreDifference = Math.max(
+        Math.abs(source[offset] - redMean),
+        Math.abs(source[offset + 1] - greenMean),
+        Math.abs(source[offset + 2] - blueMean),
+      );
+      if (centreDifference > 40) continue;
+      const mix = mixLimit * (1 - spread / 19);
+      output[offset] = Math.round(source[offset] + (redMean - source[offset]) * mix);
+      output[offset + 1] = Math.round(source[offset + 1] + (greenMean - source[offset + 1]) * mix);
+      output[offset + 2] = Math.round(source[offset + 2] + (blueMean - source[offset + 2]) * mix);
+    }
+  }
+  return {
+    pixels: output,
+    analysis: {
+      noiseLevel: measured.noiseLevel,
+      edgeDefinition: measured.edgeDefinition,
+      tonalRange: measured.tonalRange,
+      colourCast: measured.colourCast,
+    },
+  };
+}
 
 function percentile(histogram: Uint32Array, count: number, fraction: number): number {
   const target = Math.max(1, Math.round(count * fraction));

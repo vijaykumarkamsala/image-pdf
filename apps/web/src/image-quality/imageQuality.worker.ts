@@ -1,5 +1,10 @@
 import type { ImageQualityAnalysis } from "./ImageQualityEngine";
-import { enhancePixels } from "./imageQualityPipeline";
+import {
+  classifyFlatGraphic,
+  enhanceFlatGraphicPixels,
+  enhancePixels,
+  reconstructPixels,
+} from "./imageQualityPipeline";
 
 type OrtModule = typeof import("onnxruntime-web/webgpu");
 
@@ -75,6 +80,11 @@ async function loadSource(source: Blob) {
 
 async function enhance(strength: number) {
   if (!sourcePixels) throw new Error("Choose an image before enhancing it.");
+  const classification = classifyFlatGraphic(sourcePixels, sourceWidth, sourceHeight);
+  if (classification.isFlatGraphic) {
+    const cleaned = enhanceFlatGraphicPixels(sourcePixels, sourceWidth, sourceHeight, strength);
+    return renderFlatGraphic(cleaned.pixels, cleaned.analysis);
+  }
   const gpu = (navigator as typeof navigator & {
     gpu?: { requestAdapter(options: { powerPreference: string }): Promise<unknown | null> };
   }).gpu;
@@ -88,10 +98,6 @@ async function enhance(strength: number) {
   const ort = await getOrtModule();
   const session = await getModelSession(ort);
   const corrected = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
-  const graphics = isFlatColourGraphic(corrected.pixels, sourceWidth, sourceHeight);
-  const edgeMask = graphics
-    ? graphicEdgeMask(corrected.pixels, sourceWidth, sourceHeight)
-    : null;
   const correctedCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
   const correctedContext = correctedCanvas.getContext("2d");
   if (!correctedContext) throw new Error("Your browser could not prepare corrected source pixels.");
@@ -141,8 +147,6 @@ async function enhance(strength: number) {
           coreHeight,
           outputScale,
           learnedFraction,
-          edgeMask,
-          sourceWidth,
         );
       } finally {
         restored?.dispose();
@@ -159,8 +163,47 @@ async function enhance(strength: number) {
     width,
     height,
     engine: "Real-ESRGAN General x4v3 · WebGPU",
-    route: `${graphics ? "graphics-contour" : "photo"}-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
+    route: `photo-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
     analysis: corrected.analysis,
+  };
+}
+
+async function renderFlatGraphic(
+  pixels: Uint8ClampedArray,
+  analysis: ImageQualityAnalysis,
+) {
+  const outputScale = chooseOutputScale(sourceWidth, sourceHeight);
+  const reconstructed = reconstructPixels(pixels, sourceWidth, sourceHeight);
+  const sourceCanvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
+  const sourceContext = sourceCanvas.getContext("2d");
+  if (!sourceContext) throw new Error("Your browser could not prepare clean graphic pixels.");
+  sourceContext.putImageData(
+    new ImageData(new Uint8ClampedArray(reconstructed.pixels), reconstructed.width, reconstructed.height),
+    0,
+    0,
+  );
+  let outputCanvas = sourceCanvas;
+  if (outputScale > reconstructed.scale) {
+    outputCanvas = new OffscreenCanvas(sourceWidth * outputScale, sourceHeight * outputScale);
+    const outputContext = outputCanvas.getContext("2d");
+    if (!outputContext) throw new Error("Your browser could not allocate the cleaned graphic.");
+    // Chromium's high-quality cubic scaler can overshoot both sides of a hard
+    // colour boundary. Bounded linear interpolation keeps curves smooth while
+    // guaranteeing that it cannot invent bright/dark contour halos.
+    outputContext.imageSmoothingEnabled = true;
+    outputContext.imageSmoothingQuality = "low";
+    outputContext.drawImage(sourceCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+  }
+  const blob = await outputCanvas.convertToBlob({ type: "image/png" });
+  return {
+    bytes: await blob.arrayBuffer(),
+    width: outputCanvas.width,
+    height: outputCanvas.height,
+    engine: reconstructed.scale === 2
+      ? "Edge-directed graphics contour reconstruction · Worker"
+      : "Clean graphics contour reconstruction · Worker",
+    route: `flat-graphic-${reconstructed.scale === 2 ? "edge" : "clean"}-x${outputScale}`,
+    analysis,
   };
 }
 
@@ -258,8 +301,6 @@ function blendModelTile(
   coreHeight: number,
   outputScale: 1 | 2 | 4,
   learnedFraction: number,
-  edgeMask: Uint8Array | null,
-  sourceWidth: number,
 ): void {
   const restoredPlane = MODEL_OUTPUT_TILE * MODEL_OUTPUT_TILE;
   const samplingStep = MODEL_SCALE / outputScale;
@@ -271,11 +312,6 @@ function blendModelTile(
     for (let x = 0; x < targetWidth; x += 1) {
       const modelX = TILE_CONTEXT * MODEL_SCALE + x * samplingStep;
       const outputOffset = (outputY * outputWidth + left * outputScale + x) * 4;
-      const sourceX = left + Math.min(coreWidth - 1, Math.floor(x / outputScale));
-      const sourceY = top + Math.min(coreHeight - 1, Math.floor(y / outputScale));
-      const pixelLearnedFraction = edgeMask && edgeMask[sourceY * sourceWidth + sourceX] === 0
-        ? Math.min(0.18, learnedFraction)
-        : learnedFraction;
       for (let channel = 0; channel < 3; channel += 1) {
         let sum = 0;
         for (let sampleY = 0; sampleY < samplingStep; sampleY += 1) {
@@ -285,49 +321,10 @@ function blendModelTile(
           }
         }
         const learned = Math.max(0, Math.min(255, Math.round(sum * 255 / (samplingStep * samplingStep))));
-        output[outputOffset + channel] = Math.round(output[outputOffset + channel] * (1 - pixelLearnedFraction) + learned * pixelLearnedFraction);
+        output[outputOffset + channel] = Math.round(output[outputOffset + channel] * (1 - learnedFraction) + learned * learnedFraction);
       }
     }
   }
-}
-
-function isFlatColourGraphic(pixels: Uint8ClampedArray, width: number, height: number): boolean {
-  const stride = Math.max(1, Math.floor(Math.sqrt((width * height) / 32_768)));
-  const colours = new Set<number>();
-  for (let y = 0; y < height; y += stride) {
-    for (let x = 0; x < width; x += stride) {
-      const offset = (y * width + x) * 4;
-      colours.add((pixels[offset] >> 4) << 8 | (pixels[offset + 1] >> 4) << 4 | (pixels[offset + 2] >> 4));
-      if (colours.size > 192) return false;
-    }
-  }
-  return true;
-}
-
-function graphicEdgeMask(pixels: Uint8ClampedArray, width: number, height: number): Uint8Array {
-  const mask = new Uint8Array(width * height);
-  const mark = (x: number, y: number) => {
-    if (x >= 0 && y >= 0 && x < width && y < height) mask[y * width + x] = 1;
-  };
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const offset = (y * width + x) * 4;
-      const neighbours = [
-        x + 1 < width ? offset + 4 : offset,
-        y + 1 < height ? offset + width * 4 : offset,
-      ];
-      const edge = neighbours.some((other) => (
-        Math.abs(pixels[offset] - pixels[other])
-        + Math.abs(pixels[offset + 1] - pixels[other + 1])
-        + Math.abs(pixels[offset + 2] - pixels[other + 2])
-      ) >= 36);
-      if (!edge) continue;
-      for (let spreadY = -1; spreadY <= 1; spreadY += 1) {
-        for (let spreadX = -1; spreadX <= 1; spreadX += 1) mark(x + spreadX, y + spreadY);
-      }
-    }
-  }
-  return mask;
 }
 
 workerScope.onmessage = (event) => {
