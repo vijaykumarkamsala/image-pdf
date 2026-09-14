@@ -1,9 +1,12 @@
+import { initWasm, Resvg } from "@resvg/resvg-wasm";
+import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm?url";
+import ImageTracer from "imagetracerjs";
+
 import type { ImageQualityAnalysis } from "./ImageQualityEngine";
 import {
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
   enhancePixels,
-  reconstructPixels,
 } from "./imageQualityPipeline";
 
 type OrtModule = typeof import("onnxruntime-web/webgpu");
@@ -33,12 +36,15 @@ const MODEL_OUTPUT_TILE = MODEL_TILE * MODEL_SCALE;
 const MODEL_URL = "/quality-models/realesr-general-x4v3-tile128.onnx";
 const MODEL_BYTES = 4_959_082;
 const MODEL_SHA256 = "5c5af5908e7438a965cffb1ba62a764e319aac069c35c50ba6851bb4a300760c";
+const MAX_TRACE_EDGE = 1_024;
+const MAX_VECTOR_MARKUP_BYTES = 16_000_000;
 let sourcePixels: Uint8ClampedArray | null = null;
 let sourceWidth = 0;
 let sourceHeight = 0;
 let sourceMediaType = "";
 let ortModule: Promise<OrtModule> | null = null;
 let modelSession: Promise<import("onnxruntime-web").InferenceSession> | null = null;
+let resvgReady: Promise<void> | null = null;
 
 async function loadSource(source: Blob) {
   const filename = source instanceof File ? source.name.toLowerCase() : "";
@@ -83,7 +89,7 @@ async function enhance(strength: number) {
   const classification = classifyFlatGraphic(sourcePixels, sourceWidth, sourceHeight);
   if (classification.isFlatGraphic) {
     const cleaned = enhanceFlatGraphicPixels(sourcePixels, sourceWidth, sourceHeight, strength);
-    return renderFlatGraphic(cleaned.pixels, cleaned.analysis);
+    return renderFlatGraphic(cleaned.pixels, cleaned.analysis, strength);
   }
   const gpu = (navigator as typeof navigator & {
     gpu?: { requestAdapter(options: { powerPreference: string }): Promise<unknown | null> };
@@ -171,40 +177,87 @@ async function enhance(strength: number) {
 async function renderFlatGraphic(
   pixels: Uint8ClampedArray,
   analysis: ImageQualityAnalysis,
+  strength: number,
 ) {
   const outputScale = chooseOutputScale(sourceWidth, sourceHeight);
-  const reconstructed = reconstructPixels(pixels, sourceWidth, sourceHeight);
-  const sourceCanvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
+  const traceScale = Math.min(1, MAX_TRACE_EDGE / Math.max(sourceWidth, sourceHeight));
+  const traceWidth = Math.max(1, Math.round(sourceWidth * traceScale));
+  const traceHeight = Math.max(1, Math.round(sourceHeight * traceScale));
+  const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
   const sourceContext = sourceCanvas.getContext("2d");
   if (!sourceContext) throw new Error("Your browser could not prepare clean graphic pixels.");
-  sourceContext.putImageData(
-    new ImageData(new Uint8ClampedArray(reconstructed.pixels), reconstructed.width, reconstructed.height),
-    0,
-    0,
-  );
-  let outputCanvas = sourceCanvas;
-  if (outputScale > reconstructed.scale) {
-    outputCanvas = new OffscreenCanvas(sourceWidth * outputScale, sourceHeight * outputScale);
-    const outputContext = outputCanvas.getContext("2d");
-    if (!outputContext) throw new Error("Your browser could not allocate the cleaned graphic.");
-    // Chromium's high-quality cubic scaler can overshoot both sides of a hard
-    // colour boundary. Bounded linear interpolation keeps curves smooth while
-    // guaranteeing that it cannot invent bright/dark contour halos.
-    outputContext.imageSmoothingEnabled = true;
-    outputContext.imageSmoothingQuality = "low";
-    outputContext.drawImage(sourceCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+  sourceContext.putImageData(new ImageData(new Uint8ClampedArray(pixels), sourceWidth, sourceHeight), 0, 0);
+  const traceCanvas = new OffscreenCanvas(traceWidth, traceHeight);
+  const traceContext = traceCanvas.getContext("2d", { willReadFrequently: true });
+  if (!traceContext) throw new Error("Your browser could not prepare vector tracing pixels.");
+  traceContext.imageSmoothingEnabled = true;
+  traceContext.imageSmoothingQuality = "high";
+  traceContext.drawImage(sourceCanvas, 0, 0, traceWidth, traceHeight);
+  const tracePixels = traceContext.getImageData(0, 0, traceWidth, traceHeight);
+  const amount = strength / 100;
+  const rawSvg = ImageTracer.imagedataToSVG(tracePixels, {
+    blurradius: 1,
+    blurdelta: 24,
+    colorquantcycles: 3,
+    colorsampling: 2,
+    desc: false,
+    layering: 0,
+    linefilter: true,
+    ltres: 0.01,
+    mincolorratio: 0.0005,
+    numberofcolors: Math.round(32 - amount * 16),
+    pathomit: Math.max(1, Math.round(Math.max(traceWidth, traceHeight) / 512)),
+    qtres: 0.7 + amount * 0.5,
+    rightangleenhance: false,
+    roundcoords: 3,
+    scale: 1,
+    strokewidth: 0,
+    viewbox: true,
+  });
+  if (rawSvg.length > MAX_VECTOR_MARKUP_BYTES || /<(?:script|foreignObject)|\b(?:href|src)=|url\s*\(/i.test(rawSvg)) {
+    throw new Error("The reconstructed graphic exceeded the safe vector complexity budget. Your original is unchanged.");
   }
-  const blob = await outputCanvas.convertToBlob({ type: "image/png" });
-  return {
-    bytes: await blob.arrayBuffer(),
-    width: outputCanvas.width,
-    height: outputCanvas.height,
-    engine: reconstructed.scale === 2
-      ? "Edge-directed graphics contour reconstruction · Worker"
-      : "Clean graphics contour reconstruction · Worker",
-    route: `flat-graphic-${reconstructed.scale === 2 ? "edge" : "clean"}-x${outputScale}`,
-    analysis,
-  };
+  const outputWidth = sourceWidth * outputScale;
+  const outputHeight = sourceHeight * outputScale;
+  const svg = rawSvg.replace(
+    "<svg ",
+    `<svg width="${outputWidth}" height="${outputHeight}" `,
+  );
+  resvgReady ??= initWasm(fetch(resvgWasmUrl));
+  try {
+    await resvgReady;
+  } catch {
+    resvgReady = null;
+    throw new Error("The vector renderer could not start. Your original is unchanged.");
+  }
+  let renderer: InstanceType<typeof Resvg> | null = null;
+  let rendered: ReturnType<InstanceType<typeof Resvg>["render"]> | null = null;
+  try {
+    renderer = new Resvg(svg, {
+      fitTo: { mode: "width", value: outputWidth },
+      font: { loadSystemFonts: false },
+      imageRendering: 0,
+      shapeRendering: 2,
+    });
+    rendered = renderer.render();
+    if (rendered.width !== outputWidth || rendered.height !== outputHeight) {
+      throw new Error("The vector renderer returned unexpected dimensions.");
+    }
+    const png = new Uint8Array(rendered.asPng());
+    return {
+      bytes: png.buffer,
+      width: outputWidth,
+      height: outputHeight,
+      engine: "Bézier vector contour reconstruction · Worker",
+      route: `flat-graphic-vector-x${outputScale}`,
+      analysis,
+    };
+  } catch {
+    throw new Error("The reconstructed curves could not be rendered within the local memory budget. Your original is unchanged.");
+  } finally {
+    rendered?.free();
+    renderer?.free();
+  }
 }
 
 function chooseOutputScale(width: number, height: number): 1 | 2 | 4 {

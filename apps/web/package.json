@@ -6,8 +6,10 @@
   "description": "Product V2 React customer application shell.",
   "license": "MIT",
   "dependencies": {
+    "@resvg/resvg-wasm": "2.6.2",
     "@vitejs/plugin-react": "6.1.1",
     "fabric": "7.4.0",
+    "imagetracerjs": "1.2.6",
     "ipw-contracts-ts": "*",
     "lucide-react": "1.37.0",
     "onnxruntime-web": "1.29.0",

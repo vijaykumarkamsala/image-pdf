@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateSync } from "node:zlib";
 
 import { expect, test } from "@playwright/test";
 
@@ -8,6 +9,51 @@ const fixture = resolve(
   fileURLToPath(new URL("../../../../", import.meta.url)),
   "data/fixtures/images/synthetic-noise-64.png",
 );
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const typeBytes = Buffer.from(type, "ascii");
+  const crcInput = Buffer.concat([typeBytes, data]);
+  let crc = 0xffffffff;
+  for (const byte of crcInput) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  const output = Buffer.alloc(data.length + 12);
+  output.writeUInt32BE(data.length, 0);
+  typeBytes.copy(output, 4);
+  data.copy(output, 8);
+  output.writeUInt32BE((crc ^ 0xffffffff) >>> 0, data.length + 8);
+  return output;
+}
+
+function flatCurvePng(size: number): Buffer {
+  const scanlines = Buffer.alloc((size * 4 + 1) * size);
+  const centre = size / 2;
+  const outerRadius = size * 0.35;
+  const innerRadius = size * 0.14;
+  for (let y = 0; y < size; y += 1) {
+    const row = y * (size * 4 + 1);
+    for (let x = 0; x < size; x += 1) {
+      const offset = row + 1 + x * 4;
+      const distance = Math.hypot(x - centre, y - centre);
+      const blue = distance <= outerRadius && distance >= innerRadius;
+      scanlines[offset] = blue ? 16 : 248;
+      scanlines[offset + 1] = blue ? 112 : 248;
+      scanlines[offset + 2] = blue ? 228 : 248;
+      scanlines[offset + 3] = 255;
+    }
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
 
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
@@ -136,19 +182,19 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await page.goto("about:blank");
 });
 
-test("flat graphics use clean contour reconstruction without neural ringing", async ({ page }) => {
-  const flatGraphic = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABOklEQVR42u2b0RHCMAxDW11H4INRGaGj8sEA/YMFuCMltiI3yjdXyw/nsIy7HsfxXiY+WCY/BmAABmAABmAABjDv2dgB74/Xz8889xtNz8pohVuSHgUjDUBP0kwYqJJ81nNDKyAr8cxqQMXkI+OhYvKRcVE1+aj4qJx8hA5UT75Xj73AFb79Hl24SvL/6rMbHBX4Wyc3orpOtcIRAltaWFYc+hVoFcWcB0DVvLAgQHmo0QOhVa8bIXXfnn0VXAEGYAAGID2xyW6PXQFKTcmI5guqPp3lDKE4rGDa4tP/DEWJy5wHnLmuW9V5vn8FRgFgDisY5gmKDo3pHH0FVH06Sw+UhxUMHVDc22HGh+ryEisulDe4GPFS1uQyu7xo0KggMvO53hRlvzU25a6wp8IGYAAGYAAGYAAGoHg+WxOa/ws8D5oAAAAASUVORK5CYII=",
-    "base64",
-  );
+test("flat graphics use clean contour reconstruction without neural ringing", async ({ page }, testInfo) => {
+  const flatGraphic = flatCurvePng(64);
   await page.goto("/image-quality");
   await page.locator('input[type="file"]').setInputFiles({
     name: "flat-curves.png",
     mimeType: "image/png",
     buffer: flatGraphic,
   });
+  await expect(page).toHaveURL(/\/image-quality\/editor$/);
+  await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
+  await page.locator('input[type="range"]').fill("100");
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Clean graphics contour reconstruction · Worker\)/)).toBeVisible();
+  await expect(page.getByText(/Enhanced image ready \(Bézier vector contour reconstruction · Worker\)/)).toBeVisible();
   await expect(page.getByText("256 × 256 px")).toBeVisible();
   const evidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const image = node as HTMLImageElement;
@@ -161,13 +207,59 @@ test("flat graphics use clean contour reconstruction without neural ringing", as
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     let minimum = 255;
     let maximum = 0;
+    let transparent = 0;
+    let visible = 0;
     for (let offset = 0; offset < pixels.length; offset += 4) {
+      if (pixels[offset + 3] < 250) {
+        transparent += 1;
+        continue;
+      }
       minimum = Math.min(minimum, pixels[offset], pixels[offset + 1], pixels[offset + 2]);
       maximum = Math.max(maximum, pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+      visible += 1;
     }
-    return { minimum, maximum, width: canvas.width, height: canvas.height };
+    return {
+      maximum,
+      minimum,
+      transparentFraction: transparent / (transparent + visible),
+      width: canvas.width,
+      height: canvas.height,
+    };
   });
-  expect(evidence).toEqual({ minimum: 16, maximum: 248, width: 256, height: 256 });
+  expect(evidence.width).toBe(256);
+  expect(evidence.height).toBe(256);
+  expect(evidence.minimum).toBeGreaterThanOrEqual(12);
+  expect(evidence.maximum).toBeLessThanOrEqual(252);
+  expect(evidence.transparentFraction).toBeLessThan(0.02);
   await expect(page.getByTestId("enhanced-image")).toHaveCSS("filter", "none");
+  await page.getByRole("button", { name: "400%" }).click();
+  await page.screenshot({ path: testInfo.outputPath("flat-vector-comparison.png"), fullPage: true });
+  await page.goto("about:blank");
+});
+
+test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.goto("/image-quality");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "large-flat-curves.png",
+    mimeType: "image/png",
+    buffer: flatCurvePng(2_048),
+  });
+  await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+  await expect(page.getByText(/Enhanced image ready \(Bézier vector contour reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByText("8192 × 8192 px")).toBeVisible();
+  const header = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const bytes = new Uint8Array(await (await fetch((node as HTMLImageElement).src)).arrayBuffer());
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return {
+      height: view.getUint32(20),
+      signature: Array.from(bytes.slice(0, 8)),
+      width: view.getUint32(16),
+    };
+  });
+  expect(header.signature).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  expect(header.width).toBe(8_192);
+  expect(header.height).toBe(8_192);
   await page.goto("about:blank");
 });

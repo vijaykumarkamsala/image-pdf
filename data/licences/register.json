@@ -247,6 +247,43 @@
       "notes": "Enters the register at POC-006. Used for exactly one thing: handing pixel data between Pillow and torch without a Python-level copy. Confined to the AI adapter package by test."
     },
     {
+      "component_id": "imagetracerjs",
+      "display_name": "ImageTracer.js",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "Unlicense",
+      "licence_text_url": "https://github.com/jankovicsandras/imagetracerjs/blob/master/LICENSE",
+      "official_source": "https://github.com/jankovicsandras/imagetracerjs",
+      "pinned_version": "1.2.6",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the upstream ImageTracer.js public-domain dedication and warranty disclaimer."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-14",
+      "evidence": "The upstream source and npm package both declare the Unlicense. The deterministic browser-worker API traces decoded RGBA pixels into locally generated SVG paths; no upload, model weight or runtime network call is involved."
+    },
+    {
+      "component_id": "resvg-wasm",
+      "display_name": "resvg-js WebAssembly renderer",
+      "kind": "dependency",
+      "disposition": "review_required",
+      "licence_id": "MPL-2.0",
+      "licence_text_url": "https://github.com/thx/resvg-js/blob/main/LICENSE",
+      "official_source": "https://github.com/thx/resvg-js",
+      "pinned_version": "2.6.2",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Distribute the MPL-2.0 licence with the unmodified WebAssembly dependency.",
+        "Preserve notices and provide the dependency's corresponding source-code location."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-14",
+      "evidence": "The official resvg-js project documents its pure WebAssembly browser renderer and declares MPL-2.0. It rasterizes only internally generated path markup inside the image-processing worker. Final production distribution remains subject to notice/source-offer review."
+    },
+    {
       "component_id": "onnxruntime-web",
       "display_name": "ONNX Runtime Web",
       "kind": "dependency",
