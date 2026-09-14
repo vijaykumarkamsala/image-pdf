@@ -37,9 +37,10 @@ function flatCurvePng(size: number): Buffer {
       const offset = row + 1 + x * 4;
       const distance = Math.hypot(x - centre, y - centre);
       const blue = distance <= outerRadius && distance >= innerRadius;
-      scanlines[offset] = blue ? 16 : 248;
-      scanlines[offset + 1] = blue ? 112 : 248;
-      scanlines[offset + 2] = blue ? 228 : 248;
+      const backgroundNoise = (x * 17 + y * 29) % 7 - 3;
+      scanlines[offset] = blue ? 16 : 244 + backgroundNoise;
+      scanlines[offset + 1] = blue ? 112 : 244 + backgroundNoise;
+      scanlines[offset + 2] = blue ? 228 : 244 + backgroundNoise;
       scanlines[offset + 3] = 255;
     }
   }
@@ -182,7 +183,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await page.goto("about:blank");
 });
 
-test("flat graphics use clean contour reconstruction without neural ringing", async ({ page }, testInfo) => {
+test("flat graphics reconstruct curves without tracing background noise", async ({ page }, testInfo) => {
   const flatGraphic = flatCurvePng(64);
   await page.goto("/image-quality");
   await page.locator('input[type="file"]').setInputFiles({
@@ -194,7 +195,7 @@ test("flat graphics use clean contour reconstruction without neural ringing", as
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await page.locator('input[type="range"]').fill("100");
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Bézier vector contour reconstruction · Worker\)/)).toBeVisible();
+  await expect(page.getByText(/Enhanced image ready \(Background-aware Bézier reconstruction · Worker\)/)).toBeVisible();
   await expect(page.getByText("256 × 256 px")).toBeVisible();
   const evidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const image = node as HTMLImageElement;
@@ -209,6 +210,7 @@ test("flat graphics use clean contour reconstruction without neural ringing", as
     let maximum = 0;
     let transparent = 0;
     let visible = 0;
+    let falseBackgroundMarks = 0;
     for (let offset = 0; offset < pixels.length; offset += 4) {
       if (pixels[offset + 3] < 250) {
         transparent += 1;
@@ -217,10 +219,18 @@ test("flat graphics use clean contour reconstruction without neural ringing", as
       minimum = Math.min(minimum, pixels[offset], pixels[offset + 1], pixels[offset + 2]);
       maximum = Math.max(maximum, pixels[offset], pixels[offset + 1], pixels[offset + 2]);
       visible += 1;
+      const pixel = offset / 4;
+      const x = pixel % canvas.width;
+      const y = Math.floor(pixel / canvas.width);
+      if (Math.hypot(x - canvas.width / 2, y - canvas.height / 2) > canvas.width * 0.39
+        && Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]) < 225) {
+        falseBackgroundMarks += 1;
+      }
     }
     return {
       maximum,
       minimum,
+      falseBackgroundMarks,
       transparentFraction: transparent / (transparent + visible),
       width: canvas.width,
       height: canvas.height,
@@ -230,6 +240,7 @@ test("flat graphics use clean contour reconstruction without neural ringing", as
   expect(evidence.height).toBe(256);
   expect(evidence.minimum).toBeGreaterThanOrEqual(12);
   expect(evidence.maximum).toBeLessThanOrEqual(252);
+  expect(evidence.falseBackgroundMarks).toBe(0);
   expect(evidence.transparentFraction).toBeLessThan(0.02);
   await expect(page.getByTestId("enhanced-image")).toHaveCSS("filter", "none");
   await page.getByRole("button", { name: "400%" }).click();
@@ -247,7 +258,7 @@ test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) 
   });
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Bézier vector contour reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByText(/Enhanced image ready \(Background-aware Bézier reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText("8192 × 8192 px")).toBeVisible();
   const header = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const bytes = new Uint8Array(await (await fetch((node as HTMLImageElement).src)).arrayBuffer());

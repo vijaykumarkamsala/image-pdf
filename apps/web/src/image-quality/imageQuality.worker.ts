@@ -7,6 +7,7 @@ import {
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
   enhancePixels,
+  prepareFlatGraphicTracePixels,
 } from "./imageQualityPipeline";
 
 type OrtModule = typeof import("onnxruntime-web/webgpu");
@@ -194,8 +195,17 @@ async function renderFlatGraphic(
   traceContext.imageSmoothingQuality = "high";
   traceContext.drawImage(sourceCanvas, 0, 0, traceWidth, traceHeight);
   const tracePixels = traceContext.getImageData(0, 0, traceWidth, traceHeight);
+  const preparedTrace = prepareFlatGraphicTracePixels(
+    tracePixels.data,
+    traceWidth,
+    traceHeight,
+  );
   const amount = strength / 100;
-  const rawSvg = ImageTracer.imagedataToSVG(tracePixels, {
+  const rawSvg = ImageTracer.imagedataToSVG({
+    data: preparedTrace.pixels,
+    height: traceHeight,
+    width: traceWidth,
+  }, {
     blurradius: 1,
     blurdelta: 24,
     colorquantcycles: 3,
@@ -248,7 +258,9 @@ async function renderFlatGraphic(
       bytes: png.buffer,
       width: outputWidth,
       height: outputHeight,
-      engine: "Bézier vector contour reconstruction · Worker",
+      engine: preparedTrace.backgroundSimplified
+        ? "Background-aware Bézier reconstruction · Worker"
+        : "Bézier vector contour reconstruction · Worker",
       route: `flat-graphic-vector-x${outputScale}`,
       analysis,
     };

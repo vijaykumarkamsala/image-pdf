@@ -22,6 +22,13 @@ export interface GraphicClassification {
   quantizedColours: number;
 }
 
+export interface FlatGraphicTracePreparation {
+  background: readonly [number, number, number, number] | null;
+  backgroundSimplified: boolean;
+  pixels: Uint8ClampedArray;
+  removedComponents: number;
+}
+
 interface MeasuredImage extends ImageQualityAnalysis {
   blockiness: number;
   illuminantBlue: number;
@@ -189,6 +196,160 @@ export function enhanceFlatGraphicPixels(
       colourCast: measured.colourCast,
     },
   };
+}
+
+/**
+ * Separates meaningful artwork from a dominant, nearly uniform border colour
+ * before vector tracing. JPEG field noise must not become thousands of tiny
+ * paths, but large foreground regions retain their decoded source colours.
+ */
+export function prepareFlatGraphicTracePixels(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): FlatGraphicTracePreparation {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
+    throw new Error("Image dimensions are invalid.");
+  }
+  if (source.length !== width * height * 4) throw new Error("Decoded pixel data is incomplete.");
+
+  const output = new Uint8ClampedArray(source);
+  const borderBand = Math.max(2, Math.round(Math.min(width, height) * 0.04));
+  const quantizedCounts = new Uint32Array(32 * 32 * 32);
+  let opaqueBorderSamples = 0;
+  const isBorder = (x: number, y: number) => (
+    x < borderBand || x >= width - borderBand || y < borderBand || y >= height - borderBand
+  );
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isBorder(x, y)) continue;
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] < 240) continue;
+      const key = (source[offset] >> 3) << 10
+        | (source[offset + 1] >> 3) << 5
+        | (source[offset + 2] >> 3);
+      quantizedCounts[key] += 1;
+      opaqueBorderSamples += 1;
+    }
+  }
+
+  let dominantKey = 0;
+  let dominantSamples = 0;
+  for (let key = 0; key < quantizedCounts.length; key += 1) {
+    if (quantizedCounts[key] > dominantSamples) {
+      dominantKey = key;
+      dominantSamples = quantizedCounts[key];
+    }
+  }
+  const borderPixels = Math.max(1, width * height - Math.max(0, width - borderBand * 2) * Math.max(0, height - borderBand * 2));
+  const opaqueBorderFraction = opaqueBorderSamples / borderPixels;
+  const dominantFraction = dominantSamples / Math.max(1, opaqueBorderSamples);
+  if (opaqueBorderFraction < 0.9 || dominantFraction < 0.55) {
+    return { background: null, backgroundSimplified: false, pixels: output, removedComponents: 0 };
+  }
+
+  let redTotal = 0;
+  let greenTotal = 0;
+  let blueTotal = 0;
+  let alphaTotal = 0;
+  const borderDistanceHistogram = new Uint32Array(256);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isBorder(x, y)) continue;
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] < 240) continue;
+      const key = (source[offset] >> 3) << 10
+        | (source[offset + 1] >> 3) << 5
+        | (source[offset + 2] >> 3);
+      if (key !== dominantKey) continue;
+      redTotal += source[offset];
+      greenTotal += source[offset + 1];
+      blueTotal += source[offset + 2];
+      alphaTotal += source[offset + 3];
+    }
+  }
+  const background: [number, number, number, number] = [
+    Math.round(redTotal / dominantSamples),
+    Math.round(greenTotal / dominantSamples),
+    Math.round(blueTotal / dominantSamples),
+    Math.round(alphaTotal / dominantSamples),
+  ];
+
+  let measuredBorderSamples = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isBorder(x, y)) continue;
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] < 240) continue;
+      const distance = Math.max(
+        Math.abs(source[offset] - background[0]),
+        Math.abs(source[offset + 1] - background[1]),
+        Math.abs(source[offset + 2] - background[2]),
+      );
+      borderDistanceHistogram[distance] += 1;
+      measuredBorderSamples += 1;
+    }
+  }
+  const noiseLimit = percentile(borderDistanceHistogram, measuredBorderSamples, 0.995);
+  const foregroundThreshold = Math.round(clamp(noiseLimit + 8, 12, 28));
+  const pixelCount = width * height;
+  const componentState = new Uint8Array(pixelCount);
+  const distanceFromBackground = (pixel: number) => {
+    const offset = pixel * 4;
+    return Math.max(
+      Math.abs(source[offset] - background[0]),
+      Math.abs(source[offset + 1] - background[1]),
+      Math.abs(source[offset + 2] - background[2]),
+    );
+  };
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    const offset = pixel * 4;
+    if (source[offset + 3] >= 16 && distanceFromBackground(pixel) > foregroundThreshold) {
+      componentState[pixel] = 1;
+    }
+  }
+
+  const queue = new Int32Array(pixelCount);
+  const minimumComponentArea = Math.max(6, Math.round(pixelCount * 0.00004));
+  let removedComponents = 0;
+  for (let start = 0; start < pixelCount; start += 1) {
+    if (componentState[start] !== 1) continue;
+    let read = 0;
+    let written = 1;
+    let strongPixels = 0;
+    queue[0] = start;
+    componentState[start] = 2;
+    while (read < written) {
+      const pixel = queue[read];
+      read += 1;
+      if (distanceFromBackground(pixel) > foregroundThreshold + 8) strongPixels += 1;
+      const x = pixel % width;
+      const y = Math.floor(pixel / width);
+      for (let neighbourY = Math.max(0, y - 1); neighbourY <= Math.min(height - 1, y + 1); neighbourY += 1) {
+        for (let neighbourX = Math.max(0, x - 1); neighbourX <= Math.min(width - 1, x + 1); neighbourX += 1) {
+          const neighbour = neighbourY * width + neighbourX;
+          if (componentState[neighbour] !== 1) continue;
+          componentState[neighbour] = 2;
+          queue[written] = neighbour;
+          written += 1;
+        }
+      }
+    }
+    const keep = written >= minimumComponentArea && strongPixels >= Math.max(2, Math.ceil(written * 0.05));
+    if (!keep) removedComponents += 1;
+    for (let index = 0; index < written; index += 1) componentState[queue[index]] = keep ? 3 : 0;
+  }
+
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    if (componentState[pixel] === 3) continue;
+    const offset = pixel * 4;
+    output[offset] = background[0];
+    output[offset + 1] = background[1];
+    output[offset + 2] = background[2];
+    output[offset + 3] = background[3];
+  }
+  return { background, backgroundSimplified: true, pixels: output, removedComponents };
 }
 
 function percentile(histogram: Uint32Array, count: number, fraction: number): number {

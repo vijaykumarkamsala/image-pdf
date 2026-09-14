@@ -5,6 +5,7 @@ import {
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
   enhancePixels,
+  prepareFlatGraphicTracePixels,
   reconstructPixels,
 } from "../src/image-quality/imageQualityPipeline.ts";
 import {
@@ -225,6 +226,47 @@ test("flat-graphic cleanup removes isolated field noise without shifting hard co
     source.slice(contourOffset, contourOffset + 3),
   );
   for (let offset = 3; offset < source.length; offset += 4) assert.equal(result[offset], source[offset]);
+});
+
+test("trace preparation collapses a noisy uniform background without deleting real artwork", () => {
+  const width = 128;
+  const height = 96;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const noise = (x * 17 + y * 29) % 7 - 3;
+      const artwork = x >= 26 && x < 102 && y >= 24 && y < 72;
+      source[offset] = artwork ? 12 : 244 + noise;
+      source[offset + 1] = artwork ? 86 : 244 + noise;
+      source[offset + 2] = artwork ? 210 : 244 + noise;
+      source[offset + 3] = 255;
+    }
+  }
+  for (const [x, y] of [[8, 12], [114, 18], [12, 84]]) {
+    const offset = (y * width + x) * 4;
+    source[offset] = 80;
+    source[offset + 1] = 82;
+    source[offset + 2] = 84;
+  }
+
+  const prepared = prepareFlatGraphicTracePixels(source, width, height);
+  assert.equal(prepared.backgroundSimplified, true);
+  assert.ok(prepared.removedComponents >= 3);
+  assert.ok(prepared.background);
+  const background = prepared.background;
+  for (const [x, y] of [[0, 0], [8, 12], [114, 18], [12, 84]]) {
+    const offset = (y * width + x) * 4;
+    assert.deepEqual(
+      prepared.pixels.slice(offset, offset + 4),
+      new Uint8ClampedArray(background),
+    );
+  }
+  const artworkOffset = (48 * width + 64) * 4;
+  assert.deepEqual(
+    prepared.pixels.slice(artworkOffset, artworkOffset + 4),
+    source.slice(artworkOffset, artworkOffset + 4),
+  );
 });
 
 test("moderate edge-directed reconstruction retains every corrected source sample", () => {
