@@ -287,8 +287,10 @@ test("flat graphics reconstruct curves without tracing background noise", async 
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await page.locator('input[type="range"]').fill("100");
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Source-colour Bézier mask reconstruction · Worker\)/)).toBeVisible();
+  await expect(page.getByText(/Enhanced image ready \(Source-colour smooth-spline reconstruction · Worker\)/)).toBeVisible({ timeout: 90_000 });
   await expect(page.getByText("256 × 256 px")).toBeVisible();
+  await page.getByRole("button", { name: "400%" }).click();
+  await page.screenshot({ path: testInfo.outputPath("flat-vector-comparison.png"), fullPage: true });
   const evidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const image = node as HTMLImageElement;
     await image.decode();
@@ -327,10 +329,26 @@ test("flat graphics reconstruct curves without tracing background noise", async 
         unexpectedEdgeColours += 1;
       }
     }
+    const boundaryRadii: number[] = [];
+    const centre = canvas.width / 2;
+    for (let degrees = 0; degrees < 360; degrees += 5) {
+      const radians = degrees * Math.PI / 180;
+      for (let radius = canvas.width * 0.44; radius >= canvas.width * 0.25; radius -= 0.25) {
+        const x = Math.max(0, Math.min(canvas.width - 1, Math.round(centre + Math.cos(radians) * radius)));
+        const y = Math.max(0, Math.min(canvas.height - 1, Math.round(centre + Math.sin(radians) * radius)));
+        const offset = (y * canvas.width + x) * 4;
+        if (pixels[offset + 2] - pixels[offset] > 80 && pixels[offset] < 100) {
+          boundaryRadii.push(radius);
+          break;
+        }
+      }
+    }
     return {
       maximum,
       minimum,
       falseBackgroundMarks,
+      outerRadiusSpread: Math.max(...boundaryRadii) - Math.min(...boundaryRadii),
+      sampledBoundaries: boundaryRadii.length,
       unexpectedEdgeColours,
       transparentFraction: transparent / (transparent + visible),
       width: canvas.width,
@@ -342,11 +360,11 @@ test("flat graphics reconstruct curves without tracing background noise", async 
   expect(evidence.minimum).toBeGreaterThanOrEqual(12);
   expect(evidence.maximum).toBeLessThanOrEqual(252);
   expect(evidence.falseBackgroundMarks).toBe(0);
+  expect(evidence.sampledBoundaries).toBe(72);
+  expect(evidence.outerRadiusSpread).toBeLessThanOrEqual(2.5);
   expect(evidence.unexpectedEdgeColours).toBe(0);
   expect(evidence.transparentFraction).toBeLessThan(0.02);
   await expect(page.getByTestId("enhanced-image")).toHaveCSS("filter", "none");
-  await page.getByRole("button", { name: "400%" }).click();
-  await page.screenshot({ path: testInfo.outputPath("flat-vector-comparison.png"), fullPage: true });
   await page.goto("about:blank");
 });
 
@@ -360,7 +378,7 @@ test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) 
   });
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await page.getByRole("button", { name: "Enhance quality" }).click();
-  await expect(page.getByText(/Enhanced image ready \(Source-colour Bézier mask reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByText(/Enhanced image ready \(Source-colour smooth-spline reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText("8192 × 8192 px")).toBeVisible();
   const header = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const bytes = new Uint8Array(await (await fetch((node as HTMLImageElement).src)).arrayBuffer());

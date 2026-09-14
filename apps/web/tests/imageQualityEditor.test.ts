@@ -16,6 +16,7 @@ import {
   type QualityResultState,
   type QualitySourceState,
 } from "../src/image-quality/imageQualitySession.ts";
+import { traceSmoothMaskSvg } from "../src/image-quality/smoothMaskTrace.ts";
 
 function testPixels(width: number, height: number) {
   const pixels = new Uint8ClampedArray(width * height * 4);
@@ -292,16 +293,45 @@ test("trace preparation collapses a noisy uniform background without deleting re
 
 test("restoration fusion preserves flat source colour while allowing textured luminance detail", () => {
   const flatReference = new Uint8ClampedArray([232, 218, 194, 255]);
-  fuseRestoredPixel(flatReference, 0, 210, 224, 236, 2, 100);
+  fuseRestoredPixel(flatReference, 0, 210, 224, 236, 2, 100, 20);
   assert.ok(Math.abs(flatReference[0] - 232) <= 2);
   assert.ok(Math.abs(flatReference[1] - 218) <= 2);
   assert.ok(Math.abs(flatReference[2] - 194) <= 2);
 
   const texturedReference = new Uint8ClampedArray([110, 92, 76, 255]);
-  fuseRestoredPixel(texturedReference, 0, 178, 152, 126, 64, 100);
+  fuseRestoredPixel(texturedReference, 0, 178, 152, 126, 64, 100, 14);
   assert.ok(texturedReference[0] > 120, "real detail may change luminance in textured regions");
   assert.ok(texturedReference[0] - texturedReference[2] < 50, "model chroma cannot replace source colour");
   assert.equal(texturedReference[3], 255);
+});
+
+test("restoration strength increases bounded detail without changing source chroma", () => {
+  const weak = new Uint8ClampedArray([142, 106, 78, 255]);
+  const strong = new Uint8ClampedArray(weak);
+  fuseRestoredPixel(weak, 0, 190, 150, 115, 72, 35, 18);
+  fuseRestoredPixel(strong, 0, 190, 150, 115, 72, 100, 18);
+  const luma = (pixels: Uint8ClampedArray) => (pixels[0] + pixels[1] * 2 + pixels[2]) / 4;
+  assert.ok(luma(strong) > luma(weak));
+  assert.ok(Math.abs((strong[0] - strong[2]) - (142 - 78)) <= 1);
+  assert.ok(Math.abs((strong[1] - (strong[0] + strong[2]) / 2) - (106 - (142 + 78) / 2)) <= 1);
+  assert.ok(Math.max(...Array.from(strong.slice(0, 3), (value, channel) => Math.abs(value - [142, 106, 78][channel]))) <= 27);
+});
+
+test("smooth mask tracing deterministically recovers circular contours as cubic curves", () => {
+  const size = 64;
+  const mask = new Uint8Array(size * size);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const radius = Math.hypot(x - size / 2, y - size / 2);
+      if (radius >= 9 && radius <= 23) mask[y * size + x] = 255;
+    }
+  }
+  const first = traceSmoothMaskSvg(mask, size, size);
+  const second = traceSmoothMaskSvg(mask, size, size);
+  assert.equal(first, second);
+  assert.match(first, /viewBox="0 0 64 64"/);
+  assert.ok((first.match(/C/g) ?? []).length >= 8, "outer and inner contours use cubic ellipse segments");
+  assert.doesNotMatch(first, /NaN|Infinity|<script|href=/i);
 });
 
 test("source texture mapping separates uniform fields from real edges", () => {

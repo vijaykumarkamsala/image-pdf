@@ -374,26 +374,45 @@ export function prepareFlatGraphicTracePixels(
     for (let index = 0; index < written; index += 1) componentState[queue[index]] = keep ? 3 : 0;
   }
 
-  const isInterior = (x: number, y: number) => {
-    if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) return false;
-    for (let neighbourY = y - 1; neighbourY <= y + 1; neighbourY += 1) {
-      for (let neighbourX = x - 1; neighbourX <= x + 1; neighbourX += 1) {
-        if (componentState[neighbourY * width + neighbourX] !== 3) return false;
-      }
+  const integralStride = width + 1;
+  const foregroundIntegral = new Uint32Array((width + 1) * (height + 1));
+  for (let y = 0; y < height; y += 1) {
+    let rowTotal = 0;
+    for (let x = 0; x < width; x += 1) {
+      if (componentState[y * width + x] === 3) rowTotal += 1;
+      foregroundIntegral[(y + 1) * integralStride + x + 1] = (
+        foregroundIntegral[y * integralStride + x + 1] + rowTotal
+      );
     }
-    return true;
-  };
+  }
+  const matteDepth = Math.max(2, Math.min(5, Math.round(Math.min(width, height) / 256)));
+  const deepInterior = new Uint8Array(pixelCount);
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    if (componentState[pixel] !== 3) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const left = Math.max(0, x - matteDepth);
+    const right = Math.min(width - 1, x + matteDepth);
+    const top = Math.max(0, y - matteDepth);
+    const bottom = Math.min(height - 1, y + matteDepth);
+    const foregroundArea = foregroundIntegral[(bottom + 1) * integralStride + right + 1]
+      - foregroundIntegral[top * integralStride + right + 1]
+      - foregroundIntegral[(bottom + 1) * integralStride + left]
+      + foregroundIntegral[top * integralStride + left];
+    if (foregroundArea === (right - left + 1) * (bottom - top + 1)) deepInterior[pixel] = 1;
+  }
   let decontaminatedEdgePixels = 0;
   for (let pixel = 0; pixel < pixelCount; pixel += 1) {
     if (componentState[pixel] !== 3) continue;
     const x = pixel % width;
     const y = Math.floor(pixel / width);
-    if (isInterior(x, y)) continue;
+    if (deepInterior[pixel] === 1) continue;
     let nearestInterior = -1;
     let nearestDistance = Number.POSITIVE_INFINITY;
-    for (let searchY = Math.max(1, y - 4); searchY <= Math.min(height - 2, y + 4); searchY += 1) {
-      for (let searchX = Math.max(1, x - 4); searchX <= Math.min(width - 2, x + 4); searchX += 1) {
-        if (!isInterior(searchX, searchY)) continue;
+    const searchRadius = matteDepth * 2;
+    for (let searchY = Math.max(0, y - searchRadius); searchY <= Math.min(height - 1, y + searchRadius); searchY += 1) {
+      for (let searchX = Math.max(0, x - searchRadius); searchX <= Math.min(width - 1, x + searchRadius); searchX += 1) {
+        if (deepInterior[searchY * width + searchX] !== 1) continue;
         const distance = (searchX - x) ** 2 + (searchY - y) ** 2;
         if (distance >= nearestDistance) continue;
         nearestDistance = distance;
@@ -534,10 +553,10 @@ export function fuseRestoredPixel(
   learnedBlue: number,
   sourceTexture: number,
   strength: number,
+  learnedDetailLuma = 0,
 ): void {
   const amount = clamp(strength / MAX_STRENGTH, 0, 1);
-  const texture = clamp((sourceTexture - 3) / 28, 0, 1);
-  const learnedMix = (0.12 + amount * 0.48) * (0.04 + texture * 0.96);
+  const texture = clamp((sourceTexture - 4) / 32, 0, 1);
   const referenceRed = output[offset];
   const referenceGreen = output[offset + 1];
   const referenceBlue = output[offset + 2];
@@ -545,20 +564,24 @@ export function fuseRestoredPixel(
   const referenceCo = referenceRed - referenceBlue;
   const referenceCg = referenceGreen - (referenceRed + referenceBlue) / 2;
   const learnedY = (learnedRed + learnedGreen * 2 + learnedBlue) / 4;
-  const learnedCo = learnedRed - learnedBlue;
-  const learnedCg = learnedGreen - (learnedRed + learnedBlue) / 2;
-  const maximumLumaChange = 2 + amount * (2 + texture * 22);
-  const targetY = referenceY + clamp(
-    (learnedY - referenceY) * learnedMix,
-    -maximumLumaChange,
-    maximumLumaChange,
+  const structureLimit = amount * (2 + texture * 7);
+  const structureChange = clamp(
+    (learnedY - referenceY) * texture * (0.04 + amount * 0.28),
+    -structureLimit,
+    structureLimit,
   );
-  const chromaMix = Math.min(0.12, learnedMix * (0.08 + texture * 0.12));
-  const targetCo = referenceCo + (learnedCo - referenceCo) * chromaMix;
-  const targetCg = referenceCg + (learnedCg - referenceCg) * chromaMix;
-  output[offset] = Math.round(clamp(targetY - targetCg / 2 + targetCo / 2));
-  output[offset + 1] = Math.round(clamp(targetY + targetCg / 2));
-  output[offset + 2] = Math.round(clamp(targetY - targetCg / 2 - targetCo / 2));
+  const detailLimit = amount * (2 + texture * 16);
+  const detailChange = clamp(
+    learnedDetailLuma * texture * (0.35 + amount * 1.05),
+    -detailLimit,
+    detailLimit,
+  );
+  const targetY = referenceY + structureChange + detailChange;
+  // Chroma remains source-authoritative. Neural colour transfer is the cause
+  // of the background/skin/brand-colour shifts users reported.
+  output[offset] = Math.round(clamp(targetY - referenceCg / 2 + referenceCo / 2));
+  output[offset + 1] = Math.round(clamp(targetY + referenceCg / 2));
+  output[offset + 2] = Math.round(clamp(targetY - referenceCg / 2 - referenceCo / 2));
 }
 
 function percentile(histogram: Uint32Array, count: number, fraction: number): number {

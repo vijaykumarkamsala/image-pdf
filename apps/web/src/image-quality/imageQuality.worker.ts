@@ -11,6 +11,7 @@ import {
   fuseRestoredPixel,
   prepareFlatGraphicTracePixels,
 } from "./imageQualityPipeline";
+import { traceSmoothMaskSvg } from "./smoothMaskTrace";
 
 type OrtModule = typeof import("onnxruntime-web/webgpu");
 
@@ -217,7 +218,6 @@ async function renderFlatGraphic(
       outputWidth,
       outputHeight,
       analysis,
-      amount,
       outputScale,
     );
   }
@@ -226,7 +226,7 @@ async function renderFlatGraphic(
     height: traceHeight,
     width: traceWidth,
   }, {
-    blurradius: 5,
+    blurradius: 1,
     blurdelta: 64,
     colorquantcycles: 3,
     colorsampling: 2,
@@ -264,49 +264,14 @@ async function renderSourceColourMask(
   outputWidth: number,
   outputHeight: number,
   analysis: ImageQualityAnalysis,
-  amount: number,
   outputScale: 1 | 2 | 4,
 ) {
-  const maskPixels = new Uint8ClampedArray(foregroundMask.length * 4);
-  for (let pixel = 0; pixel < foregroundMask.length; pixel += 1) {
-    const offset = pixel * 4;
-    maskPixels[offset] = foregroundMask[pixel];
-    maskPixels[offset + 1] = foregroundMask[pixel];
-    maskPixels[offset + 2] = foregroundMask[pixel];
-    maskPixels[offset + 3] = 255;
+  let rawMaskSvg: string;
+  try {
+    rawMaskSvg = traceSmoothMaskSvg(foregroundMask, traceWidth, traceHeight);
+  } catch {
+    throw new Error("The smooth contour reconstruction could not complete. Your original is unchanged.");
   }
-  const contourSamples = Math.max(traceWidth, traceHeight);
-  const contourFit = Math.max(0, Math.min(1, (contourSamples - 64) / 448));
-  const tracedMaskSvg = ImageTracer.imagedataToSVG({
-    data: maskPixels,
-    height: traceHeight,
-    width: traceWidth,
-  }, {
-    blurradius: 1,
-    blurdelta: 24,
-    colorquantcycles: 1,
-    colorsampling: 0,
-    desc: false,
-    layering: 0,
-    linefilter: true,
-    ltres: 1 + contourFit * 2,
-    mincolorratio: 0,
-    numberofcolors: 2,
-    pathomit: Math.max(1, Math.round(Math.max(traceWidth, traceHeight) / 512)),
-    qtres: 1.5 + amount + contourFit * 2.5,
-    rightangleenhance: false,
-    roundcoords: 3,
-    scale: 1,
-    strokewidth: 0,
-    viewbox: true,
-  });
-  const rawMaskSvg = tracedMaskSvg.replace(
-    /fill="rgb\((\d+),(\d+),(\d+)\)" stroke="rgb\(\d+,\d+,\d+\)" stroke-width="0" opacity="[^"]+"/g,
-    (_match, red: string, green: string, blue: string) => {
-      const foreground = Number(red) + Number(green) + Number(blue) >= 384;
-      return `fill="white" stroke="white" stroke-width="0" opacity="${foreground ? 1 : 0}"`;
-    },
-  );
   const maskPng = await renderVectorPng(rawMaskSvg, outputWidth, outputHeight);
   let maskBitmap: ImageBitmap;
   try {
@@ -341,7 +306,7 @@ async function renderSourceColourMask(
       bytes: await blob.arrayBuffer(),
       width: outputWidth,
       height: outputHeight,
-      engine: "Source-colour Bézier mask reconstruction · Worker",
+      engine: "Source-colour smooth-spline reconstruction · Worker",
       route: `flat-graphic-mask-x${outputScale}`,
       analysis,
     };
@@ -358,10 +323,21 @@ async function renderVectorPng(
   if (rawSvg.length > MAX_VECTOR_MARKUP_BYTES || /<(?:script|foreignObject)|\b(?:href|src)=|url\s*\(/i.test(rawSvg)) {
     throw new Error("The reconstructed graphic exceeded the safe vector complexity budget. Your original is unchanged.");
   }
-  const svg = rawSvg.replace(
-    "<svg ",
-    `<svg width="${outputWidth}" height="${outputHeight}" `,
-  );
+  const svg = rawSvg.replace(/<svg\b([^>]*)>/i, (_element, attributes: string) => {
+    const sourceWidth = attributes.match(/\bwidth="([0-9.]+)"/i)?.[1];
+    const sourceHeight = attributes.match(/\bheight="([0-9.]+)"/i)?.[1];
+    const sourceViewBox = attributes.match(/\bviewBox="([^"]+)"/i)?.[1];
+    const cleanAttributes = attributes
+      .replace(/\swidth="[^"]*"/i, "")
+      .replace(/\sheight="[^"]*"/i, "")
+      .replace(/\sviewBox="[^"]*"/i, "");
+    const viewBox = sourceWidth && sourceHeight
+      ? ` viewBox="0 0 ${sourceWidth} ${sourceHeight}"`
+      : sourceViewBox
+        ? ` viewBox="${sourceViewBox}"`
+        : "";
+    return `<svg width="${outputWidth}" height="${outputHeight}"${viewBox}${cleanAttributes}>`;
+  });
   resvgReady ??= initWasm(fetch(resvgWasmUrl));
   try {
     await resvgReady;
@@ -386,7 +362,8 @@ async function renderVectorPng(
     const png = new Uint8Array(renderedPng.byteLength);
     png.set(renderedPng);
     return png;
-  } catch {
+  } catch (error) {
+    console.error("[image-quality] vector render failed", error);
     throw new Error("The reconstructed curves could not be rendered within the local memory budget. Your original is unchanged.");
   } finally {
     rendered?.free();
@@ -519,6 +496,15 @@ function blendModelTile(
         else if (channel === 1) learnedGreen = learned;
         else learnedBlue = learned;
       }
+      const learnedY = (learnedRed + learnedGreen * 2 + learnedBlue) / 4;
+      const detailRadius = Math.max(1, samplingStep);
+      const localLearnedY = (
+        learnedY * 4
+        + restoredLuma(restored, restoredPlane, modelX - detailRadius, modelY)
+        + restoredLuma(restored, restoredPlane, modelX + detailRadius, modelY)
+        + restoredLuma(restored, restoredPlane, modelX, modelY - detailRadius)
+        + restoredLuma(restored, restoredPlane, modelX, modelY + detailRadius)
+      ) / 8;
       fuseRestoredPixel(
         output,
         outputOffset,
@@ -527,9 +513,26 @@ function blendModelTile(
         learnedBlue,
         sourceTexture[sourceY * sourceWidth + sourceX],
         strength,
+        learnedY - localLearnedY,
       );
     }
   }
+}
+
+function restoredLuma(
+  restored: Float32Array,
+  plane: number,
+  x: number,
+  y: number,
+): number {
+  const sampleX = Math.max(0, Math.min(MODEL_OUTPUT_TILE - 1, Math.round(x)));
+  const sampleY = Math.max(0, Math.min(MODEL_OUTPUT_TILE - 1, Math.round(y)));
+  const offset = sampleY * MODEL_OUTPUT_TILE + sampleX;
+  return Math.max(0, Math.min(255, (
+    restored[offset]
+    + restored[plane + offset] * 2
+    + restored[plane * 2 + offset]
+  ) * 255 / 4));
 }
 
 workerScope.onmessage = (event) => {
