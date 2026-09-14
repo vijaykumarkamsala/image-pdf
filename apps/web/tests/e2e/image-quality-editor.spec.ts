@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 
 const fixture = resolve(
   fileURLToPath(new URL("../../../../", import.meta.url)),
-  "data/fixtures/images/synthetic-alpha-32.png",
+  "data/fixtures/images/recovery2e/photographic-640x400.jpg",
 );
 
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
@@ -25,8 +25,8 @@ test("image quality editor uploads, processes, compares, resets and downloads re
 
   await expect(page).toHaveURL(/\/image-quality\/editor$/);
   await expect(page.getByTestId("image-quality-editor")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "synthetic-alpha-32.png" })).toBeVisible();
-  await expect(page.getByText("32 × 32 px")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "photographic-640x400.jpg" })).toBeVisible();
+  await expect(page.getByText("640 × 400 px")).toBeVisible();
   await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __qualityWorkerCount: number }).__qualityWorkerCount)).toBe(1);
 
@@ -35,6 +35,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   expect(originalUrl).toMatch(/^blob:/);
   await page.getByRole("button", { name: "Enhance quality" }).click();
   await expect(page.getByText("Enhanced image ready. Compare it closely before downloading.")).toBeVisible();
+  await expect(page.getByText("1280 × 800 px")).toBeVisible();
 
   const enhanced = page.getByTestId("enhanced-image");
   const enhancedUrl = await enhanced.getAttribute("src");
@@ -61,26 +62,32 @@ test("image quality editor uploads, processes, compares, resets and downloads re
     const [before, after] = await Promise.all([pixels(originalSrc!), pixels(enhancedSrc!)]);
     let totalDifference = 0;
     let materiallyChanged = 0;
-    for (let offset = 0; offset < after.values.length; offset += 4) {
-      const difference = (
-        Math.abs(after.values[offset] - before.values[offset])
-        + Math.abs(after.values[offset + 1] - before.values[offset + 1])
-        + Math.abs(after.values[offset + 2] - before.values[offset + 2])
-      ) / 3;
-      totalDifference += difference;
-      if (difference >= 2) materiallyChanged += 1;
+    for (let y = 0; y < before.height; y += 1) {
+      for (let x = 0; x < before.width; x += 1) {
+        const beforeOffset = (y * before.width + x) * 4;
+        const outputX = Math.min(after.width - 1, Math.round(x * after.width / before.width));
+        const outputY = Math.min(after.height - 1, Math.round(y * after.height / before.height));
+        const afterOffset = (outputY * after.width + outputX) * 4;
+        const difference = (
+          Math.abs(after.values[afterOffset] - before.values[beforeOffset])
+          + Math.abs(after.values[afterOffset + 1] - before.values[beforeOffset + 1])
+          + Math.abs(after.values[afterOffset + 2] - before.values[beforeOffset + 2])
+        ) / 3;
+        totalDifference += difference;
+        if (difference >= 2) materiallyChanged += 1;
+      }
     }
-    const pixelCount = after.values.length / 4;
+    const pixelCount = before.values.length / 4;
     return {
       width: after.width,
       height: after.height,
-      changed: after.values.some((value, index) => value !== before.values[index]),
+      changed: materiallyChanged > 0,
       meanRgbDifference: totalDifference / pixelCount,
       materiallyChangedFraction: materiallyChanged / pixelCount,
     };
   }, { originalSrc: originalUrl, enhancedSrc: enhancedUrl });
-  expect(pixelEvidence.width).toBe(32);
-  expect(pixelEvidence.height).toBe(32);
+  expect(pixelEvidence.width).toBe(1280);
+  expect(pixelEvidence.height).toBe(800);
   expect(pixelEvidence.changed).toBe(true);
   expect(pixelEvidence.meanRgbDifference).toBeGreaterThan(5);
   expect(pixelEvidence.materiallyChangedFraction).toBeGreaterThan(0.9);
@@ -119,7 +126,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download enhanced image" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("synthetic-alpha-32-enhanced.png");
+  expect(download.suggestedFilename()).toBe("photographic-640x400-enhanced.png");
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));

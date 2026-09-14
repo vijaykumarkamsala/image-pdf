@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { enhancePixels } from "../src/image-quality/imageQualityPipeline.ts";
+import { enhancePixels, reconstructPixels } from "../src/image-quality/imageQualityPipeline.ts";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -168,6 +168,41 @@ test("robust colour balancing reduces a broad warm cast", () => {
   const after = channelMeans(enhanced.pixels);
   assert.ok(Math.max(...after) - Math.min(...after) < (Math.max(...before) - Math.min(...before)) * 0.6);
   assert.ok(enhanced.analysis.colourCast > 0.1);
+});
+
+test("moderate edge-directed reconstruction retains every corrected source sample", () => {
+  const width = 320;
+  const height = 256;
+  const corrected = enhancePixels(testPixels(width, height), width, height, 65).pixels;
+  const reconstructed = reconstructPixels(corrected, width, height);
+
+  assert.equal(reconstructed.scale, 2);
+  assert.equal(reconstructed.width, 640);
+  assert.equal(reconstructed.height, 512);
+  assert.equal(reconstructed.pixels.length, 640 * 512 * 4);
+  for (let offset = 3; offset < reconstructed.pixels.length; offset += 4) {
+    assert.ok(reconstructed.pixels[offset] > 0, "every reconstructed output pixel must be initialized");
+  }
+  for (let offset = 3; offset < reconstructed.pixels.length; offset += 4) {
+    assert.ok(reconstructed.pixels[offset] >= 180, "reconstruction must not introduce transparent seams");
+  }
+  for (const [x, y] of [[0, 0], [31, 47], [159, 128], [319, 255]]) {
+    const sourceOffset = (y * width + x) * 4;
+    const reconstructedOffset: number = ((y * 2) * reconstructed.width + x * 2) * 4;
+    assert.deepEqual(
+      reconstructed.pixels.slice(reconstructedOffset, reconstructedOffset + 4),
+      corrected.slice(sourceOffset, sourceOffset + 4),
+    );
+  }
+});
+
+test("tiny images are corrected but not deceptively enlarged", () => {
+  const source = testPixels(32, 32);
+  const reconstructed = reconstructPixels(source, 32, 32);
+  assert.equal(reconstructed.scale, 1);
+  assert.equal(reconstructed.width, 32);
+  assert.equal(reconstructed.height, 32);
+  assert.equal(reconstructed.pixels, source);
 });
 
 test("view changes do not replace image bytes and reset restores the exact original source", () => {

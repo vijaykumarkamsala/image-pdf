@@ -1,5 +1,5 @@
 import type { ImageQualityAnalysis } from "./ImageQualityEngine";
-import { enhancePixels } from "./imageQualityPipeline";
+import { enhancePixels, reconstructPixels } from "./imageQualityPipeline";
 
 type WorkerRequest =
   | { id: number; type: "load"; source: Blob }
@@ -62,15 +62,16 @@ async function loadSource(source: Blob) {
 async function enhance(strength: number) {
   if (!sourcePixels) throw new Error("Choose an image before enhancing it.");
   const result = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
-  const canvas = new OffscreenCanvas(sourceWidth, sourceHeight);
+  const reconstructed = reconstructPixels(result.pixels, sourceWidth, sourceHeight);
+  const canvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Your browser could not create the enhanced image.");
-  const outputPixels = new Uint8ClampedArray(result.pixels.length);
-  outputPixels.set(result.pixels);
-  context.putImageData(new ImageData(outputPixels, sourceWidth, sourceHeight), 0, 0);
+  const outputPixels = new Uint8ClampedArray(reconstructed.pixels.length);
+  outputPixels.set(reconstructed.pixels);
+  context.putImageData(new ImageData(outputPixels, reconstructed.width, reconstructed.height), 0, 0);
   const blob = await canvas.convertToBlob({ type: "image/png" });
   const bytes = await blob.arrayBuffer();
-  return { bytes, width: sourceWidth, height: sourceHeight, analysis: result.analysis };
+  return { bytes, width: reconstructed.width, height: reconstructed.height, analysis: result.analysis };
 }
 
 workerScope.onmessage = (event) => {

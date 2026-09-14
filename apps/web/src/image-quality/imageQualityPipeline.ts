@@ -8,6 +8,13 @@ export interface PixelEnhancementResult {
   analysis: ImageQualityAnalysis;
 }
 
+export interface PixelReconstructionResult {
+  pixels: Uint8ClampedArray;
+  width: number;
+  height: number;
+  scale: 1 | 2;
+}
+
 interface MeasuredImage extends ImageQualityAnalysis {
   blockiness: number;
   illuminantBlue: number;
@@ -30,6 +37,9 @@ interface LocalToneMap {
 const LUMA_RED = 0.2126;
 const LUMA_GREEN = 0.7152;
 const LUMA_BLUE = 0.0722;
+const MAX_RECONSTRUCTED_PIXELS = 16_000_000;
+const MAX_SOURCE_PIXELS_FOR_RECONSTRUCTION = 4_000_000;
+const MIN_SOURCE_EDGE_FOR_RECONSTRUCTION = 256;
 
 const clamp = (value: number, minimum = 0, maximum = 255) => Math.min(maximum, Math.max(minimum, value));
 const luma = (red: number, green: number, blue: number) => (
@@ -362,6 +372,200 @@ function fitRgbToGamut(red: number, green: number, blue: number, targetLuma: num
     targetLuma + (green - targetLuma) * scale,
     targetLuma + (blue - targetLuma) * scale,
   ];
+}
+
+function pairDifference(source: Uint8ClampedArray, first: number, second: number): number {
+  return Math.abs(luma(
+    source[first],
+    source[first + 1],
+    source[first + 2],
+  ) - luma(
+    source[second],
+    source[second + 1],
+    source[second + 2],
+  ));
+}
+
+function writeWeightedPairs(
+  source: Uint8ClampedArray,
+  output: Uint8ClampedArray,
+  outputOffset: number,
+  pairCount: number,
+  first0: number,
+  second0: number,
+  first1 = first0,
+  second1 = second0,
+  first2 = first0,
+  second2 = second0,
+  first3 = first0,
+  second3 = second0,
+  first4 = first0,
+  second4 = second0,
+  first5 = first0,
+  second5 = second0,
+) {
+  let weightTotal = 0;
+  let redTotal = 0;
+  let greenTotal = 0;
+  let blueTotal = 0;
+  let alphaTotal = 0;
+  for (let pair = 0; pair < pairCount; pair += 1) {
+    let first = first0;
+    let second = second0;
+    if (pair === 1) { first = first1; second = second1; }
+    else if (pair === 2) { first = first2; second = second2; }
+    else if (pair === 3) { first = first3; second = second3; }
+    else if (pair === 4) { first = first4; second = second4; }
+    else if (pair === 5) { first = first5; second = second5; }
+    const difference = pairDifference(source, first, second);
+    const weight = 1 / (1 + (difference / 10) ** 2);
+    weightTotal += weight;
+    const firstAlpha = source[first + 3] / 255;
+    const secondAlpha = source[second + 3] / 255;
+    const pairAlpha = firstAlpha + secondAlpha;
+    if (pairAlpha > 0) {
+      redTotal += (source[first] * firstAlpha + source[second] * secondAlpha) / pairAlpha * weight;
+      greenTotal += (source[first + 1] * firstAlpha + source[second + 1] * secondAlpha) / pairAlpha * weight;
+      blueTotal += (source[first + 2] * firstAlpha + source[second + 2] * secondAlpha) / pairAlpha * weight;
+    }
+    alphaTotal += pairAlpha * 127.5 * weight;
+  }
+  const divisor = Math.max(0.0001, weightTotal);
+  output[outputOffset] = redTotal / divisor;
+  output[outputOffset + 1] = greenTotal / divisor;
+  output[outputOffset + 2] = blueTotal / divisor;
+  output[outputOffset + 3] = alphaTotal / divisor;
+}
+
+function reconstructionScale(width: number, height: number): 1 | 2 {
+  const sourcePixels = width * height;
+  if (
+    Math.min(width, height) < MIN_SOURCE_EDGE_FOR_RECONSTRUCTION
+    || sourcePixels > MAX_SOURCE_PIXELS_FOR_RECONSTRUCTION
+    || sourcePixels * 4 > MAX_RECONSTRUCTED_PIXELS
+  ) return 1;
+  return 2;
+}
+
+/**
+ * Reconstructs intermediate samples around local edge direction while retaining
+ * every corrected source sample exactly on the even output grid.
+ */
+export function reconstructPixels(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): PixelReconstructionResult {
+  if (source.length !== width * height * 4) throw new Error("Corrected pixel data is incomplete.");
+  const scale = reconstructionScale(width, height);
+  if (scale === 1) return { pixels: source, width, height, scale };
+
+  const outputWidth = width * 2;
+  const outputHeight = height * 2;
+  const output = new Uint8ClampedArray(outputWidth * outputHeight * 4);
+  const sourceOffset = (x: number, y: number) => (y * width + x) * 4;
+  const outputOffset = (x: number, y: number) => (y * outputWidth + x) * 4;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const input = sourceOffset(x, y);
+      const target = outputOffset(x * 2, y * 2);
+      output[target] = source[input];
+      output[target + 1] = source[input + 1];
+      output[target + 2] = source[input + 2];
+      output[target + 3] = source[input + 3];
+    }
+  }
+
+  // Horizontal half-samples compare the direct pair with both diagonals.
+  for (let y = 0; y < height; y += 1) {
+    const above = Math.max(0, y - 1);
+    const below = Math.min(height - 1, y + 1);
+    for (let x = 0; x < width - 1; x += 1) {
+      writeWeightedPairs(
+        source,
+        output,
+        outputOffset(x * 2 + 1, y * 2),
+        3,
+        sourceOffset(x, y),
+        sourceOffset(x + 1, y),
+        sourceOffset(x, above),
+        sourceOffset(x + 1, below),
+        sourceOffset(x, below),
+        sourceOffset(x + 1, above),
+      );
+    }
+    const lastSource = sourceOffset(width - 1, y);
+    const lastOutput = outputOffset(outputWidth - 1, y * 2);
+    output.set(source.subarray(lastSource, lastSource + 4), lastOutput);
+  }
+
+  // Vertical half-samples use the direct pair and the two cross-edge diagonals.
+  for (let y = 0; y < height - 1; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const left = Math.max(0, x - 1);
+      const right = Math.min(width - 1, x + 1);
+      writeWeightedPairs(
+        source,
+        output,
+        outputOffset(x * 2, y * 2 + 1),
+        3,
+        sourceOffset(x, y),
+        sourceOffset(x, y + 1),
+        sourceOffset(left, y),
+        sourceOffset(right, y + 1),
+        sourceOffset(right, y),
+        sourceOffset(left, y + 1),
+      );
+    }
+    writeWeightedPairs(source, output, outputOffset(outputWidth - 1, y * 2 + 1), 1,
+      sourceOffset(width - 1, y),
+      sourceOffset(width - 1, y + 1),
+    );
+  }
+
+  // Cell centres select between both diagonals and both axis directions.
+  for (let y = 0; y < height - 1; y += 1) {
+    for (let x = 0; x < width - 1; x += 1) {
+      const topLeft = sourceOffset(x, y);
+      const topRight = sourceOffset(x + 1, y);
+      const bottomLeft = sourceOffset(x, y + 1);
+      const bottomRight = sourceOffset(x + 1, y + 1);
+      writeWeightedPairs(
+        source,
+        output,
+        outputOffset(x * 2 + 1, y * 2 + 1),
+        6,
+        topLeft,
+        bottomRight,
+        topRight,
+        bottomLeft,
+        topLeft,
+        topRight,
+        bottomLeft,
+        bottomRight,
+        topLeft,
+        bottomLeft,
+        topRight,
+        bottomRight,
+      );
+    }
+  }
+
+  // Extend the final output row from the last corrected source row.
+  const finalSourceRow = (height - 1) * width * 4;
+  for (let x = 0; x < width; x += 1) {
+    const input = finalSourceRow + x * 4;
+    const even = outputOffset(x * 2, outputHeight - 1);
+    output.set(source.subarray(input, input + 4), even);
+    if (x < width - 1) {
+      writeWeightedPairs(source, output, even + 4, 1, input, input + 4);
+    } else {
+      output.set(source.subarray(input, input + 4), even + 4);
+    }
+  }
+
+  return { pixels: output, width: outputWidth, height: outputHeight, scale };
 }
 
 export function enhancePixels(
