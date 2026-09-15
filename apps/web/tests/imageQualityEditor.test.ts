@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyTextureConstrainedCorrection,
   buildSourceTextureMap,
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
@@ -303,6 +304,10 @@ test("restoration fusion preserves flat source colour while allowing textured lu
   assert.ok(texturedReference[0] > 120, "real detail may change luminance in textured regions");
   assert.ok(texturedReference[0] - texturedReference[2] < 50, "model chroma cannot replace source colour");
   assert.equal(texturedReference[3], 255);
+
+  const translucent = new Uint8ClampedArray([110, 92, 76, 93]);
+  fuseRestoredPixel(translucent, 0, 178, 152, 126, 64, 100, 14);
+  assert.equal(translucent[3], 93, "restoration must preserve source alpha exactly");
 });
 
 test("restoration keeps softly printed illustration strokes eligible for visible detail recovery", () => {
@@ -377,6 +382,22 @@ test("source texture mapping separates uniform fields from real edges", () => {
   assert.ok(texture[2 * width + 4] > 100);
 });
 
+test("diagnostic correction affects textured regions without repainting protected fields or source chroma", () => {
+  const source = new Uint8ClampedArray([
+    220, 200, 180, 255,
+    120, 90, 70, 255,
+  ]);
+  const corrected = new Uint8ClampedArray([
+    180, 180, 180, 255,
+    165, 130, 95, 255,
+  ]);
+  const result = applyTextureConstrainedCorrection(source, corrected, new Uint8Array([0, 100]));
+  assert.deepEqual(result.slice(0, 4), source.slice(0, 4));
+  assert.notDeepEqual(result.slice(4, 7), source.slice(4, 7));
+  assert.equal(result[4] - result[6], source[4] - source[6]);
+  assert.equal(result[7], source[7]);
+});
+
 test("moderate edge-directed reconstruction retains every corrected source sample", () => {
   const width = 320;
   const height = 256;
@@ -403,6 +424,16 @@ test("moderate edge-directed reconstruction retains every corrected source sampl
   }
 });
 
+test("edge-directed reconstruction obeys the supplied device output budget", () => {
+  const width = 300;
+  const height = 300;
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  const native = reconstructPixels(pixels, width, height, width * height * 3);
+  const enlarged = reconstructPixels(pixels, width, height, width * height * 4);
+  assert.equal(native.scale, 1);
+  assert.equal(enlarged.scale, 2);
+});
+
 test("tiny images are corrected but not deceptively enlarged", () => {
   const source = testPixels(32, 32);
   const reconstructed = reconstructPixels(source, 32, 32);
@@ -419,6 +450,7 @@ test("view changes do not replace image bytes and reset restores the exact origi
     name: "photo.png",
     width: 12,
     height: 10,
+    facts: null,
   } satisfies QualitySourceState;
   const result = {
     url: "blob:enhanced",
@@ -428,13 +460,67 @@ test("view changes do not replace image bytes and reset restores the exact origi
     analysis: { noiseLevel: 0.2, edgeDefinition: 0.4, tonalRange: 0.5, colourCast: 0.1 },
     engine: "test-engine",
     route: "test-route",
+    sourceSha256: "a".repeat(64),
+    outputSha256: "b".repeat(64),
+    strength: 65,
+    scale: 1,
+    processingTimeMs: 50,
+    contentClass: "photograph",
+    classificationConfidence: 0.9,
+    model: { id: "test", version: "1", sha256: null, usage: "deterministic" },
+    warnings: [],
+    fidelity: {
+      lowTextureMeanRgbShift: 0,
+      highDriftFraction: 0,
+      alphaMismatchFraction: 0,
+      overallMeanRgbDifference: 2,
+      passed: true,
+    },
   } satisfies QualityResultState;
   let state = imageQualitySessionReducer(initialImageQualitySession, { type: "source-selected", source });
-  state = imageQualitySessionReducer(state, { type: "source-ready", width: 12, height: 10 });
+  state = imageQualitySessionReducer(state, {
+    type: "source-ready",
+    facts: {
+      width: 12,
+      height: 10,
+      byteSize: 3,
+      mediaType: "image/png",
+      sourceSha256: "a".repeat(64),
+      inspection: {
+        mediaType: "image/png",
+        width: 12,
+        height: 10,
+        bitDepth: 8,
+        colourModel: "rgb",
+        hasAlpha: true,
+        hasIccProfile: false,
+        hasExif: false,
+        mayContainGps: false,
+        orientation: null,
+        frameCount: 1,
+        animated: false,
+        physicalPixelDensity: null,
+        warnings: [],
+      },
+    },
+  });
   state = imageQualitySessionReducer(state, { type: "processing-started" });
   state = imageQualitySessionReducer(state, { type: "processing-succeeded", result });
   const sourceBeforeViewChange = state.source;
   const resultBeforeViewChange = state.result;
+
+  state = imageQualitySessionReducer(state, { type: "strength-changed", strength: 80 });
+  assert.equal(state.result?.strength, 65, "changing controls must not relabel prior output bytes");
+  assert.equal(state.strength, 80);
+  state = imageQualitySessionReducer(state, { type: "processing-started" });
+  state = imageQualitySessionReducer(state, {
+    type: "processing-progress",
+    progress: { phase: "model", completed: 2, total: 10, message: "Restoring" },
+  });
+  assert.equal(state.progress?.completed, 2);
+  state = imageQualitySessionReducer(state, { type: "processing-cancelled" });
+  assert.equal(state.result, resultBeforeViewChange, "cancellation must preserve the last verified result");
+  assert.equal(state.progress, null);
 
   state = imageQualitySessionReducer(state, { type: "zoom-changed", zoom: 4 });
   state = imageQualitySessionReducer(state, { type: "pan-changed", x: 32, y: -18 });

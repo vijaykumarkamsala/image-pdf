@@ -55,7 +55,6 @@ const LUMA_RED = 0.2126;
 const LUMA_GREEN = 0.7152;
 const LUMA_BLUE = 0.0722;
 const MAX_RECONSTRUCTED_PIXELS = 17_000_000;
-const MAX_SOURCE_PIXELS_FOR_RECONSTRUCTION = 4_300_000;
 const MIN_SOURCE_EDGE_FOR_RECONSTRUCTION = 256;
 
 const clamp = (value: number, minimum = 0, maximum = 255) => Math.min(maximum, Math.max(minimum, value));
@@ -541,6 +540,36 @@ export function buildSourceTextureMap(
 }
 
 /**
+ * Carries deterministic denoise/tone work into the learned route without
+ * allowing that stage to repaint source colour or smooth low-texture fields.
+ * The learned model still owns reconstructive detail; this bounded source-scale
+ * correction makes the diagnostic pipeline operational rather than advisory.
+ */
+export function applyTextureConstrainedCorrection(
+  source: Uint8ClampedArray,
+  corrected: Uint8ClampedArray,
+  texture: Uint8Array,
+): Uint8ClampedArray {
+  if (source.length !== corrected.length || texture.length * 4 !== source.length) {
+    throw new Error("Texture-constrained correction inputs are inconsistent.");
+  }
+  const output = new Uint8ClampedArray(source);
+  for (let pixel = 0; pixel < texture.length; pixel += 1) {
+    const offset = pixel * 4;
+    if (source[offset + 3] === 0) continue;
+    const sourceLuma = luma(source[offset], source[offset + 1], source[offset + 2]);
+    const correctedLuma = luma(corrected[offset], corrected[offset + 1], corrected[offset + 2]);
+    const eligibility = clamp((texture[pixel] - 10) / 90, 0, 1);
+    const delta = clamp((correctedLuma - sourceLuma) * eligibility * 0.45, -8, 8);
+    output[offset] = clamp(source[offset] + delta);
+    output[offset + 1] = clamp(source[offset + 1] + delta);
+    output[offset + 2] = clamp(source[offset + 2] + delta);
+    output[offset + 3] = source[offset + 3];
+  }
+  return output;
+}
+
+/**
  * Adds learned luminance detail without allowing a perceptual model to replace
  * source colour or repaint low-texture regions. The reference pixel already in
  * `output` remains the authority for low-frequency tone and chroma.
@@ -987,12 +1016,11 @@ function writeWeightedPairs(
   output[outputOffset + 3] = alphaTotal / divisor;
 }
 
-function reconstructionScale(width: number, height: number): 1 | 2 {
+function reconstructionScale(width: number, height: number, maxOutputPixels: number): 1 | 2 {
   const sourcePixels = width * height;
   if (
     Math.min(width, height) < MIN_SOURCE_EDGE_FOR_RECONSTRUCTION
-    || sourcePixels > MAX_SOURCE_PIXELS_FOR_RECONSTRUCTION
-    || sourcePixels * 4 > MAX_RECONSTRUCTED_PIXELS
+    || sourcePixels * 4 > maxOutputPixels
   ) return 1;
   return 2;
 }
@@ -1005,9 +1033,11 @@ export function reconstructPixels(
   source: Uint8ClampedArray,
   width: number,
   height: number,
+  maxOutputPixels = MAX_RECONSTRUCTED_PIXELS,
 ): PixelReconstructionResult {
   if (source.length !== width * height * 4) throw new Error("Corrected pixel data is incomplete.");
-  const scale = reconstructionScale(width, height);
+  if (!Number.isFinite(maxOutputPixels) || maxOutputPixels < 1) throw new Error("The reconstruction budget is invalid.");
+  const scale = reconstructionScale(width, height, maxOutputPixels);
   if (scale === 1) return { pixels: source, width, height, scale };
 
   const outputWidth = width * 2;

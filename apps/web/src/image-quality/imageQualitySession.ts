@@ -1,4 +1,8 @@
-import type { ImageQualityAnalysis } from "./ImageQualityEngine";
+import type {
+  ImageQualityProgress,
+  ImageQualityResult,
+  ImageQualitySource,
+} from "./ImageQualityEngine";
 
 export type QualityStatus = "empty" | "loading" | "ready" | "processing" | "success" | "error";
 export type ComparisonMode = "side-by-side" | "slider";
@@ -10,16 +14,11 @@ export interface QualitySourceState {
   name: string;
   width: number | null;
   height: number | null;
+  facts: ImageQualitySource | null;
 }
 
-export interface QualityResultState {
+export interface QualityResultState extends Omit<ImageQualityResult, "mediaType"> {
   url: string;
-  bytes: ArrayBuffer;
-  width: number;
-  height: number;
-  analysis: ImageQualityAnalysis;
-  engine: string;
-  route: string;
 }
 
 export interface ImageQualitySessionState {
@@ -32,14 +31,17 @@ export interface ImageQualitySessionState {
   zoom: QualityZoom;
   pan: { x: number; y: number };
   slider: number;
+  progress: ImageQualityProgress | null;
 }
 
 export type ImageQualitySessionAction =
   | { type: "source-selected"; source: QualitySourceState }
-  | { type: "source-ready"; width: number; height: number }
+  | { type: "source-ready"; facts: ImageQualitySource }
   | { type: "processing-started" }
+  | { type: "processing-progress"; progress: ImageQualityProgress }
   | { type: "processing-succeeded"; result: QualityResultState }
   | { type: "processing-failed"; message: string }
+  | { type: "processing-cancelled" }
   | { type: "reset" }
   | { type: "strength-changed"; strength: number }
   | { type: "mode-changed"; mode: ComparisonMode }
@@ -57,6 +59,7 @@ export const initialImageQualitySession: ImageQualitySessionState = {
   zoom: "fit",
   pan: { x: 0, y: 0 },
   slider: 50,
+  progress: null,
 };
 
 export function imageQualitySessionReducer(
@@ -69,28 +72,51 @@ export function imageQualitySessionReducer(
     case "source-ready":
       return state.source ? {
         ...state,
-        status: "ready",
+        status: state.result ? "success" : "ready",
         error: null,
-        source: { ...state.source, width: action.width, height: action.height },
+        progress: null,
+        source: {
+          ...state.source,
+          width: action.facts.width,
+          height: action.facts.height,
+          facts: action.facts,
+        },
       } : state;
     case "processing-started":
-      return state.source ? { ...state, status: "processing", error: null } : state;
+      return state.source ? { ...state, status: "processing", error: null, progress: null } : state;
+    case "processing-progress":
+      return state.status === "processing" || state.status === "loading"
+        ? { ...state, progress: action.progress }
+        : state;
     case "processing-succeeded":
-      return state.source ? { ...state, status: "success", result: action.result, error: null } : state;
+      return state.source ? { ...state, status: "success", result: action.result, error: null, progress: null } : state;
     case "processing-failed":
-      return state.source ? { ...state, status: "error", error: action.message } : state;
+      return state.source ? { ...state, status: "error", error: action.message, progress: null } : state;
+    case "processing-cancelled":
+      return state.source ? {
+        ...state,
+        status: state.result ? "success" : "ready",
+        error: null,
+        progress: null,
+      } : state;
     case "reset":
       return state.source ? {
         ...state,
         status: state.source.width && state.source.height ? "ready" : "loading",
         result: null,
         error: null,
+        progress: null,
         zoom: "fit",
         pan: { x: 0, y: 0 },
         slider: 50,
       } : state;
     case "strength-changed":
-      return { ...state, strength: action.strength };
+      return {
+        ...state,
+        strength: action.strength,
+        status: state.source ? (state.result ? "success" : "ready") : state.status,
+        error: null,
+      };
     case "mode-changed":
       return { ...state, mode: action.mode, pan: { x: 0, y: 0 } };
     case "zoom-changed":

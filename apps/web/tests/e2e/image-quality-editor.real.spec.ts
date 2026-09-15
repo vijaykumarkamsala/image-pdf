@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const fixture = resolve(
@@ -26,7 +27,7 @@ function pngChunk(type: string, data: Buffer): Buffer {
   return output;
 }
 
-function flatCurvePng(size: number): Buffer {
+function flatCurvePng(size: number, transparentBackground = false): Buffer {
   const scanlines = Buffer.alloc((size * 4 + 1) * size);
   const centre = size / 2;
   const outerRadius = size * 0.35;
@@ -41,7 +42,7 @@ function flatCurvePng(size: number): Buffer {
       scanlines[offset] = blue ? 16 : 244 + backgroundNoise;
       scanlines[offset + 1] = blue ? 112 : 244 + backgroundNoise;
       scanlines[offset + 2] = blue ? 228 : 244 + backgroundNoise;
-      scanlines[offset + 3] = 255;
+      scanlines[offset + 3] = blue || !transparentBackground ? 255 : 0;
     }
   }
   const header = Buffer.alloc(13);
@@ -118,6 +119,12 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   expect(enhancedUrl).toMatch(/^blob:/);
   expect(enhancedUrl).not.toBe(originalUrl);
   await expect(enhanced).toHaveCSS("filter", "none");
+
+  await page.locator('input[type="range"]').fill("80");
+  await expect(page.getByText(/displayed result is still the verified 65% result/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeDisabled();
+  await page.locator('input[type="range"]').fill("65");
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled();
 
   const pixelEvidence = await page.evaluate(async ({ originalSrc, enhancedSrc }) => {
     const pixels = async (src: string) => {
@@ -199,6 +206,26 @@ test("image quality editor uploads, processes, compares, resets and downloads re
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
   }, finalUrl);
+  const pngMetadata = await page.evaluate(async (url) => {
+    const bytes = new Uint8Array(await (await fetch(url!)).arrayBuffer());
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const types: string[] = [];
+    let offset = 8;
+    let provenance = "";
+    while (offset + 12 <= bytes.length) {
+      const length = view.getUint32(offset);
+      const type = String.fromCharCode(...bytes.slice(offset + 4, offset + 8));
+      types.push(type);
+      if (type === "iTXt") provenance = new TextDecoder().decode(bytes.slice(offset + 8, offset + 8 + length));
+      offset += length + 12;
+      if (type === "IEND") break;
+    }
+    return { types, provenance };
+  }, finalUrl);
+  expect(pngMetadata.types).toContain("sRGB");
+  expect(pngMetadata.types).toContain("gAMA");
+  expect(pngMetadata.types).toContain("iTXt");
+  expect(pngMetadata.provenance).toContain("ipw.image-quality.provenance.v1");
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download enhanced image" }).click();
   const download = await downloadPromise;
@@ -393,4 +420,130 @@ test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) 
   expect(header.width).toBe(8_192);
   expect(header.height).toBe(8_192);
   await page.goto("about:blank");
+});
+
+test("transparent artwork preserves alpha without opaque seams", async ({ page }) => {
+  await page.goto("/image-quality");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "transparent-curves.png",
+    mimeType: "image/png",
+    buffer: flatCurvePng(64, true),
+  });
+  await expect(page).toHaveURL(/\/image-quality\/editor$/);
+  await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+  await expect(page.getByText(/Enhanced image ready/)).toBeVisible({ timeout: 90_000 });
+  const alpha = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true })!;
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let transparent = 0;
+    let opaque = 0;
+    for (let offset = 3; offset < pixels.length; offset += 4) {
+      if (pixels[offset] <= 5) transparent += 1;
+      if (pixels[offset] >= 250) opaque += 1;
+    }
+    return { transparentFraction: transparent / (pixels.length / 4), opaqueFraction: opaque / (pixels.length / 4) };
+  });
+  expect(alpha.transparentFraction).toBeGreaterThan(0.4);
+  expect(alpha.opaqueFraction).toBeGreaterThan(0.1);
+});
+
+test("the deterministic fallback performs real correction without a neural engine", async ({ page }) => {
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "no-webgpu-photo.png",
+    mimeType: "image/png",
+    buffer: warmIllustrationPng(64),
+  });
+  const originalUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+  await expect(page.getByText(/Enhanced image ready \((?:Deterministic adaptive|Production-safe deterministic) restoration · Worker\)/)).toBeVisible({ timeout: 30_000 });
+  const result = await page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+    const decode = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data);
+    };
+    const [before, after] = await Promise.all([decode(sourceUrl!), decode((node as HTMLImageElement).src)]);
+    return { different: before.some((value, index) => value !== after[index]) };
+  }, originalUrl);
+  expect(result.different).toBe(true);
+});
+
+test("disguised non-image bytes fail before decode without trapping the customer", async ({ page }) => {
+  await page.goto("/image-quality");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "disguised.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("<script>not an image</script>"),
+  });
+  await expect(page.getByText(/file signature is not a valid JPEG, PNG or WebP/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change image" })).toBeEnabled();
+  await expect(page.getByText("Not created yet")).toBeVisible();
+});
+
+test("genuine browser-encoded JPEG and WebP files pass signature-first intake", async ({ page }) => {
+  for (const mediaType of ["image/jpeg", "image/webp"] as const) {
+    await page.goto("/image-quality");
+    const values = await page.evaluate(async (type) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 48;
+      canvas.height = 32;
+      const context = canvas.getContext("2d")!;
+      context.fillStyle = "#d2a36f";
+      context.fillRect(0, 0, 48, 32);
+      context.fillStyle = "#153f82";
+      context.fillRect(8, 6, 30, 18);
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("encode failed")), type, 0.9));
+      return Array.from(new Uint8Array(await blob.arrayBuffer()));
+    }, mediaType);
+    await page.locator('input[type="file"]').setInputFiles({
+      name: mediaType === "image/jpeg" ? "genuine.jpg" : "genuine.webp",
+      mimeType: mediaType,
+      buffer: Buffer.from(values),
+    });
+    await expect(page.getByText("48 × 32 px")).toBeVisible();
+    await expect(page.getByText(new RegExp(`Verified ${mediaType.split("/")[1].toUpperCase()}`))).toBeVisible();
+  }
+});
+
+test("an in-flight enhancement can be cancelled without losing the original", async ({ page }) => {
+  await page.goto("/image-quality");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "cancel-photo.png",
+    mimeType: "image/png",
+    buffer: warmIllustrationPng(512),
+  });
+  const originalUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText("Original ready. Choose a strength and enhance quality.")).toBeVisible();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", originalUrl!);
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeDisabled();
+});
+
+test("upload and editor remain accessible at a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/image-quality");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "mobile-photo.png",
+    mimeType: "image/png",
+    buffer: warmIllustrationPng(64),
+  });
+  await expect(page.getByRole("button", { name: "Enhance quality" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change image" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).include("[data-testid=image-quality-editor]").analyze()).violations).toEqual([]);
 });

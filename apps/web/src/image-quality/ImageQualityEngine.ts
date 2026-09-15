@@ -1,9 +1,31 @@
 export const IMAGE_QUALITY_INPUT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
+import type { ImageFileInspection } from "./imageFileInspection";
+import type { FidelityEvidence } from "./imageQualityFidelity";
+
+export type ImageQualityPhase =
+  | "inspect"
+  | "hash"
+  | "decode"
+  | "analyse"
+  | "model"
+  | "reconstruct"
+  | "encode";
+
+export interface ImageQualityProgress {
+  phase: ImageQualityPhase;
+  completed: number;
+  total: number;
+  message: string;
+}
+
 export interface ImageQualitySource {
   width: number;
   height: number;
   mediaType: string;
+  byteSize: number;
+  sourceSha256: string;
+  inspection: ImageFileInspection;
 }
 
 export interface ImageQualityAnalysis {
@@ -21,10 +43,30 @@ export interface ImageQualityResult {
   analysis: ImageQualityAnalysis;
   engine: string;
   route: string;
+  sourceSha256: string;
+  outputSha256: string;
+  strength: number;
+  scale: 1 | 2 | 4;
+  processingTimeMs: number;
+  contentClass: "flat-graphic" | "illustration" | "photograph";
+  classificationConfidence: number;
+  model: {
+    id: string;
+    version: string;
+    sha256: string | null;
+    usage: "deterministic" | "local-research";
+  };
+  warnings: string[];
+  fidelity: FidelityEvidence;
+}
+
+export interface ImageQualityOperationOptions {
+  onProgress?: (progress: ImageQualityProgress) => void;
 }
 
 export interface ImageQualityEngine {
-  load(source: Blob): Promise<ImageQualitySource>;
-  enhance(strength: number): Promise<ImageQualityResult>;
+  load(source: Blob, options?: ImageQualityOperationOptions): Promise<ImageQualitySource>;
+  enhance(strength: number, options?: ImageQualityOperationOptions): Promise<ImageQualityResult>;
+  cancel(): void;
   dispose(): void;
 }

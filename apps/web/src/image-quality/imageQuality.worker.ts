@@ -1,27 +1,48 @@
-import { initWasm, Resvg } from "@resvg/resvg-wasm";
-import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm?url";
 import ImageTracer from "imagetracerjs";
 
-import type { ImageQualityAnalysis } from "./ImageQualityEngine";
+import type {
+  ImageQualityAnalysis,
+  ImageQualityProgress,
+  ImageQualityResult,
+  ImageQualitySource,
+} from "./ImageQualityEngine";
+import { selectImageQualityEngine } from "./enginePortfolio";
+import { measureCoordinateMatchedFidelity } from "./imageQualityFidelity";
+import { inspectImageFile, type ImageFileInspection } from "./imageFileInspection";
 import {
+  applyTextureConstrainedCorrection,
   buildSourceTextureMap,
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
   enhancePixels,
   fuseRestoredPixel,
   prepareFlatGraphicTracePixels,
+  reconstructPixels,
 } from "./imageQualityPipeline";
+import {
+  chooseScalePlan,
+  classifyImageContent,
+  processingBudget,
+  qualityNeed,
+  type ImageContentClass,
+} from "./imageQualityPolicy";
+import { planImageQualityTiles } from "./imageQualityTiling";
+import { pngOutputSha256, tagSrgbPng } from "./pngMetadata";
+import { sha256Blob } from "./sha256";
 import { traceSmoothMaskSvg } from "./smoothMaskTrace";
 
 type OrtModule = typeof import("onnxruntime-web/webgpu");
+type ResvgModule = typeof import("@resvg/resvg-wasm");
 
 type WorkerRequest =
   | { id: number; type: "load"; source: Blob }
-  | { id: number; type: "enhance"; strength: number };
+  | { id: number; type: "enhance"; strength: number; preferDeterministic: boolean }
+  | { type: "cancel"; targetId: number };
 
 type WorkerResponse =
-  | { id: number; ok: true; type: "loaded"; width: number; height: number; mediaType: string }
-  | { id: number; ok: true; type: "enhanced"; width: number; height: number; mediaType: "image/png"; bytes: ArrayBuffer; analysis: ImageQualityAnalysis; engine: string; route: string }
+  | ({ id: number; ok: true; type: "loaded" } & ImageQualitySource)
+  | ({ id: number; ok: true; type: "enhanced" } & ImageQualityResult)
+  | { id: number; type: "progress"; progress: ImageQualityProgress }
   | { id: number; ok: false; message: string };
 
 const workerScope = globalThis as unknown as {
@@ -29,8 +50,6 @@ const workerScope = globalThis as unknown as {
   postMessage(message: WorkerResponse, transfer?: Transferable[]): void;
 };
 
-const MAX_PIXELS = 80_000_000;
-const MAX_OUTPUT_PIXELS = 100_000_000;
 const MAX_CANVAS_EDGE = 16_384;
 const MODEL_TILE = 128;
 const TILE_CONTEXT = 10;
@@ -46,93 +65,286 @@ let sourcePixels: Uint8ClampedArray | null = null;
 let sourceWidth = 0;
 let sourceHeight = 0;
 let sourceMediaType = "";
+let sourceSha256 = "";
+let sourceInspection: ImageFileInspection | null = null;
 let ortModule: Promise<OrtModule> | null = null;
 let modelSession: Promise<import("onnxruntime-web").InferenceSession> | null = null;
-let resvgReady: Promise<void> | null = null;
+let resvgModule: Promise<ResvgModule> | null = null;
+const cancelledRequests = new Set<number>();
+const LOCAL_RESEARCH_COMPONENTS_ENABLED = import.meta.env.DEV
+  && ["localhost", "127.0.0.1", "::1"].includes(globalThis.location.hostname);
 
-async function loadSource(source: Blob) {
-  const filename = source instanceof File ? source.name.toLowerCase() : "";
-  const inferredType = /\.jpe?g$/.test(filename)
-    ? "image/jpeg"
-    : filename.endsWith(".png")
-      ? "image/png"
-      : filename.endsWith(".webp")
-        ? "image/webp"
-        : "";
-  const mediaType = source.type || inferredType;
-  if (!["image/jpeg", "image/png", "image/webp"].includes(mediaType)) {
-    throw new Error("Choose a JPEG, PNG or WebP image.");
+function report(id: number, progress: ImageQualityProgress) {
+  workerScope.postMessage({ id, type: "progress", progress });
+}
+
+function assertNotCancelled(id: number) {
+  if (cancelledRequests.has(id)) throw new DOMException("Enhancement cancelled.", "AbortError");
+}
+
+async function loadSource(source: Blob, requestId: number): Promise<ImageQualitySource> {
+  report(requestId, { phase: "inspect", completed: 0, total: 1, message: "Verifying the real image type and dimensions…" });
+  const inspection = await inspectImageFile(source);
+  if (inspection.animated || inspection.frameCount > 1) {
+    throw new Error("Animated images are not flattened silently. Choose a still JPEG, PNG or WebP image.");
   }
+  const budget = processingBudget(
+    (navigator as typeof navigator & { deviceMemory?: number }).deviceMemory,
+    MAX_CANVAS_EDGE,
+  );
+  const encodedPixels = inspection.width * inspection.height;
+  if (!Number.isSafeInteger(encodedPixels) || encodedPixels > budget.sourcePixels) {
+    throw new Error(`This image needs more decoded memory than this browser can safely allocate (${Math.round(encodedPixels / 1_000_000)} MP detected). Use a higher-memory device or the future cloud route.`);
+  }
+  report(requestId, { phase: "inspect", completed: 1, total: 1, message: "Image header verified." });
+  assertNotCancelled(requestId);
+  report(requestId, { phase: "hash", completed: 0, total: source.size, message: "Fingerprinting the untouched original…" });
+  const digest = await sha256Blob(source, (completed) => {
+    assertNotCancelled(requestId);
+    report(requestId, { phase: "hash", completed, total: source.size, message: "Fingerprinting the untouched original…" });
+  });
+  assertNotCancelled(requestId);
+  report(requestId, { phase: "decode", completed: 0, total: 1, message: "Decoding source pixels into sRGB…" });
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(source);
+    bitmap = await createImageBitmap(source, {
+      colorSpaceConversion: "default",
+      imageOrientation: "from-image",
+      premultiplyAlpha: "premultiply",
+    });
   } catch {
     throw new Error("This image could not be decoded. Try a valid JPEG, PNG or WebP file.");
   }
   try {
-    if (bitmap.width < 1 || bitmap.height < 1 || bitmap.width * bitmap.height > MAX_PIXELS) {
-      throw new Error("This image is too large for safe local processing. Use an image up to 80 megapixels.");
+    if (bitmap.width < 1 || bitmap.height < 1 || bitmap.width * bitmap.height > budget.sourcePixels) {
+      throw new Error("The decoded image exceeds this device's measured local processing budget.");
     }
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const context = canvas.getContext("2d", { willReadFrequently: true, colorSpace: "srgb" });
     if (!context) throw new Error("Your browser could not prepare the image processor.");
     context.drawImage(bitmap, 0, 0);
     const decoded = context.getImageData(0, 0, bitmap.width, bitmap.height);
     sourcePixels = decoded.data;
     sourceWidth = bitmap.width;
     sourceHeight = bitmap.height;
-    sourceMediaType = mediaType;
-    return { width: sourceWidth, height: sourceHeight, mediaType: sourceMediaType };
+    sourceMediaType = inspection.mediaType;
+    sourceSha256 = digest;
+    sourceInspection = inspection;
+    report(requestId, { phase: "decode", completed: 1, total: 1, message: "Source pixels ready." });
+    return {
+      width: sourceWidth,
+      height: sourceHeight,
+      mediaType: sourceMediaType,
+      byteSize: source.size,
+      sourceSha256,
+      inspection,
+    };
   } finally {
     bitmap.close();
   }
 }
 
-async function enhance(strength: number) {
-  if (!sourcePixels) throw new Error("Choose an image before enhancing it.");
-  const classification = classifyFlatGraphic(sourcePixels, sourceWidth, sourceHeight);
-  if (classification.isFlatGraphic) {
-    const cleaned = enhanceFlatGraphicPixels(sourcePixels, sourceWidth, sourceHeight, strength);
-    return renderFlatGraphic(cleaned.pixels, cleaned.analysis, strength);
+interface RawEnhancement {
+  bytes: ArrayBuffer;
+  width: number;
+  height: number;
+  engine: string;
+  route: string;
+  analysis: ImageQualityAnalysis;
+  scale: 1 | 2 | 4;
+  scaleRationale: string;
+  model: ImageQualityResult["model"];
+  warnings: string[];
+}
+
+async function enhance(strength: number, requestId: number, preferDeterministic: boolean): Promise<ImageQualityResult> {
+  if (!sourcePixels || !sourceInspection || !sourceSha256) throw new Error("Choose an image before enhancing it.");
+  const started = performance.now();
+  report(requestId, { phase: "analyse", completed: 0, total: 1, message: "Measuring noise, edges, tone and content structure…" });
+  const corrected = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
+  const graphic = classifyFlatGraphic(sourcePixels, sourceWidth, sourceHeight);
+  const content = classifyImageContent(graphic, corrected.analysis);
+  report(requestId, { phase: "analyse", completed: 1, total: 1, message: `${content.contentClass} route selected with ${Math.round(content.confidence * 100)}% confidence.` });
+  assertNotCancelled(requestId);
+  const flatPixels = graphic.isFlatGraphic
+    ? enhanceFlatGraphicPixels(sourcePixels, sourceWidth, sourceHeight, strength).pixels
+    : null;
+  let raw: RawEnhancement;
+  if (flatPixels) {
+    if (!LOCAL_RESEARCH_COMPONENTS_ENABLED) {
+      raw = await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId);
+    } else {
+      try {
+        raw = await renderFlatGraphic(flatPixels, corrected.analysis, strength, requestId);
+      } catch {
+        raw = await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId);
+      }
+    }
+  } else {
+    raw = await renderPhoto(sourcePixels, corrected, content.contentClass, strength, requestId, preferDeterministic);
   }
+  assertNotCancelled(requestId);
+  let fidelity = await validateOutputFidelity(raw.bytes, requestId);
+  if (!fidelity.passed) {
+    raw = flatPixels
+      ? await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId)
+      : await renderDeterministicPhoto(corrected, content.contentClass, requestId, [
+        "The optional reconstruction was rejected by source-fidelity checks; deterministic restoration was used.",
+      ]);
+    fidelity = await validateOutputFidelity(raw.bytes, requestId);
+    if (!fidelity.passed) {
+      throw new Error("The result did not pass source-colour and protected-region checks. Your original is unchanged.");
+    }
+  }
+  report(requestId, { phase: "encode", completed: 0, total: 1, message: "Writing the processed PNG and provenance…" });
+  const tagged = tagSrgbPng(new Uint8Array(raw.bytes), {
+    sourceSha256,
+    engineId: raw.model.id,
+    engineVersion: raw.model.version,
+    route: raw.route,
+    strength,
+    scale: raw.scale,
+    modelSha256: raw.model.sha256,
+    usage: raw.model.usage,
+    contentClass: content.contentClass,
+    classificationConfidence: content.confidence,
+    outputWidth: raw.width,
+    outputHeight: raw.height,
+    xPixelsPerMetre: sourceInspection.physicalPixelDensity?.xPixelsPerMetre,
+    yPixelsPerMetre: sourceInspection.physicalPixelDensity?.yPixelsPerMetre,
+  });
+  const outputSha256 = pngOutputSha256(tagged);
+  report(requestId, { phase: "encode", completed: 1, total: 1, message: "Processed PNG verified." });
+  return {
+    ...raw,
+    bytes: Uint8Array.from(tagged).buffer,
+    mediaType: "image/png",
+    sourceSha256,
+    outputSha256,
+    strength,
+    processingTimeMs: Math.round(performance.now() - started),
+    contentClass: content.contentClass,
+    classificationConfidence: content.confidence,
+    fidelity,
+    warnings: [
+      raw.scaleRationale,
+      `Measured correction need: ${qualityNeed(raw.analysis)}.`,
+      "Output pixels and metadata are normalized to sRGB.",
+      ...(sourceInspection.bitDepth > 8 ? [`The ${sourceInspection.bitDepth}-bit source was normalized to an 8-bit-per-channel PNG by the browser-local canvas pipeline.`] : []),
+      ...(sourceInspection.hasExif ? ["Source EXIF, including any location metadata, is not copied to the derivative."] : []),
+      ...sourceInspection.warnings,
+      ...raw.warnings,
+    ],
+  };
+}
+
+async function validateOutputFidelity(bytes: ArrayBuffer, requestId: number) {
+  assertNotCancelled(requestId);
+  const sampleScale = Math.min(1, 512 / Math.max(sourceWidth, sourceHeight));
+  const sampleWidth = Math.max(1, Math.round(sourceWidth * sampleScale));
+  const sampleHeight = Math.max(1, Math.round(sourceHeight * sampleScale));
+  const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
+  const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
+  if (!sourceContext || !sourcePixels) throw new Error("Source-fidelity validation could not read the original pixels.");
+  sourceContext.putImageData(new ImageData(new Uint8ClampedArray(sourcePixels), sourceWidth, sourceHeight, { colorSpace: "srgb" }), 0, 0);
+  const sampledSourceCanvas = new OffscreenCanvas(sampleWidth, sampleHeight);
+  const sampledSourceContext = sampledSourceCanvas.getContext("2d", { willReadFrequently: true, colorSpace: "srgb" });
+  if (!sampledSourceContext) throw new Error("Source-fidelity validation could not allocate its sample.");
+  sampledSourceContext.drawImage(sourceCanvas, 0, 0, sampleWidth, sampleHeight);
+  const sourceSample = sampledSourceContext.getImageData(0, 0, sampleWidth, sampleHeight).data;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }), {
+      resizeWidth: sampleWidth,
+      resizeHeight: sampleHeight,
+      resizeQuality: "high",
+      colorSpaceConversion: "default",
+      premultiplyAlpha: "premultiply",
+    });
+  } catch {
+    throw new Error("The processed result could not be decoded for fidelity validation.");
+  }
+  try {
+    const outputCanvas = new OffscreenCanvas(sampleWidth, sampleHeight);
+    const outputContext = outputCanvas.getContext("2d", { willReadFrequently: true, colorSpace: "srgb" });
+    if (!outputContext) throw new Error("Source-fidelity validation could not allocate the result sample.");
+    outputContext.drawImage(bitmap, 0, 0, sampleWidth, sampleHeight);
+    const outputSample = outputContext.getImageData(0, 0, sampleWidth, sampleHeight).data;
+    return measureCoordinateMatchedFidelity(sourceSample, outputSample, sampleWidth, sampleHeight);
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function renderPhoto(
+  originalPixels: Uint8ClampedArray,
+  corrected: { pixels: Uint8ClampedArray; analysis: ImageQualityAnalysis },
+  contentClass: ImageContentClass,
+  strength: number,
+  requestId: number,
+  preferDeterministic: boolean,
+): Promise<RawEnhancement> {
   const gpu = (navigator as typeof navigator & {
     gpu?: { requestAdapter(options: { powerPreference: string }): Promise<unknown | null> };
   }).gpu;
-  if (!gpu) {
-    throw new Error("WebGPU is unavailable. Open this page in a current Chrome or Edge browser.");
+  const adapter = LOCAL_RESEARCH_COMPONENTS_ENABLED && !preferDeterministic && gpu
+    ? await gpu.requestAdapter({ powerPreference: "high-performance" })
+    : null;
+  const selectedEngine = selectImageQualityEngine({
+    contentClass,
+    purpose: LOCAL_RESEARCH_COMPONENTS_ENABLED ? "local-research" : "production",
+    webGpuAvailable: Boolean(adapter),
+  });
+  if (selectedEngine.implementation !== "neural") return renderDeterministicPhoto(corrected, contentClass, requestId, [
+    LOCAL_RESEARCH_COMPONENTS_ENABLED
+      ? "WebGPU was unavailable; a deterministic restoration was used."
+      : "Production-safe deterministic restoration was used because research-only model weights are not distributable.",
+  ]);
+  let ort: OrtModule;
+  let session: import("onnxruntime-web").InferenceSession;
+  try {
+    ort = await getOrtModule();
+    session = await getModelSession(ort);
+  } catch {
+    return renderDeterministicPhoto(corrected, contentClass, requestId, [
+      "The optional local-research model was unavailable; deterministic restoration completed instead.",
+    ]);
   }
-  const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
-  if (!adapter) {
-    throw new Error("No usable WebGPU device was found. Enable hardware acceleration in Chrome or Edge.");
-  }
-  const ort = await getOrtModule();
-  const session = await getModelSession(ort);
-  const analysis = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength).analysis;
-  const sourceTexture = buildSourceTextureMap(sourcePixels, sourceWidth, sourceHeight);
+  const sourceTexture = buildSourceTextureMap(originalPixels, sourceWidth, sourceHeight);
+  const correctedReference = applyTextureConstrainedCorrection(originalPixels, corrected.pixels, sourceTexture);
   const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
-  const sourceContext = sourceCanvas.getContext("2d");
+  const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
   if (!sourceContext) throw new Error("Your browser could not prepare source-reference pixels.");
   sourceContext.putImageData(
-    new ImageData(new Uint8ClampedArray(sourcePixels), sourceWidth, sourceHeight),
+    new ImageData(new Uint8ClampedArray(correctedReference), sourceWidth, sourceHeight, { colorSpace: "srgb" }),
     0,
     0,
   );
-  const outputScale = chooseOutputScale(sourceWidth, sourceHeight);
+  const plan = chooseScalePlan(
+    sourceWidth,
+    sourceHeight,
+    contentClass,
+    "neural",
+    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
+  );
+  const outputScale = plan.scale;
   const width = sourceWidth * outputScale;
   const height = sourceHeight * outputScale;
   const outputCanvas = new OffscreenCanvas(width, height);
-  const outputContext = outputCanvas.getContext("2d", { willReadFrequently: true });
+  const outputContext = outputCanvas.getContext("2d", { willReadFrequently: true, colorSpace: "srgb" });
   if (!outputContext) throw new Error("Your browser could not allocate the enhanced image.");
   outputContext.imageSmoothingEnabled = true;
   outputContext.imageSmoothingQuality = "high";
   outputContext.drawImage(sourceCanvas, 0, 0, width, height);
   const outputImage = outputContext.getImageData(0, 0, width, height);
   let completedTiles = 0;
+  const tiles = planImageQualityTiles(sourceWidth, sourceHeight, CORE_TILE);
+  const totalTiles = tiles.length;
   const inferenceStarted = performance.now();
+  report(requestId, { phase: "model", completed: 0, total: totalTiles, message: "Restoring source-aligned detail…" });
 
-  for (let top = 0; top < sourceHeight; top += CORE_TILE) {
-    for (let left = 0; left < sourceWidth; left += CORE_TILE) {
-      const input = modelInput(sourcePixels, sourceWidth, sourceHeight, left, top);
+  for (const tile of tiles) {
+      const input = modelInput(originalPixels, sourceWidth, sourceHeight, tile.left, tile.top);
       const tensor = new ort.Tensor("float32", input, [1, 3, MODEL_TILE, MODEL_TILE]);
       let restored: import("onnxruntime-web").Tensor | undefined;
       try {
@@ -145,38 +357,138 @@ async function enhance(strength: number) {
         if (!restored || !(restored.data instanceof Float32Array)) {
           throw new Error("The restoration model returned invalid pixels. Your original is unchanged.");
         }
-        const coreWidth = Math.min(CORE_TILE, sourceWidth - left);
-        const coreHeight = Math.min(CORE_TILE, sourceHeight - top);
         blendModelTile(
           outputImage.data,
           width,
           sourceTexture,
           sourceWidth,
           restored.data,
-          left,
-          top,
-          coreWidth,
-          coreHeight,
+          tile.left,
+          tile.top,
+          tile.width,
+          tile.height,
           outputScale,
           strength,
         );
+        report(requestId, { phase: "model", completed: completedTiles, total: totalTiles, message: `Restoring source-aligned detail (${completedTiles}/${totalTiles})…` });
       } finally {
         restored?.dispose();
         tensor.dispose();
       }
-    }
+      assertNotCancelled(requestId);
   }
   console.info(`[image-quality] ${completedTiles} WebGPU tiles completed in ${Math.round(performance.now() - inferenceStarted)} ms`);
   outputContext.putImageData(outputImage, 0, 0);
   const blob = await outputCanvas.convertToBlob({ type: "image/png" });
-  const bytes = await blob.arrayBuffer();
   return {
-    bytes,
+    bytes: await blob.arrayBuffer(),
     width,
     height,
     engine: "Fidelity-constrained Real-ESRGAN x4v3 · WebGPU",
-    route: `photo-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
+    route: `${contentClass}-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
+    analysis: corrected.analysis,
+    scale: outputScale,
+    scaleRationale: plan.rationale,
+    model: {
+      id: selectedEngine.id,
+      version: selectedEngine.version,
+      sha256: selectedEngine.weightsSha256,
+      usage: "local-research",
+    },
+    warnings: ["Local-research model weights are not licensed for production distribution."],
+  };
+}
+
+async function renderDeterministicPhoto(
+  corrected: { pixels: Uint8ClampedArray; analysis: ImageQualityAnalysis },
+  contentClass: ImageContentClass,
+  requestId: number,
+  warnings: string[],
+): Promise<RawEnhancement> {
+  report(requestId, { phase: "reconstruct", completed: 0, total: 1, message: "Applying deterministic edge-directed reconstruction…" });
+  if (!sourcePixels) throw new Error("The immutable source pixels are unavailable.");
+  const texture = buildSourceTextureMap(sourcePixels, sourceWidth, sourceHeight);
+  const protectedCorrection = applyTextureConstrainedCorrection(sourcePixels, corrected.pixels, texture);
+  const reconstructed = reconstructPixels(
+    protectedCorrection,
+    sourceWidth,
+    sourceHeight,
+    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE).outputPixels,
+  );
+  assertNotCancelled(requestId);
+  const canvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
+  const context = canvas.getContext("2d", { colorSpace: "srgb" });
+  if (!context) throw new Error("Your browser could not allocate the deterministic result.");
+  context.putImageData(
+    new ImageData(new Uint8ClampedArray(reconstructed.pixels), reconstructed.width, reconstructed.height, { colorSpace: "srgb" }),
+    0,
+    0,
+  );
+  const blob = await canvas.convertToBlob({ type: "image/png" });
+  report(requestId, { phase: "reconstruct", completed: 1, total: 1, message: "Deterministic reconstruction complete." });
+  return {
+    bytes: await blob.arrayBuffer(),
+    width: reconstructed.width,
+    height: reconstructed.height,
+    engine: "Deterministic adaptive restoration · Worker",
+    route: `${contentClass}-deterministic-x${reconstructed.scale}`,
+    analysis: corrected.analysis,
+    scale: reconstructed.scale,
+    scaleRationale: reconstructed.scale === 1
+      ? "Source pixels were corrected at native dimensions; enlargement was not justified."
+      : "2× edge-directed resampling followed source-pixel correction.",
+    model: {
+      id: "ipw-deterministic-image-quality",
+      version: "1.0.0",
+      sha256: null,
+      usage: "deterministic",
+    },
+    warnings,
+  };
+}
+
+async function renderFlatPixelFallback(
+  pixels: Uint8ClampedArray,
+  analysis: ImageQualityAnalysis,
+  requestId: number,
+): Promise<RawEnhancement> {
+  const plan = chooseScalePlan(
+    sourceWidth,
+    sourceHeight,
+    "flat-graphic",
+    "deterministic",
+    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
+  );
+  const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
+  const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
+  if (!sourceContext) throw new Error("Your browser could not prepare the protected graphic fallback.");
+  sourceContext.putImageData(new ImageData(new Uint8ClampedArray(pixels), sourceWidth, sourceHeight, { colorSpace: "srgb" }), 0, 0);
+  const width = sourceWidth * plan.scale;
+  const height = sourceHeight * plan.scale;
+  const outputCanvas = new OffscreenCanvas(width, height);
+  const outputContext = outputCanvas.getContext("2d", { colorSpace: "srgb" });
+  if (!outputContext) throw new Error("Your browser could not allocate the protected graphic fallback.");
+  outputContext.imageSmoothingEnabled = true;
+  outputContext.imageSmoothingQuality = "high";
+  outputContext.drawImage(sourceCanvas, 0, 0, width, height);
+  const blob = await outputCanvas.convertToBlob({ type: "image/png" });
+  report(requestId, { phase: "reconstruct", completed: 1, total: 1, message: "Protected source-colour reconstruction complete." });
+  return {
+    bytes: await blob.arrayBuffer(),
+    width,
+    height,
+    engine: "Protected source-colour reconstruction · Worker",
+    route: `flat-graphic-protected-x${plan.scale}`,
     analysis,
+    scale: plan.scale,
+    scaleRationale: plan.rationale,
+    model: {
+      id: "ipw-protected-graphic-reconstruction",
+      version: "1.0.0",
+      sha256: null,
+      usage: "deterministic",
+    },
+    warnings: ["A contour candidate was rejected by source-fidelity checks; protected pixel reconstruction was used."],
   };
 }
 
@@ -184,17 +496,26 @@ async function renderFlatGraphic(
   pixels: Uint8ClampedArray,
   analysis: ImageQualityAnalysis,
   strength: number,
-) {
-  const outputScale = chooseOutputScale(sourceWidth, sourceHeight);
+  requestId: number,
+): Promise<RawEnhancement> {
+  report(requestId, { phase: "reconstruct", completed: 0, total: 1, message: "Reconstructing smooth source-colour contours…" });
+  const plan = chooseScalePlan(
+    sourceWidth,
+    sourceHeight,
+    "flat-graphic",
+    "deterministic",
+    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
+  );
+  const outputScale = plan.scale;
   const traceScale = Math.min(1, MAX_TRACE_EDGE / Math.max(sourceWidth, sourceHeight));
   const traceWidth = Math.max(1, Math.round(sourceWidth * traceScale));
   const traceHeight = Math.max(1, Math.round(sourceHeight * traceScale));
   const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
-  const sourceContext = sourceCanvas.getContext("2d");
+  const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
   if (!sourceContext) throw new Error("Your browser could not prepare clean graphic pixels.");
-  sourceContext.putImageData(new ImageData(new Uint8ClampedArray(pixels), sourceWidth, sourceHeight), 0, 0);
+  sourceContext.putImageData(new ImageData(new Uint8ClampedArray(pixels), sourceWidth, sourceHeight, { colorSpace: "srgb" }), 0, 0);
   const traceCanvas = new OffscreenCanvas(traceWidth, traceHeight);
-  const traceContext = traceCanvas.getContext("2d", { willReadFrequently: true });
+  const traceContext = traceCanvas.getContext("2d", { willReadFrequently: true, colorSpace: "srgb" });
   if (!traceContext) throw new Error("Your browser could not prepare vector tracing pixels.");
   traceContext.imageSmoothingEnabled = true;
   traceContext.imageSmoothingQuality = "high";
@@ -219,6 +540,8 @@ async function renderFlatGraphic(
       outputHeight,
       analysis,
       outputScale,
+      plan.rationale,
+      requestId,
     );
   }
   const rawSvg = ImageTracer.imagedataToSVG({
@@ -245,6 +568,7 @@ async function renderFlatGraphic(
     viewbox: true,
   });
   const png = await renderVectorPng(rawSvg, outputWidth, outputHeight);
+  report(requestId, { phase: "reconstruct", completed: 1, total: 1, message: "Smooth contour reconstruction complete." });
   return {
     bytes: png.buffer,
     width: outputWidth,
@@ -252,6 +576,15 @@ async function renderFlatGraphic(
     engine: "Bézier vector contour reconstruction · Worker",
     route: `flat-graphic-vector-x${outputScale}`,
     analysis,
+    scale: outputScale,
+    scaleRationale: plan.rationale,
+    model: {
+      id: "ipw-bezier-vector-reconstruction",
+      version: "1.0.0",
+      sha256: null,
+      usage: "deterministic",
+    },
+    warnings: [],
   };
 }
 
@@ -265,7 +598,9 @@ async function renderSourceColourMask(
   outputHeight: number,
   analysis: ImageQualityAnalysis,
   outputScale: 1 | 2 | 4,
-) {
+  scaleRationale: string,
+  requestId: number,
+): Promise<RawEnhancement> {
   let rawMaskSvg: string;
   try {
     rawMaskSvg = traceSmoothMaskSvg(foregroundMask, traceWidth, traceHeight);
@@ -281,15 +616,15 @@ async function renderSourceColourMask(
   }
   try {
     const preparedCanvas = new OffscreenCanvas(traceWidth, traceHeight);
-    const preparedContext = preparedCanvas.getContext("2d");
+    const preparedContext = preparedCanvas.getContext("2d", { colorSpace: "srgb" });
     if (!preparedContext) throw new Error("Your browser could not prepare source-colour pixels.");
     preparedContext.putImageData(
-      new ImageData(new Uint8ClampedArray(preparedPixels), traceWidth, traceHeight),
+      new ImageData(new Uint8ClampedArray(preparedPixels), traceWidth, traceHeight, { colorSpace: "srgb" }),
       0,
       0,
     );
     const outputCanvas = new OffscreenCanvas(outputWidth, outputHeight);
-    const outputContext = outputCanvas.getContext("2d");
+    const outputContext = outputCanvas.getContext("2d", { colorSpace: "srgb" });
     if (!outputContext) throw new Error("Your browser could not allocate the reconstructed graphic.");
     outputContext.imageSmoothingEnabled = true;
     // The vector mask owns edge smoothness. Linear colour interpolation avoids
@@ -302,6 +637,7 @@ async function renderSourceColourMask(
     outputContext.fillStyle = `rgba(${background[0]}, ${background[1]}, ${background[2]}, ${background[3] / 255})`;
     outputContext.fillRect(0, 0, outputWidth, outputHeight);
     const blob = await outputCanvas.convertToBlob({ type: "image/png" });
+    report(requestId, { phase: "reconstruct", completed: 1, total: 1, message: "Source-colour contour reconstruction complete." });
     return {
       bytes: await blob.arrayBuffer(),
       width: outputWidth,
@@ -309,6 +645,15 @@ async function renderSourceColourMask(
       engine: "Source-colour smooth-spline reconstruction · Worker",
       route: `flat-graphic-mask-x${outputScale}`,
       analysis,
+      scale: outputScale,
+      scaleRationale,
+      model: {
+        id: "ipw-source-colour-spline-reconstruction",
+        version: "1.0.0",
+        sha256: null,
+        usage: "deterministic",
+      },
+      warnings: [],
     };
   } finally {
     maskBitmap.close();
@@ -338,17 +683,12 @@ async function renderVectorPng(
         : "";
     return `<svg width="${outputWidth}" height="${outputHeight}"${viewBox}${cleanAttributes}>`;
   });
-  resvgReady ??= initWasm(fetch(resvgWasmUrl));
+  if (!LOCAL_RESEARCH_COMPONENTS_ENABLED) return renderVectorPngWithBrowser(svg, outputWidth, outputHeight);
+  const module = await getResvgModule();
+  let renderer: InstanceType<ResvgModule["Resvg"]> | null = null;
+  let rendered: ReturnType<InstanceType<ResvgModule["Resvg"]>["render"]> | null = null;
   try {
-    await resvgReady;
-  } catch {
-    resvgReady = null;
-    throw new Error("The vector renderer could not start. Your original is unchanged.");
-  }
-  let renderer: InstanceType<typeof Resvg> | null = null;
-  let rendered: ReturnType<InstanceType<typeof Resvg>["render"]> | null = null;
-  try {
-    renderer = new Resvg(svg, {
+    renderer = new module.Resvg(svg, {
       fitTo: { mode: "width", value: outputWidth },
       font: { loadSystemFonts: false },
       imageRendering: 0,
@@ -358,24 +698,53 @@ async function renderVectorPng(
     if (rendered.width !== outputWidth || rendered.height !== outputHeight) {
       throw new Error("The vector renderer returned unexpected dimensions.");
     }
-    const renderedPng = rendered.asPng();
-    const png = new Uint8Array(renderedPng.byteLength);
-    png.set(renderedPng);
-    return png;
-  } catch (error) {
-    console.error("[image-quality] vector render failed", error);
-    throw new Error("The reconstructed curves could not be rendered within the local memory budget. Your original is unchanged.");
+    return Uint8Array.from(rendered.asPng());
   } finally {
     rendered?.free();
     renderer?.free();
   }
 }
 
-function chooseOutputScale(width: number, height: number): 1 | 2 | 4 {
-  const pixels = width * height;
-  if (pixels * 16 <= MAX_OUTPUT_PIXELS && width * 4 <= MAX_CANVAS_EDGE && height * 4 <= MAX_CANVAS_EDGE) return 4;
-  if (pixels * 4 <= MAX_OUTPUT_PIXELS && width * 2 <= MAX_CANVAS_EDGE && height * 2 <= MAX_CANVAS_EDGE) return 2;
-  return 1;
+async function getResvgModule(): Promise<ResvgModule> {
+  if (!resvgModule) {
+    resvgModule = (async () => {
+      const [module, wasm] = await Promise.all([
+        import("@resvg/resvg-wasm"),
+        import("@resvg/resvg-wasm/index_bg.wasm?url"),
+      ]);
+      await module.initWasm(fetch(wasm.default));
+      return module;
+    })();
+  }
+  try {
+    return await resvgModule;
+  } catch (error) {
+    resvgModule = null;
+    throw error;
+  }
+}
+
+async function renderVectorPngWithBrowser(
+  svg: string,
+  outputWidth: number,
+  outputHeight: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(new Blob([svg], { type: "image/svg+xml" }));
+  } catch {
+    throw new Error("The browser-native contour renderer could not start. Your original is unchanged.");
+  }
+  try {
+    const canvas = new OffscreenCanvas(outputWidth, outputHeight);
+    const context = canvas.getContext("2d", { colorSpace: "srgb" });
+    if (!context) throw new Error("Your browser could not allocate the contour result.");
+    context.drawImage(bitmap, 0, 0, outputWidth, outputHeight);
+    const blob = await canvas.convertToBlob({ type: "image/png" });
+    return new Uint8Array(await blob.arrayBuffer());
+  } finally {
+    bitmap.close();
+  }
 }
 
 function getOrtModule(): Promise<OrtModule> {
@@ -390,7 +759,7 @@ async function getModelSession(ort: OrtModule): Promise<import("onnxruntime-web"
     ort.env.logLevel = "warning";
     let response: Response;
     try {
-      response = await fetch(MODEL_URL, { cache: "no-store" });
+      response = await fetch(MODEL_URL, { cache: "force-cache" });
     } catch {
       throw new Error("The local restoration model could not be loaded. Your original is unchanged.");
     }
@@ -540,16 +909,20 @@ function restoredLuma(
 
 workerScope.onmessage = (event) => {
   const request = event.data;
+  if (request.type === "cancel") {
+    cancelledRequests.add(request.targetId);
+    return;
+  }
   void (async () => {
     try {
       if (request.type === "load") {
-        const loaded = await loadSource(request.source);
+        const loaded = await loadSource(request.source, request.id);
         workerScope.postMessage({ id: request.id, ok: true, type: "loaded", ...loaded });
         return;
       }
-      const result = await enhance(request.strength);
+      const result = await enhance(request.strength, request.id, request.preferDeterministic);
       workerScope.postMessage(
-        { id: request.id, ok: true, type: "enhanced", mediaType: "image/png", ...result },
+        { id: request.id, ok: true, type: "enhanced", ...result },
         [result.bytes],
       );
     } catch (error) {
@@ -558,6 +931,8 @@ workerScope.onmessage = (event) => {
         ok: false,
         message: error instanceof Error ? error.message : "Image processing did not complete.",
       });
+    } finally {
+      cancelledRequests.delete(request.id);
     }
   })();
 };

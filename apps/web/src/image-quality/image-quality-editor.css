@@ -80,6 +80,31 @@
   min-width: 0;
 }
 
+.quality-source-summary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.quality-source-summary code {
+  color: inherit;
+}
+
+.quality-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.quality-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .quality-header h1 {
   max-width: 60vw;
   font-size: var(--text-xl);
@@ -164,6 +189,13 @@
   justify-content: flex-end;
 }
 
+.quality-view-note {
+  grid-column: 1 / -1;
+  margin: calc(var(--space-1) * -1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
 .quality-status {
   min-height: 42px;
 }
@@ -174,6 +206,47 @@
 
 .quality-status p {
   margin: var(--space-1) 0 0;
+}
+
+.quality-status progress {
+  width: min(420px, 100%);
+  height: 8px;
+  margin-top: var(--space-2);
+  accent-color: var(--color-brand);
+}
+
+.quality-provenance {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-xs);
+}
+
+.quality-provenance summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.quality-provenance dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0;
+}
+
+.quality-provenance dl div {
+  min-width: 0;
+}
+
+.quality-provenance dt {
+  color: var(--color-text-muted);
+}
+
+.quality-provenance dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .quality-comparison {
@@ -213,6 +286,11 @@
 
 .quality-viewer:active {
   cursor: grabbing;
+}
+
+.quality-viewer:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: -3px;
 }
 
 .quality-viewer-label {
@@ -319,6 +397,11 @@
     gap: var(--space-2);
   }
 
+  .quality-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .quality-header h1 {
     max-width: 100%;
   }
@@ -326,6 +409,10 @@
   .quality-dimensions div {
     min-width: 0;
     flex: 1;
+  }
+
+  .quality-provenance dl {
+    grid-template-columns: 1fr;
   }
 
   .quality-controls {

@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import type { IncomingMessage } from "node:http";
 
 import { renderProductTemplate, resolveProductName } from "./src/config/product.ts";
 import { createProductManifest } from "./src/pwa/manifest.ts";
@@ -43,9 +44,17 @@ function productManifestPlugin(): Plugin {
 
 function localResearchModelPlugin(): Plugin {
   const route = "/quality-models/realesr-general-x4v3-tile128.onnx";
-  const serve = (request: { url?: string }, response: import("node:http").ServerResponse, next: () => void) => {
+  const serve = (request: IncomingMessage, response: import("node:http").ServerResponse, next: () => void) => {
     if (request.url?.split("?", 1)[0] !== route) {
       next();
+      return;
+    }
+    const remoteAddress = request.socket.remoteAddress ?? "";
+    if (!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(remoteAddress)) {
+      response.statusCode = 403;
+      response.setHeader("Content-Type", "application/json");
+      response.setHeader("Cache-Control", "no-store");
+      response.end(JSON.stringify({ error: "Research-only model access is restricted to the local machine." }));
       return;
     }
     if (!existsSync(localResearchModel)) {
@@ -59,16 +68,14 @@ function localResearchModelPlugin(): Plugin {
     response.statusCode = 200;
     response.setHeader("Content-Type", "application/onnx");
     response.setHeader("Content-Length", String(statSync(localResearchModel).size));
-    response.setHeader("Cache-Control", "private, no-store");
+    response.setHeader("Cache-Control", "private, max-age=31536000, immutable");
     response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader("X-IPW-Model-Usage", "local-research-only");
     createReadStream(localResearchModel).pipe(response);
   };
   return {
     name: "ipw-local-research-image-model",
     configureServer(server) {
-      server.middlewares.use(serve);
-    },
-    configurePreviewServer(server) {
       server.middlewares.use(serve);
     },
   };
