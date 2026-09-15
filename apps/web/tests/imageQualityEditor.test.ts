@@ -331,6 +331,19 @@ test("restoration strength increases bounded detail without changing source chro
   assert.ok(Math.max(...Array.from(strong.slice(0, 3), (value, channel) => Math.abs(value - [142, 106, 78][channel]))) <= 27);
 });
 
+test("photograph restoration limits unsupported model structure while retaining visible detail", () => {
+  const reference = new Uint8ClampedArray([92, 72, 64, 255]);
+  const original = new Uint8ClampedArray(reference);
+  fuseRestoredPixel(reference, 0, 196, 178, 164, 80, 100, 24, 0.55);
+  const difference = Math.max(...Array.from(
+    reference.slice(0, 3),
+    (value, channel) => Math.abs(value - original[channel]),
+  ));
+  assert.ok(difference >= 4, "natural photograph restoration still contributes useful detail");
+  assert.ok(difference <= 15, "uncertain model structure cannot repaint identity-defining pixels");
+  assert.equal(reference[3], 255);
+});
+
 test("smooth mask tracing deterministically recovers circular contours as curves", () => {
   const size = 64;
   const mask = new Uint8Array(size * size);

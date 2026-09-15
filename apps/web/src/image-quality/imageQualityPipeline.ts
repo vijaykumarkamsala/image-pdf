@@ -583,8 +583,10 @@ export function fuseRestoredPixel(
   sourceTexture: number,
   strength: number,
   learnedDetailLuma = 0,
+  modelTrust = 1,
 ): void {
   const amount = clamp(strength / MAX_STRENGTH, 0, 1);
+  const trust = clamp(modelTrust, 0, 1);
   // A square-root response lets softly printed fur, feathers and brush lines
   // participate in restoration without treating truly uniform pixels as
   // detail. Linear gating was protecting these mid-frequency features away.
@@ -614,9 +616,9 @@ export function fuseRestoredPixel(
   );
   const combinedLimit = 2 + amount * (2 + texture * 23);
   const targetY = referenceY + clamp(
-    structureChange + detailChange,
-    -combinedLimit,
-    combinedLimit,
+    (structureChange + detailChange) * trust,
+    -combinedLimit * trust,
+    combinedLimit * trust,
   );
   // Chroma remains source-authoritative. Neural colour transfer is the cause
   // of the background/skin/brand-colour shifts users reported.

@@ -112,6 +112,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   expect(originalUrl).toMatch(/^blob:/);
   await page.getByRole("button", { name: "Enhance quality" }).click();
   await expect(page.getByText(/(?:AI-restored|Enhanced) image ready/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText(/Identity-constrained Real-ESRGAN x4v3 DNI 0\.5 · WebGPU/)).toBeVisible();
 
   const enhanced = page.getByTestId("enhanced-image");
   const enhancedUrl = await enhanced.getAttribute("src");

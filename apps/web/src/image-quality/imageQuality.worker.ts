@@ -56,9 +56,19 @@ const TILE_CONTEXT = 10;
 const CORE_TILE = MODEL_TILE - TILE_CONTEXT * 2;
 const MODEL_SCALE = 4;
 const MODEL_OUTPUT_TILE = MODEL_TILE * MODEL_SCALE;
-const MODEL_URL = "/quality-models/realesr-general-x4v3-tile128.onnx";
-const MODEL_BYTES = 4_959_082;
-const MODEL_SHA256 = "5c5af5908e7438a965cffb1ba62a764e319aac069c35c50ba6851bb4a300760c";
+const MODEL_SPECS = {
+  strong: {
+    url: "/quality-models/realesr-general-x4v3-tile128.onnx",
+    bytes: 4_959_082,
+    sha256: "5c5af5908e7438a965cffb1ba62a764e319aac069c35c50ba6851bb4a300760c",
+  },
+  natural: {
+    url: "/quality-models/realesr-general-x4v3-dni50-tile128.onnx",
+    bytes: 4_959_211,
+    sha256: "baa6d2ecb9c5ba34ed8bed03a079946179260aa11ba2516681ec355492e94060",
+  },
+} as const;
+type ModelVariant = keyof typeof MODEL_SPECS;
 const MAX_TRACE_EDGE = 1_024;
 const MAX_VECTOR_MARKUP_BYTES = 16_000_000;
 let sourcePixels: Uint8ClampedArray | null = null;
@@ -68,7 +78,7 @@ let sourceMediaType = "";
 let sourceSha256 = "";
 let sourceInspection: ImageFileInspection | null = null;
 let ortModule: Promise<OrtModule> | null = null;
-let modelSession: Promise<import("onnxruntime-web").InferenceSession> | null = null;
+const modelSessions: Partial<Record<ModelVariant, Promise<import("onnxruntime-web").InferenceSession>>> = {};
 let resvgModule: Promise<ResvgModule> | null = null;
 const cancelledRequests = new Set<number>();
 const LOCAL_RESEARCH_COMPONENTS_ENABLED = import.meta.env.DEV
@@ -300,11 +310,13 @@ async function renderPhoto(
       ? "WebGPU was unavailable; a deterministic restoration was used."
       : "Production-safe deterministic restoration was used because research-only model weights are not distributable.",
   ]);
+  const modelVariant: ModelVariant = contentClass === "photograph" ? "natural" : "strong";
+  const modelSpec = MODEL_SPECS[modelVariant];
   let ort: OrtModule;
   let session: import("onnxruntime-web").InferenceSession;
   try {
     ort = await getOrtModule();
-    session = await getModelSession(ort);
+    session = await getModelSession(ort, modelVariant);
   } catch {
     return renderDeterministicPhoto(corrected, contentClass, requestId, [
       "The optional local-research model was unavailable; deterministic restoration completed instead.",
@@ -369,6 +381,7 @@ async function renderPhoto(
           tile.height,
           outputScale,
           strength,
+          contentClass === "photograph" ? 0.55 : 1,
         );
         report(requestId, { phase: "model", completed: completedTiles, total: totalTiles, message: `Restoring source-aligned detail (${completedTiles}/${totalTiles})…` });
       } finally {
@@ -384,15 +397,17 @@ async function renderPhoto(
     bytes: await blob.arrayBuffer(),
     width,
     height,
-    engine: "Fidelity-constrained Real-ESRGAN x4v3 · WebGPU",
-    route: `${contentClass}-${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
+    engine: modelVariant === "natural"
+      ? "Identity-constrained Real-ESRGAN x4v3 DNI 0.5 · WebGPU"
+      : "Fidelity-constrained Real-ESRGAN x4v3 · WebGPU",
+    route: `${contentClass}-${modelVariant === "natural" ? "natural-" : ""}${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
     analysis: corrected.analysis,
     scale: outputScale,
     scaleRationale: plan.rationale,
     model: {
-      id: selectedEngine.id,
-      version: selectedEngine.version,
-      sha256: selectedEngine.weightsSha256,
+      id: modelVariant === "natural" ? `${selectedEngine.id}-dni50` : selectedEngine.id,
+      version: modelVariant === "natural" ? `${selectedEngine.version}/dni0.5` : selectedEngine.version,
+      sha256: modelSpec.sha256,
       usage: "local-research",
     },
     warnings: ["Local-research model weights are not licensed for production distribution."],
@@ -752,14 +767,18 @@ function getOrtModule(): Promise<OrtModule> {
   return ortModule;
 }
 
-async function getModelSession(ort: OrtModule): Promise<import("onnxruntime-web").InferenceSession> {
-  if (modelSession) return modelSession;
-  modelSession = (async () => {
+async function getModelSession(
+  ort: OrtModule,
+  variant: ModelVariant,
+): Promise<import("onnxruntime-web").InferenceSession> {
+  if (modelSessions[variant]) return modelSessions[variant];
+  const spec = MODEL_SPECS[variant];
+  const pendingSession = modelSessions[variant] = (async () => {
     const started = performance.now();
     ort.env.logLevel = "warning";
     let response: Response;
     try {
-      response = await fetch(MODEL_URL, { cache: "force-cache" });
+      response = await fetch(spec.url, { cache: "force-cache" });
     } catch {
       throw new Error("The local restoration model could not be loaded. Your original is unchanged.");
     }
@@ -768,17 +787,17 @@ async function getModelSession(ort: OrtModule): Promise<import("onnxruntime-web"
     }
     const announcedLength = response.headers.get("Content-Length");
     const announcedBytes = announcedLength === null ? null : Number(announcedLength);
-    if (announcedBytes !== null && Number.isFinite(announcedBytes) && announcedBytes !== MODEL_BYTES) {
+    if (announcedBytes !== null && Number.isFinite(announcedBytes) && announcedBytes !== spec.bytes) {
       throw new Error("The restoration model failed its size check. Your original is unchanged.");
     }
     const model = await response.arrayBuffer();
-    if (model.byteLength !== MODEL_BYTES) {
+    if (model.byteLength !== spec.bytes) {
       throw new Error("The restoration model failed its size check. Your original is unchanged.");
     }
     console.info(`[image-quality] model fetched in ${Math.round(performance.now() - started)} ms`);
     const digest = await crypto.subtle.digest("SHA-256", model);
     const actual = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
-    if (actual !== MODEL_SHA256) {
+    if (actual !== spec.sha256) {
       throw new Error("The restoration model failed its integrity check. Your original is unchanged.");
     }
     console.info(`[image-quality] model integrity verified in ${Math.round(performance.now() - started)} ms`);
@@ -794,9 +813,9 @@ async function getModelSession(ort: OrtModule): Promise<import("onnxruntime-web"
     }
   })();
   try {
-    return await modelSession;
+    return await pendingSession;
   } catch (error) {
-    modelSession = null;
+    delete modelSessions[variant];
     throw error;
   }
 }
@@ -836,6 +855,7 @@ function blendModelTile(
   coreHeight: number,
   outputScale: 1 | 2 | 4,
   strength: number,
+  modelTrust: number,
 ): void {
   const restoredPlane = MODEL_OUTPUT_TILE * MODEL_OUTPUT_TILE;
   const samplingStep = MODEL_SCALE / outputScale;
@@ -886,6 +906,7 @@ function blendModelTile(
         sourceTexture[sourceY * sourceWidth + sourceX],
         strength,
         learnedY - localLearnedY,
+        modelTrust,
       );
     }
   }

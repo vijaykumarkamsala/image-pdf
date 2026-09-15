@@ -542,6 +542,7 @@
       "depends_on": [
         "real-esrgan-code",
         "real-esrgan-weights-general-x4v3",
+        "real-esrgan-weights-general-wdn-x4v3",
         "real-esrgan-weights-x4plus",
         "real-esrgan-weights-x2plus",
         "torch",
@@ -595,6 +596,26 @@
       "evidence": "The official model zoo identifies this as the tiny general-image x4v3 model and the official inference script fixes its SRVGGNetCompact architecture at 64 features and 32 convolution blocks. No separate licence is stated for the checkpoint. The official training guide names DF2K plus OST, including research-restricted DIV2K, so commercial use remains blocked while marked local research is permitted.",
       "notes": "Verified 4,885,111 bytes and SHA-256 before restricted weights-only loading. The local ONNX derivative is also gitignored and is never a distributable production asset.",
       "weights_sha256": "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292"
+    },
+    {
+      "component_id": "real-esrgan-weights-general-wdn-x4v3",
+      "display_name": "Real-ESRGAN general weak-denoise x4v3 companion weights",
+      "kind": "weights",
+      "disposition": "unknown",
+      "official_source": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-wdn-x4v3.pth",
+      "pinned_version": "v0.2.5.0",
+      "weight_format": "pickle",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "div2k-dataset",
+        "flickr2k-dataset",
+        "ost-dataset"
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-15",
+      "evidence": "The official inference script blends this checkpoint with general-x4v3 using DNI and defaults denoise strength to 0.5. The release asset is pinned at 4,885,111 bytes and SHA-256 1641f8c4464b9f097c9fdda5589273713f67cf59f3d909e0bd688f0cee269dca. No separate checkpoint licence is stated, so its use remains local-research only.",
+      "notes": "The browser photograph route uses a gitignored 50/50 ONNX derivative to avoid the strong-only model repainting compressed facial structure. It is not a distributable production asset.",
+      "weights_sha256": "1641f8c4464b9f097c9fdda5589273713f67cf59f3d909e0bd688f0cee269dca"
     },
     {
       "component_id": "real-esrgan-weights-x2plus",

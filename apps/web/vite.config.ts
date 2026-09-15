@@ -12,6 +12,10 @@ const localResearchModel = new URL(
   "../../.tools/models/realesr-general-x4v3-tile128-8dc7edb9ac80.onnx",
   import.meta.url,
 );
+const localNaturalResearchModel = new URL(
+  "../../.tools/models/realesr-general-x4v3-dni50-tile128-8dc7edb9ac80-1641f8c4464b.onnx",
+  import.meta.url,
+);
 
 function productManifestPlugin(): Plugin {
   const productName = resolveProductName(process.env["VITE_PRODUCT_NAME"]);
@@ -43,9 +47,13 @@ function productManifestPlugin(): Plugin {
 }
 
 function localResearchModelPlugin(): Plugin {
-  const route = "/quality-models/realesr-general-x4v3-tile128.onnx";
+  const models = new Map([
+    ["/quality-models/realesr-general-x4v3-tile128.onnx", localResearchModel],
+    ["/quality-models/realesr-general-x4v3-dni50-tile128.onnx", localNaturalResearchModel],
+  ]);
   const serve = (request: IncomingMessage, response: import("node:http").ServerResponse, next: () => void) => {
-    if (request.url?.split("?", 1)[0] !== route) {
+    const model = models.get(request.url?.split("?", 1)[0] ?? "");
+    if (!model) {
       next();
       return;
     }
@@ -57,7 +65,7 @@ function localResearchModelPlugin(): Plugin {
       response.end(JSON.stringify({ error: "Research-only model access is restricted to the local machine." }));
       return;
     }
-    if (!existsSync(localResearchModel)) {
+    if (!existsSync(model)) {
       const message = JSON.stringify({ error: "Run the governed local Real-ESRGAN export before testing." });
       response.statusCode = 503;
       response.setHeader("Content-Type", "application/json");
@@ -67,11 +75,11 @@ function localResearchModelPlugin(): Plugin {
     }
     response.statusCode = 200;
     response.setHeader("Content-Type", "application/onnx");
-    response.setHeader("Content-Length", String(statSync(localResearchModel).size));
+    response.setHeader("Content-Length", String(statSync(model).size));
     response.setHeader("Cache-Control", "private, max-age=31536000, immutable");
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-IPW-Model-Usage", "local-research-only");
-    createReadStream(localResearchModel).pipe(response);
+    createReadStream(model).pipe(response);
   };
   return {
     name: "ipw-local-research-image-model",
