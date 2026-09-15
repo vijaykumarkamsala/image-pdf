@@ -19,44 +19,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /opt/ipw
 
-# The worker target is the Cloud Run runtime. It intentionally excludes the POC
-# processor/benchmark workspaces, Torch, NumPy, pyvips, Node and Chromium.
-FROM python-base AS runtime
-
-COPY requirements-dev.lock.txt workspaces.toml ./
-COPY packages/contracts packages/contracts
-COPY packages/inspection packages/inspection
-COPY packages/jobs packages/jobs
-COPY packages/storage packages/storage
-COPY packages/licence-registry packages/licence-registry
-COPY services/processing-worker services/processing-worker
-COPY apps/web/public/fonts/ipw-standard.ttf apps/web/public/fonts/ipw-standard.ttf
-COPY data/licences data/licences
-COPY tools/verify_canonical_linux_environment.py tools/verify_canonical_linux_environment.py
-
-RUN python -m pip install "setuptools==84.0.0" \
- && python -m pip install --no-build-isolation -c requirements-dev.lock.txt \
-      -e packages/contracts \
-      -e packages/inspection \
-      -e packages/jobs \
-      -e packages/storage \
-      -e packages/licence-registry \
-      -e services/processing-worker \
- && python -m pip check \
- && python tools/verify_canonical_linux_environment.py --runtime-only \
- && ! python -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('torch') else 1)" \
- && ! python -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('ipw.benchmark_runner') else 1)"
-
-RUN useradd --create-home --uid 10001 worker \
- && chown -R worker:worker /opt/ipw
-USER worker
-
-ENV PORT=8080
-EXPOSE 8080
-CMD ["ipw-processing-worker"]
-
-# Build the exact approved native libvips version for POC compatibility evidence.
-# It is not copied into the production runtime target above.
+# Build the exact approved native libvips version used by the bounded-memory
+# production image-quality and professional-colour paths.
 FROM python-base AS libvips-builder
 
 ARG DEBIAN_SNAPSHOT=20260911T000000Z
@@ -85,20 +49,12 @@ RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && meson compile --verbose -C /tmp/libvips/build \
  && meson install -C /tmp/libvips/build
 
-# The canonical CI target inherits the production Python/Pillow/font boundary,
-# then adds only test/benchmark dependencies. CPU Torch is installed explicitly
-# from the approved index; a plain PyPI Torch install is forbidden.
-FROM runtime AS canonical-ci
-USER root
+# The worker target is the Cloud Run runtime. It intentionally excludes the POC
+# processor/benchmark workspaces, Torch, Node and Chromium. NumPy, pyvips and
+# native ONNX Runtime are present only for approved production image processing.
+FROM python-base AS runtime
 
 ARG DEBIAN_SNAPSHOT=20260911T000000Z
-ENV OMP_NUM_THREADS=1 \
-    MKL_NUM_THREADS=1 \
-    MALLOC_ARENA_MAX=2 \
-    IPW_CANONICAL_LINUX=1 \
-    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
-    COVERAGE_RCFILE=.coveragerc-ci
-
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && printf '%s\n' \
       "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT}/ bookworm main" \
@@ -109,14 +65,62 @@ RUN rm -f /etc/apt/sources.list.d/debian.sources \
       libexif12 libexpat1 libglib2.0-0 libjpeg62-turbo liblcms2-2 \
       liborc-0.4-0 libpng16-16 libtiff6 libwebp7 libwebpdemux2 libwebpmux3 \
  && rm -rf /var/lib/apt/lists/*
+COPY --from=libvips-builder /usr/local /usr/local
+RUN ldconfig
+
+COPY requirements-dev.lock.txt workspaces.toml ./
+COPY packages/contracts packages/contracts
+COPY packages/inspection packages/inspection
+COPY packages/jobs packages/jobs
+COPY packages/storage packages/storage
+COPY packages/licence-registry packages/licence-registry
+COPY services/processing-worker services/processing-worker
+COPY apps/web/public/fonts/ipw-standard.ttf apps/web/public/fonts/ipw-standard.ttf
+COPY data/licences data/licences
+COPY apps/web/public/licenses/PUBLIC_REALPLKSR_NOTICE.txt data/licences/notices/PUBLIC_REALPLKSR_NOTICE.txt
+COPY tools/install_model_weights.py tools/install_model_weights.py
+COPY tools/verify_canonical_linux_environment.py tools/verify_canonical_linux_environment.py
+
+RUN python tools/install_model_weights.py --model public-realplksr \
+ && python -m pip install "setuptools==84.0.0" \
+ && python -m pip install --no-build-isolation -c requirements-dev.lock.txt \
+      -e packages/contracts \
+      -e packages/inspection \
+      -e packages/jobs \
+      -e packages/storage \
+      -e packages/licence-registry \
+      -e services/processing-worker \
+ && python -m pip check \
+ && python tools/verify_canonical_linux_environment.py --runtime-only \
+ && ! python -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('torch') else 1)" \
+ && ! python -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('ipw.benchmark_runner') else 1)"
+
+RUN useradd --create-home --uid 10001 worker \
+ && chown -R worker:worker /opt/ipw
+USER worker
+
+ENV PORT=8080 \
+    IPW_IMAGE_QUALITY_MODEL_PATH=/opt/ipw/.tools/models/2xPublic_realplksr_dysample_layernorm_real_fp32_op17.onnx
+EXPOSE 8080
+CMD ["ipw-processing-worker"]
+
+# The canonical CI target inherits the production Python/Pillow/font boundary,
+# then adds only test/benchmark dependencies. CPU Torch is installed explicitly
+# from the approved index; a plain PyPI Torch install is forbidden.
+FROM runtime AS canonical-ci
+USER root
+
+ENV OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    MALLOC_ARENA_MAX=2 \
+    IPW_CANONICAL_LINUX=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
+    COVERAGE_RCFILE=.coveragerc-ci
 
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
-
-COPY --from=libvips-builder /usr/local /usr/local
-RUN ldconfig
 
 COPY . .
 

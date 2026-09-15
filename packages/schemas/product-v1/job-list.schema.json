@@ -20,7 +20,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.22.0",
+          "default": "1.24.0",
           "title": "Schema Version",
           "type": "string"
         }
@@ -38,7 +38,8 @@
         "preview_generation",
         "image_export",
         "pdf_export",
-        "export_bundle"
+        "export_bundle",
+        "image_quality_restore"
       ],
       "title": "ProcessingJobKind",
       "type": "string"
@@ -145,6 +146,19 @@
           "default": null,
           "title": "Heartbeat At"
         },
+        "image_quality_request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Quality Request Id"
+        },
         "job_id": {
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
           "title": "Job Id",
@@ -217,7 +231,7 @@
           "type": "integer"
         },
         "schema_version": {
-          "default": "1.22.0",
+          "default": "1.24.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -320,7 +334,7 @@
       "title": "Next Cursor"
     },
     "schema_version": {
-      "default": "1.22.0",
+      "default": "1.24.0",
       "title": "Schema Version",
       "type": "string"
     }

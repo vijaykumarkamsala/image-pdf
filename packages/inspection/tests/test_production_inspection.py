@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import struct
+from pathlib import Path
 
 import pytest
 from tools.make_recovery_2e_fixtures import cmyk_jpeg, metadata_jpeg
@@ -11,6 +13,7 @@ from ipw.inspection import (
     InspectionLimits,
     RequiredScannerUnavailableError,
     inspect_bytes,
+    inspect_file,
     production_malware_scanner,
 )
 
@@ -72,6 +75,22 @@ def test_png_facts_are_derived_header_first() -> None:
     assert result.facts.byte_size == len(data)
 
 
+def test_png_cicp_reports_display_p3_and_hdr_signalling() -> None:
+    base = png(20, 10)
+    iend = base.index(b"IEND") - 4
+    cicp = struct.pack(">I4s", 4, b"cICP") + bytes((9, 16, 0, 1)) + b"\x00" * 4
+    data = base[:iend] + cicp + base[iend:]
+
+    result = inspect_bytes(
+        data, display_name="hdr.png", expected_media_type="image/png"
+    )
+
+    assert result.accepted
+    assert result.facts is not None
+    assert result.facts.colour_primaries == "bt2020"
+    assert result.facts.dynamic_range == "hdr-pq"
+
+
 def test_spoof_truncation_zero_and_bomb_are_rejected() -> None:
     spoof = inspect_bytes(png(), display_name="source.jpg", expected_media_type="image/jpeg")
     truncated = inspect_bytes(
@@ -119,6 +138,27 @@ def test_deterministic_scanner_recognises_only_the_rights_safe_test_marker() -> 
     assert scanner.scan(b"prefix EICAR-STANDARD-ANTIVIRUS-TEST-FILE suffix").state == "malicious"
 
 
+def test_large_file_inspection_and_scanning_stream_from_disk(tmp_path: Path) -> None:
+    data = png(20, 10)
+    path = tmp_path / "large-source.png"
+    path.write_bytes(data)
+    digest = hashlib.sha256(data).hexdigest()
+
+    result = inspect_file(
+        path,
+        sha256=digest,
+        display_name=path.name,
+        expected_media_type="image/png",
+        limits=InspectionLimits(max_bytes=1024, max_pixels=10_000),
+    )
+
+    assert result.accepted
+    assert result.facts is not None
+    assert result.facts.sha256 == digest
+    assert result.facts.byte_size == len(data)
+    assert DeterministicMalwareScanner().scan_file(path, max_bytes=1024).state == "clean"
+
+
 def test_clamav_instream_protocol_is_bounded_and_closes_the_socket() -> None:
     connection = FakeClamdSocket(b"stream: OK\x00")
     factory = FakeClamdFactory(connection)
@@ -141,6 +181,24 @@ def test_clamav_instream_protocol_is_bounded_and_closes_the_socket() -> None:
         b"\x00\x00\x00\x00",
     ]
     assert connection.closed
+
+
+def test_clamav_file_scan_uses_the_same_streaming_protocol(tmp_path: Path) -> None:
+    path = tmp_path / "source.bin"
+    path.write_bytes(b"safe content")
+    connection = FakeClamdSocket(b"stream: OK\x00")
+    scanner = ClamAvScanner(
+        host="clamav.internal",
+        chunk_bytes=1_024,
+        socket_factory=FakeClamdFactory(connection),
+    )
+
+    assert scanner.scan_file(path, max_bytes=1024).state == "clean"
+    assert connection.sent[1:] == [
+        struct.pack(">I", 12),
+        b"safe content",
+        b"\x00\x00\x00\x00",
+    ]
 
 
 def test_clamav_maps_malicious_timeout_unavailable_and_protocol_errors() -> None:

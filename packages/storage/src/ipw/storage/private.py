@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from shutil import copyfileobj
+from typing import Any, Protocol, runtime_checkable
 
 from google.api_core.exceptions import PreconditionFailed
 from google.cloud import storage
@@ -19,6 +20,38 @@ class PrivateObjectSnapshot:
     generation: str
     media_type: str
     data: bytes
+
+
+@dataclass(frozen=True)
+class MaterializedPrivateObject:
+    ref: PrivateObjectRef
+    generation: str
+    media_type: str
+    path: Path
+    byte_size: int
+    sha256: str
+
+
+@runtime_checkable
+class LargeWorkerPrivateObjectStore(Protocol):
+    def materialize(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        generation: str,
+        destination: Path,
+        max_bytes: int,
+    ) -> MaterializedPrivateObject: ...
+
+    def write_derivative_file(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        source: Path,
+        media_type: str,
+        sha256: str,
+        max_bytes: int,
+    ) -> PrivateObjectSnapshot: ...
 
 
 class WorkerObjectReader(Protocol):
@@ -103,6 +136,39 @@ class GcsWorkerPrivateObjectStore:
             data=data,
         )
 
+    def materialize(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        generation: str,
+        destination: Path,
+        max_bytes: int,
+    ) -> MaterializedPrivateObject:
+        requested_generation = int(generation)
+        blob = self._bucket.blob(ref.object_key, generation=requested_generation)
+        blob.reload(if_generation_match=requested_generation, timeout=30)
+        if blob.size is None or blob.size > max_bytes:
+            raise ValueError("private object exceeds its authorised materialization limit")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        blob.download_to_filename(
+            str(destination),
+            if_generation_match=requested_generation,
+            checksum="crc32c",
+            timeout=900,
+        )
+        size, digest = _file_identity(destination, max_bytes)
+        if size != blob.size:
+            destination.unlink(missing_ok=True)
+            raise RuntimeError("private object changed during materialization")
+        return MaterializedPrivateObject(
+            ref,
+            str(blob.generation),
+            blob.content_type or "application/octet-stream",
+            destination,
+            size,
+            digest,
+        )
+
     def promote(
         self,
         source: PrivateObjectRef,
@@ -133,13 +199,17 @@ class GcsWorkerPrivateObjectStore:
             target.reload(timeout=30)
             if target.size is None or target.size > max_bytes:
                 raise RuntimeError("existing immutable object has invalid size") from None
-            existing = target.download_as_bytes(
-                if_generation_match=target.generation,
-                checksum="crc32c",
-                timeout=60,
-            )
-            if hashlib.sha256(existing).hexdigest() != sha256:
+            metadata = target.metadata or {}
+            if metadata.get("ipw-sha256") != sha256:
                 raise RuntimeError("immutable object collision") from None
+            if target.size <= 64 * 1024 * 1024:
+                existing = target.download_as_bytes(
+                    if_generation_match=target.generation,
+                    checksum="crc32c",
+                    timeout=60,
+                )
+                if hashlib.sha256(existing).hexdigest() != sha256:
+                    raise RuntimeError("immutable object collision") from None
         return PrivateObjectRef(
             source.owner_scope, target_key, ObjectZone.IMMUTABLE, str(target.generation)
         )
@@ -181,6 +251,40 @@ class GcsWorkerPrivateObjectStore:
             data = existing
         return PrivateObjectSnapshot(ref, str(blob.generation), media_type, data)
 
+    def write_derivative_file(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        source: Path,
+        media_type: str,
+        sha256: str,
+        max_bytes: int,
+    ) -> PrivateObjectSnapshot:
+        _validate_derivative_ref(ref, max_bytes)
+        size, digest = _file_identity(source, max_bytes)
+        if digest != sha256:
+            raise ValueError("derivative digest mismatch")
+        blob = self._bucket.blob(ref.object_key)
+        try:
+            blob.upload_from_filename(
+                str(source),
+                content_type=media_type,
+                if_generation_match=0,
+                checksum="crc32c",
+                timeout=900,
+            )
+            blob.metadata = {
+                "ipw-sha256": sha256,
+                "ipw-zone": "derivative",
+                "ipw-byte-size": str(size),
+            }
+            blob.patch(if_generation_match=blob.generation, timeout=30)
+        except PreconditionFailed:
+            blob.reload(timeout=30)
+            if (blob.metadata or {}).get("ipw-sha256") != sha256 or blob.size != size:
+                raise RuntimeError("derivative object collision") from None
+        return PrivateObjectSnapshot(ref, str(blob.generation), media_type, b"")
+
 
 class LocalWorkerPrivateObjectStore:
     """Explicit development/test adapter constrained below one private root."""
@@ -204,6 +308,25 @@ class LocalWorkerPrivateObjectStore:
             raise RuntimeError("local object generation changed")
         return PrivateObjectSnapshot(ref, digest, "application/octet-stream", data)
 
+    def materialize(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        generation: str,
+        destination: Path,
+        max_bytes: int,
+    ) -> MaterializedPrivateObject:
+        source = self._path(ref)
+        size, digest = _file_identity(source, max_bytes)
+        if generation and generation != digest:
+            raise RuntimeError("local object generation changed")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with source.open("rb") as source_handle, destination.open("xb") as destination_handle:
+            copyfileobj(source_handle, destination_handle, length=8 * 1024 * 1024)
+        return MaterializedPrivateObject(
+            ref, digest, "application/octet-stream", destination, size, digest
+        )
+
     def promote(
         self,
         source: PrivateObjectRef,
@@ -212,8 +335,11 @@ class LocalWorkerPrivateObjectStore:
         sha256: str,
         max_bytes: int,
     ) -> PrivateObjectRef:
-        snapshot = self.read(source, generation=source_generation, max_bytes=max_bytes)
-        if hashlib.sha256(snapshot.data).hexdigest() != sha256:
+        source_path = self._path(source)
+        _size, source_digest = _file_identity(source_path, max_bytes)
+        if source_generation and source_generation != source_digest:
+            raise RuntimeError("local object generation changed")
+        if source_digest != sha256:
             raise RuntimeError("promotion digest mismatch")
         target = PrivateObjectRef(
             source.owner_scope,
@@ -226,7 +352,8 @@ class LocalWorkerPrivateObjectStore:
         if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != sha256:
             raise RuntimeError("immutable object collision")
         if not path.exists():
-            path.write_bytes(snapshot.data)
+            with source_path.open("rb") as source_handle, path.open("xb") as target_handle:
+                copyfileobj(source_handle, target_handle, length=8 * 1024 * 1024)
         return target
 
     def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None:
@@ -260,6 +387,30 @@ class LocalWorkerPrivateObjectStore:
             path.write_bytes(data)
         return PrivateObjectSnapshot(ref, sha256, media_type, data)
 
+    def write_derivative_file(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        source: Path,
+        media_type: str,
+        sha256: str,
+        max_bytes: int,
+    ) -> PrivateObjectSnapshot:
+        _validate_derivative_ref(ref, max_bytes)
+        _size, digest = _file_identity(source, max_bytes)
+        if digest != sha256:
+            raise ValueError("derivative digest mismatch")
+        path = self._path(ref)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            _, existing_digest = _file_identity(path, max_bytes)
+            if existing_digest != sha256:
+                raise RuntimeError("derivative object collision")
+        else:
+            with source.open("rb") as source_handle, path.open("xb") as target_handle:
+                copyfileobj(source_handle, target_handle, length=8 * 1024 * 1024)
+        return PrivateObjectSnapshot(ref, sha256, media_type, b"")
+
     def _path(self, ref: PrivateObjectRef) -> Path:
         if ".." in ref.object_key.split("/") or not ref.object_key.startswith(
             ("quarantine/", "immutable/", "derivative/")
@@ -272,13 +423,28 @@ class LocalWorkerPrivateObjectStore:
 
 
 def _validate_derivative(ref: PrivateObjectRef, data: bytes, sha256: str, max_bytes: int) -> None:
-    if ref.zone is not ObjectZone.DERIVATIVE or not ref.object_key.startswith(
-        f"derivative/{ref.owner_scope}/"
-    ):
-        raise ValueError("invalid derivative object reference")
-    if max_bytes < 1 or max_bytes > 1024 * 1024 * 1024:
-        raise ValueError("invalid derivative object limit")
+    _validate_derivative_ref(ref, max_bytes)
     if len(data) > max_bytes:
         raise ValueError("derivative exceeds the bounded object limit")
     if hashlib.sha256(data).hexdigest() != sha256:
         raise ValueError("derivative digest mismatch")
+
+
+def _validate_derivative_ref(ref: PrivateObjectRef, max_bytes: int) -> None:
+    if ref.zone is not ObjectZone.DERIVATIVE or not ref.object_key.startswith(
+        f"derivative/{ref.owner_scope}/"
+    ):
+        raise ValueError("invalid derivative object reference")
+    if max_bytes < 1 or max_bytes > 4 * 1024**4:
+        raise ValueError("invalid derivative object limit")
+
+
+def _file_identity(path: Path, max_bytes: int) -> tuple[int, str]:
+    size = path.stat().st_size
+    if size > max_bytes:
+        raise ValueError("private object exceeds its authorised file limit")
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return size, digest.hexdigest()

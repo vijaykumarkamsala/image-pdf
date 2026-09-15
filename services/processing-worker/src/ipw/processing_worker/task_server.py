@@ -25,6 +25,11 @@ from ipw.processing_worker.image_export import (
     DurableExportBundleProcessor,
     DurableImageExportProcessor,
 )
+from ipw.processing_worker.image_quality import DurableImageQualityProcessor
+from ipw.processing_worker.image_quality_model import PublicRealPlksrEngine
+from ipw.processing_worker.image_quality_repository import (
+    PostgresImageQualityWorkerRepository,
+)
 from ipw.processing_worker.pdf_export import DurablePdfExportProcessor
 from ipw.processing_worker.pdf_export_repository import PostgresPdfExportWorkerRepository
 from ipw.processing_worker.preview import DurablePreviewProcessor
@@ -51,6 +56,7 @@ class DurableJobRouter:
         image_export: DurableImageExportProcessor,
         export_bundle: DurableExportBundleProcessor,
         pdf_export: DurablePdfExportProcessor | None = None,
+        image_quality: DurableImageQualityProcessor | None = None,
     ) -> None:
         self._repository = repository
         self._intake = intake
@@ -58,6 +64,7 @@ class DurableJobRouter:
         self._image_export = image_export
         self._export_bundle = export_bundle
         self._pdf_export = pdf_export
+        self._image_quality = image_quality
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
         kind = self._repository.job_kind(message.job_id)
@@ -71,6 +78,8 @@ class DurableJobRouter:
             return self._export_bundle.process(message)
         if kind == "pdf_export" and self._pdf_export is not None:
             return self._pdf_export.process(message)
+        if kind == "image_quality_restore" and self._image_quality is not None:
+            return self._image_quality.process(message)
         raise LookupError("processing job kind is not supported")
 
 
@@ -145,6 +154,7 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         "IPW_GCS_BUCKET",
         "IPW_WORKER_OIDC_AUDIENCE",
         "IPW_CLOUD_TASKS_SERVICE_ACCOUNT",
+        "IPW_IMAGE_QUALITY_MODEL_PATH",
     )
     missing = [name for name in required if not env.get(name)]
     if missing:
@@ -157,6 +167,9 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
     pdf_export_repository = cast(
         PostgresPdfExportWorkerRepository,
         PostgresPdfExportWorkerRepository.connect(env["IPW_DATABASE_URL"]),
+    )
+    image_quality_repository = PostgresImageQualityWorkerRepository.connect(
+        env["IPW_DATABASE_URL"]
     )
     objects = GcsWorkerPrivateObjectStore(env["IPW_GCS_BUCKET"])
     intake = DurableIntakeProcessor(
@@ -196,8 +209,21 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         ),
         execution_lock=heavy_execution_lock,
     )
+    image_quality = DurableImageQualityProcessor(
+        image_quality_repository,
+        objects,
+        PublicRealPlksrEngine(Path(env["IPW_IMAGE_QUALITY_MODEL_PATH"])),
+        worker_id=env.get("HOSTNAME", "processing-worker"),
+        execution_lock=heavy_execution_lock,
+    )
     processor = DurableJobRouter(
-        repository, intake, preview, image_export, export_bundle, pdf_export
+        repository,
+        intake,
+        preview,
+        image_export,
+        export_bundle,
+        pdf_export,
+        image_quality,
     )
     verifier = GoogleOidcTaskIdentityVerifier(
         env["IPW_WORKER_OIDC_AUDIENCE"],

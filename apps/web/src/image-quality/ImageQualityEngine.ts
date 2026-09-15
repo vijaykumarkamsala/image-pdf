@@ -5,6 +5,7 @@ import type { FidelityEvidence } from "./imageQualityFidelity";
 
 export type ImageQualityPhase =
   | "inspect"
+  | "upload"
   | "hash"
   | "decode"
   | "analyse"
@@ -36,7 +37,9 @@ export interface ImageQualityAnalysis {
 }
 
 export interface ImageQualityResult {
-  bytes: ArrayBuffer;
+  bytes: ArrayBuffer | null;
+  remoteViewUrl?: string;
+  remoteDownloadUrl?: string;
   mediaType: "image/png";
   width: number;
   height: number;
@@ -54,10 +57,12 @@ export interface ImageQualityResult {
     id: string;
     version: string;
     sha256: string | null;
-    usage: "deterministic" | "local-research";
+    usage: "deterministic" | "production-restore" | "local-research";
   };
   warnings: string[];
   fidelity: FidelityEvidence;
+  /** Internal analysis-only result; never offered as a customer derivative. */
+  analysisProxy?: boolean;
 }
 
 export interface ImageQualityOperationOptions {

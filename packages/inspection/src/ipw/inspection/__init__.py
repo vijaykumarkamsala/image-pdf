@@ -6,6 +6,7 @@ from ipw.inspection.inspector import (
     InspectionLimits,
     InspectionOutcome,
     inspect_bytes,
+    inspect_file,
 )
 from ipw.inspection.malware import (
     ClamAvScanner,
@@ -25,5 +26,6 @@ __all__ = [
     "MalwareScanner",
     "RequiredScannerUnavailableError",
     "inspect_bytes",
+    "inspect_file",
     "production_malware_scanner",
 ]

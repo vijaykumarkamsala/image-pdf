@@ -33,7 +33,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.22.0",
+      "default": "1.24.0",
       "title": "Schema Version",
       "type": "string"
     },

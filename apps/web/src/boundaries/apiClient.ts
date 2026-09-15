@@ -167,6 +167,59 @@ export interface PdfExportListResponse { schema_version: string; pdf_exports: Pd
 export interface PdfCapabilityReportResponse { schema_version: string; capability_report: PdfCapabilityReport }
 export interface PdfCapabilityReportListResponse { schema_version: string; capability_reports: PdfCapabilityReport[] }
 
+export interface ImageQualityRequestRecord {
+  schema_version: string;
+  image_quality_request_id: string;
+  upload_session_id: string;
+  source_sha256: string;
+  source_width: number;
+  source_height: number;
+  source_frame_count: number;
+  source_bit_depth: number;
+  source_colour_primaries: "srgb" | "display-p3" | "bt2020" | "unknown" | null;
+  source_dynamic_range: "sdr" | "hdr-pq" | "hdr-hlg" | "unknown" | null;
+  content_class: "photo" | "illustration" | "flat-graphic";
+  strength: number;
+  job_id: string;
+  state: "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
+  progress_percent: number;
+  output: null | {
+    media_type: "image/png";
+    byte_size: number;
+    width: number;
+    height: number;
+    frame_count: number;
+    bit_depth: number;
+    has_icc_profile: boolean;
+    colour_policy: string;
+    colour_primaries: "srgb" | "display-p3" | "bt2020" | "unknown" | null;
+    dynamic_range: "sdr" | "hdr-pq" | "hdr-hlg" | "unknown" | null;
+    sha256: string;
+    model: {
+      id: string;
+      version: string;
+      sha256: string;
+      usage: "restore" | "deterministic";
+      deterministic: boolean;
+    };
+    processor: { name: string; version: string };
+    fidelity: {
+      low_texture_mean_rgb_shift: number;
+      high_drift_fraction: number;
+      alpha_mismatch_fraction: number;
+      overall_mean_rgb_difference: number;
+      passed: boolean;
+    };
+  };
+  failure: null | { code: string; message: string; retryable: boolean };
+}
+
+export interface ImageQualityRequestResponse {
+  schema_version: string;
+  image_quality_request: ImageQualityRequestRecord;
+  replayed?: boolean;
+}
+
 export type AuthSessionResponse = { authenticated: false } | {
   authenticated: true;
   actor: Actor;
@@ -436,6 +489,43 @@ export const api = {
   },
   uploadStatus(uploadSessionId: string, traceId: string): Promise<UploadStatusResponse> {
     return request(`/upload-sessions/${uploadSessionId}`, {}, { traceId });
+  },
+  createImageQualityRequest(
+    uploadSessionId: string,
+    contentClass: "photo" | "illustration" | "flat-graphic",
+    strength: number,
+    traceId: string,
+    idempotencyKey: string,
+  ): Promise<ImageQualityRequestResponse> {
+    return request(`/upload-sessions/${uploadSessionId}/image-quality-requests`, {
+      method: "POST",
+      headers: { "idempotency-key": idempotencyKey },
+      body: JSON.stringify({ content_class: contentClass, strength }),
+    }, { traceId });
+  },
+  imageQualityStatus(requestId: string, traceId: string): Promise<ImageQualityRequestResponse> {
+    return request(`/image-quality-requests/${requestId}`, {}, { traceId });
+  },
+  async imageQualityDownload(requestId: string): Promise<ArrayBuffer> {
+    const response = await fetch(`/v1/image-quality-requests/${requestId}/download`, {
+      credentials: "same-origin",
+      headers: { "x-trace-id": createTraceId() },
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as ErrorBody;
+      throw new ApiError(
+        response.status,
+        body.error?.code ?? "image-quality-download-failed",
+        body.error?.message ?? "The enhanced image could not be downloaded",
+      );
+    }
+    return response.arrayBuffer();
+  },
+  imageQualityViewUrl(requestId: string): string {
+    return `/v1/image-quality-requests/${encodeURIComponent(requestId)}/view`;
+  },
+  imageQualityDownloadUrl(requestId: string): string {
+    return `/v1/image-quality-requests/${encodeURIComponent(requestId)}/download`;
   },
   intakePresentation(
     uploadSessionId: string,

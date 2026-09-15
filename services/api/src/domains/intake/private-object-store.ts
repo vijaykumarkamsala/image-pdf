@@ -52,6 +52,11 @@ export interface PrivateObjectStore {
   reconcile(ref: PrivateObjectRef, input: UploadAuthorizationInput): Promise<ProviderObjectMetadata>;
   append(ref: PrivateObjectRef, bytes: Uint8Array, expectedOffset: number, maxBytes: number): Promise<number>;
   read(ref: PrivateObjectRef, maxBytes: number): Promise<Uint8Array>;
+  authorizeDownload(
+    ref: PrivateObjectRef,
+    filename: string,
+    disposition?: "attachment" | "inline",
+  ): Promise<{ url: string; expiresAt: string } | null>;
   promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef>;
   rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef>;
   remove(ref: PrivateObjectRef): Promise<void>;
@@ -141,6 +146,8 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
     }
     return value.slice();
   }
+
+  async authorizeDownload(): Promise<null> { return null; }
 
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {
     if (ref.zone !== "quarantine") throw new Error("only quarantine objects can be promoted");
@@ -247,6 +254,8 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
     return bytes;
   }
 
+  async authorizeDownload(): Promise<null> { return null; }
+
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {
     const bytes = await this.read(ref, Number.MAX_SAFE_INTEGER);
     if (createHash("sha256").update(bytes).digest("hex") !== sha256) throw new Error("promotion digest mismatch");
@@ -324,6 +333,13 @@ export interface GcsPrivateClient {
   }): Promise<string>;
   metadata(objectKey: string): Promise<ProviderObjectMetadata>;
   read(objectKey: string, maxBytes: number, generation?: string): Promise<Uint8Array>;
+  authorizeDownload(
+    objectKey: string,
+    generation: string,
+    filename: string,
+    disposition: "attachment" | "inline",
+    expiresAt: Date,
+  ): Promise<string>;
   copyIfAbsent(sourceKey: string, sourceGeneration: string, targetKey: string, sha256: string): Promise<string>;
   remove(objectKey: string, generation?: string): Promise<void>;
 }
@@ -421,6 +437,27 @@ export class GcsPrivateObjectStore implements PrivateObjectStore {
 
   read(ref: PrivateObjectRef, maxBytes: number): Promise<Uint8Array> {
     return this.client.read(ref.objectKey, maxBytes, ref.generation);
+  }
+
+  async authorizeDownload(
+    ref: PrivateObjectRef,
+    filename: string,
+    disposition: "attachment" | "inline" = "attachment",
+  ) {
+    if (ref.zone !== "derivative" || !ref.generation) {
+      throw new Error("a generation-bound derivative is required for download");
+    }
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    return {
+      url: await this.client.authorizeDownload(
+        ref.objectKey,
+        ref.generation,
+        filename,
+        disposition,
+        expiresAt,
+      ),
+      expiresAt: expiresAt.toISOString(),
+    };
   }
 
   async promote(ref: PrivateObjectRef, sha256: string): Promise<PrivateObjectRef> {

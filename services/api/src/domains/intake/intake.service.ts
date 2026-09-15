@@ -42,7 +42,7 @@ import { AUTH_REPOSITORY, type AuthRepository } from "../identity/auth.types.js"
 
 type Headers = Record<string, string | string[] | undefined>;
 
-const CONSTRAINTS: UploadConstraints = {
+const LOCAL_CONSTRAINTS: UploadConstraints = {
   schema_version: PRODUCT_SCHEMA_VERSION,
   allowed_media_types: [
     "image/png",
@@ -58,6 +58,12 @@ const CONSTRAINTS: UploadConstraints = {
   max_bytes: 100 * 1024 * 1024,
   max_pixels: 100_000_000,
   max_pages: 500,
+};
+const CLOUD_IMAGE_CONSTRAINTS: UploadConstraints = {
+  ...LOCAL_CONSTRAINTS,
+  // Direct resumable transfer keeps these bytes out of the API process.
+  max_bytes: 1024 * 1024 * 1024 * 1024,
+  max_pixels: 16_000_000_000,
 };
 
 const SOURCE_CATEGORIES = new Set<IntakeSourceCategory>([
@@ -428,10 +434,20 @@ export class IntakeService implements OnApplicationShutdown {
     const expectedMediaType = requireText(body["media_type"], "media type", 200).toLowerCase();
     const expectedByteSize = requireByteSize(body["byte_size"]);
     const expectedSha256 = this.optionalSha256(body["expected_sha256"]);
-    if (expectedByteSize < 1 || expectedByteSize > CONSTRAINTS.max_bytes) {
-      throw new DomainError(413, "upload-too-large", "Choose a file smaller than 100 MB");
+    const constraints = this.objects.provider === "google_cloud_storage"
+      && expectedMediaType.startsWith("image/")
+      ? CLOUD_IMAGE_CONSTRAINTS
+      : LOCAL_CONSTRAINTS;
+    if (expectedByteSize < 1 || expectedByteSize > constraints.max_bytes) {
+      throw new DomainError(
+        413,
+        "upload-too-large",
+        this.objects.provider === "google_cloud_storage"
+          ? "This image exceeds the one-terabyte production upload ceiling"
+          : "Choose a file smaller than 100 MB for local development",
+      );
     }
-    if (!CONSTRAINTS.allowed_media_types.includes(expectedMediaType)) {
+    if (!constraints.allowed_media_types.includes(expectedMediaType)) {
       throw new DomainError(415, "media-type-not-supported", "Choose a supported image or PDF file");
     }
     const now = this.runtime.now();
@@ -452,7 +468,7 @@ export class IntakeService implements OnApplicationShutdown {
       verified_sha256: null,
       bytes_received: 0,
       state: "initiated",
-      constraints: CONSTRAINTS,
+      constraints,
       job_id: null,
       asset_original_id: null,
       source_version_id: null,

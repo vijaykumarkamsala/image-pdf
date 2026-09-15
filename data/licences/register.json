@@ -303,6 +303,50 @@
       "evidence": "The installed npm package declares MIT and links to the official microsoft/onnxruntime repository. The browser build is used as an execution runtime only; model weights remain separately licensed and gated."
     },
     {
+      "component_id": "onnxruntime-python",
+      "display_name": "ONNX Runtime Python",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "MIT",
+      "licence_text_url": "https://github.com/microsoft/onnxruntime/blob/main/LICENSE",
+      "official_source": "https://pypi.org/project/onnxruntime/",
+      "pinned_version": "1.30.0",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "flatbuffers-python",
+        "numpy",
+        "packaging",
+        "protobuf",
+        "sympy"
+      ],
+      "required_notices": [
+        "Retain the ONNX Runtime MIT licence and copyright notice.",
+        "Copyright (c) Microsoft Corporation. All rights reserved."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-15",
+      "evidence": "The pinned Python wheel declares MIT and links to the official microsoft/onnxruntime repository. The official licence permits commercial use, modification, distribution and sublicensing subject to notice retention. It executes only the separately approved, digest-pinned ONNX model in the private Linux worker."
+    },
+    {
+      "component_id": "flatbuffers-python",
+      "display_name": "FlatBuffers Python runtime",
+      "kind": "dependency",
+      "disposition": "approved",
+      "licence_id": "Apache-2.0",
+      "licence_text_url": "https://github.com/google/flatbuffers/blob/master/LICENSE",
+      "official_source": "https://github.com/google/flatbuffers/tree/master/python",
+      "pinned_version": "25.12.19",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Retain the FlatBuffers Apache-2.0 licence and copyright notice."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-15",
+      "evidence": "The official FlatBuffers repository and the pinned Python distribution declare Apache-2.0. It is the serialization runtime required by the approved native ONNX Runtime wheel."
+    },
+    {
       "component_id": "ost-dataset",
       "display_name": "OutdoorSceneTraining (OST) dataset",
       "kind": "dataset",
@@ -443,6 +487,52 @@
       "reviewed_by": "POC-004",
       "reviewed_on": "2026-08-24",
       "evidence": "Installed distribution metadata declares License: MIT with the OSI MIT classifier; licence text at pyvips-3.1.1.dist-info/licenses/LICENSE.txt. This is the BINDING ONLY. The native library it loads is a separate component with a different licence, registered as 'libvips' - a wrapper licence never covers what it wraps."
+    },
+    {
+      "component_id": "public-realplksr-2x",
+      "display_name": "Public-domain-trained RealPLKSR 2x production engine",
+      "kind": "service",
+      "disposition": "approved",
+      "licence_id": "Apache-2.0",
+      "licence_text_url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "official_source": "https://github.com/Phhofm/models/releases/tag/2xPublic_realplksr_dysample_layernorm_real",
+      "pinned_version": "2xPublic_realplksr_dysample_layernorm_real@90313fd",
+      "weight_format": "not_applicable",
+      "network_disabled_at_inference": true,
+      "depends_on": [
+        "public-realplksr-2x-weights",
+        "onnxruntime-python"
+      ],
+      "required_notices": [
+        "Include a copy of the Apache License 2.0 with redistributed model weights.",
+        "Image enhancement powered by 2xPublic_realplksr_dysample_layernorm_real by Philip Hofmann.",
+        "Do not imply endorsement by the model author."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-15",
+      "evidence": "Reviewed the signed official GitHub release and its complete model card. The author assigns Apache-2.0 to this exact model, expressly permits commercial applications, SaaS, APIs, modification and redistribution, and states that the training input was 56,000+ public-domain/CC0-marked images curated to 4,297 tiles. The production path uses the separately approved native ONNX Runtime dependency and the digest-pinned official ONNX asset below.",
+      "notes": "Approved for bounded Restore use only after quality/fidelity gates. It is a GAN-optimized restoration model, so the product discloses reconstruction and never routes logos/flat graphics through it. Approval does not make its output recovered ground truth."
+    },
+    {
+      "component_id": "public-realplksr-2x-weights",
+      "display_name": "2xPublic RealPLKSR Dysample LayerNorm real ONNX weights",
+      "kind": "weights",
+      "disposition": "approved",
+      "licence_id": "Apache-2.0",
+      "licence_text_url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "official_source": "https://github.com/Phhofm/models/releases/download/2xPublic_realplksr_dysample_layernorm_real/2xPublic_realplksr_dysample_layernorm_real_fp32_op17.onnx",
+      "pinned_version": "2xPublic_realplksr_dysample_layernorm_real@90313fd/onnx-op17",
+      "weights_sha256": "4c5c658893c927af11238d4aa767a7cb0bfcae773b98a7da3a6c486efa024f5f",
+      "weight_format": "onnx",
+      "network_disabled_at_inference": true,
+      "required_notices": [
+        "Include a copy of the Apache License 2.0 with redistributed model weights.",
+        "Retain attribution to Philip Hofmann and the official model release."
+      ],
+      "reviewed_by": "feature/image-quality-editor",
+      "reviewed_on": "2026-09-15",
+      "evidence": "The exact official release asset is 29,792,727 bytes with SHA-256 4c5c658893c927af11238d4aa767a7cb0bfcae773b98a7da3a6c486efa024f5f. The graph is ONNX opset 17 with fixed NCHW 1x3x256x256 input and 1x3x512x512 output. Native worker inference uses these official bytes without graph modification.",
+      "notes": "Apache-2.0 permits commercial use and redistribution. The source installer verifies the official byte count and digest before writing; the worker verifies the same byte count and digest again before creating an inference session."
     },
     {
       "component_id": "real-esrgan",

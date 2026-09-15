@@ -33,11 +33,13 @@ Pillow==12.3.0
 reportlab==5.0.1
 pypdf==6.18.1
 numpy==2.5.2
+onnxruntime==1.30.0
+flatbuffers==25.12.19
 pyvips==3.1.1
 torch==2.13.0+cpu
 
-# CPU Torch runtime closure. These are benchmark/test dependencies only: the
-# production processing-worker image installs none of torch, numpy or pyvips.
+# CPU Torch runtime closure. Torch and pyvips remain benchmark/test-only; NumPy
+# and ONNX Runtime are now approved production restoration dependencies.
 filelock==3.32.6
 fsspec==2026.7.0
 Jinja2==3.1.6

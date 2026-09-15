@@ -365,6 +365,7 @@ class ProcessingJobKind(StrEnum):
     IMAGE_EXPORT = "image_export"
     PDF_EXPORT = "pdf_export"
     EXPORT_BUNDLE = "export_bundle"
+    IMAGE_QUALITY_RESTORE = "image_quality_restore"
 
 
 class StudioEditableMediaType(StrEnum):
@@ -451,6 +452,8 @@ class SourceFacts(ProductKernelContractModel):
     bit_depth: int | None = Field(default=None, ge=1)
     colour_model: SourceColourModel | None = None
     has_icc_profile: bool | None = None
+    colour_primaries: Literal["srgb", "display-p3", "bt2020", "unknown"] | None = None
+    dynamic_range: Literal["sdr", "hdr-pq", "hdr-hlg", "unknown"] | None = None
     sensitive_metadata: tuple[NonEmptyStr, ...] = ()
     malware_scan_state: MalwareScanState
 
@@ -613,6 +616,7 @@ class ProcessingJobRecord(ProductKernelContractModel):
     export_request_id: SlugId | None = None
     pdf_export_request_id: SlugId | None = None
     bundle_id: SlugId | None = None
+    image_quality_request_id: SlugId | None = None
     state: ProcessingJobState
     attempt: int = Field(ge=0)
     max_attempts: int = Field(ge=1)
@@ -632,12 +636,14 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.upload_session_id is not None
             and self.document_id is None
             and self.pdf_export_request_id is None
+            and self.image_quality_request_id is None
         )
         preview = (
             self.kind == ProcessingJobKind.PREVIEW_GENERATION
             and self.document_id is not None
             and self.upload_session_id is None
             and self.pdf_export_request_id is None
+            and self.image_quality_request_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
         )
         image_export = (
@@ -648,6 +654,7 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
             and self.pdf_export_request_id is None
+            and self.image_quality_request_id is None
         )
         pdf_export = (
             self.kind == ProcessingJobKind.PDF_EXPORT
@@ -657,6 +664,7 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.bundle_id is None
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
+            and self.image_quality_request_id is None
         )
         bundle = (
             self.kind == ProcessingJobKind.EXPORT_BUNDLE
@@ -666,8 +674,18 @@ class ProcessingJobRecord(ProductKernelContractModel):
             and self.upload_session_id is None
             and self.owner_kind == UploadOwnerKind.ACTOR
             and self.pdf_export_request_id is None
+            and self.image_quality_request_id is None
         )
-        if not (intake or preview or image_export or pdf_export or bundle):
+        image_quality = (
+            self.kind == ProcessingJobKind.IMAGE_QUALITY_RESTORE
+            and self.upload_session_id is not None
+            and self.image_quality_request_id is not None
+            and self.document_id is None
+            and self.export_request_id is None
+            and self.pdf_export_request_id is None
+            and self.bundle_id is None
+        )
+        if not (intake or preview or image_export or pdf_export or bundle or image_quality):
             raise ValueError("processing job target must match its kind")
         return self
 

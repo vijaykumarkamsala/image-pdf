@@ -250,13 +250,18 @@ test("content routing reports confidence and keeps accepted flat graphics determ
   assert.ok(result.confidence > 0.9);
 });
 
-test("research-only weights can never be selected for a production purpose", () => {
+test("production selects only the approved neural model while research weights stay quarantined", () => {
   const production = selectImageQualityEngine({ contentClass: "photograph", purpose: "production", webGpuAvailable: true });
   const research = selectImageQualityEngine({ contentClass: "photograph", purpose: "local-research", webGpuAvailable: true });
-  assert.equal(production.implementation, "deterministic");
-  assert.equal(production.weightsSha256, null);
+  const protectedGraphic = selectImageQualityEngine({ contentClass: "flat-graphic", purpose: "production", webGpuAvailable: true });
+  assert.equal(production.id, "public-realplksr-2x");
+  assert.ok(production.permittedPurposes.includes("production"));
+  assert.equal(production.weightsSha256, "4c5c658893c927af11238d4aa767a7cb0bfcae773b98a7da3a6c486efa024f5f");
+  assert.equal(research.id, "realesr-general-x4v3-local-research");
   assert.equal(research.implementation, "neural");
   assert.ok(research.weightsSha256);
+  assert.equal(protectedGraphic.implementation, "deterministic");
+  assert.equal(protectedGraphic.weightsSha256, null);
 });
 
 test("scale planning is explicit, device-budgeted and route-aware", () => {

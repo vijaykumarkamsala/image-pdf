@@ -8,7 +8,7 @@ export interface PngOutputMetadata {
   strength: number;
   scale: number;
   modelSha256: string | null;
-  usage: "deterministic" | "local-research";
+  usage: "deterministic" | "production-restore" | "local-research";
   contentClass: "flat-graphic" | "illustration" | "photograph";
   classificationConfidence: number;
   outputWidth: number;

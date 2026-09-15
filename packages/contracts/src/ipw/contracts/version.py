@@ -68,8 +68,13 @@ History
 SCHEMA_MAJOR = "v1"
 """Directory name under ``packages/schemas/`` holding the exported JSON Schema."""
 
-PRODUCT_SCHEMA_VERSION = "1.22.0"
-"""Additive Product V2 contract line, independent from benchmark identities."""
+PRODUCT_SCHEMA_VERSION = "1.24.0"
+"""Additive Product V2 contract line, independent from benchmark identities.
+
+``1.24.0`` adds durable Image Quality Restore plus optional verified colour
+primaries and dynamic-range signalling on source facts. Older clients may
+ignore the new enum member, request identifier and source-fact fields.
+"""
 
 PRODUCT_SCHEMA_MAJOR = "product-v1"
 """Directory containing production product-kernel JSON Schema documents."""

@@ -25,9 +25,10 @@ target and derived `canonical-ci` target pin:
 | OS/Python image | `python:3.14.5-slim-bookworm@sha256:a9bee15510a364124aa24692899d269835683b883de42f7ebec8c293cf679ccb` |
 | Debian packages | snapshot `20260911T000000Z` |
 | Pillow | `12.3.0` |
+| NumPy / native ONNX Runtime | `2.5.2` / `1.30.0` |
+| Public RealPLKSR Restore model | ONNX SHA-256 `4c5c658893c927af11238d4aa767a7cb0bfcae773b98a7da3a6c486efa024f5f` |
 | IPW Standard font | SHA-256 `69853909b940023570964e29cffe30da95aea8de3627736b5cd15ab30143169f` |
-| libvips / pyvips (evidence only) | `8.18.5` / `3.1.1` |
-| NumPy (evidence only) | `2.5.2` |
+| libvips / pyvips | `8.18.5` / `3.1.1` |
 | Torch (evidence only) | `2.13.0+cpu`, CUDA absent, one CPU thread |
 | Node | `24.10.0` from image digest `sha256:b8d2197aff9129d16c801a3e3e1b2a873c4946480f5a310f38056df2268c38d9` |
 | Playwright / Chromium | `1.62.1` / `151.0.7922.34` |
@@ -47,13 +48,16 @@ Build the Cloud Run worker with:
 docker build -f services/processing-worker/Dockerfile --target runtime -t ipw-processing-worker .
 ```
 
-The production target contains the processing worker and its production package
-closure. It proves that Torch, pyvips, the POC processor workspace and the
-benchmark runner are absent. This preserves the production/benchmark boundary in
-ADR-0015.
+The production target contains the processing worker, native ONNX Runtime,
+NumPy, pinned libvips/pyvips, and the digest-verified approved Public RealPLKSR
+model. It proves that Torch, the POC processor workspace and the benchmark runner are absent.
+This preserves the production/benchmark boundary in ADR-0015. The model is
+fetched only while building the immutable container, and both byte count and
+SHA-256 are verified before it becomes part of the runtime image; inference has
+no model-network access.
 
 The `canonical-ci` target inherits the runtime target and adds pinned CPU Torch,
-libvips, Node and Chromium only to execute the complete repository evidence set.
+Node and Chromium only to execute the complete repository evidence set.
 CPU-only Torch avoids both the unreviewed CUDA licence path and CUDA libraries'
 process-RSS inflation. The worker's 768 MiB limit remains unchanged.
 

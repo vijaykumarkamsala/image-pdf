@@ -6,9 +6,13 @@ import hashlib
 import re
 import struct
 from dataclasses import dataclass
-from pathlib import PurePath
+from pathlib import Path, PurePath
+from typing import Literal
 
 from ipw.contracts.product_kernel import MalwareScanState, SourceColourModel, SourceFacts
+
+ColourPrimaries = Literal["srgb", "display-p3", "bt2020", "unknown"]
+DynamicRange = Literal["sdr", "hdr-pq", "hdr-hlg", "unknown"]
 
 
 @dataclass(frozen=True)
@@ -97,6 +101,41 @@ def _png(data: bytes) -> RasterHeader:
     )
     colour_model = "grayscale" if colour in {0, 4} else "indexed" if colour == 3 else "rgb"
     return width, height, depth, alpha, icc, None, frames, sensitive, colour_model
+
+
+def _png_colour_signal(
+    data: bytes,
+) -> tuple[ColourPrimaries | None, DynamicRange | None]:
+    offset = 8
+    view = memoryview(data)
+    while offset + 12 <= len(data):
+        length = int.from_bytes(view[offset : offset + 4], "big")
+        kind = bytes(view[offset + 4 : offset + 8])
+        end = offset + 12 + length
+        if end > len(data):
+            break
+        payload = bytes(view[offset + 8 : offset + 8 + length])
+        if kind == b"cICP" and length == 4:
+            primary_codes: dict[int, ColourPrimaries] = {
+                1: "srgb",
+                9: "bt2020",
+                12: "display-p3",
+            }
+            range_codes: dict[int, DynamicRange] = {
+                16: "hdr-pq",
+                18: "hdr-hlg",
+            }
+            primaries = primary_codes.get(payload[0], "unknown")
+            dynamic_range = range_codes.get(payload[1], "sdr")
+            return primaries, dynamic_range
+        if kind == b"iCCP":
+            return "unknown", "unknown"
+        if kind == b"sRGB":
+            return "srgb", "sdr"
+        if kind in {b"PLTE", b"IDAT"}:
+            break
+        offset = end
+    return None, None
 
 
 def _jpeg(data: bytes) -> RasterHeader:
@@ -479,19 +518,176 @@ def inspect_bytes(
             parsed = _jpeg(data)
         else:
             parsed = _simple_image(detected, data)
-        width, height, depth, alpha, icc, orientation, frames, sensitive, colour_model = parsed
     except (ValueError, struct.error) as error:
         return _reject("header-malformed", str(error))
+    colour_primaries, dynamic_range = (
+        _png_colour_signal(data)
+        if detected == "image/png"
+        else ("unknown", "unknown") if parsed[4] else (None, None)
+    )
+    return _raster_outcome(
+        parsed,
+        digest,
+        len(data),
+        detected,
+        policy,
+        colour_primaries=colour_primaries,
+        dynamic_range=dynamic_range,
+    )
+
+
+def inspect_file(
+    path: Path,
+    *,
+    sha256: str,
+    display_name: str,
+    expected_media_type: str,
+    malware_state: str = "clean",
+    limits: InspectionLimits | None = None,
+) -> InspectionOutcome:
+    """Inspect a materialized large raster without loading its payload into RAM."""
+
+    policy = limits or InspectionLimits()
+    byte_size = path.stat().st_size
+    if byte_size < 1:
+        return _reject("file-empty", "The selected file is empty")
+    if byte_size > policy.max_bytes:
+        return _reject("file-too-large", "The selected file exceeds the intake size limit")
+    with path.open("rb") as handle:
+        header = handle.read(policy.max_header_bytes)
+    detected = _signature(header)
+    if detected is None:
+        return _reject("signature-unknown", "The file signature is not a supported image")
+    if detected != expected_media_type:
+        return _reject(
+            "signature-mismatch", "The file contents do not match the selected file type"
+        )
+    declared_by_name = _MEDIA_OF_EXTENSION.get(PurePath(display_name).suffix.lower())
+    if declared_by_name is not None and declared_by_name != detected:
+        return _reject("extension-mismatch", "The file name does not match its contents")
+    if malware_state == "malicious":
+        return _reject("malware-detected", "The file was rejected by the safety scan")
+    if malware_state in {"unavailable", "timeout", "error"}:
+        return _reject("scanner-unavailable", "The required safety scanner is unavailable")
+    if detected not in {"image/png", "image/jpeg", "image/webp"}:
+        return _reject(
+            "large-container-unsupported",
+            "Large-file streaming currently supports JPEG, PNG and WebP images",
+        )
+    try:
+        if detected == "image/png":
+            parsed = _png(header)
+        elif detected == "image/jpeg":
+            parsed = _jpeg(header)
+        else:
+            parsed = _webp_file(path, byte_size)
+    except (OSError, ValueError, struct.error) as error:
+        return _reject("header-malformed", str(error))
+    colour_primaries, dynamic_range = (
+        _png_colour_signal(header)
+        if detected == "image/png"
+        else ("unknown", "unknown") if parsed[4] else (None, None)
+    )
+    return _raster_outcome(
+        parsed,
+        sha256,
+        byte_size,
+        detected,
+        policy,
+        colour_primaries=colour_primaries,
+        dynamic_range=dynamic_range,
+    )
+
+
+def _webp_file(path: Path, byte_size: int) -> RasterHeader:
+    with path.open("rb") as handle:
+        prefix = handle.read(30)
+        if len(prefix) < 20 or prefix[:4] != b"RIFF" or prefix[8:12] != b"WEBP":
+            raise ValueError("WebP header is truncated")
+        declared_end = int.from_bytes(prefix[4:8], "little") + 8
+        if declared_end != byte_size:
+            raise ValueError("WebP RIFF size does not match the materialized object")
+        width = height = 0
+        alpha = icc = False
+        sensitive: set[str] = set()
+        frames = 0
+        offset = 12
+        while offset + 8 <= byte_size:
+            handle.seek(offset)
+            chunk_header = handle.read(8)
+            if len(chunk_header) != 8:
+                raise ValueError("WebP chunk header is truncated")
+            kind = chunk_header[:4]
+            size = int.from_bytes(chunk_header[4:8], "little")
+            payload_start = offset + 8
+            payload_end = payload_start + size
+            if payload_end > byte_size:
+                raise ValueError("WebP chunk is truncated")
+            handle.seek(payload_start)
+            payload = handle.read(min(size, 32))
+            if kind == b"VP8X" and size == 10:
+                flags = payload[0]
+                width = 1 + int.from_bytes(payload[4:7], "little")
+                height = 1 + int.from_bytes(payload[7:10], "little")
+                alpha |= bool(flags & 0x10)
+                icc |= bool(flags & 0x20)
+                if flags & 0x08:
+                    sensitive.add("exif")
+                if flags & 0x04:
+                    sensitive.add("xmp")
+            elif kind == b"VP8 " and len(payload) >= 10 and payload[3:6] == b"\x9d\x01\x2a":
+                width = width or int.from_bytes(payload[6:8], "little") & 0x3FFF
+                height = height or int.from_bytes(payload[8:10], "little") & 0x3FFF
+            elif kind == b"VP8L" and len(payload) >= 5 and payload[0] == 0x2F:
+                packed = int.from_bytes(payload[1:5], "little")
+                width = width or (packed & 0x3FFF) + 1
+                height = height or ((packed >> 14) & 0x3FFF) + 1
+                alpha = True
+            elif kind == b"ANMF":
+                frames += 1
+            elif kind == b"ICCP":
+                icc = True
+            elif kind == b"EXIF":
+                sensitive.add("exif")
+            elif kind == b"XMP ":
+                sensitive.add("xmp")
+            offset = payload_end + (size & 1)
+        if offset != byte_size or width < 1 or height < 1:
+            raise ValueError("WebP container structure or dimensions are invalid")
+    return (
+        width,
+        height,
+        8,
+        alpha,
+        icc,
+        None,
+        max(1, frames),
+        tuple(sorted(sensitive)),
+        "rgb",
+    )
+
+
+def _raster_outcome(
+    parsed: RasterHeader,
+    digest: str,
+    byte_size: int,
+    detected: str,
+    policy: InspectionLimits,
+    *,
+    colour_primaries: ColourPrimaries | None = None,
+    dynamic_range: DynamicRange | None = None,
+) -> InspectionOutcome:
+    width, height, depth, alpha, icc, orientation, frames, sensitive, colour_model = parsed
     pixels = width * height
     if pixels > policy.max_pixels:
         return _reject("pixel-limit-exceeded", "Image dimensions exceed the safe pixel limit")
     estimated = pixels * 4 * max(1, (depth + 7) // 8)
-    if estimated > 64 * 1024 * 1024 and estimated > len(data) * policy.max_expansion_ratio:
+    if estimated > 64 * 1024 * 1024 and estimated > byte_size * policy.max_expansion_ratio:
         return _reject("decompression-bomb", "The compressed file expands beyond the safe ratio")
     facts = SourceFacts(
         sha256=digest,
         detected_media_type=detected,
-        byte_size=len(data),
+        byte_size=byte_size,
         width=width,
         height=height,
         megapixels_milli=pixels // 1000,
@@ -501,6 +697,8 @@ def inspect_bytes(
         bit_depth=depth,
         colour_model=SourceColourModel(colour_model),
         has_icc_profile=icc,
+        colour_primaries=colour_primaries,
+        dynamic_range=dynamic_range,
         sensitive_metadata=sensitive,
         malware_scan_state=MalwareScanState.CLEAN,
     )

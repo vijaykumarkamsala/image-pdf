@@ -167,6 +167,13 @@ module = ["ipw.metrics.*"]
 disallow_any_unimported = false
 
 [[tool.mypy.overrides]]
+# Native ONNX restoration is isolated behind typed worker-owned dataclasses and
+# a narrow InferenceSession Protocol.  NumPy's stubs are intentionally skipped
+# at the Python 3.11 syntax floor above, so permit its array values only here.
+module = ["ipw.processing_worker.image_quality_model"]
+disallow_any_unimported = false
+
+[[tool.mypy.overrides]]
 # The vector package takes numpy masks and PIL images in its signatures, and
 # neither is followed here: numpy's stubs are skipped (above) and Pillow ships
 # none. That makes those parameters Any and trips disallow_any_unimported.

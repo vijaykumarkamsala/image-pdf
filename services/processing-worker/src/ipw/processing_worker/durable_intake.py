@@ -4,16 +4,25 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 from google.api_core import exceptions as google_exceptions
 
 from ipw.contracts.pdf_management import PdfCapabilityAnalysis
-from ipw.inspection import InspectionLimits, MalwareScanner, inspect_bytes
+from ipw.inspection import InspectionLimits, MalwareScanner, inspect_bytes, inspect_file
 from ipw.processing_worker.pdf_capability import inspect_pdf_capabilities
 from ipw.processing_worker.repository import JobBusyError, LeasedIntakeJob
-from ipw.storage import IntakePrivateObjectStore, ObjectZone, PrivateObjectRef
+from ipw.storage import (
+    IntakePrivateObjectStore,
+    LargeWorkerPrivateObjectStore,
+    ObjectZone,
+    PrivateObjectRef,
+)
+
+IN_MEMORY_INSPECTION_BYTES = 64 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -103,23 +112,42 @@ class DurableIntakeProcessor:
             return WorkerOutcome("already_terminal", message.job_id)
 
         source = PrivateObjectRef(lease.owner_scope, lease.object_key, ObjectZone.QUARANTINE)
+        temporary: tempfile.TemporaryDirectory[str] | None = None
         try:
             self._repository.start(lease)
             self._heartbeat_and_cancel(lease)
-            snapshot = self._objects.read(
-                source,
-                generation=lease.object_generation,
-                max_bytes=lease.expected_byte_size,
-            )
+            source_data: bytes | None = None
+            source_path: Path | None = None
+            if lease.expected_byte_size > IN_MEMORY_INSPECTION_BYTES:
+                if not isinstance(self._objects, LargeWorkerPrivateObjectStore):
+                    raise RuntimeError("large-object inspection storage is unavailable")
+                temporary = tempfile.TemporaryDirectory(prefix="ipw-intake-")
+                materialized = self._objects.materialize(
+                    source,
+                    generation=lease.object_generation,
+                    destination=Path(temporary.name) / "untrusted-upload.image",
+                    max_bytes=lease.expected_byte_size,
+                )
+                source_path = materialized.path
+                actual_size = materialized.byte_size
+                digest = materialized.sha256
+            else:
+                snapshot = self._objects.read(
+                    source,
+                    generation=lease.object_generation,
+                    max_bytes=lease.expected_byte_size,
+                )
+                source_data = snapshot.data
+                actual_size = len(source_data)
+                digest = hashlib.sha256(source_data).hexdigest()
             self._repository.heartbeat(lease)
-            if len(snapshot.data) != lease.expected_byte_size:
+            if actual_size != lease.expected_byte_size:
                 return self._reject(
                     lease,
                     source,
                     "upload-size-mismatch",
                     "The uploaded byte count changed before inspection",
                 )
-            digest = hashlib.sha256(snapshot.data).hexdigest()
             if lease.expected_sha256 and digest != lease.expected_sha256:
                 return self._reject(
                     lease,
@@ -131,7 +159,11 @@ class DurableIntakeProcessor:
             checkpoint = self._checkpoint_evidence(lease, digest)
             if checkpoint is None:
                 self._heartbeat_and_cancel(lease)
-                scan = self._scanner.scan(snapshot.data)
+                scan = (
+                    self._scanner.scan_file(source_path, max_bytes=lease.expected_byte_size)
+                    if source_path is not None
+                    else self._scanner.scan(source_data or b"")
+                )
                 if scan.state in {"unavailable", "timeout", "error"}:
                     state = self._repository.fail_or_cancel(
                         lease,
@@ -140,16 +172,28 @@ class DurableIntakeProcessor:
                         retryable=True,
                     )
                     return WorkerOutcome(state, lease.job_id)
-                outcome = inspect_bytes(
-                    snapshot.data,
-                    display_name=lease.display_name,
-                    expected_media_type=lease.expected_media_type,
-                    malware_state=scan.state,
-                    limits=InspectionLimits(
-                        max_bytes=int(lease.constraints["max_bytes"]),
-                        max_pixels=int(lease.constraints["max_pixels"]),
-                        max_pages=int(lease.constraints["max_pages"]),
-                    ),
+                limits = InspectionLimits(
+                    max_bytes=int(lease.constraints["max_bytes"]),
+                    max_pixels=int(lease.constraints["max_pixels"]),
+                    max_pages=int(lease.constraints["max_pages"]),
+                )
+                outcome = (
+                    inspect_file(
+                        source_path,
+                        sha256=digest,
+                        display_name=lease.display_name,
+                        expected_media_type=lease.expected_media_type,
+                        malware_state=scan.state,
+                        limits=limits,
+                    )
+                    if source_path is not None
+                    else inspect_bytes(
+                        source_data or b"",
+                        display_name=lease.display_name,
+                        expected_media_type=lease.expected_media_type,
+                        malware_state=scan.state,
+                        limits=limits,
+                    )
                 )
                 if not outcome.accepted or outcome.facts is None:
                     return self._reject(
@@ -161,7 +205,7 @@ class DurableIntakeProcessor:
                 facts = outcome.facts.model_dump(mode="json")
                 pdf_capability = (
                     inspect_pdf_capabilities(
-                        snapshot.data,
+                        source_data or b"",
                         source_sha256=digest,
                         page_limit=int(lease.constraints["max_pages"]),
                     )
@@ -230,6 +274,9 @@ class DurableIntakeProcessor:
                 retryable=False,
             )
             return WorkerOutcome(state, lease.job_id)
+        finally:
+            if temporary is not None:
+                temporary.cleanup()
 
     def _checkpoint_evidence(
         self, lease: LeasedIntakeJob, digest: str

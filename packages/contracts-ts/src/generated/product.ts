@@ -7,7 +7,7 @@
 // Verify with:      python tools/generate_product_contracts.py --check
 
 /** Production product-kernel contract version. */
-export const PRODUCT_SCHEMA_VERSION = "1.22.0";
+export const PRODUCT_SCHEMA_VERSION = "1.24.0";
 
 export interface Actor {
   schema_version?: string;
@@ -928,8 +928,8 @@ export const PermissionValues: readonly Permission[] = ["workspace.read", "proje
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
 
-export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "pdf_export" | "export_bundle";
-export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "pdf_export", "export_bundle"] as const;
+export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "pdf_export" | "export_bundle" | "image_quality_restore";
+export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "pdf_export", "export_bundle", "image_quality_restore"] as const;
 
 export interface ProcessingJobRecord {
   schema_version?: string;
@@ -944,6 +944,7 @@ export interface ProcessingJobRecord {
   export_request_id?: string | null;
   pdf_export_request_id?: string | null;
   bundle_id?: string | null;
+  image_quality_request_id?: string | null;
   state: ProcessingJobState;
   attempt: number;
   max_attempts: number;
@@ -1154,6 +1155,8 @@ export interface SourceFacts {
   bit_depth?: number | null;
   colour_model?: SourceColourModel | null;
   has_icc_profile?: boolean | null;
+  colour_primaries?: "srgb" | "display-p3" | "bt2020" | "unknown" | null;
+  dynamic_range?: "sdr" | "hdr-pq" | "hdr-hlg" | "unknown" | null;
   sensitive_metadata?: string[];
   malware_scan_state: MalwareScanState;
 }

@@ -921,6 +921,7 @@ workerScope.onmessage = (event) => {
         return;
       }
       const result = await enhance(request.strength, request.id, request.preferDeterministic);
+      if (!result.bytes) throw new Error("The local worker did not encode its result.");
       workerScope.postMessage(
         { id: request.id, ok: true, type: "enhanced", ...result },
         [result.bytes],

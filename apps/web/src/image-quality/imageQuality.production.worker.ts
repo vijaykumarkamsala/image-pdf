@@ -19,7 +19,7 @@ import { pngOutputSha256, tagSrgbPng } from "./pngMetadata";
 import { sha256Blob } from "./sha256";
 
 type WorkerRequest =
-  | { id: number; type: "load"; source: Blob }
+  | { id: number; type: "load"; source: Blob; allowAnalysisSample?: boolean }
   | { id: number; type: "enhance"; strength: number; preferDeterministic: boolean }
   | { type: "cancel"; targetId: number };
 
@@ -40,6 +40,7 @@ let sourceWidth = 0;
 let sourceHeight = 0;
 let sourceSha256 = "";
 let sourceInspection: ImageFileInspection | null = null;
+let sourceIsAnalysisSample = false;
 const cancelled = new Set<number>();
 
 function report(id: number, progress: ImageQualityProgress) {
@@ -50,14 +51,18 @@ function assertActive(id: number) {
   if (cancelled.has(id)) throw new DOMException("Enhancement cancelled.", "AbortError");
 }
 
-async function loadSource(source: Blob, id: number): Promise<ImageQualitySource> {
+async function loadSource(
+  source: Blob,
+  id: number,
+  allowAnalysisSample = false,
+): Promise<ImageQualitySource> {
   report(id, { phase: "inspect", completed: 0, total: 1, message: "Verifying the real image type and dimensions…" });
   const inspection = await inspectImageFile(source);
-  if (inspection.animated || inspection.frameCount > 1) {
-    throw new Error("Animated images are not flattened silently. Choose a still JPEG, PNG or WebP image.");
-  }
   const budget = processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE);
-  if (inspection.width * inspection.height > budget.sourcePixels) {
+  const requiresSample = inspection.animated
+    || inspection.frameCount > 1
+    || inspection.width * inspection.height > budget.sourcePixels;
+  if (requiresSample && !allowAnalysisSample) {
     throw new Error("The decoded image exceeds this device's measured local processing budget. Use a higher-memory device or the future cloud route.");
   }
   report(id, { phase: "hash", completed: 0, total: source.size, message: "Fingerprinting the untouched original…" });
@@ -69,10 +74,17 @@ async function loadSource(source: Blob, id: number): Promise<ImageQualitySource>
   report(id, { phase: "decode", completed: 0, total: 1, message: "Decoding source pixels into sRGB…" });
   let bitmap: ImageBitmap;
   try {
+    const longest = Math.max(inspection.width, inspection.height);
+    const analysisScale = requiresSample ? Math.min(1, 1024 / longest) : 1;
     bitmap = await createImageBitmap(source, {
       colorSpaceConversion: "default",
       imageOrientation: "from-image",
       premultiplyAlpha: "premultiply",
+      ...(requiresSample ? {
+        resizeWidth: Math.max(1, Math.round(inspection.width * analysisScale)),
+        resizeHeight: Math.max(1, Math.round(inspection.height * analysisScale)),
+        resizeQuality: "high" as const,
+      } : {}),
     });
   } catch {
     throw new Error("This image could not be decoded. Try a valid JPEG, PNG or WebP file.");
@@ -90,10 +102,11 @@ async function loadSource(source: Blob, id: number): Promise<ImageQualitySource>
     sourceHeight = bitmap.height;
     sourceSha256 = digest;
     sourceInspection = inspection;
+    sourceIsAnalysisSample = requiresSample;
     report(id, { phase: "decode", completed: 1, total: 1, message: "Source pixels ready." });
     return {
-      width: sourceWidth,
-      height: sourceHeight,
+      width: inspection.width,
+      height: inspection.height,
       mediaType: inspection.mediaType,
       byteSize: source.size,
       sourceSha256,
@@ -178,6 +191,7 @@ async function enhance(strength: number, id: number): Promise<ImageQualityResult
       ...sourceInspection.warnings,
     ],
     fidelity,
+    analysisProxy: sourceIsAnalysisSample,
   };
 }
 
@@ -239,12 +253,20 @@ workerScope.onmessage = (event) => {
   void (async () => {
     try {
       if (request.type === "load") {
-        const loaded = await loadSource(request.source, request.id);
+        const loaded = await loadSource(
+          request.source,
+          request.id,
+          request.allowAnalysisSample,
+        );
         workerScope.postMessage({ id: request.id, ok: true, type: "loaded", ...loaded });
         return;
       }
       const result = await enhance(request.strength, request.id);
-      workerScope.postMessage({ id: request.id, ok: true, type: "enhanced", ...result }, [result.bytes]);
+      if (!result.bytes) throw new Error("The local worker did not encode its result.");
+      workerScope.postMessage(
+        { id: request.id, ok: true, type: "enhanced", ...result },
+        [result.bytes],
+      );
     } catch (error) {
       workerScope.postMessage({ id: request.id, ok: false, message: error instanceof Error ? error.message : "Image processing did not complete." });
     } finally {

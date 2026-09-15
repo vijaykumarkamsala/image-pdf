@@ -92,6 +92,26 @@ export class GcsSdkPrivateClient implements GcsPrivateClient {
     return bytes;
   }
 
+  async authorizeDownload(
+    objectKey: string,
+    generation: string,
+    filename: string,
+    disposition: "attachment" | "inline",
+    expiresAt: Date,
+  ): Promise<string> {
+    if (!/^\d+$/.test(generation)) throw new Error("invalid GCS object generation");
+    const [url] = await this.file(objectKey, generation).getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: expiresAt,
+      responseDisposition: `${disposition}; filename="${filename.replace(/["\\\r\n]/g, "-")}"`,
+      responseType: disposition === "inline" ? "image/png" : "application/octet-stream",
+    });
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") throw new Error("GCS returned an invalid download URL");
+    return url;
+  }
+
   async copyIfAbsent(
     sourceKey: string,
     sourceGeneration: string,

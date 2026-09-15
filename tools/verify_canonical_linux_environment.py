@@ -24,12 +24,15 @@ from PIL import ImageFont
 PYTHON_VERSION = (3, 14, 5)
 RUNTIME_DISTRIBUTIONS = {
     "Pillow": "12.3.0",
+    "flatbuffers": "25.12.19",
+    "numpy": "2.5.2",
+    "onnxruntime": "1.30.0",
+    "pyvips": "3.1.1",
     "pypdf": "6.18.1",
     "reportlab": "5.0.1",
 }
 CANONICAL_DISTRIBUTIONS = {
     **RUNTIME_DISTRIBUTIONS,
-    "numpy": "2.5.2",
     "pyvips": "3.1.1",
     "torch": "2.13.0+cpu",
 }
@@ -76,6 +79,14 @@ def _assert_no_cuda_packages() -> None:
     )
     if offenders:
         raise RuntimeError(f"unapproved CUDA packages are installed: {offenders}")
+
+
+def _assert_runtime_vips() -> None:
+    import pyvips
+
+    native_vips = ".".join(str(pyvips.version(index)) for index in range(3))
+    if native_vips != LIBVIPS_VERSION:
+        raise RuntimeError(f"libvips must be {LIBVIPS_VERSION}, found {native_vips}")
 
 
 def _assert_canonical_tools() -> dict[str, object]:
@@ -142,11 +153,13 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
     _assert_distributions(RUNTIME_DISTRIBUTIONS if args.runtime_only else CANONICAL_DISTRIBUTIONS)
     _assert_font(repo_root)
+    _assert_runtime_vips()
     evidence: dict[str, object] = {
         "platform": platform.platform(),
         "python": platform.python_version(),
         "distributions": RUNTIME_DISTRIBUTIONS if args.runtime_only else CANONICAL_DISTRIBUTIONS,
         "font_sha256": FONT_SHA256,
+        "libvips": LIBVIPS_VERSION,
     }
     if not args.runtime_only:
         evidence.update(_assert_canonical_tools())

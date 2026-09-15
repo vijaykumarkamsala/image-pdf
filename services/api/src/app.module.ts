@@ -10,6 +10,7 @@ import { ExperienceModule } from "./domains/experience/experience.module.js";
 import { ExportsModule } from "./domains/exports/exports.module.js";
 import { DocumentsModule } from "./domains/documents/documents.module.js";
 import { IdentityModule } from "./domains/identity/identity.module.js";
+import { ImageQualityModule } from "./domains/image-quality/image-quality.module.js";
 import { IntakeModule } from "./domains/intake/intake.module.js";
 import { JobsModule } from "./domains/jobs/jobs.module.js";
 import { ProjectsModule } from "./domains/projects/projects.module.js";
@@ -23,6 +24,7 @@ import { KernelModule } from "./kernel/kernel.module.js";
     KernelModule,
     IdentityModule,
     IntakeModule,
+    ImageQualityModule,
     JobsModule,
     WorkspacesModule,
     ProjectsModule,

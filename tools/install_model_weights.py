@@ -30,6 +30,7 @@ from pathlib import Path
 
 REAL_ESRGAN = "https://github.com/xinntao/Real-ESRGAN/releases/download"
 SWINIR = "https://github.com/JingyunLiang/SwinIR/releases/download"
+PUBLIC_REALPLKSR = "https://github.com/Phhofm/models/releases/download"
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,17 @@ class PinnedWeight:
 # same release tag means the asset was replaced, which is a supply-chain event
 # and not something to shrug at.
 PINNED: tuple[PinnedWeight, ...] = (
+    # --- Public-domain-trained RealPLKSR (Image Quality Editor) --------------
+    PinnedWeight(
+        model="public-realplksr",
+        component_id="public-realplksr-2x-weights",
+        filename="2xPublic_realplksr_dysample_layernorm_real_fp32_op17.onnx",
+        release_base=PUBLIC_REALPLKSR,
+        release_tag="2xPublic_realplksr_dysample_layernorm_real",
+        sha256="4c5c658893c927af11238d4aa767a7cb0bfcae773b98a7da3a6c486efa024f5f",
+        bytes_expected=29_792_727,
+        note="Apache-2.0 ONNX, native x2; trained on public-domain/CC0-marked imagery",
+    ),
     # --- Real-ESRGAN (POC-006) ------------------------------------------------
     PinnedWeight(
         model="real-esrgan",
@@ -245,8 +257,8 @@ def install(repo_root: Path, model: str | None = None) -> int:
     total = sum(weight.bytes_expected for weight in chosen)
     sys.stdout.write(
         f"\n{len(chosen)} weight file(s), {total / 2**20:,.0f} MiB, in {target}\n"
-        "Gitignored and never committed. Loaded with weights_only=True, digest verified "
-        "first, so unpickling cannot execute code.\n"
+        "Gitignored and never committed. Every artifact is digest-verified before use; "
+        "pickle weights are additionally loaded with weights_only=True.\n"
     )
     return 0
 

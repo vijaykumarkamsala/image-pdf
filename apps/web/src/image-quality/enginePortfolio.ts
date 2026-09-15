@@ -1,4 +1,5 @@
 import type { ImageContentClass } from "./imageQualityPolicy";
+import { PUBLIC_REALPLKSR_MODEL } from "./approvedModel.ts";
 
 export type EnginePurpose = "production" | "local-research";
 
@@ -31,6 +32,15 @@ export const IMAGE_QUALITY_ENGINE_PORTFOLIO = Object.freeze({
     permittedPurposes: ["local-research"],
     weightsSha256: "5c5af5908e7438a965cffb1ba62a764e319aac069c35c50ba6851bb4a300760c",
   },
+  publicRealPlksrProduction: {
+    id: PUBLIC_REALPLKSR_MODEL.id,
+    version: PUBLIC_REALPLKSR_MODEL.version,
+    implementation: "neural",
+    supportedContent: ["illustration", "photograph"],
+    requiresWebGpu: false,
+    permittedPurposes: ["production"],
+    weightsSha256: PUBLIC_REALPLKSR_MODEL.sha256,
+  },
 } satisfies Record<string, ImageQualityEngineDescriptor>);
 
 export function selectImageQualityEngine(options: {
@@ -38,10 +48,12 @@ export function selectImageQualityEngine(options: {
   purpose: EnginePurpose;
   webGpuAvailable: boolean;
 }): ImageQualityEngineDescriptor {
-  const neural = IMAGE_QUALITY_ENGINE_PORTFOLIO.realEsrganLocalResearch;
+  const neural = options.purpose === "production"
+    ? IMAGE_QUALITY_ENGINE_PORTFOLIO.publicRealPlksrProduction
+    : IMAGE_QUALITY_ENGINE_PORTFOLIO.realEsrganLocalResearch;
   if (
     options.contentClass !== "flat-graphic"
-    && options.webGpuAvailable
+    && (options.purpose === "production" || options.webGpuAvailable)
     && neural.permittedPurposes.some((purpose: EnginePurpose) => purpose === options.purpose)
     && neural.supportedContent.includes(options.contentClass)
   ) return neural;

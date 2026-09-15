@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import struct
+from pathlib import Path
 from typing import Any
 
 import pytest
 from google.oauth2 import id_token
 
+import ipw.processing_worker.durable_intake as durable_intake
 import ipw.processing_worker.task_server as task_server
 from ipw.inspection import DeterministicMalwareScanner, MalwareScan
 from ipw.processing_worker.durable_intake import (
@@ -21,7 +24,12 @@ from ipw.processing_worker.task_server import (
     IntakeTaskApplication,
     build_production_application,
 )
-from ipw.storage import ObjectZone, PrivateObjectRef, PrivateObjectSnapshot
+from ipw.storage import (
+    MaterializedPrivateObject,
+    ObjectZone,
+    PrivateObjectRef,
+    PrivateObjectSnapshot,
+)
 
 
 def png() -> bytes:
@@ -195,6 +203,26 @@ class FakeObjects:
             "a" * 64,
         )
 
+    def materialize(
+        self,
+        ref: PrivateObjectRef,
+        *,
+        generation: str,
+        destination: Path,
+        max_bytes: int,
+    ) -> MaterializedPrivateObject:
+        self.calls.append("materialize")
+        assert generation == "17"
+        assert len(self.data) <= max_bytes
+        destination.write_bytes(self.data)
+        digest = hashlib.sha256(self.data).hexdigest()
+        return MaterializedPrivateObject(
+            ref, generation, "image/png", destination, len(self.data), digest
+        )
+
+    def write_derivative_file(self, *_args: object, **_kwargs: object) -> PrivateObjectSnapshot:
+        raise AssertionError("intake must not write derivative files")
+
     def delete(self, _ref: PrivateObjectRef, *, generation: str | None = None) -> None:
         self.calls.append("delete")
         assert generation in {None, "17"}
@@ -207,6 +235,10 @@ class CountingScanner(DeterministicMalwareScanner):
     def scan(self, data: bytes) -> MalwareScan:
         self.calls += 1
         return super().scan(data)
+
+    def scan_file(self, path: Path, *, max_bytes: int) -> MalwareScan:
+        self.calls += 1
+        return super().scan_file(path, max_bytes=max_bytes)
 
 
 def test_worker_claims_heartbeats_checkpoints_promotes_and_is_idempotent() -> None:
@@ -246,6 +278,24 @@ def test_safe_checkpoint_resume_skips_repeated_scanning_for_the_same_generation(
         == "succeeded"
     )
     assert scanner.calls == 0
+
+
+def test_large_intake_materializes_and_stream_scans_without_byte_buffer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data = png()
+    repository = FakeRepository(data)
+    objects = FakeObjects(data)
+    scanner = CountingScanner()
+    monkeypatch.setattr(durable_intake, "IN_MEMORY_INSPECTION_BYTES", 1)
+
+    outcome = DurableIntakeProcessor(
+        repository, objects, scanner, worker_id="worker-large"
+    ).process(DispatchMessage("dispatch-large", "job-001", "trace-001"))
+
+    assert outcome.state == "succeeded"
+    assert scanner.calls == 1
+    assert objects.calls == ["materialize", "promote", "delete"]
 
 
 def test_cancellation_after_scan_prevents_promotion_and_wins_the_terminal_race() -> None:

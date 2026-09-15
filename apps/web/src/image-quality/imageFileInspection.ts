@@ -24,7 +24,7 @@ export interface ImageFileInspection {
 }
 
 const HEADER_READ_BYTES = 4 * 1024 * 1024;
-export const MAX_LOCAL_INPUT_BYTES = 512 * 1024 * 1024;
+export const MAX_LOCAL_INPUT_BYTES = 1024 * 1024 * 1024 * 1024;
 const ascii = (bytes: Uint8Array, start: number, length: number) => (
   String.fromCharCode(...bytes.subarray(start, start + length))
 );

@@ -21,7 +21,8 @@ import {
 
 import { Button, Dropzone, InlineNotice } from "../design-system";
 import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
-import { WorkerImageQualityEngine } from "./WorkerImageQualityEngine";
+import type { ImageQualityEngine } from "./ImageQualityEngine";
+import { createImageQualityEngine } from "./ProductionImageQualityEngine";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -199,7 +200,7 @@ export function ImageQualityEditorPage() {
   const [state, dispatch] = useReducer(imageQualitySessionReducer, initialImageQualitySession);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [processorRestarting, setProcessorRestarting] = useState(false);
-  const engine = useRef<WorkerImageQualityEngine | null>(null);
+  const engine = useRef<ImageQualityEngine | null>(null);
   const selection = useRef(0);
   const operation = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -238,7 +239,7 @@ export function ImageQualityEditorPage() {
     dispatch({ type: "source-selected", source: { file, url, name: file.name, width: null, height: null, facts: null } });
     navigate("/image-quality/editor");
     try {
-      engine.current ??= new WorkerImageQualityEngine({ preferDeterministic });
+      engine.current ??= createImageQualityEngine({ preferDeterministic });
       const loaded = await engine.current.load(file, {
         onProgress: (progress) => {
           if (selection.current === currentSelection) dispatch({ type: "processing-progress", progress });
@@ -269,8 +270,11 @@ export function ImageQualityEditorPage() {
       });
       if (operation.current !== currentOperation) return;
       if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
-      const url = URL.createObjectURL(new Blob([result.bytes], { type: result.mediaType }));
-      resultObjectUrl.current = url;
+      const url = result.bytes
+        ? URL.createObjectURL(new Blob([result.bytes], { type: result.mediaType }))
+        : result.remoteViewUrl;
+      if (!url) throw new Error("The processed image has no authorised viewing source.");
+      resultObjectUrl.current = result.bytes ? url : null;
       dispatch({ type: "processing-succeeded", result: { ...result, url } });
     } catch (error) {
       if (operation.current !== currentOperation) return;
@@ -289,7 +293,7 @@ export function ImageQualityEditorPage() {
     dispatch({ type: "processing-cancelled" });
     setProcessorRestarting(true);
     const currentSelection = selection.current;
-    const replacement = new WorkerImageQualityEngine({ preferDeterministic: deterministicPreference.current });
+    const replacement = createImageQualityEngine({ preferDeterministic: deterministicPreference.current });
     engine.current = replacement;
     void replacement.load(state.source.file).then((facts) => {
       if (selection.current === currentSelection && engine.current === replacement) {
@@ -318,7 +322,7 @@ export function ImageQualityEditorPage() {
   const download = () => {
     if (!state.source || !state.result) return;
     const anchor = document.createElement("a");
-    anchor.href = state.result.url;
+    anchor.href = state.result.remoteDownloadUrl ?? state.result.url;
     anchor.download = downloadName(state.source.name);
     anchor.click();
   };
@@ -357,9 +361,11 @@ export function ImageQualityEditorPage() {
       : state.status === "success"
         ? resultIsStale
           ? `Enhancement strength changed to ${state.strength}%. The displayed result is still the verified ${state.result?.strength}% result; enhance again before downloading.`
-          : `Enhanced image ready (${state.result?.engine ?? "reconstruction engine"}). Compare it closely before downloading.`
+          : state.result?.model.usage === "production-restore"
+            ? `AI-restored image ready (${state.result.engine}). The full image contains bounded reconstructed detail; compare it closely before downloading.`
+            : `Enhanced image ready (${state.result?.engine ?? "reconstruction engine"}). Compare it closely before downloading.`
         : state.status === "ready" && !state.result
-          ? "Original ready. Choose a strength and enhance quality."
+          ? "Original ready. Enhance quality uses disclosed Restore processing for photos and illustrations, and protected deterministic processing for graphics."
           : null;
 
   return <main className="quality-page quality-editor" data-testid="image-quality-editor" aria-busy={processing}>

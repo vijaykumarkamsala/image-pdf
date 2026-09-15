@@ -18,15 +18,19 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
   private disposed = false;
   private activeRequest: number | null = null;
   private readonly preferDeterministic: boolean;
+  private readonly allowAnalysisSample: boolean;
   private readonly pending = new Map<number, {
     resolve: (value: WorkerSuccess) => void;
     reject: (reason: Error) => void;
     onProgress?: (progress: ImageQualityProgress) => void;
   }>();
 
-  constructor(options: { preferDeterministic?: boolean } = {}) {
+  constructor(options: { preferDeterministic?: boolean; allowAnalysisSample?: boolean } = {}) {
     this.preferDeterministic = options.preferDeterministic ?? false;
-    this.worker = import.meta.env.DEV
+    this.allowAnalysisSample = options.allowAnalysisSample ?? false;
+    const useLocalResearchWorker = import.meta.env.DEV
+      && import.meta.env.VITE_IMAGE_QUALITY_RESEARCH === "1";
+    this.worker = useLocalResearchWorker
       ? new Worker("/src/image-quality/imageQuality.worker.ts", { type: "module" })
       : new Worker(new URL("./imageQuality.production.worker.ts", import.meta.url), { type: "module" });
     this.worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
@@ -80,6 +84,7 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
       model: response.model,
       warnings: response.warnings,
       fidelity: response.fidelity,
+      analysisProxy: response.analysisProxy,
     };
   }
 
@@ -99,7 +104,8 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
   }
 
   private request(
-    message: { type: "load"; source: Blob } | { type: "enhance"; strength: number; preferDeterministic: boolean },
+    message: { type: "load"; source: Blob; allowAnalysisSample?: boolean }
+      | { type: "enhance"; strength: number; preferDeterministic: boolean },
     options?: ImageQualityOperationOptions,
   ): Promise<WorkerSuccess> {
     if (this.disposed) return Promise.reject(new Error("The image processor is unavailable."));
@@ -107,7 +113,11 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
     this.activeRequest = id;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject, onProgress: options?.onProgress });
-      this.worker.postMessage({ id, ...message });
+      this.worker.postMessage(
+        message.type === "load"
+          ? { ...message, id, allowAnalysisSample: this.allowAnalysisSample }
+          : { id, ...message },
+      );
     });
   }
 

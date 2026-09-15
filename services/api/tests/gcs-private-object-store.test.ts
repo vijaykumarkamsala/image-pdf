@@ -18,6 +18,7 @@ class FakeGcsClient implements GcsPrivateClient {
   initiated: Record<string, unknown> | null = null;
   copied: string[] = [];
   removed: string[] = [];
+  authorizedDispositions: string[] = [];
   observed: ProviderObjectMetadata = {
     byteSize: 4,
     generation: "17",
@@ -38,6 +39,17 @@ class FakeGcsClient implements GcsPrivateClient {
 
   async read(): Promise<Uint8Array> {
     return new Uint8Array([1, 2, 3, 4]);
+  }
+
+  async authorizeDownload(
+    objectKey: string,
+    generation: string,
+    filename: string,
+    disposition: "attachment" | "inline",
+    _expiresAt: Date,
+  ): Promise<string> {
+    this.authorizedDispositions.push(disposition);
+    return `https://storage.googleapis.com/private/${objectKey}?generation=${generation}&name=${filename}`;
   }
 
   async copyIfAbsent(source: string, generation: string, target: string, sha256: string): Promise<string> {
@@ -109,6 +121,30 @@ test("GCS immutable promotion requires and forwards the source generation", asyn
   const promoted = await store.promote({ ...source, generation: "17" }, input.expectedSha256);
   assert.equal(promoted.generation, "18");
   assert.deepEqual(client.copied, [source.objectKey, "17", promoted.objectKey, input.expectedSha256]);
+});
+
+test("large derivative delivery is generation-bound and short lived", async () => {
+  const client = new FakeGcsClient();
+  const store = new GcsPrivateObjectStore(
+    client,
+    new ResumableSessionProtector("download-production-secret-that-is-at-least-32-characters"),
+  );
+  const authorized = await store.authorizeDownload({
+    ownerScope: "workspace-001",
+    objectKey: "derivative/workspace-001/image-quality/result.png",
+    zone: "derivative",
+    generation: "17",
+  }, "enhanced.png");
+  assert.ok(authorized?.url.includes("generation=17"));
+  assert.ok(new Date(authorized!.expiresAt).getTime() > Date.now());
+  const inline = await store.authorizeDownload({
+    ownerScope: "workspace-001",
+    objectKey: "derivative/workspace-001/image-quality/result.png",
+    zone: "derivative",
+    generation: "17",
+  }, "enhanced.png", "inline");
+  assert.ok(inline?.url.includes("generation=17"));
+  assert.deepEqual(client.authorizedDispositions, ["attachment", "inline"]);
 });
 
 test("production storage composition fails closed and never selects a local adapter", () => {

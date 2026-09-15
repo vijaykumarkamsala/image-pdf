@@ -37,6 +37,10 @@ class FakeBlob:
         self.calls.append(("download", kwargs))
         return self.data
 
+    def download_to_filename(self, filename: str, **kwargs: Any) -> None:
+        self.calls.append(("download-file", kwargs))
+        Path(filename).write_bytes(self.data)
+
     def patch(self, **kwargs: Any) -> None:
         self.calls.append(("patch", kwargs))
 
@@ -50,6 +54,15 @@ class FakeBlob:
         self.data = data
         self.size = len(data)
         self.generation = 29
+        self.content_type = kwargs.get("content_type")
+
+    def upload_from_filename(self, filename: str, **kwargs: Any) -> None:
+        self.calls.append(("upload-file", kwargs))
+        if self.fail_upload:
+            raise PreconditionFailed("already exists")  # type: ignore[no-untyped-call]
+        self.data = Path(filename).read_bytes()
+        self.size = len(self.data)
+        self.generation = 31
         self.content_type = kwargs.get("content_type")
 
 
@@ -224,6 +237,75 @@ def test_gcs_worker_derivative_write_is_conditional_and_idempotent() -> None:
         store.write_derivative(ref, data=data, media_type="image/png", sha256=digest)
 
 
+def test_gcs_worker_streams_generation_bound_sources_and_file_derivatives(
+    tmp_path: Path,
+) -> None:
+    client = FakeClient()
+    source_data = b"large-source" * 8192
+    source = PrivateObjectRef(
+        "workspace-large",
+        "immutable/workspace-large/source-digest",
+        ObjectZone.IMMUTABLE,
+    )
+    source_blob = FakeBlob(source.object_key, source_data, generation=41)
+    client.private_bucket.blobs[source.object_key] = source_blob
+    store = GcsWorkerPrivateObjectStore("private-bucket", client)
+
+    destination = tmp_path / "scratch" / "source.image"
+    materialized = store.materialize(
+        source,
+        generation="41",
+        destination=destination,
+        max_bytes=len(source_data),
+    )
+
+    assert materialized.path == destination
+    assert materialized.byte_size == len(source_data)
+    assert materialized.sha256 == hashlib.sha256(source_data).hexdigest()
+    assert source_blob.requested_generation == 41
+    assert source_blob.calls == [
+        ("reload", {"if_generation_match": 41, "timeout": 30}),
+        (
+            "download-file",
+            {"if_generation_match": 41, "checksum": "crc32c", "timeout": 900},
+        ),
+    ]
+
+    output = tmp_path / "scratch" / "result.png"
+    output_data = b"large-output" * 16_384
+    output.write_bytes(output_data)
+    output_digest = hashlib.sha256(output_data).hexdigest()
+    derivative = PrivateObjectRef(
+        "workspace-large",
+        "derivative/workspace-large/image-quality/request/result.png",
+        ObjectZone.DERIVATIVE,
+    )
+    stored = store.write_derivative_file(
+        derivative,
+        source=output,
+        media_type="image/png",
+        sha256=output_digest,
+        max_bytes=len(output_data),
+    )
+
+    output_blob = client.private_bucket.blobs[derivative.object_key]
+    assert stored.data == b""
+    assert stored.generation == "31"
+    assert output_blob.data == output_data
+    assert output_blob.calls == [
+        (
+            "upload-file",
+            {
+                "content_type": "image/png",
+                "if_generation_match": 0,
+                "checksum": "crc32c",
+                "timeout": 900,
+            },
+        ),
+        ("patch", {"if_generation_match": 31, "timeout": 30}),
+    ]
+
+
 def test_worker_storage_rejects_invalid_configuration_and_digest() -> None:
     with pytest.raises(ValueError, match="invalid private GCS bucket"):
         GcsWorkerPrivateObjectStore("", FakeClient())
@@ -299,3 +381,44 @@ def test_local_worker_storage_writes_digest_bound_derivatives(tmp_path: Path) ->
             media_type="image/png",
             sha256=hashlib.sha256(different).hexdigest(),
         )
+
+
+def test_local_worker_storage_streams_large_sources_and_derivatives(tmp_path: Path) -> None:
+    store = LocalWorkerPrivateObjectStore(tmp_path / "objects")
+    source = PrivateObjectRef(
+        "workspace-large",
+        "immutable/workspace-large/source-digest",
+        ObjectZone.IMMUTABLE,
+    )
+    source_path = tmp_path / "objects" / source.object_key
+    source_path.parent.mkdir(parents=True)
+    source_path.write_bytes(b"large-source" * 1024)
+    digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    materialized = store.materialize(
+        source,
+        generation=digest,
+        destination=tmp_path / "scratch" / "source.bin",
+        max_bytes=32 * 1024,
+    )
+    assert materialized.byte_size == source_path.stat().st_size
+    assert materialized.sha256 == digest
+    assert materialized.path.read_bytes() == source_path.read_bytes()
+
+    output = tmp_path / "scratch" / "result.png"
+    output.write_bytes(b"large-output" * 2048)
+    output_digest = hashlib.sha256(output.read_bytes()).hexdigest()
+    derivative = PrivateObjectRef(
+        "workspace-large",
+        "derivative/workspace-large/image-quality/request/result.png",
+        ObjectZone.DERIVATIVE,
+    )
+    stored = store.write_derivative_file(
+        derivative,
+        source=output,
+        media_type="image/png",
+        sha256=output_digest,
+        max_bytes=64 * 1024,
+    )
+    assert stored.data == b""
+    assert stored.generation == output_digest
+    assert (tmp_path / "objects" / derivative.object_key).read_bytes() == output.read_bytes()
