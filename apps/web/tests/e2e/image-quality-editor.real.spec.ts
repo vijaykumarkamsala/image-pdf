@@ -300,6 +300,29 @@ test("photo restoration preserves a warm low-texture background", async ({ page 
   await page.goto("about:blank");
 });
 
+test("changing the image replaces a processor created under an earlier route", async ({ page }) => {
+  await page.goto("/image-quality?engine=deterministic");
+  const input = page.locator('input[type="file"]');
+  await input.setInputFiles({
+    name: "first-source.png",
+    mimeType: "image/png",
+    buffer: warmIllustrationPng(64),
+  });
+  await expect(page).toHaveURL(/\/image-quality\/editor$/);
+  await expect(page.getByText(/^64 .* 64 px$/)).toBeVisible();
+
+  await input.setInputFiles({
+    name: "replacement-source.png",
+    mimeType: "image/png",
+    buffer: warmIllustrationPng(64),
+  });
+  await page.locator('input[type="range"]').fill("100");
+  await page.getByRole("button", { name: "Enhance quality" }).click();
+
+  await expect(page.getByText(/Enhanced image ready \(Fidelity-constrained Real-ESRGAN x4v3 .* WebGPU\)/))
+    .toBeVisible({ timeout: 120_000 });
+});
+
 test("flat graphics reconstruct curves without tracing background noise", async ({ page }, testInfo) => {
   const flatGraphic = flatCurvePng(64);
   await page.goto("/image-quality");

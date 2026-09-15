@@ -231,6 +231,11 @@ export function ImageQualityEditorPage() {
     const currentSelection = selection.current;
     const preferDeterministic = new URLSearchParams(globalThis.location.search).get("engine") === "deterministic";
     deterministicPreference.current = preferDeterministic;
+    // A worker captures the configured processing route when it is constructed.
+    // Replace it for every source selection so an editor tab kept open across a
+    // development-mode restart cannot silently retain the previous route.
+    engine.current?.dispose();
+    engine.current = null;
     if (sourceObjectUrl.current) URL.revokeObjectURL(sourceObjectUrl.current);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     resultObjectUrl.current = null;
@@ -239,7 +244,7 @@ export function ImageQualityEditorPage() {
     dispatch({ type: "source-selected", source: { file, url, name: file.name, width: null, height: null, facts: null } });
     navigate("/image-quality/editor");
     try {
-      engine.current ??= createImageQualityEngine({ preferDeterministic });
+      engine.current = createImageQualityEngine({ preferDeterministic });
       const loaded = await engine.current.load(file, {
         onProgress: (progress) => {
           if (selection.current === currentSelection) dispatch({ type: "processing-progress", progress });
