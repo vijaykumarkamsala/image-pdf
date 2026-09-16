@@ -32,8 +32,8 @@
       "type": "boolean"
     },
     "native_jobs_integrated": {
-      "const": false,
-      "default": false,
+      "const": true,
+      "default": true,
       "title": "Native Jobs Integrated",
       "type": "boolean"
     },

@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { Pool } from "pg";
 
 import { KernelModule } from "../../kernel/kernel.module.js";
 import { PRODUCT_REPOSITORY, RUNTIME_VALUES, type ProductKernelRepository } from "../../kernel/product.types.js";
@@ -10,10 +11,13 @@ import { ImageQualityService } from "./image-quality.service.js";
 import { IMAGE_QUALITY_REPOSITORY } from "./image-quality.types.js";
 import { MemoryImageQualityRepository } from "./memory-image-quality.repository.js";
 import { PostgresImageQualityRepository } from "./postgres-image-quality.repository.js";
+import { FaceQualityController } from "./face-quality.controller.js";
+import { FaceQualityService } from "./face-quality.service.js";
+import { FACE_QUALITY_RELEASES, FACE_QUALITY_REPOSITORY, PostgresFaceQualityRepository, UnregisteredNativeFaceReleases } from "./face-quality.repository.js";
 
 @Module({
   imports: [KernelModule, IntakeModule],
-  controllers: [ImageQualityController],
+  controllers: [ImageQualityController, FaceQualityController],
   providers: [
     {
       provide: IMAGE_QUALITY_REPOSITORY,
@@ -37,6 +41,13 @@ import { PostgresImageQualityRepository } from "./postgres-image-quality.reposit
       inject: [RUNTIME_VALUES, PRODUCT_REPOSITORY],
     },
     ImageQualityService,
+    FaceQualityService,
+    { provide: FACE_QUALITY_RELEASES, useClass: UnregisteredNativeFaceReleases },
+    { provide: FACE_QUALITY_REPOSITORY, inject: [RUNTIME_VALUES],
+      useFactory(runtime: RuntimeValues) {
+        const connectionString = process.env["IPW_DATABASE_URL"];
+        return connectionString ? new PostgresFaceQualityRepository(new Pool({ connectionString, max: 5 }), runtime) : null;
+      } },
   ],
   exports: [IMAGE_QUALITY_REPOSITORY, ImageQualityService],
 })

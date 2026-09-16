@@ -1,0 +1,280 @@
+{
+  "$defs": {
+    "NativeFaceCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "context": {
+          "$ref": "#/$defs/NativeFaceContext"
+        },
+        "dependency_lock_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dependency Lock Sha256",
+          "type": "string"
+        },
+        "fidelity_permyriad": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Fidelity Permyriad",
+          "type": "integer"
+        },
+        "mask_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Mask Sha256",
+          "type": "string"
+        },
+        "model_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Model Sha256",
+          "type": "string"
+        },
+        "pixels_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Pixels Sha256",
+          "type": "string"
+        },
+        "region": {
+          "$ref": "#/$defs/NativeFaceRegion"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "context",
+        "model_sha256",
+        "dependency_lock_sha256",
+        "fidelity_permyriad",
+        "region",
+        "pixels_sha256",
+        "mask_sha256"
+      ],
+      "title": "NativeFaceCandidate",
+      "type": "object"
+    },
+    "NativeFaceContext": {
+      "additionalProperties": false,
+      "properties": {
+        "base_output_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Base Output Sha256",
+          "type": "string"
+        },
+        "bit_depth": {
+          "enum": [
+            8,
+            16
+          ],
+          "title": "Bit Depth",
+          "type": "integer"
+        },
+        "colour_authority_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Colour Authority Sha256",
+          "type": "string"
+        },
+        "output_height": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Output Height",
+          "type": "integer"
+        },
+        "output_width": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Output Width",
+          "type": "integer"
+        },
+        "source_height": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Source Height",
+          "type": "integer"
+        },
+        "source_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_width": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Source Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_sha256",
+        "base_output_sha256",
+        "source_width",
+        "source_height",
+        "output_width",
+        "output_height",
+        "bit_depth",
+        "colour_authority_sha256"
+      ],
+      "title": "NativeFaceContext",
+      "type": "object"
+    },
+    "NativeFaceRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "x": {
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "Y",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "title": "NativeFaceRegion",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/face-quality-job-view.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "base_output_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Base Output Sha256",
+      "type": "string"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/NativeFaceCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "image-quality-face-v1",
+      "default": "image-quality-face-v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "expires_at": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Expires At",
+      "type": "string"
+    },
+    "face_quality_job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Face Quality Job Id",
+      "type": "string"
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Failure"
+    },
+    "job_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "candidates",
+        "compose"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "output_sha256": {
+      "anyOf": [
+        {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Output Sha256"
+    },
+    "progress_percent": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Progress Percent",
+      "type": "integer"
+    },
+    "source_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "leased",
+        "running",
+        "retry_wait",
+        "cancel_requested",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "face_quality_job_id",
+    "job_id",
+    "operation",
+    "state",
+    "progress_percent",
+    "source_sha256",
+    "base_output_sha256",
+    "candidates",
+    "output_sha256",
+    "failure",
+    "expires_at"
+  ],
+  "title": "FaceQualityJobView",
+  "type": "object"
+}

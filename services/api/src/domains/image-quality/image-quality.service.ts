@@ -14,6 +14,7 @@ import { IntakeService } from "../intake/intake.service.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
 import type { IntakeOwner } from "../intake/intake.types.js";
 import { faceQualityCapabilities, parseFaceQualityCandidateRequest } from "./face-quality.contract.js";
+import { FaceQualityService } from "./face-quality.service.js";
 import {
   IMAGE_QUALITY_REPOSITORY,
   type ImageQualityContentClass,
@@ -38,6 +39,7 @@ export class ImageQualityService implements OnApplicationShutdown {
     @Inject(PRODUCT_REPOSITORY) private readonly product: ProductKernelRepository,
     private readonly identity: IdentityBoundary,
     private readonly intake: IntakeService,
+    private readonly faces: FaceQualityService,
   ) {}
 
   async faceCapabilities(headers: Headers, uploadSessionId: string) {
@@ -46,7 +48,7 @@ export class ImageQualityService implements OnApplicationShutdown {
     return faceQualityCapabilities();
   }
 
-  async createFaceCandidates(headers: Headers, uploadSessionId: string, body: unknown): Promise<never> {
+  async createFaceCandidates(headers: Headers, uploadSessionId: string, body: unknown) {
     const stored = await this.intake.requireForInternal(headers, requireId(uploadSessionId, "upload id"));
     const intent = parseFaceQualityCandidateRequest(body);
     const facts = stored.record.source_facts;
@@ -65,10 +67,7 @@ export class ImageQualityService implements OnApplicationShutdown {
     if (base.state !== "succeeded" || !base.output || base.output.sha256 !== intent.base_output_sha256) {
       throw new DomainError(409, "face-quality-base-changed", "Wait for the exact enhanced image before face review");
     }
-    // Do not create an inert durable job, accept client pixels/model approvals,
-    // or disguise ordinary Restore as a face result while release gates are open.
-    throw new DomainError(503, "face-quality-unavailable",
-      "Face reconstruction is not released: model rights, face-quality acceptance and durable native integration are pending");
+    return this.faces.candidates(headers, uploadSessionId, intent);
   }
 
   async create(

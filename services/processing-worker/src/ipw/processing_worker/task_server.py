@@ -21,6 +21,8 @@ from ipw.processing_worker.durable_intake import (
     WorkerOutcome,
 )
 from ipw.processing_worker.export_repository import PostgresImageExportWorkerRepository
+from ipw.processing_worker.face_quality import DurableNativeFaceProcessor
+from ipw.processing_worker.face_quality_repository import PostgresFaceQualityWorkerRepository
 from ipw.processing_worker.image_export import (
     DurableExportBundleProcessor,
     DurableImageExportProcessor,
@@ -57,6 +59,7 @@ class DurableJobRouter:
         export_bundle: DurableExportBundleProcessor,
         pdf_export: DurablePdfExportProcessor | None = None,
         image_quality: DurableImageQualityProcessor | None = None,
+        face_quality: DurableNativeFaceProcessor | None = None,
     ) -> None:
         self._repository = repository
         self._intake = intake
@@ -65,6 +68,7 @@ class DurableJobRouter:
         self._export_bundle = export_bundle
         self._pdf_export = pdf_export
         self._image_quality = image_quality
+        self._face_quality = face_quality
 
     def process(self, message: DispatchMessage) -> WorkerOutcome:
         kind = self._repository.job_kind(message.job_id)
@@ -80,6 +84,11 @@ class DurableJobRouter:
             return self._pdf_export.process(message)
         if kind == "image_quality_restore" and self._image_quality is not None:
             return self._image_quality.process(message)
+        if (
+            kind in {"image_face_candidates", "image_face_compose"}
+            and self._face_quality is not None
+        ):
+            return self._face_quality.process(message)
         raise LookupError("processing job kind is not supported")
 
 
@@ -168,9 +177,7 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         PostgresPdfExportWorkerRepository,
         PostgresPdfExportWorkerRepository.connect(env["IPW_DATABASE_URL"]),
     )
-    image_quality_repository = PostgresImageQualityWorkerRepository.connect(
-        env["IPW_DATABASE_URL"]
-    )
+    image_quality_repository = PostgresImageQualityWorkerRepository.connect(env["IPW_DATABASE_URL"])
     objects = GcsWorkerPrivateObjectStore(env["IPW_GCS_BUCKET"])
     intake = DurableIntakeProcessor(
         repository,
@@ -216,6 +223,13 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         worker_id=env.get("HOSTNAME", "processing-worker"),
         execution_lock=heavy_execution_lock,
     )
+    face_quality = DurableNativeFaceProcessor(
+        PostgresFaceQualityWorkerRepository.connect(env["IPW_DATABASE_URL"]),
+        objects,
+        worker_id=env.get("HOSTNAME", "processing-worker"),
+        execution_lock=heavy_execution_lock,
+        # No model URL, environment approval or research weights are registered.
+    )
     processor = DurableJobRouter(
         repository,
         intake,
@@ -224,6 +238,7 @@ def build_production_application(env: Mapping[str, str]) -> IntakeTaskApplicatio
         export_bundle,
         pdf_export,
         image_quality,
+        face_quality,
     )
     verifier = GoogleOidcTaskIdentityVerifier(
         env["IPW_WORKER_OIDC_AUDIENCE"],

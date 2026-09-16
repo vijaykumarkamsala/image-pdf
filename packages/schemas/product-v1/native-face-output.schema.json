@@ -1,0 +1,96 @@
+{
+  "$defs": {
+    "FaceQualityObject": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "maximum": 4398046511104,
+          "minimum": 1,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "generation": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Generation",
+          "type": "string"
+        },
+        "object_key": {
+          "maxLength": 1024,
+          "pattern": "^(immutable|derivative)/[a-z0-9._/-]+$",
+          "title": "Object Key",
+          "type": "string"
+        },
+        "owner_scope": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Owner Scope",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner_scope",
+        "object_key",
+        "generation",
+        "sha256",
+        "byte_size"
+      ],
+      "title": "FaceQualityObject",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/native-face-output.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bit_depth": {
+      "enum": [
+        8,
+        16
+      ],
+      "title": "Bit Depth",
+      "type": "integer"
+    },
+    "changed_pixels": {
+      "maximum": 4000000,
+      "minimum": 1,
+      "title": "Changed Pixels",
+      "type": "integer"
+    },
+    "evidence": {
+      "additionalProperties": true,
+      "title": "Evidence",
+      "type": "object"
+    },
+    "height": {
+      "maximum": 2147483647,
+      "minimum": 1,
+      "title": "Height",
+      "type": "integer"
+    },
+    "object": {
+      "$ref": "#/$defs/FaceQualityObject"
+    },
+    "width": {
+      "maximum": 2147483647,
+      "minimum": 1,
+      "title": "Width",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "object",
+    "width",
+    "height",
+    "bit_depth",
+    "changed_pixels",
+    "evidence"
+  ],
+  "title": "NativeFaceOutput",
+  "type": "object"
+}

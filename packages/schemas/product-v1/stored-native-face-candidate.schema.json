@@ -1,0 +1,230 @@
+{
+  "$defs": {
+    "FaceQualityObject": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "maximum": 4398046511104,
+          "minimum": 1,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "generation": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Generation",
+          "type": "string"
+        },
+        "object_key": {
+          "maxLength": 1024,
+          "pattern": "^(immutable|derivative)/[a-z0-9._/-]+$",
+          "title": "Object Key",
+          "type": "string"
+        },
+        "owner_scope": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Owner Scope",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner_scope",
+        "object_key",
+        "generation",
+        "sha256",
+        "byte_size"
+      ],
+      "title": "FaceQualityObject",
+      "type": "object"
+    },
+    "NativeFaceCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "context": {
+          "$ref": "#/$defs/NativeFaceContext"
+        },
+        "dependency_lock_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dependency Lock Sha256",
+          "type": "string"
+        },
+        "fidelity_permyriad": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Fidelity Permyriad",
+          "type": "integer"
+        },
+        "mask_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Mask Sha256",
+          "type": "string"
+        },
+        "model_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Model Sha256",
+          "type": "string"
+        },
+        "pixels_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Pixels Sha256",
+          "type": "string"
+        },
+        "region": {
+          "$ref": "#/$defs/NativeFaceRegion"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "context",
+        "model_sha256",
+        "dependency_lock_sha256",
+        "fidelity_permyriad",
+        "region",
+        "pixels_sha256",
+        "mask_sha256"
+      ],
+      "title": "NativeFaceCandidate",
+      "type": "object"
+    },
+    "NativeFaceContext": {
+      "additionalProperties": false,
+      "properties": {
+        "base_output_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Base Output Sha256",
+          "type": "string"
+        },
+        "bit_depth": {
+          "enum": [
+            8,
+            16
+          ],
+          "title": "Bit Depth",
+          "type": "integer"
+        },
+        "colour_authority_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Colour Authority Sha256",
+          "type": "string"
+        },
+        "output_height": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Output Height",
+          "type": "integer"
+        },
+        "output_width": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Output Width",
+          "type": "integer"
+        },
+        "source_height": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Source Height",
+          "type": "integer"
+        },
+        "source_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_width": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Source Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_sha256",
+        "base_output_sha256",
+        "source_width",
+        "source_height",
+        "output_width",
+        "output_height",
+        "bit_depth",
+        "colour_authority_sha256"
+      ],
+      "title": "NativeFaceContext",
+      "type": "object"
+    },
+    "NativeFaceRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "x": {
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "Y",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "title": "NativeFaceRegion",
+      "type": "object"
+    }
+  },
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/stored-native-face-candidate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "candidate": {
+      "$ref": "#/$defs/NativeFaceCandidate"
+    },
+    "mask": {
+      "$ref": "#/$defs/FaceQualityObject"
+    },
+    "pixels": {
+      "$ref": "#/$defs/FaceQualityObject"
+    }
+  },
+  "required": [
+    "candidate",
+    "pixels",
+    "mask"
+  ],
+  "title": "StoredNativeFaceCandidate",
+  "type": "object"
+}

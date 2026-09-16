@@ -39,7 +39,9 @@
         "image_export",
         "pdf_export",
         "export_bundle",
-        "image_quality_restore"
+        "image_quality_restore",
+        "image_face_candidates",
+        "image_face_compose"
       ],
       "title": "ProcessingJobKind",
       "type": "string"
@@ -133,6 +135,19 @@
       ],
       "default": null,
       "title": "Export Request Id"
+    },
+    "face_quality_job_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Face Quality Job Id"
     },
     "failure": {
       "anyOf": [

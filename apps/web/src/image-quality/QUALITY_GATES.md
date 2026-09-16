@@ -2,8 +2,10 @@
 
 This file applies only to the isolated `/image-quality` editor. It does not
 change Studio, PDF, Recovery or deployment authority. The owner approved additive
-new-editor face API/job contracts on 16 September 2026; the native follow-up below
-does not change the existing product-contract version or database migrations.
+new-editor face API/job contracts and the additive durable-face database migration
+on 16 September 2026. The existing product-contract version is unchanged. Migration
+0025 and its guarded rollback are isolated to native face work; older job targets
+and their existing upload uniqueness policy are preserved.
 
 ## Runtime gates
 
@@ -197,14 +199,14 @@ remain to be validated after commercial clearance.
 ## Native face follow-up — implementation ledger
 
 This ledger counts six native follow-up coding blocks, not the earlier P0/P1/P2
-audit or whole-product completion. **Two blocks are implemented; four remain.**
+audit or whole-product completion. **Three blocks are implemented; three remain.**
 
 1. **Implemented:** additive `image-quality-face-v1` intent/composition/release/
    capability records, generated JSON Schema/TypeScript and an owner-scoped API
    boundary. It rejects stale source/base hashes, foreign bases, nonliteral
    permission, extra client pixels and client-supplied model approvals. A valid
-   request returns `face-quality-unavailable` (503) while the native integration
-   and release gates remain open. No inert job or fake success is recorded.
+   request returns `face-quality-unavailable` (503) while the model adapter and
+   release gates remain open. No inert job or fake success is recorded.
 2. **Implemented:** `NativeFaceRenderer` consumes a server-held reviewed patch,
    verifies source/base/patch/mask/model/dependency digests, and composes into
    private disk-backed pixels. It writes a separate PNG in bounded row/column
@@ -212,9 +214,14 @@ audit or whole-product completion. **Two blocks are implemented; four remain.**
    every base alpha sample, hidden RGB at transparent pixels, zero-mask pixels
    and every outside-region pixel remain exact. ICC/transfer/primaries/HDR chunks
    retain their original bytes; sensitive text/EXIF metadata is not copied.
-3. **Remaining:** durable native face candidate/composition jobs, server-held
-   proposal/mask storage, leases/checkpoints, recovery, cancellation and private
-   result delivery. Existing ordinary Restore jobs are not face jobs.
+3. **Implemented:** separate durable native candidate/composition records reuse
+   the existing transactional queue/outbox. Owner-scoped idempotency, exact
+   source/base/model/review binding, private generation-bound proposal/mask storage,
+   lease fencing, heartbeats, retained candidate checkpoints, bounded retry,
+   cancellation and private result delivery are implemented. Composition retries
+   reuse the selected raw patch instead of running inference again. Release
+   revocation closes inference, composition and download, but never cancellation.
+   Existing ordinary Restore requests and their outputs are not reopened or changed.
 4. **Remaining:** native detector/alignment/inverse-alignment and the approved
    real face-model adapter producing proposals in the base's native colour and
    precision. The renderer rejects an 8-bit patch for a 16-bit base; it does not
@@ -222,7 +229,8 @@ audit or whole-product completion. **Two blocks are implemented; four remain.**
 5. **Remaining:** temporal proposals, review and composition for animated input.
    The new renderer explicitly refuses APNG instead of flattening it.
 6. **Remaining:** customer-page native routing, candidate review/progress recovery
-   and streamed downloads for remote-only/high-precision/oversized face results.
+   and streamed downloads for remote-only/high-precision/oversized face results,
+   including expired/failed private-artifact lifecycle cleanup.
    The existing browser face path remains unregistered and unchanged.
 
 The native still core currently accepts non-interlaced, full-channel 8/16-bit
@@ -230,8 +238,12 @@ RGB/RGBA PNG bases and matching-precision straight-RGBA proposals. Palette,
 grayscale, keyed-transparency and interlaced bases require a separate adapter.
 Scratch-storage checks are technical safety limits, not billing limits or a
 claim that arbitrary GB files have been validated. Cancellation is checked around
-native decode and during composition/encoding; terminating an in-progress native
-decode and durable cloud recovery still belong to block 3.
+native decode and during composition/encoding. Cancellation is cooperative; an
+in-progress native decoder is not forcibly interrupted. Candidate checkpoints are
+durable, but composition restarts from verified inputs, not a saved encoded row.
+An invocation that exceeds its budget without committing a new checkpoint consumes
+bounded retries instead of creating endless refunded jobs. Arbitrary multi-GB
+decode/encode and deployed cloud recovery are not validated by these mechanics.
 
 Focused synthetic evidence checks actual 8/16-bit PNG derivatives, exact outside/
 alpha/zero-mask pixels, wide rows crossing encoding buffers, metadata transport,
@@ -240,14 +252,26 @@ and exclusive publication when another file appears. These tests do not run a
 trained face model, validate identity or prove multi-GB performance. No private
 photographs, trained weights or generated private outputs are committed.
 
-Focused Windows checks on 16 September 2026 passed: 27 Python contract/renderer
-tests, 5 new-editor API tests, 68 editor unit/component tests and one focused
-browser journey. Scoped Ruff/Mypy, web/API TypeScript checks and generated
-contract drift checks also passed. These results do not clear Linux or real-model
-quality gates.
+Focused Windows checks on 16 September 2026 passed: 50 Python contract/renderer/
+durable-worker tests, 11 new-editor API/delivery/PostgreSQL tests, 68 editor unit/
+component tests and one focused browser journey. The durable tests use owned
+synthetic patches, not an approved face model. Real PostgreSQL 17 in an isolated
+loopback test cluster verifies idempotent migration, exact constraint/index
+rollback, rollback refusal when face work exists, tenant privacy and concurrent
+idempotency. No application database is used. Repeating the migration/rollback
+test requires a fresh isolated `ipw_face_test` database supplied through
+`IPW_TEST_FACE_DATABASE_URL`; these tests never silently skip missing database
+validation. Scoped Ruff/Mypy, web/API TypeScript checks and generated contract
+drift checks also passed. These results do not clear Linux or real-model quality gates.
+
+A private object written before lease loss, cancellation or revocation can remain
+unreferenced and unavailable to customer delivery. The worker never deletes shared
+content-addressed objects to "clean up" a stale invocation. Retention/garbage
+collection must be completed with the native customer/lifecycle integration before
+enabling a production model. No deployment or application migration was performed.
 
 Release remains blocked on exact commercial face-model/dependency clearance,
-real-photo quality/identity acceptance and the four integration blocks above.
+real-photo quality/identity acceptance and the three integration blocks above.
 Linux-container, real Cloud Run/GCS large-file, calibrated HDR/P3 and physical
 Safari/iOS/low-memory-device validations remain outstanding, not cleared by this
 native mechanics increment. PDF, old Studio, deployment and merge remain out of scope.

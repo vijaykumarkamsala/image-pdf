@@ -36,6 +36,7 @@ function job(row: QueryResultRow): ProcessingJobRecord {
     document_id: row["document_id"] ? String(row["document_id"]) : null,
     export_request_id: row["export_request_id"] ? String(row["export_request_id"]) : null,
     bundle_id: row["bundle_id"] ? String(row["bundle_id"]) : null,
+    ...(row["face_quality_job_id"] ? { face_quality_job_id: String(row["face_quality_job_id"]) } : {}),
     state: String(row["state"]) as ProcessingJobRecord["state"],
     attempt: Number(row["attempt"]),
     max_attempts: Number(row["max_attempts"]),
@@ -231,6 +232,9 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       );
       if (!found.rows[0]) throw new DomainError(404, "job-not-found", "Job was not found");
       const current = job(found.rows[0]);
+      if (current.face_quality_job_id) {
+        throw new DomainError(409, "face-quality-control-required", "Use the source-bound face cancellation endpoint");
+      }
       if (["succeeded", "failed", "cancelled"].includes(current.state)) {
         await client.query("COMMIT");
         return current;
@@ -299,6 +303,9 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
       );
       if (!found.rows[0]) throw new DomainError(404, "job-not-found", "Job was not found");
       const current = job(found.rows[0]);
+      if (current.face_quality_job_id) {
+        throw new DomainError(409, "face-quality-control-required", "Use the source-bound face retry endpoint");
+      }
       if (current.state !== "failed" || !current.failure?.retryable || current.max_attempts >= 20) {
         throw new DomainError(409, "job-not-retryable", "This job can no longer be retried");
       }
@@ -406,7 +413,8 @@ export class PostgresDurableJobRepository implements DurableJobRepository {
         `SELECT * FROM processing_jobs WHERE
           (state='queued' OR (state='retry_wait' AND (next_attempt_at IS NULL OR next_attempt_at <= $1))
            OR (state IN ('leased','running') AND lease_expires_at <= $1))
-          AND attempt < max_attempts ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`,
+          AND attempt < max_attempts AND face_quality_job_id IS NULL
+          ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`,
         [now],
       );
       if (!result.rows[0]) {

@@ -488,6 +488,15 @@ export interface ExposureBrightnessParameters {
   brightness?: number;
 }
 
+export interface FaceQualityObject {
+  owner_scope: string;
+  object_key: string;
+  generation: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  sha256: string;
+  byte_size: number;
+}
+
 export interface FeatureStateRecord {
   schema_version?: string;
   feature: string;
@@ -975,8 +984,8 @@ export const PermissionValues: readonly Permission[] = ["workspace.read", "proje
 export type PermissionOrigin = "role" | "workspace_grant";
 export const PermissionOriginValues: readonly PermissionOrigin[] = ["role", "workspace_grant"] as const;
 
-export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "pdf_export" | "export_bundle" | "image_quality_restore";
-export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "pdf_export", "export_bundle", "image_quality_restore"] as const;
+export type ProcessingJobKind = "file_intake_inspection" | "preview_generation" | "image_export" | "pdf_export" | "export_bundle" | "image_quality_restore" | "image_face_candidates" | "image_face_compose";
+export const ProcessingJobKindValues: readonly ProcessingJobKind[] = ["file_intake_inspection", "preview_generation", "image_export", "pdf_export", "export_bundle", "image_quality_restore", "image_face_candidates", "image_face_compose"] as const;
 
 export interface ProcessingJobRecord {
   schema_version?: string;
@@ -992,6 +1001,7 @@ export interface ProcessingJobRecord {
   pdf_export_request_id?: string | null;
   bundle_id?: string | null;
   image_quality_request_id?: string | null;
+  face_quality_job_id?: string | null;
   state: ProcessingJobState;
   attempt: number;
   max_attempts: number;
@@ -1570,11 +1580,41 @@ export interface FaceQualityCapabilities {
   contract_version?: "image-quality-face-v1";
   available?: false;
   native_still_renderer_implemented?: true;
-  native_jobs_integrated?: false;
+  native_jobs_integrated?: true;
   native_animation_supported?: false;
   supported_still_bit_depths?: (8 | 16)[];
   preserves_base_alpha?: true;
   blockers: string[];
+}
+
+export interface FaceQualityCompositionIntent {
+  contract_version: "image-quality-face-v1";
+  candidate_request_id: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  candidate_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  source_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  base_output_sha256: string;
+  allow_reconstructed_face_detail: true;
+  acknowledged_possible_identity_change: true;
+}
+
+export interface FaceQualityJobView {
+  contract_version?: "image-quality-face-v1";
+  face_quality_job_id: string;
+  job_id: string;
+  operation: "candidates" | "compose";
+  state: "queued" | "leased" | "running" | "retry_wait" | "cancel_requested" | "succeeded" | "failed" | "cancelled";
+  progress_percent: number;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  source_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  base_output_sha256: string;
+  candidates: NativeFaceCandidate[];
+  output_sha256: string | null;
+  failure: Record<string, unknown> | null;
+  expires_at: string;
 }
 
 export interface FeatureStateList {
@@ -1672,6 +1712,15 @@ export interface NativeFaceCompositionRequest {
   operation?: "explicit-reviewed-face-compose";
   candidate: NativeFaceCandidate;
   review: NativeFaceReview;
+}
+
+export interface NativeFaceOutput {
+  object: FaceQualityObject;
+  width: number;
+  height: number;
+  bit_depth: 8 | 16;
+  changed_pixels: number;
+  evidence: Record<string, unknown>;
 }
 
 export interface NativeFaceRelease {
@@ -1862,6 +1911,12 @@ export interface SourceVersionRecord {
   sequence: number;
   previous_source_version_id?: string | null;
   created_at: string;
+}
+
+export interface StoredNativeFaceCandidate {
+  candidate: NativeFaceCandidate;
+  pixels: FaceQualityObject;
+  mask: FaceQualityObject;
 }
 
 export interface StudioFormatCapability {

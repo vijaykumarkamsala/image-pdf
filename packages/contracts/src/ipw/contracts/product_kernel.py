@@ -367,6 +367,8 @@ class ProcessingJobKind(StrEnum):
     PDF_EXPORT = "pdf_export"
     EXPORT_BUNDLE = "export_bundle"
     IMAGE_QUALITY_RESTORE = "image_quality_restore"
+    IMAGE_FACE_CANDIDATES = "image_face_candidates"
+    IMAGE_FACE_COMPOSE = "image_face_compose"
 
 
 class StudioEditableMediaType(StrEnum):
@@ -618,6 +620,7 @@ class ProcessingJobRecord(ProductKernelContractModel):
     pdf_export_request_id: SlugId | None = None
     bundle_id: SlugId | None = None
     image_quality_request_id: SlugId | None = None
+    face_quality_job_id: SlugId | None = None
     state: ProcessingJobState
     attempt: int = Field(ge=0)
     max_attempts: int = Field(ge=1)
@@ -632,6 +635,24 @@ class ProcessingJobRecord(ProductKernelContractModel):
 
     @model_validator(mode="after")
     def _target_matches_kind(self) -> ProcessingJobRecord:
+        if self.face_quality_job_id is not None:
+            if self.kind not in {
+                ProcessingJobKind.IMAGE_FACE_CANDIDATES,
+                ProcessingJobKind.IMAGE_FACE_COMPOSE,
+            } or (
+                self.upload_session_id is None
+                or any(
+                    (
+                        self.document_id,
+                        self.export_request_id,
+                        self.pdf_export_request_id,
+                        self.bundle_id,
+                        self.image_quality_request_id,
+                    )
+                )
+            ):
+                raise ValueError("face job must have an isolated face target")
+            return self
         intake = (
             self.kind == ProcessingJobKind.FILE_INTAKE_INSPECTION
             and self.upload_session_id is not None

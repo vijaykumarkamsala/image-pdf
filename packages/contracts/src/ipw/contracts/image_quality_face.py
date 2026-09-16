@@ -6,6 +6,7 @@ Native composition consumes server-held proposals, never arbitrary client pixels
 
 from __future__ import annotations
 
+import builtins
 import hashlib
 import json
 from typing import Annotated, Literal
@@ -148,11 +149,113 @@ class FaceQualityCapabilities(ContractModel):
     contract_version: Literal["image-quality-face-v1"] = "image-quality-face-v1"
     available: Literal[False] = False
     native_still_renderer_implemented: Literal[True] = True
-    native_jobs_integrated: Literal[False] = False
+    native_jobs_integrated: Literal[True] = True
     native_animation_supported: Literal[False] = False
     supported_still_bit_depths: tuple[Literal[8, 16], ...] = (8, 16)
     preserves_base_alpha: Literal[True] = True
     blockers: tuple[NonEmptyStr, ...] = Field(min_length=1)
+
+
+class FaceQualityCompositionIntent(FacePermissionRecord):
+    contract_version: Literal["image-quality-face-v1"]
+    candidate_request_id: SlugId
+    candidate_sha256: Sha256Hex
+    source_sha256: Sha256Hex
+    base_output_sha256: Sha256Hex
+    allow_reconstructed_face_detail: Literal[True]
+    acknowledged_possible_identity_change: Literal[True]
+
+
+class FaceQualityObject(ContractModel):
+    owner_scope: SlugId
+    object_key: str = Field(pattern=r"^(immutable|derivative)/[a-z0-9._/-]+$", max_length=1024)
+    generation: NonEmptyStr
+    sha256: Sha256Hex
+    byte_size: int = Field(strict=True, ge=1, le=4 * 1024**4)
+
+    @model_validator(mode="after")
+    def _private_key(self) -> FaceQualityObject:
+        parts = self.object_key.split("/")
+        if (
+            len(parts) < 3
+            or len(parts) > 7
+            or parts[1] != self.owner_scope
+            or any(not part or part in {".", ".."} for part in parts)
+        ):
+            raise ValueError("face object must stay in its owner's private storage")
+        return self
+
+
+class StoredNativeFaceCandidate(ContractModel):
+    candidate: NativeFaceCandidate
+    pixels: FaceQualityObject
+    mask: FaceQualityObject
+
+    @model_validator(mode="after")
+    def _exact_region_storage(self) -> StoredNativeFaceCandidate:
+        candidate = self.candidate
+        area = candidate.region.width * candidate.region.height
+        if self.pixels.owner_scope != self.mask.owner_scope or (
+            self.pixels.sha256 != candidate.pixels_sha256
+            or self.mask.sha256 != candidate.mask_sha256
+            or self.pixels.byte_size != area * 4 * (candidate.context.bit_depth // 8)
+            or self.mask.byte_size != area
+            or not self.pixels.object_key.startswith("derivative/")
+            or not self.mask.object_key.startswith("derivative/")
+        ):
+            raise ValueError("stored face pixels/mask must bind exact native region bytes")
+        return self
+
+
+class NativeFaceOutput(ContractModel):
+    object: FaceQualityObject
+    width: FaceDimension
+    height: FaceDimension
+    bit_depth: Literal[8, 16]
+    changed_pixels: int = Field(strict=True, ge=1, le=4_000_000)
+    evidence: dict[str, builtins.object]
+
+    @model_validator(mode="after")
+    def _reviewed_native_output(self) -> NativeFaceOutput:
+        request = NativeFaceCompositionRequest(
+            candidate=NativeFaceCandidate.model_validate(self.evidence.get("candidate")),
+            review=NativeFaceReview.model_validate(self.evidence.get("review")),
+        )
+        context = request.candidate.context
+        if (
+            self.evidence.get("kind") != "explicit-face-recreate"
+            or self.evidence.get("candidate_sha256") != request.review.candidate_sha256
+            or self.evidence.get("changed_pixels") != self.changed_pixels
+            or (self.width, self.height, self.bit_depth)
+            != (context.output_width, context.output_height, context.bit_depth)
+            or not self.object.object_key.startswith("derivative/")
+        ):
+            raise ValueError("native face output must bind its exact review and geometry")
+        return self
+
+
+class FaceQualityJobView(ContractModel):
+    contract_version: Literal["image-quality-face-v1"] = "image-quality-face-v1"
+    face_quality_job_id: SlugId
+    job_id: SlugId
+    operation: Literal["candidates", "compose"]
+    state: Literal[
+        "queued",
+        "leased",
+        "running",
+        "retry_wait",
+        "cancel_requested",
+        "succeeded",
+        "failed",
+        "cancelled",
+    ]
+    progress_percent: int = Field(strict=True, ge=0, le=100)
+    source_sha256: Sha256Hex
+    base_output_sha256: Sha256Hex
+    candidates: tuple[NativeFaceCandidate, ...]
+    output_sha256: Sha256Hex | None
+    failure: dict[str, object] | None
+    expires_at: NonEmptyStr
 
 
 IMAGE_QUALITY_FACE_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
@@ -160,4 +263,8 @@ IMAGE_QUALITY_FACE_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
     "native-face-release": NativeFaceRelease,
     "face-quality-candidate-request": FaceQualityCandidateRequest,
     "face-quality-capabilities": FaceQualityCapabilities,
+    "face-quality-composition-intent": FaceQualityCompositionIntent,
+    "stored-native-face-candidate": StoredNativeFaceCandidate,
+    "native-face-output": NativeFaceOutput,
+    "face-quality-job-view": FaceQualityJobView,
 }

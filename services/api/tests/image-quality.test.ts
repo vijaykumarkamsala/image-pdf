@@ -231,7 +231,7 @@ test("native face capability is owner-scoped and never implies a released model"
     assert.equal(capabilities.contract_version, "image-quality-face-v1");
     assert.equal(capabilities.available, false);
     assert.equal(capabilities.native_still_renderer_implemented, true);
-    assert.equal(capabilities.native_jobs_integrated, false);
+    assert.equal(capabilities.native_jobs_integrated, true);
     assert.equal(capabilities.native_animation_supported, false);
     assert.deepEqual(capabilities.supported_still_bit_depths, [8, 16]);
     assert.ok(capabilities.blockers.includes("commercial-rights-pending"));
@@ -280,4 +280,23 @@ test("face intent rejects stale source/base, foreign ownership and client model 
     assert.equal(base.image_quality_request.output.sha256, intent.base_output_sha256);
     assert.equal(base.image_quality_request.job_id, created.image_quality_request.job_id);
   } finally { await server.close(); }
+});
+
+test("native face composition HTTP boundary rejects client pixels and keeps unregistered work unavailable", async () => {
+  const server = await api();
+  try {
+    const guest = await json(await server.request("/guest-sessions", { method: "POST" }));
+    const other = await json(await server.request("/guest-sessions", { method: "POST" }));
+    const uploadId = await readyGuestUpload(server,guest.token);
+    const review = {contract_version:"image-quality-face-v1",candidate_request_id:"face-owned",
+      candidate_sha256:"c".repeat(64),source_sha256:"a".repeat(64),base_output_sha256:"b".repeat(64),
+      allow_reconstructed_face_detail:true,acknowledged_possible_identity_change:true};
+    const request = (body: object, token = guest.token) => server.request(`/upload-sessions/${uploadId}/face-quality-compositions`, {
+      method:"POST",headers:{"idempotency-key":"review-owned","x-ipw-guest-token":token},body:JSON.stringify(body)});
+    assert.equal((await request(review,other.token)).status,404);
+    assert.equal((await request({...review,pixels:[1,2,3]})).status,400);
+    assert.equal((await request({...review,acknowledged_possible_identity_change:1})).status,400);
+    const blocked = await request(review);
+    assert.equal(blocked.status,503); assert.equal((await json(blocked)).error.code,"face-quality-unavailable");
+  } finally {await server.close();}
 });

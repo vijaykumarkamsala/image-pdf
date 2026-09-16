@@ -173,6 +173,7 @@ disallow_any_unimported = false
 module = [
   "ipw.processing_worker.image_quality_model",
   "ipw.processing_worker.native_face_renderer",
+  "ipw.processing_worker.face_quality",
 ]
 disallow_any_unimported = false
 

@@ -1,4 +1,4 @@
-import type { FaceQualityCandidateRequest, FaceQualityCapabilities } from "ipw-contracts-ts/product";
+import type { FaceQualityCandidateRequest, FaceQualityCapabilities, FaceQualityCompositionIntent } from "ipw-contracts-ts/product";
 
 import { DomainError, requireId, requireSha256 } from "../../kernel/errors.js";
 
@@ -8,7 +8,7 @@ export function faceQualityCapabilities(): FaceQualityCapabilities {
     contract_version: "image-quality-face-v1",
     available: false,
     native_still_renderer_implemented: true,
-    native_jobs_integrated: false,
+    native_jobs_integrated: true,
     native_animation_supported: false,
     supported_still_bit_depths: [8, 16],
     preserves_base_alpha: true,
@@ -16,9 +16,29 @@ export function faceQualityCapabilities(): FaceQualityCapabilities {
       "face-model-unregistered",
       "commercial-rights-pending",
       "face-quality-review-pending",
-      "native-face-jobs-not-integrated",
+      "native-face-model-adapter-unregistered",
     ],
   };
+}
+
+export function parseFaceQualityCompositionIntent(value: unknown): FaceQualityCompositionIntent {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new DomainError(400, "face-quality-review-invalid", "Review one exact face candidate");
+  }
+  const body = value as Record<string, unknown>;
+  const fields = ["contract_version", "candidate_request_id", "candidate_sha256", "source_sha256",
+    "base_output_sha256", "allow_reconstructed_face_detail", "acknowledged_possible_identity_change"];
+  if (Object.keys(body).length !== fields.length || !fields.every((field) => Object.hasOwn(body, field))
+    || body["contract_version"] !== "image-quality-face-v1"
+    || body["allow_reconstructed_face_detail"] !== true
+    || body["acknowledged_possible_identity_change"] !== true) {
+    throw new DomainError(400, "face-quality-review-invalid", "Exact candidate review and literal identity-risk acknowledgement are required");
+  }
+  return { contract_version: "image-quality-face-v1",
+    candidate_request_id: requireId(body["candidate_request_id"], "face candidate request id"),
+    candidate_sha256: requireSha256(body["candidate_sha256"]), source_sha256: requireSha256(body["source_sha256"]),
+    base_output_sha256: requireSha256(body["base_output_sha256"]), allow_reconstructed_face_detail: true,
+    acknowledged_possible_identity_change: true };
 }
 
 export function parseFaceQualityCandidateRequest(value: unknown): FaceQualityCandidateRequest {
