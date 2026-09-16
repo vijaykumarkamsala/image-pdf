@@ -70,6 +70,32 @@ The actual face detector/model adapter, candidate comparison UI, approved region
 export/provenance integration and exact-photograph acceptance are still unfinished.
 The disclosure panel and synthetic tests are not evidence of improved face quality.
 
+A private, manually aligned study now compares CodeFormer at fidelity 0.5, 0.8
+and 1.0 with GFPGAN 1.4 on the difficult owner-supplied portrait. All four
+inferences completed on CPU with the original SHA-256 unchanged. The aligned
+CodeFormer candidates visibly reconstruct finer hair and skin texture, but also
+propose new eye, tooth and other facial detail. This is promising Recreate
+evidence, not an ordinary-enhancement acceptance or an identity guarantee.
+GFPGAN is retained for comparison, not declared equivalent to the real face.
+
+`apps/web/tools/face_detail_study.py` is an offline research tool, not a browser
+adapter. It requires explicit private-input approval, uses the shared
+`local_research` gate, verifies exact model SHA-256/size and the conversion
+publisher's CRC32, checks installed dependency pins and rejects custom/external
+ONNX graph content. Python sockets are denied during inference; this is not
+claimed to be an OS-level network sandbox. Model weights and generated private
+comparisons remain ignored. Their private manifest records model/runtime pins,
+alignment, matching source-coordinate framing, timings and output hashes.
+
+No global licence approvals were changed. CodeFormer uses the non-commercial
+[S-Lab licence](https://github.com/sczhou/CodeFormer/blob/master/LICENSE).
+[GFPGAN's licence](https://github.com/TencentARC/GFPGAN/blob/master/LICENSE)
+contains third-party exceptions; its code's Apache header is not a completed
+commercial weight/dependency review. The existing registry permits marked local
+research while those reviews are pending, but public-demo, staging and production
+remain blocked. Quality/identity review and exact commercial rights are required
+before connecting either candidate to the customer page.
+
 The tested composition boundary binds review to exact patch/mask bytes, model,
 source/base hashes, geometry and fidelity. It preserves base/source buffers,
 every pixel outside the selected region, zero-mask pixels and alpha exactly.
