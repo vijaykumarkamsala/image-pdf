@@ -1,7 +1,9 @@
 # Image Quality Editor evidence gates
 
 This file applies only to the isolated `/image-quality` editor. It does not
-change Studio, PDF, Recovery, schema, contract or deployment authority.
+change Studio, PDF, Recovery or deployment authority. The owner approved additive
+new-editor face API/job contracts on 16 September 2026; the native follow-up below
+does not change the existing product-contract version or database migrations.
 
 ## Runtime gates
 
@@ -191,3 +193,61 @@ inputs are absent, the journey explicitly annotates that evidence as not run;
 ordinary/synthetic regression checks still run, and no real-face acceptance is
 inferred. Real restoration-model compatibility, quality, identity and performance
 remain to be validated after commercial clearance.
+
+## Native face follow-up — implementation ledger
+
+This ledger counts six native follow-up coding blocks, not the earlier P0/P1/P2
+audit or whole-product completion. **Two blocks are implemented; four remain.**
+
+1. **Implemented:** additive `image-quality-face-v1` intent/composition/release/
+   capability records, generated JSON Schema/TypeScript and an owner-scoped API
+   boundary. It rejects stale source/base hashes, foreign bases, nonliteral
+   permission, extra client pixels and client-supplied model approvals. A valid
+   request returns `face-quality-unavailable` (503) while the native integration
+   and release gates remain open. No inert job or fake success is recorded.
+2. **Implemented:** `NativeFaceRenderer` consumes a server-held reviewed patch,
+   verifies source/base/patch/mask/model/dependency digests, and composes into
+   private disk-backed pixels. It writes a separate PNG in bounded row/column
+   buffers with explicit face-Recreate provenance. Native RGB/RGBA precision,
+   every base alpha sample, hidden RGB at transparent pixels, zero-mask pixels
+   and every outside-region pixel remain exact. ICC/transfer/primaries/HDR chunks
+   retain their original bytes; sensitive text/EXIF metadata is not copied.
+3. **Remaining:** durable native face candidate/composition jobs, server-held
+   proposal/mask storage, leases/checkpoints, recovery, cancellation and private
+   result delivery. Existing ordinary Restore jobs are not face jobs.
+4. **Remaining:** native detector/alignment/inverse-alignment and the approved
+   real face-model adapter producing proposals in the base's native colour and
+   precision. The renderer rejects an 8-bit patch for a 16-bit base; it does not
+   manufacture professional precision by scaling eight-bit channels.
+5. **Remaining:** temporal proposals, review and composition for animated input.
+   The new renderer explicitly refuses APNG instead of flattening it.
+6. **Remaining:** customer-page native routing, candidate review/progress recovery
+   and streamed downloads for remote-only/high-precision/oversized face results.
+   The existing browser face path remains unregistered and unchanged.
+
+The native still core currently accepts non-interlaced, full-channel 8/16-bit
+RGB/RGBA PNG bases and matching-precision straight-RGBA proposals. Palette,
+grayscale, keyed-transparency and interlaced bases require a separate adapter.
+Scratch-storage checks are technical safety limits, not billing limits or a
+claim that arbitrary GB files have been validated. Cancellation is checked around
+native decode and during composition/encoding; terminating an in-progress native
+decode and durable cloud recovery still belong to block 3.
+
+Focused synthetic evidence checks actual 8/16-bit PNG derivatives, exact outside/
+alpha/zero-mask pixels, wide rows crossing encoding buffers, metadata transport,
+digests, stale review, cancellation cleanup, storage exhaustion, no-op rejection
+and exclusive publication when another file appears. These tests do not run a
+trained face model, validate identity or prove multi-GB performance. No private
+photographs, trained weights or generated private outputs are committed.
+
+Focused Windows checks on 16 September 2026 passed: 27 Python contract/renderer
+tests, 5 new-editor API tests, 68 editor unit/component tests and one focused
+browser journey. Scoped Ruff/Mypy, web/API TypeScript checks and generated
+contract drift checks also passed. These results do not clear Linux or real-model
+quality gates.
+
+Release remains blocked on exact commercial face-model/dependency clearance,
+real-photo quality/identity acceptance and the four integration blocks above.
+Linux-container, real Cloud Run/GCS large-file, calibrated HDR/P3 and physical
+Safari/iOS/low-memory-device validations remain outstanding, not cleared by this
+native mechanics increment. PDF, old Studio, deployment and merge remain out of scope.

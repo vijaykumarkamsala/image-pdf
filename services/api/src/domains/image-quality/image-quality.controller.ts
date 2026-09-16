@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Res } from "@nestjs/common";
+import { Body, Controller, Get, Header, Headers, Param, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
 
 import { ImageQualityService } from "./image-quality.service.js";
@@ -8,6 +8,24 @@ type RequestHeaders = Record<string, string | string[] | undefined>;
 @Controller()
 export class ImageQualityController {
   constructor(private readonly imageQuality: ImageQualityService) {}
+
+  @Get("upload-sessions/:uploadSessionId/face-quality-capabilities")
+  @Header("Cache-Control", "private, no-store, max-age=0")
+  faceCapabilities(
+    @Headers() headers: RequestHeaders,
+    @Param("uploadSessionId") uploadSessionId: string,
+  ) {
+    return this.imageQuality.faceCapabilities(headers, uploadSessionId);
+  }
+
+  @Post("upload-sessions/:uploadSessionId/face-quality-candidate-requests")
+  createFaceCandidates(
+    @Headers() headers: RequestHeaders,
+    @Param("uploadSessionId") uploadSessionId: string,
+    @Body() body: unknown,
+  ) {
+    return this.imageQuality.createFaceCandidates(headers, uploadSessionId, body);
+  }
 
   @Post("upload-sessions/:uploadSessionId/image-quality-requests")
   create(

@@ -13,6 +13,7 @@ import { IdentityBoundary } from "../identity/identity.service.js";
 import { IntakeService } from "../intake/intake.service.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
 import type { IntakeOwner } from "../intake/intake.types.js";
+import { faceQualityCapabilities, parseFaceQualityCandidateRequest } from "./face-quality.contract.js";
 import {
   IMAGE_QUALITY_REPOSITORY,
   type ImageQualityContentClass,
@@ -38,6 +39,37 @@ export class ImageQualityService implements OnApplicationShutdown {
     private readonly identity: IdentityBoundary,
     private readonly intake: IntakeService,
   ) {}
+
+  async faceCapabilities(headers: Headers, uploadSessionId: string) {
+    // Resolve the current source owner before exposing a source-specific capability.
+    await this.intake.requireForInternal(headers, requireId(uploadSessionId, "upload id"));
+    return faceQualityCapabilities();
+  }
+
+  async createFaceCandidates(headers: Headers, uploadSessionId: string, body: unknown): Promise<never> {
+    const stored = await this.intake.requireForInternal(headers, requireId(uploadSessionId, "upload id"));
+    const intent = parseFaceQualityCandidateRequest(body);
+    const facts = stored.record.source_facts;
+    if (stored.record.state !== "ready" || !facts || facts.sha256 !== intent.source_sha256) {
+      throw new DomainError(409, "face-quality-source-changed", "Face permission must match the ready immutable source");
+    }
+    if (!MEDIA_TYPES.has(facts.detected_media_type)) {
+      throw new DomainError(415, "face-quality-source-unsupported", "Choose a verified image for face reconstruction");
+    }
+    const owner = this.intake.ownerFor(stored.record);
+    const base = await this.requests.get(owner, intent.base_image_quality_request_id);
+    if (!base || base.upload_session_id !== stored.record.upload_session_id
+      || base.source_sha256 !== facts.sha256) {
+      throw new DomainError(404, "face-quality-base-not-found", "The base enhancement was not found for this source");
+    }
+    if (base.state !== "succeeded" || !base.output || base.output.sha256 !== intent.base_output_sha256) {
+      throw new DomainError(409, "face-quality-base-changed", "Wait for the exact enhanced image before face review");
+    }
+    // Do not create an inert durable job, accept client pixels/model approvals,
+    // or disguise ordinary Restore as a face result while release gates are open.
+    throw new DomainError(503, "face-quality-unavailable",
+      "Face reconstruction is not released: model rights, face-quality acceptance and durable native integration are pending");
+  }
 
   async create(
     headers: Headers,

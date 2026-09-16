@@ -741,6 +741,53 @@ export interface MetadataPolicy {
   remove_embedded_thumbnails?: true;
 }
 
+export interface NativeFaceCandidate {
+  candidate_id: string;
+  context: NativeFaceContext;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  model_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  dependency_lock_sha256: string;
+  fidelity_permyriad: number;
+  region: NativeFaceRegion;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  pixels_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  mask_sha256: string;
+}
+
+export interface NativeFaceContext {
+  /** Lower-case hexadecimal SHA-256 digest. */
+  source_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  base_output_sha256: string;
+  source_width: number;
+  source_height: number;
+  output_width: number;
+  output_height: number;
+  bit_depth: 8 | 16;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  colour_authority_sha256: string;
+}
+
+export interface NativeFaceRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface NativeFaceReview {
+  /** Lower-case hexadecimal SHA-256 digest. */
+  source_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  base_output_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  candidate_sha256: string;
+  allow_reconstructed_face_detail: true;
+  acknowledged_possible_identity_change: true;
+}
+
 export interface NoiseReductionParameters {
   schema_version?: string;
   strength?: number;
@@ -1507,6 +1554,29 @@ export interface ExportZipBundle {
   created_at: string;
 }
 
+export interface FaceQualityCandidateRequest {
+  contract_version: "image-quality-face-v1";
+  base_image_quality_request_id: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  source_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  base_output_sha256: string;
+  allow_reconstructed_face_detail: true;
+  fidelity_permyriad: number;
+  candidate_count: 2 | 3;
+}
+
+export interface FaceQualityCapabilities {
+  contract_version?: "image-quality-face-v1";
+  available?: false;
+  native_still_renderer_implemented?: true;
+  native_jobs_integrated?: false;
+  native_animation_supported?: false;
+  supported_still_bit_depths?: (8 | 16)[];
+  preserves_base_alpha?: true;
+  blockers: string[];
+}
+
 export interface FeatureStateList {
   schema_version?: string;
   features: FeatureStateRecord[];
@@ -1595,6 +1665,26 @@ export interface LeaseTakeoverResult {
   status: LeaseTakeoverStatus;
   current_editor?: EditorLeaseRecord | null;
   grant?: EditorLeaseGrant | null;
+}
+
+export interface NativeFaceCompositionRequest {
+  contract_version?: "image-quality-face-v1";
+  operation?: "explicit-reviewed-face-compose";
+  candidate: NativeFaceCandidate;
+  review: NativeFaceReview;
+}
+
+export interface NativeFaceRelease {
+  model_id: string;
+  model_version: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  model_sha256: string;
+  /** Lower-case hexadecimal SHA-256 digest. */
+  dependency_lock_sha256: string;
+  commercial_rights: "pending" | "approved" | "rejected";
+  rights_evidence_id?: string | null;
+  quality_review: "pending" | "approved" | "rejected";
+  quality_evidence_id?: string | null;
 }
 
 export interface NotificationList {

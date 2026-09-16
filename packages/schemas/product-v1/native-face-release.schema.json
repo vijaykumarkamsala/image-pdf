@@ -1,0 +1,87 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/native-face-release.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "commercial_rights": {
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "title": "Commercial Rights",
+      "type": "string"
+    },
+    "dependency_lock_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Dependency Lock Sha256",
+      "type": "string"
+    },
+    "model_id": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Model Id",
+      "type": "string"
+    },
+    "model_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Model Sha256",
+      "type": "string"
+    },
+    "model_version": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "quality_evidence_id": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Quality Evidence Id"
+    },
+    "quality_review": {
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "title": "Quality Review",
+      "type": "string"
+    },
+    "rights_evidence_id": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rights Evidence Id"
+    }
+  },
+  "required": [
+    "model_id",
+    "model_version",
+    "model_sha256",
+    "dependency_lock_sha256",
+    "commercial_rights",
+    "quality_review"
+  ],
+  "title": "NativeFaceRelease",
+  "type": "object"
+}

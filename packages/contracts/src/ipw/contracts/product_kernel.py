@@ -16,6 +16,7 @@ from ipw.contracts.batch import BATCH_SCHEMA_EXPORTS
 from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 from ipw.contracts.editor import EDITOR_SCHEMA_EXPORTS
 from ipw.contracts.enhancement import ENHANCEMENT_SCHEMA_EXPORTS
+from ipw.contracts.image_quality_face import IMAGE_QUALITY_FACE_SCHEMA_EXPORTS
 from ipw.contracts.pdf_creation import PDF_SCHEMA_EXPORTS
 from ipw.contracts.pdf_management import PDF_MANAGEMENT_SCHEMA_EXPORTS
 from ipw.contracts.version import PRODUCT_SCHEMA_VERSION
@@ -876,6 +877,7 @@ PRODUCT_SCHEMA_EXPORTS: dict[str, type[ContractModel]] = {
 
 PRODUCT_SCHEMA_EXPORTS.update(EDITOR_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(ENHANCEMENT_SCHEMA_EXPORTS)
+PRODUCT_SCHEMA_EXPORTS.update(IMAGE_QUALITY_FACE_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(BATCH_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(PDF_SCHEMA_EXPORTS)
 PRODUCT_SCHEMA_EXPORTS.update(PDF_MANAGEMENT_SCHEMA_EXPORTS)

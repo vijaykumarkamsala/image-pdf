@@ -167,10 +167,13 @@ module = ["ipw.metrics.*"]
 disallow_any_unimported = false
 
 [[tool.mypy.overrides]]
-# Native ONNX restoration is isolated behind typed worker-owned dataclasses and
-# a narrow InferenceSession Protocol.  NumPy's stubs are intentionally skipped
-# at the Python 3.11 syntax floor above, so permit its array values only here.
-module = ["ipw.processing_worker.image_quality_model"]
+# Native restoration and reviewed-region composition have narrow worker-owned
+# boundaries. NumPy's stubs are intentionally skipped at the Python 3.11 syntax
+# floor above, so permit its array values only in these native adapters.
+module = [
+  "ipw.processing_worker.image_quality_model",
+  "ipw.processing_worker.native_face_renderer",
+]
 disallow_any_unimported = false
 
 [[tool.mypy.overrides]]

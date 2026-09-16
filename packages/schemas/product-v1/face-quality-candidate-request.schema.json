@@ -1,0 +1,59 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/face-quality-candidate-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "allow_reconstructed_face_detail": {
+      "const": true,
+      "title": "Allow Reconstructed Face Detail",
+      "type": "boolean"
+    },
+    "base_image_quality_request_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "title": "Base Image Quality Request Id",
+      "type": "string"
+    },
+    "base_output_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Base Output Sha256",
+      "type": "string"
+    },
+    "candidate_count": {
+      "enum": [
+        2,
+        3
+      ],
+      "title": "Candidate Count",
+      "type": "integer"
+    },
+    "contract_version": {
+      "const": "image-quality-face-v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "fidelity_permyriad": {
+      "maximum": 10000,
+      "minimum": 0,
+      "title": "Fidelity Permyriad",
+      "type": "integer"
+    },
+    "source_sha256": {
+      "description": "Lower-case hexadecimal SHA-256 digest.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "contract_version",
+    "base_image_quality_request_id",
+    "source_sha256",
+    "base_output_sha256",
+    "allow_reconstructed_face_detail",
+    "fidelity_permyriad",
+    "candidate_count"
+  ],
+  "title": "FaceQualityCandidateRequest",
+  "type": "object"
+}

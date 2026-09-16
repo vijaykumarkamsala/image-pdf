@@ -1,0 +1,73 @@
+{
+  "$id": "https://image-pdf-workspace.packages/schemas/product-v1/face-quality-capabilities.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "available": {
+      "const": false,
+      "default": false,
+      "title": "Available",
+      "type": "boolean"
+    },
+    "blockers": {
+      "items": {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Blockers",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "image-quality-face-v1",
+      "default": "image-quality-face-v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "native_animation_supported": {
+      "const": false,
+      "default": false,
+      "title": "Native Animation Supported",
+      "type": "boolean"
+    },
+    "native_jobs_integrated": {
+      "const": false,
+      "default": false,
+      "title": "Native Jobs Integrated",
+      "type": "boolean"
+    },
+    "native_still_renderer_implemented": {
+      "const": true,
+      "default": true,
+      "title": "Native Still Renderer Implemented",
+      "type": "boolean"
+    },
+    "preserves_base_alpha": {
+      "const": true,
+      "default": true,
+      "title": "Preserves Base Alpha",
+      "type": "boolean"
+    },
+    "supported_still_bit_depths": {
+      "default": [
+        8,
+        16
+      ],
+      "items": {
+        "enum": [
+          8,
+          16
+        ],
+        "type": "integer"
+      },
+      "title": "Supported Still Bit Depths",
+      "type": "array"
+    }
+  },
+  "required": [
+    "blockers"
+  ],
+  "title": "FaceQualityCapabilities",
+  "type": "object"
+}
