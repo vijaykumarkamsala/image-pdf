@@ -67,6 +67,13 @@ export interface FaceDetailCandidate {
   pixels: Uint8ClampedArray;
   /** Explicit reconstruction/feather mask; zero means keep the base pixel exactly. */
   mask: Uint8Array;
+  /** Optional automatic-adapter evidence, hashed with the exact candidate bytes. */
+  alignment?: {
+    detectorSha256: string;
+    confidence: number;
+    sourceLandmarks: Array<readonly [number, number]>;
+    sourceToAlignedTransform: readonly [number, number, number, number];
+  };
 }
 
 export interface FaceRestorationRequest {
@@ -147,6 +154,19 @@ function validateCandidate(candidate: FaceDetailCandidate) {
     || candidate.pixels.length !== width * height * 4 || candidate.mask.length !== width * height) {
     throw new Error("The reconstructed region must fit the existing output without resizing it.");
   }
+  const alignment = candidate.alignment;
+  if (alignment && (!sha256Pattern.test(alignment.detectorSha256) || !Number.isFinite(alignment.confidence)
+    || alignment.confidence < 0.85 || alignment.confidence > 1 || alignment.sourceLandmarks.length !== 5
+    || alignment.sourceLandmarks.some((point) => point.length !== 2 || !point.every(Number.isFinite)
+      || point[0] < 0 || point[1] < 0 || point[0] >= candidate.context.sourceWidth || point[1] >= candidate.context.sourceHeight)
+    || alignment.sourceToAlignedTransform.length !== 4 || !alignment.sourceToAlignedTransform.every(Number.isFinite)
+    || alignment.sourceToAlignedTransform[0] ** 2 + alignment.sourceToAlignedTransform[1] ** 2 < 1e-12)) {
+    throw new Error("Automatic face alignment requires valid source-coordinate detector evidence.");
+  }
+}
+
+function alignmentSnapshot(candidate: FaceDetailCandidate) {
+  return candidate.alignment ? { alignment: structuredClone(candidate.alignment) } : {};
 }
 
 function sameContext(first: FaceDetailContext, second: FaceDetailContext): boolean {
@@ -195,6 +215,7 @@ export async function generateFaceDetailCandidates(
     const snapshot = {
       ...candidate, context: { ...candidate.context }, region: { ...candidate.region },
       pixels: candidate.pixels.slice(), mask: candidate.mask.slice(),
+      ...alignmentSnapshot(candidate),
     };
     const candidateSha256 = await faceCandidateSha256(snapshot);
     signal.throwIfAborted();
@@ -212,6 +233,8 @@ export async function faceCandidateSha256(candidate: FaceDetailCandidate): Promi
     candidate.context.outputWidth, candidate.context.outputHeight,
     candidate.modelSha256, candidate.fidelity,
     candidate.region.x, candidate.region.y, candidate.region.width, candidate.region.height,
+    ...(candidate.alignment ? [[candidate.alignment.detectorSha256, candidate.alignment.confidence,
+      candidate.alignment.sourceLandmarks, candidate.alignment.sourceToAlignedTransform]] : []),
   ]));
   const bytes = new Uint8Array(metadata.length + candidate.pixels.length + candidate.mask.length);
   bytes.set(metadata);
@@ -245,6 +268,7 @@ export async function applyReviewedFaceCandidate(
   const snapshot = {
     ...candidate, context: { ...candidate.context }, region: { ...candidate.region },
     pixels: candidate.pixels.slice(), mask: candidate.mask.slice(),
+    ...alignmentSnapshot(candidate),
   };
   const expectedContext = { ...context };
   const expectedReview = { ...review };
@@ -279,6 +303,8 @@ export async function applyReviewedFaceCandidate(
       baseOutputSha256: expectedContext.baseOutputSha256,
       candidateSha256,
       modelSha256: snapshot.modelSha256,
+      dependencyLockSha256: expectedRelease.dependencyLockSha256!,
+      ...alignmentSnapshot(snapshot),
       rightsEvidenceId: expectedRelease.rightsEvidenceId!,
       qualityEvidenceId: expectedRelease.qualityEvidenceId!,
       fidelity: snapshot.fidelity,

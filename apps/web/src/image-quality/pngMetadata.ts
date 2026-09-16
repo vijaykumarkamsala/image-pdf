@@ -102,6 +102,7 @@ export function tagSrgbPng(bytes: Uint8Array, metadata: PngOutputMetadata): Uint
     const hash = /^[a-f0-9]{64}$/;
     if (!evidence || evidence.kind !== "explicit-face-recreate"
       || !hash.test(evidence.candidateSha256) || !hash.test(evidence.baseOutputSha256)
+      || !hash.test(evidence.dependencyLockSha256)
       || evidence.sourceSha256 !== metadata.sourceSha256 || evidence.modelSha256 !== metadata.modelSha256
       || !evidence.rightsEvidenceId.trim() || !evidence.qualityEvidenceId.trim()
       || evidence.acknowledgedPossibleIdentityChange !== true || !Number.isSafeInteger(evidence.changedPixels)

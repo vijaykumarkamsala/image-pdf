@@ -66,9 +66,9 @@ enhancement fallback is allowed to masquerade as face restoration.
 
 The tested local RestoreFormer++ candidate changed facial features and was
 rejected; private source/candidate images and model weights remain uncommitted.
-The actual face detector/model adapter and exact-photograph acceptance remain
-unfinished. Candidate comparison and browser region-export mechanics are
-implemented below, but no real face engine is registered or released.
+The automatic browser face adapter and candidate comparison/region-export
+mechanics are implemented below. Exact-photograph acceptance and approved real
+model integration remain unfinished; no face engine is registered or released.
 The disclosure panel and synthetic tests are not evidence of improved face quality.
 
 A private, manually aligned study now compares CodeFormer at fidelity 0.5, 0.8
@@ -142,8 +142,52 @@ This limitation is face-specific, not a removal of the ordinary native worker's
 existing image capabilities. Remote-only results do not enable this browser path.
 
 Still required before release: exact commercial model/dependency clearance,
-automatic detector/alignment/inference adapter, real-photograph quality/identity
+approved real model integration/validation, real-photograph quality/identity
 acceptance and native face rendering/integration for the unsupported base types.
 The earlier Linux/cloud/large-file/colour/device validations are not cleared by
 these focused mechanics tests. No Photoshop-style manual controls or larger-scale
 buttons were added in this increment.
+
+## Automatic browser face adapter (implemented, unregistered)
+
+`WorkerFaceRestorationEngine` now implements source-pixel detection, five-point
+similarity alignment, two/three actual fidelity inferences and inverse alignment.
+It accepts a reviewed bundle, not a model URL or environment-based approval.
+The worker verifies model sizes/hashes, pinned ONNX Runtime 1.29.0 and a canonical
+model/runtime/I/O/recipe bundle digest before constructing sessions. This digest
+binds processing configuration; it is not a substitute for the required complete
+commercial dependency/distribution review and executed-artifact evidence.
+
+The supported detector is the fixed 640-pixel YuNet 2023mar artifact with upstream
+[Git LFS SHA-256 and size](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx).
+The upstream [model directory](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
+explicitly puts its files under [MIT](https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/LICENSE).
+Prediction-head decoding follows the published OpenCV 4.12 convention. Detector
+licensing does not clear any restoration model or the complete face pipeline.
+No detector or restoration model bytes are committed in this increment.
+
+An overview plus overlapping native-scale tiles avoids relying solely on a
+downsampled tiny face. Scans exceeding 32 windows fail before inference; no
+partial scan or smaller replacement is presented as success. Zero confident
+faces, multiple possible people and uncertain/too-small landmarks fail clearly.
+The adapter does not silently choose the largest face. Inference is single-thread
+WASM inside its own terminable worker. Low-memory/server routing still requires
+the future native face integration.
+
+The bounded restorer contract is normalized RGB FLOAT `[1,3,512,512]`, one scalar
+fidelity input (FLOAT/DOUBLE) and one matching output. Arbitrary restorers, a
+semantic face parser and general multi-face selection are not implemented.
+Inverse-aligned masks are conservative geometric ellipses, not semantic region
+or identity proof. Candidate hashes and PNG evidence bind detector hash/confidence,
+native source landmarks, similarity transform and bundle digest. Outside pixels
+remain governed by the existing reviewed-composition boundary.
+
+The focused local browser journey uses the owner-authorized private portrait,
+the exact YuNet artifact and an owned tiny synthetic ONNX restorer to exercise
+the real inference worker, review/encoding integration and failure cases. The
+restorer only adds a bounded pixel bias: this is **mechanics evidence, not improved
+face quality**. Private evidence and weights stay ignored. When optional private
+inputs are absent, the journey explicitly annotates that evidence as not run;
+ordinary/synthetic regression checks still run, and no real-face acceptance is
+inferred. Real restoration-model compatibility, quality, identity and performance
+remain to be validated after commercial clearance.

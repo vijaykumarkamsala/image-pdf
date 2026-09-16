@@ -133,6 +133,7 @@ test("reviewed PNG embeds exact AI-region evidence and rejects undisclosed/unrev
     { ...metadata, sourceSha256: "f".repeat(64) },
     { ...metadata, faceRecreateEvidence: { ...composed.evidence, acknowledgedPossibleIdentityChange: false } as never },
     { ...metadata, faceRecreateEvidence: { ...composed.evidence, changedPixels: 0 } },
+    { ...metadata, faceRecreateEvidence: { ...composed.evidence, dependencyLockSha256: "unverified" } },
   ]) assert.throws(() => tagSrgbPng(bytes, invalid));
 });
 
@@ -164,6 +165,21 @@ test("candidate hashing binds pixels, mask, geometry, fidelity, original and bas
     const value = candidate(); change(value);
     assert.notEqual(await faceCandidateSha256(value), originalHash);
   }
+});
+
+test("automatic detector/alignment evidence is snapshotted and bound to candidate review", async () => {
+  const value = candidate();
+  value.alignment = { detectorSha256: "e".repeat(64), confidence: 0.99,
+    sourceLandmarks: [[0.5, 0.5], [2, 0.5], [1, 1], [0.5, 2], [2, 2]], sourceToAlignedTransform: [1, 0, 0, 0] };
+  const approved = await review(value);
+  const result = await applyReviewedFaceCandidate(basePixels(), context(), value, approved, approvedRelease);
+  assert.deepEqual(result.evidence.alignment, value.alignment);
+  assert.equal(result.evidence.dependencyLockSha256, approvedRelease.dependencyLockSha256);
+  value.alignment.sourceLandmarks[0] = [0.6, 0.5];
+  assert.notDeepEqual(result.evidence.alignment, value.alignment);
+  await assert.rejects(applyReviewedFaceCandidate(basePixels(), context(), value, approved, approvedRelease), /changed after review/);
+  value.alignment.confidence = NaN;
+  await assert.rejects(faceCandidateSha256(value), /detector evidence/);
 });
 
 test("reviewed patch changes real pixels but preserves base, alpha, masked pixels and all outside pixels exactly", async () => {

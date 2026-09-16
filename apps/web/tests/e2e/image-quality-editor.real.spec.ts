@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
@@ -243,6 +245,59 @@ test("face detail stays opt-in and unavailable without affecting enhancement, or
   await expect(permission).not.toBeChecked();
   await permission.check();
   await expect(harness.getByRole("button", { name: "Generate face candidates (unavailable)" })).toBeDisabled();
+  const repository = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
+  const privatePortrait = resolve(repository, "data/corpus/TestImagesUploadedBYVIjay/IMG_5100.png");
+  const detectorArtifact = resolve(repository, ".tools/models/face_detection_yunet_2023mar.onnx");
+  // Optional owner-authorized local evidence, never a required customer-content CI fixture.
+  if (!existsSync(privatePortrait) || !existsSync(detectorArtifact)) {
+    testInfo.annotations.push({ type: "private-evidence-not-run", description: "The optional private portrait/verified detector is unavailable. No real-face quality acceptance is claimed." });
+    return;
+  }
+  const sourceBytes = await readFile(privatePortrait), detectorBytes = await readFile(detectorArtifact);
+  expect(createHash("sha256").update(sourceBytes).digest("hex")).toBe("4cd8c0eed7948ca9a390aed8f55842d95b33cab14a4618abdf5f07dcdd8f8ed0");
+  expect(createHash("sha256").update(detectorBytes).digest("hex")).toBe("8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4");
+  await page.evaluate(async ({ source, detector }) => {
+    // @ts-expect-error Optional private-local test module; never registered by the application.
+    await (await import("/tests/browser/automaticFaceHarness.tsx")).mountAutomaticFaceHarness(source, detector);
+  }, { source: sourceBytes.toString("base64"), detector: detectorBytes.toString("base64") });
+  const automatic = page.locator("#automatic-face-review-harness");
+  await automatic.locator("summary").first().click();
+  await automatic.getByRole("checkbox").first().check();
+  await automatic.getByRole("button", { name: "Generate face candidates", exact: true }).click();
+  await expect(automatic.getByRole("radio")).toHaveCount(3, { timeout: 60_000 });
+  await automatic.getByRole("radio").nth(2).check();
+  await automatic.getByRole("checkbox", { name: /I reviewed this candidate/ }).check();
+  await automatic.getByRole("button", { name: "Create reviewed face image" }).click();
+  await expect(automatic.getByRole("button", { name: "Download face-restored image" })).toBeVisible();
+  const automaticEvidence = await page.evaluate(async () => {
+    // @ts-expect-error Optional private-local test module.
+    return (await import("/tests/browser/automaticFaceHarness.tsx")).automaticFaceEvidence();
+  });
+  expect(automaticEvidence.proposals).toHaveLength(3);
+  expect(new Set(automaticEvidence.proposals.map((proposal: { fidelity: number }) => proposal.fidelity)).size).toBe(3);
+  expect(automaticEvidence.proposals[0].alignment.detectorSha256).toBe("8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4");
+  expect(automaticEvidence.proposals[0].alignment.sourceLandmarks).toHaveLength(5);
+  expect(automaticEvidence.outputEvidence.changedPixels).toBeGreaterThan(0);
+  expect(automaticEvidence.outputEvidence.alignment).toEqual(automaticEvidence.proposals[2].alignment);
+  const beforeAutomaticZoom = automaticEvidence.metrics;
+  await automatic.getByRole("button", { name: "400% face" }).click();
+  const afterAutomaticZoom = await page.evaluate(async () => {
+    // @ts-expect-error Optional private-local test module.
+    return (await import("/tests/browser/automaticFaceHarness.tsx")).automaticFaceEvidence().metrics;
+  });
+  expect(afterAutomaticZoom).toEqual(beforeAutomaticZoom);
+  const automaticFailures = await page.evaluate(async () => {
+    // @ts-expect-error Optional private-local test module.
+    return (await import("/tests/browser/automaticFaceHarness.tsx")).probeAutomaticFailures();
+  });
+  expect(automaticFailures[0]).toContain("No sufficiently confident face");
+  expect(automaticFailures[1]).toContain("More than one possible face");
+  expect(automaticFailures[2]).toContain("cancelled");
+  const evidencePath = testInfo.outputPath("automatic-detector-private-evidence.json");
+  await writeFile(evidencePath, JSON.stringify({ ...automaticEvidence, automaticFailures,
+    productionApproved: false, restorationQualityAccepted: false, restorer: "owned synthetic ONNX pixel bias, not a face restoration model" }, null, 2));
+  await testInfo.attach("automatic-detector-private-evidence.json", { path: evidencePath, contentType: "application/json" });
+  expect(createHash("sha256").update(await readFile(privatePortrait)).digest("hex")).toBe(createHash("sha256").update(sourceBytes).digest("hex"));
 });
 
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
