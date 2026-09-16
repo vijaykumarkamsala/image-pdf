@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   applyTextureConstrainedCorrection,
+  buildSkinToneProtectionMap,
   buildSourceTextureMap,
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
@@ -393,6 +394,23 @@ test("source texture mapping separates uniform fields from real edges", () => {
   assert.equal(texture[2 * width + 1], 0);
   assert.ok(texture[2 * width + 3] > 100);
   assert.ok(texture[2 * width + 4] > 100);
+});
+
+test("skin-tone protection covers nearby identity features without treating foliage as a face", () => {
+  const width = 25;
+  const height = 25;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    source.set([42, 76, 48, 255], pixel * 4);
+  }
+  for (let y = 8; y <= 16; y += 1) {
+    for (let x = 8; x <= 16; x += 1) source.set([112, 72, 58, 255], (y * width + x) * 4);
+  }
+  source.set([24, 18, 16, 255], (12 * width + 12) * 4);
+
+  const protection = buildSkinToneProtectionMap(source, width, height);
+  assert.ok(protection[12 * width + 12] >= 220, "a dark facial feature surrounded by skin stays protected");
+  assert.equal(protection[0], 0, "distant green texture remains eligible for restoration");
 });
 
 test("diagnostic correction affects textured regions without repainting protected fields or source chroma", () => {

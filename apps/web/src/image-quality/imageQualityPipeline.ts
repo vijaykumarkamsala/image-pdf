@@ -540,6 +540,68 @@ export function buildSourceTextureMap(
 }
 
 /**
+ * Marks source regions whose chroma is consistent with human skin, then grows
+ * that evidence just enough to protect nearby identity-defining features such
+ * as eyes and the mouth. This is deliberately not presented as face detection:
+ * false positives merely make restoration more conservative, while false
+ * negatives still remain bounded by the normal photograph trust ceiling.
+ */
+export function buildSkinToneProtectionMap(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8Array {
+  if (source.length !== width * height * 4) throw new Error("Decoded pixel data is incomplete.");
+  const evidence = new Uint8Array(width * height);
+  for (let pixel = 0; pixel < evidence.length; pixel += 1) {
+    const offset = pixel * 4;
+    if (source[offset + 3] < 16) continue;
+    const red = source[offset];
+    const green = source[offset + 1];
+    const blue = source[offset + 2];
+    const cb = 128 - red * 0.168736 - green * 0.331264 + blue * 0.5;
+    const cr = 128 + red * 0.5 - green * 0.418688 - blue * 0.081312;
+    if (
+      red > 35
+      && red > green * 1.04
+      && red > blue * 0.95
+      && cb > 75
+      && cb < 135
+      && cr > 132
+      && cr < 180
+    ) evidence[pixel] = 1;
+  }
+
+  const integralWidth = width + 1;
+  const integral = new Uint32Array(integralWidth * (height + 1));
+  for (let y = 0; y < height; y += 1) {
+    let row = 0;
+    for (let x = 0; x < width; x += 1) {
+      row += evidence[y * width + x];
+      integral[(y + 1) * integralWidth + x + 1] = integral[y * integralWidth + x + 1] + row;
+    }
+  }
+
+  const radius = Math.max(3, Math.min(12, Math.round(Math.min(width, height) / 160)));
+  const protection = new Uint8Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    const top = Math.max(0, y - radius);
+    const bottom = Math.min(height, y + radius + 1);
+    for (let x = 0; x < width; x += 1) {
+      const left = Math.max(0, x - radius);
+      const right = Math.min(width, x + radius + 1);
+      const count = integral[bottom * integralWidth + right]
+        - integral[top * integralWidth + right]
+        - integral[bottom * integralWidth + left]
+        + integral[top * integralWidth + left];
+      const area = (right - left) * (bottom - top);
+      protection[y * width + x] = Math.round(clamp((count / area - 0.02) / 0.18, 0, 1) * 255);
+    }
+  }
+  return protection;
+}
+
+/**
  * Carries deterministic denoise/tone work into the learned route without
  * allowing that stage to repaint source colour or smooth low-texture fields.
  * The learned model still owns reconstructive detail; this bounded source-scale

@@ -11,6 +11,7 @@ import { measureCoordinateMatchedFidelity } from "./imageQualityFidelity";
 import { inspectImageFile, type ImageFileInspection } from "./imageFileInspection";
 import {
   applyTextureConstrainedCorrection,
+  buildSkinToneProtectionMap,
   buildSourceTextureMap,
   classifyFlatGraphic,
   enhanceFlatGraphicPixels,
@@ -323,6 +324,9 @@ async function renderPhoto(
     ]);
   }
   const sourceTexture = buildSourceTextureMap(originalPixels, sourceWidth, sourceHeight);
+  const skinToneProtection = contentClass === "photograph"
+    ? buildSkinToneProtectionMap(originalPixels, sourceWidth, sourceHeight)
+    : null;
   const correctedReference = applyTextureConstrainedCorrection(originalPixels, corrected.pixels, sourceTexture);
   const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
   const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
@@ -382,6 +386,7 @@ async function renderPhoto(
           outputScale,
           strength,
           contentClass === "photograph" ? 0.55 : 1,
+          skinToneProtection,
         );
         report(requestId, { phase: "model", completed: completedTiles, total: totalTiles, message: `Restoring source-aligned detail (${completedTiles}/${totalTiles})…` });
       } finally {
@@ -410,7 +415,12 @@ async function renderPhoto(
       sha256: modelSpec.sha256,
       usage: "local-research",
     },
-    warnings: ["Local-research model weights are not licensed for production distribution."],
+    warnings: [
+      ...(contentClass === "photograph"
+        ? ["Potential skin-tone regions use conservative source-fidelity fusion; no face-restoration model was used."]
+        : []),
+      "Local-research model weights are not licensed for production distribution.",
+    ],
   };
 }
 
@@ -856,6 +866,7 @@ function blendModelTile(
   outputScale: 1 | 2 | 4,
   strength: number,
   modelTrust: number,
+  skinToneProtection: Uint8Array | null,
 ): void {
   const restoredPlane = MODEL_OUTPUT_TILE * MODEL_OUTPUT_TILE;
   const samplingStep = MODEL_SCALE / outputScale;
@@ -906,7 +917,7 @@ function blendModelTile(
         sourceTexture[sourceY * sourceWidth + sourceX],
         strength,
         learnedY - localLearnedY,
-        modelTrust,
+        modelTrust * (1 - (skinToneProtection?.[sourceY * sourceWidth + sourceX] ?? 0) / 255 * 0.78),
       );
     }
   }
