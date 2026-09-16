@@ -8,6 +8,7 @@ import {
   faceModelBlockers,
   generateFaceDetailCandidates,
   validateFaceRestorationRequest,
+  validateFaceCandidateForContext,
   type FaceDetailCandidate,
   type FaceDetailContext,
   type FaceDetailReview,
@@ -15,6 +16,8 @@ import {
   type FaceRestorationEngine,
   type FaceRestorationRequest,
 } from "../src/image-quality/faceDetailRestoration.ts";
+import { deflateSync } from "node:zlib";
+import { tagSrgbPng, type PngOutputMetadata } from "../src/image-quality/pngMetadata.ts";
 
 // Test-only approval proof. Never registered in either runtime or a model licence register.
 const approvedRelease: FaceModelRelease = {
@@ -84,6 +87,53 @@ test("blocked model never invokes the candidate adapter", async () => {
   };
   await assert.rejects(generateFaceDetailCandidates(engine, request(), new AbortController().signal), /unavailable/);
   assert.equal(calls, 0);
+});
+
+test("rendering boundary rejects wrong context/model and invalid regions before cropping pixels", () => {
+  assert.doesNotThrow(() => validateFaceCandidateForContext(candidate(), context(), approvedRelease));
+  for (const value of [
+    { ...candidate(), modelSha256: "e".repeat(64) },
+    { ...candidate(), context: { ...context(), baseOutputSha256: "e".repeat(64) } },
+    { ...candidate(), region: { x: 5, y: 5, width: 2, height: 2 } },
+  ]) assert.throws(() => validateFaceCandidateForContext(value, context(), approvedRelease));
+  assert.throws(() => validateFaceCandidateForContext(candidate(), context(), FACE_DETAIL_RELEASE), /unavailable/);
+});
+
+test("reviewed PNG embeds exact AI-region evidence and rejects undisclosed/unreviewed reconstruction", async () => {
+  const value = candidate();
+  const composed = await applyReviewedFaceCandidate(basePixels(), context(), value, await review(value), approvedRelease);
+  // Generated rights-free opaque fixture. tagSrgbPng validates framing/proof, not model approval.
+  const part = (type: string, data: Buffer) => {
+    const result = Buffer.alloc(12 + data.length);
+    result.writeUInt32BE(data.length, 0); result.write(type, 4, "ascii"); data.copy(result, 8);
+    let crc = 0xffffffff;
+    for (const byte of result.subarray(4, 8 + data.length)) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+    result.writeUInt32BE((crc ^ 0xffffffff) >>> 0, data.length + 8);
+    return result;
+  };
+  const header = Buffer.alloc(13); header.writeUInt32BE(6); header.writeUInt32BE(6, 4); header.set([8, 6, 0, 0, 0], 8);
+  const bytes = new Uint8Array(Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), part("IHDR", header),
+    part("IDAT", deflateSync(Buffer.alloc(6 * (6 * 4 + 1)))), part("IEND", Buffer.alloc(0))]));
+  const metadata: PngOutputMetadata = {
+    sourceSha256: context().sourceSha256, engineId: approvedRelease.id, engineVersion: approvedRelease.version,
+    route: "explicit-reviewed-face-recreate", strength: 100, scale: 2, modelSha256: approvedRelease.weightsSha256,
+    usage: "explicit-face-recreate", contentClass: "photograph", classificationConfidence: 0.8,
+    outputWidth: 6, outputHeight: 6, faceRecreateEvidence: composed.evidence,
+  };
+  const tagged = Buffer.from(tagSrgbPng(bytes, metadata));
+  assert.ok(tagged.includes(Buffer.from('"usage":"explicit-face-recreate"')));
+  assert.ok(tagged.includes(Buffer.from(JSON.stringify(composed.evidence))));
+  for (const invalid of [
+    { ...metadata, faceRecreateEvidence: undefined },
+    { ...metadata, usage: "deterministic" as const },
+    { ...metadata, outputWidth: 7 },
+    { ...metadata, sourceSha256: "f".repeat(64) },
+    { ...metadata, faceRecreateEvidence: { ...composed.evidence, acknowledgedPossibleIdentityChange: false } as never },
+    { ...metadata, faceRecreateEvidence: { ...composed.evidence, changedPixels: 0 } },
+  ]) assert.throws(() => tagSrgbPng(bytes, invalid));
 });
 
 test("face request requires source-bound permission, decoded pixels and bounded candidate settings", () => {

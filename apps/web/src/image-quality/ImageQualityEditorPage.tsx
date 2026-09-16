@@ -3,6 +3,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -24,6 +25,7 @@ import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
 import type { ImageQualityEngine } from "./ImageQualityEngine";
 import { createImageQualityEngine } from "./ProductionImageQualityEngine";
 import { FaceDetailPanel } from "./FaceDetailPanel";
+import type { FaceReviewInput } from "./WorkerFaceReviewRenderer";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -208,7 +210,23 @@ export function ImageQualityEditorPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const sourceObjectUrl = useRef<string | null>(null);
   const resultObjectUrl = useRef<string | null>(null);
+  const resultBlob = useRef<Blob | null>(null);
   const deterministicPreference = useRef(false);
+
+  // Reuse the already-created result Blob. Pan/zoom must not copy a large pixel buffer.
+  const faceReviewInput = useMemo<FaceReviewInput | undefined>(() => {
+    const source = state.source; const result = state.result;
+    if (!source?.facts || !source.width || !source.height || !result?.bytes || !resultBlob.current) return undefined;
+    return { original: source.file, base: resultBlob.current,
+      context: { sourceSha256: source.facts.sourceSha256, baseOutputSha256: result.outputSha256,
+        sourceWidth: source.width, sourceHeight: source.height, outputWidth: result.width, outputHeight: result.height },
+      metadata: { sourceSha256: result.sourceSha256, engineId: result.model.id,
+        engineVersion: result.model.version, route: result.route, strength: result.strength,
+        scale: result.scale, modelSha256: result.model.sha256, usage: result.model.usage,
+        contentClass: result.contentClass, classificationConfidence: result.classificationConfidence,
+        outputWidth: result.width, outputHeight: result.height },
+    };
+  }, [state.source, state.result]);
 
   useEffect(() => () => {
     selection.current += 1;
@@ -242,6 +260,7 @@ export function ImageQualityEditorPage() {
     if (sourceObjectUrl.current) URL.revokeObjectURL(sourceObjectUrl.current);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     resultObjectUrl.current = null;
+    resultBlob.current = null;
     const url = URL.createObjectURL(file);
     sourceObjectUrl.current = url;
     dispatch({ type: "source-selected", source: { file, url, name: file.name, width: null, height: null, facts: null } });
@@ -277,12 +296,14 @@ export function ImageQualityEditorPage() {
         },
       });
       if (operation.current !== currentOperation) return;
-      if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
-      const url = result.bytes
-        ? URL.createObjectURL(new Blob([result.bytes], { type: result.mediaType }))
+      const blob = result.bytes ? new Blob([result.bytes], { type: result.mediaType }) : null;
+      const url = blob
+        ? URL.createObjectURL(blob)
         : result.remoteViewUrl;
       if (!url) throw new Error("The processed image has no authorised viewing source.");
+      if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
       resultObjectUrl.current = result.bytes ? url : null;
+      resultBlob.current = blob;
       dispatch({ type: "processing-succeeded", result: { ...result, url } });
     } catch (error) {
       if (operation.current !== currentOperation) return;
@@ -325,6 +346,7 @@ export function ImageQualityEditorPage() {
     setFaceDetailRevision((revision) => revision + 1);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     resultObjectUrl.current = null;
+    resultBlob.current = null;
     dispatch({ type: "reset" });
   };
 
@@ -460,7 +482,8 @@ export function ImageQualityEditorPage() {
       </dl>
       {state.result.warnings.map((warning) => <p key={warning}>{warning}</p>)}
     </details>}
-    {dimensionsReady && <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting} />}
+    {dimensionsReady && <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting || resultIsStale}
+      filename={state.source.name} input={faceReviewInput} />}
     </section>
 
     {dimensionsReady && <section className="quality-comparison" aria-label="Original and enhanced comparison">

@@ -112,6 +112,10 @@ function validateContext(context: FaceDetailContext) {
   }
 }
 
+export { validateContext as validateFaceDetailContext };
+
+export type FaceRecreateEvidence = Awaited<ReturnType<typeof applyReviewedFaceCandidate>>["evidence"];
+
 export function validateFaceRestorationRequest(request: FaceRestorationRequest, release: Readonly<FaceModelRelease>) {
   const blockers = faceModelBlockers(release);
   if (blockers.length) throw new Error(`Face detail is unavailable. ${blockers.join(" ")}`);
@@ -149,6 +153,16 @@ function sameContext(first: FaceDetailContext, second: FaceDetailContext): boole
   return first.sourceSha256 === second.sourceSha256 && first.baseOutputSha256 === second.baseOutputSha256
     && first.sourceWidth === second.sourceWidth && first.sourceHeight === second.sourceHeight
     && first.outputWidth === second.outputWidth && first.outputHeight === second.outputHeight;
+}
+
+/** Used again inside the isolated rendering worker, not just trusted to the UI. */
+export function validateFaceCandidateForContext(candidate: FaceDetailCandidate, context: FaceDetailContext, release: Readonly<FaceModelRelease>) {
+  const blockers = faceModelBlockers(release);
+  if (blockers.length) throw new Error(`Face detail is unavailable. ${blockers.join(" ")}`);
+  validateCandidate(candidate);
+  if (!sameContext(candidate.context, context) || candidate.modelSha256 !== release.weightsSha256) {
+    throw new Error("This face candidate belongs to a different image, base result or approved model.");
+  }
 }
 
 /** Fail closed before invoking an adapter, and reject cancelled/stale candidate sets. */

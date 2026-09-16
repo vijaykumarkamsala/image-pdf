@@ -404,6 +404,35 @@
   position: relative;
 }
 
+.quality-face-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block: var(--space-2);
+}
+
+.quality-face-review fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.quality-face-review fieldset label { margin-inline-end: var(--space-3); }
+.quality-face-comparison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.quality-face-figure { margin: 0; min-width: 0; }
+.quality-face-figure figcaption { font-weight: 600; padding-block: var(--space-2); }
+.quality-face-region { position: relative; height: 260px; overflow: hidden; background: #101721; touch-action: none; }
+.quality-face-region img { position: absolute; top: 50%; left: 50%; image-rendering: pixelated; max-width: none; }
+.quality-face-fit { display: grid; place-items: center; }
+.quality-face-fit img { position: static; }
+.quality-face-fit .quality-face-map { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.quality-face-map { opacity: 0.4; pointer-events: none; }
+.quality-face-final img { display: block; max-width: 100%; height: auto; }
+.quality-face-final code { overflow-wrap: anywhere; }
+
+@media (max-width: 720px) { .quality-face-comparison { grid-template-columns: 1fr; } }
+
 @media (max-width: 1180px) {
   .quality-editor {
     height: auto;

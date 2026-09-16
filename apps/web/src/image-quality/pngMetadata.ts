@@ -1,4 +1,5 @@
 import { sha256Bytes } from "./sha256.ts";
+import type { FaceRecreateEvidence } from "./faceDetailRestoration.ts";
 
 export interface PngOutputMetadata {
   sourceSha256: string;
@@ -8,13 +9,15 @@ export interface PngOutputMetadata {
   strength: number;
   scale: number;
   modelSha256: string | null;
-  usage: "deterministic" | "production-restore" | "local-research";
+  usage: "deterministic" | "production-restore" | "local-research" | "explicit-face-recreate";
   contentClass: "flat-graphic" | "illustration" | "photograph";
   classificationConfidence: number;
   outputWidth: number;
   outputHeight: number;
   xPixelsPerMetre?: number;
   yPixelsPerMetre?: number;
+  /** Present only for an explicitly reviewed face derivative, never ordinary enhancement. */
+  faceRecreateEvidence?: FaceRecreateEvidence;
 }
 
 const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -78,6 +81,7 @@ function provenance(metadata: PngOutputMetadata) {
     classification_confidence: metadata.classificationConfidence,
     output_width: metadata.outputWidth,
     output_height: metadata.outputHeight,
+    ...(metadata.faceRecreateEvidence ? { reconstructed_regions: [metadata.faceRecreateEvidence] } : {}),
   });
   const keyword = encoder.encode("ImageQualityProvenance");
   const text = encoder.encode(value);
@@ -93,6 +97,23 @@ export function tagSrgbPng(bytes: Uint8Array, metadata: PngOutputMetadata): Uint
     throw new Error("The processed PNG bytes are invalid.");
   }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const evidence = metadata.faceRecreateEvidence;
+  if (metadata.usage === "explicit-face-recreate") {
+    const hash = /^[a-f0-9]{64}$/;
+    if (!evidence || evidence.kind !== "explicit-face-recreate"
+      || !hash.test(evidence.candidateSha256) || !hash.test(evidence.baseOutputSha256)
+      || evidence.sourceSha256 !== metadata.sourceSha256 || evidence.modelSha256 !== metadata.modelSha256
+      || !evidence.rightsEvidenceId.trim() || !evidence.qualityEvidenceId.trim()
+      || evidence.acknowledgedPossibleIdentityChange !== true || !Number.isSafeInteger(evidence.changedPixels)
+      || evidence.changedPixels <= 0 || evidence.changedPixels > evidence.outputRegion.width * evidence.outputRegion.height
+      || ![evidence.outputRegion.x, evidence.outputRegion.y, evidence.outputRegion.width, evidence.outputRegion.height].every(Number.isSafeInteger)
+      || evidence.outputRegion.x < 0 || evidence.outputRegion.y < 0 || evidence.outputRegion.width <= 0 || evidence.outputRegion.height <= 0
+      || evidence.outputRegion.x + evidence.outputRegion.width > metadata.outputWidth
+      || evidence.outputRegion.y + evidence.outputRegion.height > metadata.outputHeight
+      || view.getUint32(16, false) !== metadata.outputWidth || view.getUint32(20, false) !== metadata.outputHeight) {
+      throw new Error("Face-recreated PNG requires matching reviewed region and release evidence.");
+    }
+  } else if (evidence) throw new Error("Ordinary enhancement cannot carry an undisclosed face reconstruction.");
   if (view.getUint32(8, false) !== 13 || String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR") {
     throw new Error("The processed PNG header is invalid.");
   }

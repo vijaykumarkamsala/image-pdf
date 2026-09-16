@@ -66,8 +66,9 @@ enhancement fallback is allowed to masquerade as face restoration.
 
 The tested local RestoreFormer++ candidate changed facial features and was
 rejected; private source/candidate images and model weights remain uncommitted.
-The actual face detector/model adapter, candidate comparison UI, approved region
-export/provenance integration and exact-photograph acceptance are still unfinished.
+The actual face detector/model adapter and exact-photograph acceptance remain
+unfinished. Candidate comparison and browser region-export mechanics are
+implemented below, but no real face engine is registered or released.
 The disclosure panel and synthetic tests are not evidence of improved face quality.
 
 A private, manually aligned study now compares CodeFormer at fidelity 0.5, 0.8
@@ -103,3 +104,46 @@ Region evidence maps output pixels to source coordinates without resizing.
 Any identity or text change remains a failure for ordinary enhancement. Explicit
 face Recreate must disclose identity risk, show reconstructed regions and require
 candidate-specific acknowledgement; acknowledgement does not prove identity accuracy.
+
+## Face review implementation progress
+
+- The private refinement tool reuses hash-verified CodeFormer study pixels.
+  Bounded shadow lift, local/fine luminance separation and source-chroma anchoring
+  make a restrained tonal adjustment without another inference or larger output.
+  RGB headroom prevents introducing clipped channels; synthetic tests check
+  immutable inputs, exact zero strength, neutral colour and monotonic tonal ramps.
+  It is not proof of recovered extra detail or accepted identity.
+- `FaceDetailPanel` supports an approved adapter's three proposals, original/base/
+  proposed region comparison, synchronized source-coordinate pan/zoom and a
+  candidate-specific reconstruction map. Nothing is selected automatically.
+  Changing selection clears acknowledgement and the previous reviewed download.
+- `WorkerFaceReviewRenderer` verifies encoded original/base hashes before decoding,
+  keeps source/base pixels in an isolated worker, renders only comparison regions
+  before selection and fully encodes only the explicitly reviewed candidate.
+  The PNG embeds `explicit-face-recreate` usage and exact region/review/model
+  evidence. Ordinary enhancement cannot be tagged with undisclosed face evidence.
+  The face derivative has a separate view/download; ordinary output remains intact.
+- Closing the panel, withdrawing permission, source/base replacement, stale
+  strength, ordinary processing and release changes cancel work and invalidate
+  candidates/approval/URLs. Zoom/pan does not decode, infer or encode again. The
+  page reuses its result Blob, rather than copying full output bytes during zoom.
+- The focused browser journey uses a **test-only synthetic adapter** with the real
+  decode/composition worker to verify selection, acknowledgement invalidation,
+  aligned viewing, PNG evidence, downloaded pixel/byte identity, errors,
+  cancellation, source/base changes and release revocation. This adapter is not a
+  customer route or production dependency and does not measure real face quality.
+
+Current browser face rendering is bounded to opaque 8-bit still PNG base results
+within the device/canvas budget. Transparent bases are refused because browser
+premultiplication could change decoded pixels outside the approved patch. Animated,
+high-bit-depth and oversized bases require a future native face renderer; no
+flattening, bit-depth reduction or smaller replacement is performed silently.
+This limitation is face-specific, not a removal of the ordinary native worker's
+existing image capabilities. Remote-only results do not enable this browser path.
+
+Still required before release: exact commercial model/dependency clearance,
+automatic detector/alignment/inference adapter, real-photograph quality/identity
+acceptance and native face rendering/integration for the unsupported base types.
+The earlier Linux/cloud/large-file/colour/device validations are not cleared by
+these focused mechanics tests. No Photoshop-style manual controls or larger-scale
+buttons were added in this increment.

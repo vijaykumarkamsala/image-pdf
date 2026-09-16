@@ -86,7 +86,8 @@ function warmIllustrationPng(size: number): Buffer {
 }
 
 test("face detail stays opt-in and unavailable without affecting enhancement, originals or downloads", async ({ page }, testInfo) => {
-  test.setTimeout(60_000);
+  // Includes the ordinary editor and real-worker synthetic selection/export/cancel/revocation flows.
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 1760, height: 900 });
   const modelRequests: string[] = [];
   page.on("request", (request) => {
@@ -142,6 +143,106 @@ test("face detail stays opt-in and unavailable without affecting enhancement, or
   const accessibility = await new AxeBuilder({ page }).include(".quality-face-detail").analyze();
   expect(accessibility.violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("face-detail-availability.png"), fullPage: true });
+  // Same focused journey, separate synthetic adapter + the real worker renderer.
+  // This proves UI/pixel/export mechanics, not approval or quality of any face model.
+  await page.evaluate(async () => {
+    // @ts-expect-error Vite serves this test-only module; never part of src/production.
+    const harness = await import("/tests/browser/faceReviewHarness.tsx");
+    await harness.mountFaceReviewHarness();
+  });
+  const harness = page.locator("#face-review-harness");
+  await harness.locator("summary").first().click();
+  const permission = harness.getByRole("checkbox").first();
+  const generate = harness.getByRole("button", { name: "Generate face candidates", exact: true });
+  await expect(generate).toBeDisabled(); await permission.check(); await generate.click();
+  await expect(harness.getByRole("radio")).toHaveCount(3);
+  const approve = harness.getByRole("button", { name: "Create reviewed face image" });
+  await expect(approve).toBeDisabled();
+  const radios = harness.getByRole("radio");
+  await radios.nth(1).check();
+  const acknowledgement = harness.getByRole("checkbox", { name: /I reviewed this candidate/ });
+  await expect(approve).toBeDisabled(); await acknowledgement.check();
+  await radios.nth(2).check(); await expect(acknowledgement).not.toBeChecked();
+  const metricsBeforeZoom = await page.evaluate(async () => {
+    // @ts-expect-error Vite-served test module.
+    return (await import("/tests/browser/faceReviewHarness.tsx")).getMetrics();
+  });
+  await harness.getByRole("button", { name: "400% face", exact: true }).click();
+  await harness.getByRole("group", { name: /^Proposed reconstructed face\./ }).press("ArrowLeft");
+  const transforms = await harness.locator("img[data-face-transform]").evaluateAll((images) => images.map((image) => image.getAttribute("data-face-transform")));
+  expect(new Set(transforms).size).toBe(1);
+  expect(transforms[0]).toMatch(/^4:/);
+  const metricsAfterZoom = await page.evaluate(async () => {
+    // @ts-expect-error Vite-served test module.
+    return (await import("/tests/browser/faceReviewHarness.tsx")).getMetrics();
+  });
+  expect(metricsAfterZoom).toEqual(metricsBeforeZoom);
+  const reviewAccessibility = await new AxeBuilder({ page }).include("#face-review-harness").analyze();
+  expect(reviewAccessibility.violations).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("face-candidate-review.png"), fullPage: true });
+  await acknowledgement.check(); await approve.click();
+  const faceDownload = harness.getByRole("button", { name: "Download face-restored image" });
+  await expect(faceDownload).toBeVisible();
+  await harness.getByText("View complete reviewed face image", { exact: true }).click();
+  const fullUrl = await harness.getByRole("img", { name: "Complete reviewed face-restored image" }).getAttribute("src");
+  const decoded = await page.evaluate(async (url) => {
+    const blob = await (await fetch(url!)).blob(); const bitmap = await createImageBitmap(blob);
+    const surface = new OffscreenCanvas(bitmap.width, bitmap.height); const context = surface.getContext("2d")!;
+    context.drawImage(bitmap, 0, 0);
+    const pixel = (x: number, y: number) => Array.from(context.getImageData(x, y, 1, 1).data);
+    const all = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+    let outsideChanged = 0;
+    for (let y = 0; y < bitmap.height; y += 1) for (let x = 0; x < bitmap.width; x += 1) {
+      if (x >= 128 && x < 384 && y >= 128 && y < 384) continue;
+      const offset = (y * bitmap.width + x) * 4;
+      if (all[offset] !== 80 || all[offset + 1] !== 60 || all[offset + 2] !== 45 || all[offset + 3] !== 255) outsideChanged += 1;
+    }
+    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+    return { width: bitmap.width, height: bitmap.height, outside: pixel(10, 10), masked: pixel(128, 128),
+      inside: pixel(130, 130), outsideChanged, sha256: Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("") };
+  }, fullUrl);
+  expect(decoded.width).toBe(512); expect(decoded.height).toBe(512);
+  expect(decoded.outside).toEqual([80, 60, 45, 255]); expect(decoded.masked).toEqual(decoded.outside);
+  expect(decoded.inside).toEqual([140, 110, 105, 255]);
+  expect(decoded.outsideChanged).toBe(0);
+  const nextDownload = page.waitForEvent("download"); await faceDownload.click();
+  const downloaded = await nextDownload; const faceStream = await downloaded.createReadStream();
+  const faceChunks: Buffer[] = []; for await (const chunk of faceStream!) faceChunks.push(Buffer.from(chunk));
+  const facePng = Buffer.concat(faceChunks);
+  expect(createHash("sha256").update(facePng).digest("hex")).toBe(decoded.sha256);
+  expect(facePng.includes(Buffer.from('"usage":"explicit-face-recreate"'))).toBe(true);
+  expect(facePng.includes(Buffer.from('"kind":"explicit-face-recreate"'))).toBe(true);
+  expect(facePng.includes(Buffer.from((await radios.nth(2).inputValue())))).toBe(true);
+  expect(downloaded.suggestedFilename()).toBe("rights-free-test-face-recreated.png");
+  await page.evaluate(async () => {
+    // @ts-expect-error Vite-served test module.
+    await (await import("/tests/browser/faceReviewHarness.tsx")).replaceBase();
+  });
+  await expect(permission).not.toBeChecked(); await expect(faceDownload).toHaveCount(0);
+  await expect(radios).toHaveCount(0);
+  await permission.check();
+  await page.evaluate(async () => {
+    // @ts-expect-error Vite-served test module.
+    (await import("/tests/browser/faceReviewHarness.tsx")).failNextPreparation();
+  });
+  await generate.click(); await expect(harness.getByRole("alert")).toContainText("Synthetic preparation failure");
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", await page.getByTestId("enhanced-image").getAttribute("src") ?? "");
+  await page.evaluate(async () => {
+    // @ts-expect-error Vite-served test module.
+    (await import("/tests/browser/faceReviewHarness.tsx")).setSlowGeneration();
+  });
+  await generate.click(); await harness.getByRole("button", { name: "Cancel face restoration" }).click();
+  await expect(permission).not.toBeChecked(); await expect(radios).toHaveCount(0);
+  await permission.check(); await generate.click(); await expect(radios).toHaveCount(3);
+  await harness.locator("summary").first().click(); await harness.locator("summary").first().click();
+  await expect(permission).not.toBeChecked(); await expect(radios).toHaveCount(0);
+  await page.evaluate(async () => {
+    // @ts-expect-error Vite-served test module.
+    (await import("/tests/browser/faceReviewHarness.tsx")).revokeRelease();
+  });
+  await expect(permission).not.toBeChecked();
+  await permission.check();
+  await expect(harness.getByRole("button", { name: "Generate face candidates (unavailable)" })).toBeDisabled();
 });
 
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
