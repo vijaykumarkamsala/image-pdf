@@ -750,6 +750,16 @@ export interface MetadataPolicy {
   remove_embedded_thumbnails?: true;
 }
 
+/** Integer-only evidence: source pixels times 10**6; coefficients times 10**9. */
+export interface NativeFaceAlignment {
+  /** Lower-case hexadecimal SHA-256 digest. */
+  detector_sha256: string;
+  confidence_permyriad: number;
+  source_landmarks_micropixels: unknown[];
+  similarity_nanounits: unknown[];
+  reprojection_error_millipixels: number;
+}
+
 export interface NativeFaceCandidate {
   candidate_id: string;
   context: NativeFaceContext;
@@ -763,6 +773,7 @@ export interface NativeFaceCandidate {
   pixels_sha256: string;
   /** Lower-case hexadecimal SHA-256 digest. */
   mask_sha256: string;
+  alignment?: NativeFaceAlignment | null;
 }
 
 export interface NativeFaceContext {

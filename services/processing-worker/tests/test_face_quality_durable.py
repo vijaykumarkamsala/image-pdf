@@ -105,6 +105,7 @@ class Objects:
 class Engine:
     def __init__(self) -> None:
         self.calls = 0
+        self.clears = 0
         self.fail_at: int | None = None
         self.after: Any = None
         self.approval: NativeFaceRelease | None = NativeFaceRelease(
@@ -120,6 +121,9 @@ class Engine:
 
     def release(self) -> NativeFaceRelease | None:
         return self.approval
+
+    def clear_source(self) -> None:
+        self.clears += 1
 
     def propose(
         self,
@@ -340,6 +344,31 @@ class Fixture:
         job = f"compose-job-{secrets.token_hex(6)}"
         self.seed("compose", face, job, intent.model_dump())
         return face, job
+
+
+@pytest.mark.parametrize("mode", ["success", "failure", "cancelled", "revoked"])
+def test_private_adapter_cache_is_released_after_every_claimed_invocation(
+    tmp_path: Path, mode: str
+) -> None:
+    sample = Fixture(tmp_path)
+    try:
+        expected = "succeeded"
+        if mode == "failure":
+            sample.engine.fail_at = 1
+            expected = "retry_wait"
+        elif mode == "cancelled":
+            sample.engine.after = lambda: sample.sql(
+                "UPDATE processing_jobs SET state='cancel_requested' WHERE job_id=%s",
+                (sample.ids["job"],),
+            )
+            expected = "cancelled"
+        elif mode == "revoked":
+            sample.engine.approval = None
+            expected = "failed"
+        assert sample.run() == expected
+        assert sample.engine.clears == 1
+    finally:
+        sample.repo.close()
 
 
 @pytest.mark.parametrize("depth", [8, 16])

@@ -43,9 +43,174 @@
       "title": "FaceQualityObject",
       "type": "object"
     },
+    "NativeFaceAlignment": {
+      "additionalProperties": false,
+      "description": "Integer-only evidence: source pixels times 10**6; coefficients times 10**9.",
+      "properties": {
+        "confidence_permyriad": {
+          "maximum": 10000,
+          "minimum": 8500,
+          "title": "Confidence Permyriad",
+          "type": "integer"
+        },
+        "detector_sha256": {
+          "description": "Lower-case hexadecimal SHA-256 digest.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Detector Sha256",
+          "type": "string"
+        },
+        "reprojection_error_millipixels": {
+          "maximum": 24000,
+          "minimum": 0,
+          "title": "Reprojection Error Millipixels",
+          "type": "integer"
+        },
+        "similarity_nanounits": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          ],
+          "title": "Similarity Nanounits",
+          "type": "array"
+        },
+        "source_landmarks_micropixels": {
+          "maxItems": 5,
+          "minItems": 5,
+          "prefixItems": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "title": "Source Landmarks Micropixels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "detector_sha256",
+        "confidence_permyriad",
+        "source_landmarks_micropixels",
+        "similarity_nanounits",
+        "reprojection_error_millipixels"
+      ],
+      "title": "NativeFaceAlignment",
+      "type": "object"
+    },
     "NativeFaceCandidate": {
       "additionalProperties": false,
       "properties": {
+        "alignment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeFaceAlignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "candidate_id": {
           "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
           "title": "Candidate Id",

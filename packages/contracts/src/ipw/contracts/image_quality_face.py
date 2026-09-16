@@ -17,6 +17,30 @@ from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 
 FaceCoordinate = Annotated[int, Field(strict=True, ge=0, le=2**31 - 1)]
 FaceDimension = Annotated[int, Field(strict=True, ge=1, le=2**31 - 1)]
+FaceFixedPoint = Annotated[int, Field(strict=True, ge=-(2**53 - 1), le=2**53 - 1)]
+
+
+class NativeFaceAlignment(ContractModel):
+    """Integer-only evidence: source pixels times 10**6; coefficients times 10**9."""
+
+    detector_sha256: Sha256Hex
+    confidence_permyriad: int = Field(strict=True, ge=8500, le=10_000)
+    source_landmarks_micropixels: tuple[
+        tuple[FaceFixedPoint, FaceFixedPoint],
+        tuple[FaceFixedPoint, FaceFixedPoint],
+        tuple[FaceFixedPoint, FaceFixedPoint],
+        tuple[FaceFixedPoint, FaceFixedPoint],
+        tuple[FaceFixedPoint, FaceFixedPoint],
+    ]
+    similarity_nanounits: tuple[FaceFixedPoint, FaceFixedPoint, FaceFixedPoint, FaceFixedPoint]
+    reprojection_error_millipixels: int = Field(strict=True, ge=0, le=24_000)
+
+    @model_validator(mode="after")
+    def _nondegenerate(self) -> NativeFaceAlignment:
+        a, b, _, _ = self.similarity_nanounits
+        if not a and not b:
+            raise ValueError("native face alignment must be invertible")
+        return self
 
 
 class FacePermissionRecord(ContractModel):
@@ -76,6 +100,7 @@ class NativeFaceCandidate(ContractModel):
     region: NativeFaceRegion
     pixels_sha256: Sha256Hex
     mask_sha256: Sha256Hex
+    alignment: NativeFaceAlignment | None = None
 
     @model_validator(mode="after")
     def _region_fits(self) -> NativeFaceCandidate:
@@ -84,6 +109,12 @@ class NativeFaceCandidate(ContractModel):
             region.y + region.height > context.output_height
         ):
             raise ValueError("reviewed face region must fit the base output")
+        if self.alignment and any(
+            not (0 <= x < context.source_width * 1_000_000)
+            or not (0 <= y < context.source_height * 1_000_000)
+            for x, y in self.alignment.source_landmarks_micropixels
+        ):
+            raise ValueError("native face landmarks must fit the immutable source")
         return self
 
 
@@ -91,9 +122,10 @@ def native_face_candidate_sha256(candidate: NativeFaceCandidate) -> str:
     """Versioned digest binds framing, native colour/precision and pixel/mask hashes.
 
     RGBA pixel hashes use row-major straight channels, uint8 or little-endian
-    uint16; mask hashes use row-major uint8. No floats enter this identity.
+    uint16; mask hashes use row-major uint8. Alignment uses integers only.
+    Absent optional evidence is omitted to preserve pre-alignment v1 digests.
     """
-    payload = ["ipw-native-face-candidate-v1", candidate.model_dump(mode="json")]
+    payload = ["ipw-native-face-candidate-v1", candidate.model_dump(mode="json", exclude_none=True)]
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(encoded.encode("ascii")).hexdigest()
 

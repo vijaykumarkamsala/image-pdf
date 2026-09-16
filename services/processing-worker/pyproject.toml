@@ -20,6 +20,8 @@ dependencies = [
   "Pillow>=11,<14",
   # MIT runtime for the approved Apache-2.0 Public RealPLKSR ONNX model.
   "onnxruntime==1.30.0",
+  # Apache-2.0; inspect self-contained face graphs before native runtime construction.
+  "onnx==1.22.0",
   "numpy>=2.5,<3",
   # MIT binding over the separately pinned LGPL-2.1-or-later libvips runtime.
   "pyvips==3.1.1",

@@ -10,7 +10,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, cast, runtime_checkable
 
 import numpy as np
 
@@ -18,6 +18,7 @@ from ipw.contracts.image_quality_face import (
     FaceQualityCandidateRequest,
     FaceQualityCompositionIntent,
     FaceQualityObject,
+    NativeFaceAlignment,
     NativeFaceCandidate,
     NativeFaceCompositionRequest,
     NativeFaceContext,
@@ -54,6 +55,14 @@ class NativeFaceProposal:
     region: NativeFaceRegion
     pixels: np.ndarray[Any, Any]
     mask: np.ndarray[Any, Any]
+    alignment: NativeFaceAlignment | None = None
+
+
+@runtime_checkable
+class NativeFaceSourceLifecycle(Protocol):
+    """Release private decode/alignment scratch after success, failure or cancellation."""
+
+    def clear_source(self) -> None: ...
 
 
 class NativeFaceCandidateEngine(Protocol):
@@ -329,6 +338,9 @@ class DurableNativeFaceProcessor:
             stop.set()
             if thread.ident is not None:
                 thread.join(timeout=35)
+            lifecycle = cast(object, self._engine)
+            if isinstance(lifecycle, NativeFaceSourceLifecycle):
+                lifecycle.clear_source()
 
     def _materialize(self, stored: FaceQualityObject, destination: Path) -> Path:
         if not isinstance(self._objects, LargeWorkerPrivateObjectStore):
@@ -419,6 +431,7 @@ class DurableNativeFaceProcessor:
             region=region,
             pixels_sha256=native_face_pixel_sha256(pixels),
             mask_sha256=hashlib.sha256(mask_raw).hexdigest(),
+            alignment=proposal.alignment,
         )
         identity = native_face_candidate_sha256(candidate)
 

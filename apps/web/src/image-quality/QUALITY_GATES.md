@@ -199,7 +199,9 @@ remain to be validated after commercial clearance.
 ## Native face follow-up — implementation ledger
 
 This ledger counts six native follow-up coding blocks, not the earlier P0/P1/P2
-audit or whole-product completion. **Three blocks are implemented; three remain.**
+audit or whole-product completion. **Three blocks are implemented; block four's
+native adapter mechanics are implemented but its real-model release is still
+pending; blocks five and six remain.**
 
 1. **Implemented:** additive `image-quality-face-v1` intent/composition/release/
    capability records, generated JSON Schema/TypeScript and an owner-scoped API
@@ -222,10 +224,13 @@ audit or whole-product completion. **Three blocks are implemented; three remain.
    reuse the selected raw patch instead of running inference again. Release
    revocation closes inference, composition and download, but never cancellation.
    Existing ordinary Restore requests and their outputs are not reopened or changed.
-4. **Remaining:** native detector/alignment/inverse-alignment and the approved
-   real face-model adapter producing proposals in the base's native colour and
-   precision. The renderer rejects an 8-bit patch for a 16-bit base; it does not
-   manufacture professional precision by scaling eight-bit channels.
+4. **Mechanics implemented; real-model release pending:** `NativeOnnxFaceEngine`
+   implements native source-pixel detection, five-point similarity alignment,
+   distinct fidelity inferences and inverse-aligned native-colour proposals.
+   Registration and exact commercial/real-photo acceptance remain unfinished.
+   No trained restorer is registered. The renderer rejects an 8-bit patch for a
+   16-bit base; neither adapter nor renderer manufactures precision by scaling
+   eight-bit channels.
 5. **Remaining:** temporal proposals, review and composition for animated input.
    The new renderer explicitly refuses APNG instead of flattening it.
 6. **Remaining:** customer-page native routing, candidate review/progress recovery
@@ -275,3 +280,81 @@ real-photo quality/identity acceptance and the three integration blocks above.
 Linux-container, real Cloud Run/GCS large-file, calibrated HDR/P3 and physical
 Safari/iOS/low-memory-device validations remain outstanding, not cleared by this
 native mechanics increment. PDF, old Studio, deployment and merge remain out of scope.
+
+## Native face adapter mechanics (implemented, unregistered)
+
+The new adapter consumes server-held artifact paths and a release provider, not
+customer URLs or approval flags. Exact artifact SHA-256/size and a canonical
+bundle digest bind the model I/O, recipe, detector, Python/platform/architecture,
+ONNX Runtime 1.30.0, ONNX 1.22.0, NumPy 2.5.2, pyvips 3.1.1 and libvips 8.18.5.
+This configuration digest is not complete commercial dependency or binary-build
+evidence. Those reviews, including the executed native colour libraries, remain
+required. Windows mechanics evidence is not Linux production authority.
+
+Graphs are parsed from verified bytes without resolving external files. Nested
+dense/sparse/external tensors, custom domains and unsupported model functions are
+refused before session construction. CPU-only, sequential, single-thread sessions
+use the documented [ONNX Runtime controls](https://onnxruntime.ai/docs/performance/tune-performance/threading.html).
+The bounded restorer contract remains RGB FLOAT `[1,3,512,512]`, a scalar
+FLOAT/DOUBLE fidelity input and one matching finite output. Other model I/O and
+HDR restorers need separate qualification, not an automatic fallback.
+
+Source/base native samples are decoded once into private disk-backed scratch.
+The source hash, actual framing, PNG colour authority and precision are verified;
+identities are rechecked after decode and before publishing a proposal. One
+complete overview/native-tile scan is planned before decoding scratch or running
+the detector. More than 128 windows fails clearly; partial scanning is not success.
+Zero/multiple confident faces and unreliable landmarks are refused. Prepared
+alignment/source samples are reused for each fidelity inference and cleared on
+success, failure, cancellation and release rejection. CPU inference/decode remain
+cooperatively cancelled between native calls, not forcibly interrupted mid-call.
+
+Alignment provenance stores source landmarks in integer micropixels, similarity
+coefficients in integer nanounits, detector SHA/confidence and reprojection error.
+It is bound into candidate review identity. Absent optional alignment preserves
+the previous v1 candidate digest; no main contract version or migration changed.
+Comparison and inverse sampling use the same source-pixel-centre coordinates at
+native and larger base dimensions. Geometric masks are not semantic identity proof.
+
+Processing retains continuous float neural detail and native uint8/uint16 base
+precision; an eight-bit intermediate is not used for 16-bit proposals. Native
+ICC SDR input is converted through floating XYZ using
+[libvips ICC import](https://www.libvips.org/API/8.17/method.Image.icc_import.html)
+and [native-depth ICC export](https://www.libvips.org/API/8.17/method.Image.icc_export.html).
+Only a bounded model/reference luminance difference informs the proposal; native
+base chromaticity, zero-delta samples, alpha and hidden transparent RGB remain
+anchored. Native conversion/detail correction uses bounded tiles, not full-output
+model tensors. No new clipped channels are accepted. Neural observations still
+use an sRGB proxy, not an HDR/wide-gamut neural model. ICC/P3 colour accuracy still
+needs qualified profiles and calibrated hardware review. PQ/HLG/unknown transfer,
+conflicting colour authority, CMYK, unsupported PNG layouts, animation and
+transparent face-source inference fail clearly instead of being silently converted.
+
+Focused owned synthetic ONNX graphs exercise actual CPU sessions, distinct
+fidelities, sub-eight-bit native corrections, exact zero-delta colour, native ICC
+transport, matching framing, reviewed PNG composition, digest preservation,
+malformed/nonfinite outputs, revocation, source changes and private scratch cleanup.
+The real pinned YuNet graph was also size/digest/self-containment checked locally;
+no trained restoration model was loaded by this increment. These are mechanics
+checks, not improved real-face quality, identity acceptance, unlimited image-size
+support, Linux validation or a licence approval. The accepted ordinary logo,
+illustration and photograph routes and the customer face release gate are unchanged.
+
+Focused Windows checks for this adapter increment passed on 16 September 2026:
+94 Python contract/native-renderer/native-adapter/durable-worker tests, 68 editor
+unit/component tests, 9 isolated-editor API/delivery tests, scoped Ruff/Mypy,
+web/API TypeScript and generated-contract drift checks. One ordinary customer
+browser journey passed cleanly in the already-installed bundled Chromium revision
+1234: upload, actual processed pixels, aligned comparison, nonprocessing zoom,
+exact Reset and processed-PNG download. No production model was registered.
+
+Installed-Chrome browser runs did not finish cleanly. The face harness first
+timed out during capture; its retry wrote final private mechanics evidence but
+did not exit cleanly and was stopped. The ordinary journey passed its assertions
+but the worker was force-killed after a 300-second shutdown deadline (exit 1).
+These are not counted as successful Chrome runner validation. The focused test
+configuration now permits explicit `IPW_PLAYWRIGHT_IMAGE_QUALITY_CHANNEL=chromium`
+selection and rejects unknown channels; its default remains `chrome`. No timeout,
+assertion, tolerance or canonical Linux authority changed. Installed-Chrome
+shutdown, Linux and real face-model release validation remain outstanding. The
+owned synthetic PostgreSQL cluster was stopped; no application database was used.

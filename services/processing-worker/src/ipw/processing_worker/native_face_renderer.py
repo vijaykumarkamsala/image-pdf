@@ -158,6 +158,13 @@ def native_face_colour_sha256(path: Path) -> str:
     return _colour_sha256(_png_authority(path)[4])
 
 
+def inspect_native_face_png(
+    path: Path,
+) -> tuple[int, int, int, int, list[tuple[bytes, bytes]]]:
+    """Expose the CRC-verified native PNG authority to worker-owned adapters."""
+    return _png_authority(path)
+
+
 def _chunk(target: Any, kind: bytes, payload: bytes) -> None:
     target.write(struct.pack(">I4s", len(payload), kind))
     target.write(payload)
