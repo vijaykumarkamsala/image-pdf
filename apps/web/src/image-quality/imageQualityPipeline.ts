@@ -562,13 +562,13 @@ export function buildSkinToneProtectionMap(
     const cb = 128 - red * 0.168736 - green * 0.331264 + blue * 0.5;
     const cr = 128 + red * 0.5 - green * 0.418688 - blue * 0.081312;
     if (
-      red > 35
-      && red > green * 1.04
-      && red > blue * 0.95
-      && cb > 75
-      && cb < 135
-      && cr > 132
-      && cr < 180
+      red > 12
+      && red > green * 0.92
+      && red > blue * 0.85
+      && cb > 70
+      && cb < 145
+      && cr > 120
+      && cr < 185
     ) evidence[pixel] = 1;
   }
 
@@ -595,10 +595,25 @@ export function buildSkinToneProtectionMap(
         - integral[bottom * integralWidth + left]
         + integral[top * integralWidth + left];
       const area = (right - left) * (bottom - top);
-      protection[y * width + x] = Math.round(clamp((count / area - 0.02) / 0.18, 0, 1) * 255);
+      protection[y * width + x] = Math.round(clamp((count / area - 0.05) / 0.35, 0, 1) * 255);
     }
   }
   return protection;
+}
+
+/**
+ * Keeps natural-model restoration visible around identity-sensitive pixels
+ * without returning to the full model contribution that repainted the sample
+ * face. A fully protected pixel still receives 70% of the caller's bounded
+ * model trust; protection is a fidelity control, not a bypass of restoration.
+ */
+export function identitySafeRestorationTrust(
+  baseTrust: number,
+  protection: number,
+): number {
+  const trust = clamp(baseTrust, 0, 1);
+  const protectedFraction = clamp(protection / 255, 0, 1);
+  return trust * (1 - protectedFraction * 0.3);
 }
 
 /**

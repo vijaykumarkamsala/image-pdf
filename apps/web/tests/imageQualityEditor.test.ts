@@ -9,6 +9,7 @@ import {
   enhanceFlatGraphicPixels,
   enhancePixels,
   fuseRestoredPixel,
+  identitySafeRestorationTrust,
   prepareFlatGraphicTracePixels,
   reconstructPixels,
 } from "../src/image-quality/imageQualityPipeline.ts";
@@ -411,6 +412,26 @@ test("skin-tone protection covers nearby identity features without treating foli
   const protection = buildSkinToneProtectionMap(source, width, height);
   assert.ok(protection[12 * width + 12] >= 220, "a dark facial feature surrounded by skin stays protected");
   assert.equal(protection[0], 0, "distant green texture remains eligible for restoration");
+});
+
+test("skin-tone protection includes neutral darker complexions", () => {
+  const width = 21;
+  const height = 21;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let pixel = 0; pixel < width * height; pixel += 1) source.set([25, 58, 31, 255], pixel * 4);
+  for (let y = 5; y <= 15; y += 1) {
+    for (let x = 5; x <= 15; x += 1) source.set([24, 21, 20, 255], (y * width + x) * 4);
+  }
+
+  const protection = buildSkinToneProtectionMap(source, width, height);
+  assert.ok(protection[10 * width + 10] >= 240);
+  assert.equal(protection[0], 0);
+});
+
+test("identity protection keeps natural restoration visible while bounding repainting", () => {
+  assert.equal(identitySafeRestorationTrust(1, 0), 1);
+  assert.equal(identitySafeRestorationTrust(1, 255), 0.7);
+  assert.equal(identitySafeRestorationTrust(2, -10), 1);
 });
 
 test("diagnostic correction affects textured regions without repainting protected fields or source chroma", () => {

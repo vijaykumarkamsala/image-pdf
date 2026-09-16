@@ -17,6 +17,7 @@ import {
   enhanceFlatGraphicPixels,
   enhancePixels,
   fuseRestoredPixel,
+  identitySafeRestorationTrust,
   prepareFlatGraphicTracePixels,
   reconstructPixels,
 } from "./imageQualityPipeline";
@@ -301,6 +302,7 @@ async function renderPhoto(
   const adapter = LOCAL_RESEARCH_COMPONENTS_ENABLED && !preferDeterministic && gpu
     ? await gpu.requestAdapter({ powerPreference: "high-performance" })
     : null;
+  console.info(`[image-quality] WebGPU worker adapter ${adapter ? "available" : "unavailable"}`);
   const selectedEngine = selectImageQualityEngine({
     contentClass,
     purpose: LOCAL_RESEARCH_COMPONENTS_ENABLED ? "local-research" : "production",
@@ -385,7 +387,7 @@ async function renderPhoto(
           tile.height,
           outputScale,
           strength,
-          contentClass === "photograph" ? 0.55 : 1,
+          1,
           skinToneProtection,
         );
         report(requestId, { phase: "model", completed: completedTiles, total: totalTiles, message: `Restoring source-aligned detail (${completedTiles}/${totalTiles})…` });
@@ -917,7 +919,10 @@ function blendModelTile(
         sourceTexture[sourceY * sourceWidth + sourceX],
         strength,
         learnedY - localLearnedY,
-        modelTrust * (1 - (skinToneProtection?.[sourceY * sourceWidth + sourceX] ?? 0) / 255 * 0.78),
+        identitySafeRestorationTrust(
+          modelTrust,
+          skinToneProtection?.[sourceY * sourceWidth + sourceX] ?? 0,
+        ),
       );
     }
   }
