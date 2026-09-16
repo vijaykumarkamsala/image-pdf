@@ -23,6 +23,7 @@ import { Button, Dropzone, InlineNotice } from "../design-system";
 import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
 import type { ImageQualityEngine } from "./ImageQualityEngine";
 import { createImageQualityEngine } from "./ProductionImageQualityEngine";
+import { FaceDetailPanel } from "./FaceDetailPanel";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -200,6 +201,7 @@ export function ImageQualityEditorPage() {
   const [state, dispatch] = useReducer(imageQualitySessionReducer, initialImageQualitySession);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [processorRestarting, setProcessorRestarting] = useState(false);
+  const [faceDetailRevision, setFaceDetailRevision] = useState(0);
   const engine = useRef<ImageQualityEngine | null>(null);
   const selection = useRef(0);
   const operation = useRef(0);
@@ -226,6 +228,7 @@ export function ImageQualityEditorPage() {
     }
     setUploadError(null);
     setProcessorRestarting(false);
+    setFaceDetailRevision((revision) => revision + 1);
     selection.current += 1;
     operation.current += 1;
     const currentSelection = selection.current;
@@ -319,6 +322,7 @@ export function ImageQualityEditorPage() {
   };
 
   const reset = () => {
+    setFaceDetailRevision((revision) => revision + 1);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     resultObjectUrl.current = null;
     dispatch({ type: "reset" });
@@ -456,6 +460,7 @@ export function ImageQualityEditorPage() {
       </dl>
       {state.result.warnings.map((warning) => <p key={warning}>{warning}</p>)}
     </details>}
+    {dimensionsReady && <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting} />}
     </section>
 
     {dimensionsReady && <section className="quality-comparison" aria-label="Original and enhanced comparison">

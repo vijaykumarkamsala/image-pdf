@@ -85,6 +85,65 @@ function warmIllustrationPng(size: number): Buffer {
   ]);
 }
 
+test("face detail stays opt-in and unavailable without affecting enhancement, originals or downloads", async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1760, height: 900 });
+  const modelRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/\.(?:onnx|pth)(?:\?|$)/i.test(request.url())) modelRequests.push(request.url());
+  });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles(fixture);
+  await expect(page.getByTestId("image-quality-editor")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enhance quality", exact: true })).toBeEnabled();
+  const panel = page.locator(".quality-face-detail");
+  await expect(panel).not.toHaveAttribute("open", "");
+  const originalUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Enhance quality", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled();
+  const enhancedUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  expect(enhancedUrl).not.toBe(originalUrl);
+  const resultDigest = await page.evaluate(async (url) => {
+    const digest = await crypto.subtle.digest("SHA-256", await (await fetch(url!)).arrayBuffer());
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }, enhancedUrl);
+  await panel.locator("summary").click();
+  const consent = panel.getByRole("checkbox");
+  await expect(consent).not.toBeChecked();
+  await consent.check();
+  await expect(panel).toContainText("No face model has run and no pixels have changed.");
+  await expect(panel).toContainText("Commercial execution and distribution rights have not been approved.");
+  await expect(panel.getByRole("button", { name: "Generate face candidates (unavailable)" })).toBeDisabled();
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", originalUrl!);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", enhancedUrl!);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download enhanced image" }).click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  expect(createHash("sha256").update(Buffer.concat(chunks)).digest("hex")).toBe(resultDigest);
+  await panel.locator("summary").click();
+  await panel.locator("summary").click();
+  await expect(consent).not.toBeChecked();
+  await consent.check();
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(panel).not.toHaveAttribute("open", "");
+  await panel.locator("summary").click();
+  await expect(panel.getByRole("checkbox")).not.toBeChecked();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", originalUrl!);
+  await panel.getByRole("checkbox").check();
+  await page.getByLabel("Choose replacement image").setInputFiles(fixture);
+  await expect(page.getByRole("button", { name: "Enhance quality", exact: true })).toBeEnabled();
+  await expect(panel).not.toHaveAttribute("open", "");
+  await panel.locator("summary").click();
+  await expect(panel.getByRole("checkbox")).not.toBeChecked();
+  expect(modelRequests).toEqual([]);
+  const accessibility = await new AxeBuilder({ page }).include(".quality-face-detail").analyze();
+  expect(accessibility.violations).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("face-detail-availability.png"), fullPage: true });
+});
+
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   await page.addInitScript(() => {

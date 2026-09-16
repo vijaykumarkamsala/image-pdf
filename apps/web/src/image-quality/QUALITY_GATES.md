@@ -42,3 +42,38 @@ real JPEG/WebP intake, malformed input, cancellation, stale settings, alpha,
 download-byte identity, responsive layout and accessibility. Release evidence
 still requires physical Safari/iOS and representative low-memory device runs;
 Chromium emulation is not a substitute for those devices.
+
+## Explicit face-detail follow-up (not released)
+
+The owner approved a separate, opt-in face reconstruction workflow. It must not
+change the accepted ordinary logo/illustration routes. The disclosure panel is
+collapsed by default. Consent clears when it closes, on Reset and on replacement
+image selection; it is not stored as permission for other images.
+
+No face adapter is registered. Generation remains unavailable: exact model
+weights, executed dependency pins, commercial execution/distribution evidence
+and accepted face-quality review are all required. A permissive code licence
+alone does not clear weights or their dependencies. Pending reviews are blockers,
+not a declaration that training-data licences automatically prohibit inference.
+Do not enable an adapter using a development environment flag alone.
+
+The replaceable `FaceRestorationEngine` contract receives immutable decoded
+source pixels and requires worker-side detection, alignment, candidate inference
+and inverse alignment. The boundary rejects unapproved adapters before invocation,
+cancelled/stale results, wrong models and incomplete candidate sets. Two or three
+source-bound proposals must be reviewed before any composition. No ordinary
+enhancement fallback is allowed to masquerade as face restoration.
+
+The tested local RestoreFormer++ candidate changed facial features and was
+rejected; private source/candidate images and model weights remain uncommitted.
+The actual face detector/model adapter, candidate comparison UI, approved region
+export/provenance integration and exact-photograph acceptance are still unfinished.
+The disclosure panel and synthetic tests are not evidence of improved face quality.
+
+The tested composition boundary binds review to exact patch/mask bytes, model,
+source/base hashes, geometry and fidelity. It preserves base/source buffers,
+every pixel outside the selected region, zero-mask pixels and alpha exactly.
+Region evidence maps output pixels to source coordinates without resizing.
+Any identity or text change remains a failure for ordinary enhancement. Explicit
+face Recreate must disclose identity risk, show reconstructed regions and require
+candidate-specific acknowledgement; acknowledgement does not prove identity accuracy.
