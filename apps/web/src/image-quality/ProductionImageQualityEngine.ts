@@ -158,6 +158,10 @@ export class ProductionImageQualityEngine implements ImageQualityEngine {
         overallMeanRgbDifference: completed.output.fidelity.overall_mean_rgb_difference,
         passed: completed.output.fidelity.passed,
       },
+      remoteContext: {
+        uploadSessionId,
+        imageQualityRequestId: completed.image_quality_request_id,
+      },
     };
   }
 

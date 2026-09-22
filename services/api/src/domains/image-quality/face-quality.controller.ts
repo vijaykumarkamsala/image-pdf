@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Header, Headers, Param, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
+import { DomainError } from "../../kernel/errors.js";
 import { FaceQualityService } from "./face-quality.service.js";
 type RequestHeaders = Record<string, string | string[] | undefined>;
 
@@ -31,5 +32,24 @@ export class FaceQualityController {
     if (value.url) { response.redirect(302, value.url); return; }
     response.type("image/png").setHeader("Content-Disposition", `attachment; filename="reviewed-face-${id}.png"`)
       .setHeader("Content-Length", String(value.bytes!.byteLength)).send(Buffer.from(value.bytes!));
+  }
+  @Get("face-quality-jobs/:id/candidates/:candidateId/:kind")
+  async candidateArtifact(@Headers() headers: RequestHeaders, @Param("uploadId") uploadId: string,
+    @Param("id") id: string, @Param("candidateId") candidateId: string,
+    @Param("kind") rawKind: string, @Res() response: Response) {
+    const kind = rawKind === "pixels" || rawKind === "mask" ? rawKind : null;
+    if (!kind) throw new DomainError(404, "face-quality-candidate-not-found", "Face candidate artifact was not found");
+    const value = await this.face.candidateArtifact(headers, uploadId, id, candidateId, kind);
+    response.type("application/octet-stream")
+      .setHeader("Cache-Control", "private, no-store, max-age=0")
+      .setHeader("X-Content-Type-Options", "nosniff")
+      .setHeader("Content-Length", String(value.bytes.byteLength))
+      .setHeader("X-IPW-Face-Candidate-SHA256", value.candidateSha256)
+      .setHeader("X-IPW-Artifact-SHA256", value.artifactSha256)
+      .setHeader("X-IPW-Face-Region-Width", String(value.width))
+      .setHeader("X-IPW-Face-Region-Height", String(value.height))
+      .setHeader("X-IPW-Face-Bit-Depth", String(value.bitDepth))
+      .setHeader("X-IPW-Face-Artifact-Kind", value.kind)
+      .send(Buffer.from(value.bytes));
   }
 }

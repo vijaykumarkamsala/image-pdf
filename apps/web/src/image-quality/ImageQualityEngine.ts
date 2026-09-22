@@ -61,6 +61,11 @@ export interface ImageQualityResult {
   };
   warnings: string[];
   fidelity: FidelityEvidence;
+  /** Server-issued ownership context for additive native follow-up work. */
+  remoteContext?: {
+    uploadSessionId: string;
+    imageQualityRequestId: string;
+  };
   /** Internal analysis-only result; never offered as a customer derivative. */
   analysisProxy?: boolean;
 }

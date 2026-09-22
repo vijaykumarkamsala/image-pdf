@@ -201,7 +201,9 @@ remain to be validated after commercial clearance.
 This ledger counts six native follow-up coding blocks, not the earlier P0/P1/P2
 audit or whole-product completion. **Three blocks are implemented; block four's
 native adapter mechanics are implemented but its real-model release is still
-pending; blocks five and six remain.**
+pending; block five remains; block six has its customer routing, review and
+private-delivery mechanics, while oversized-preview and private-artifact garbage
+collection remain.**
 
 1. **Implemented:** additive `image-quality-face-v1` intent/composition/release/
    capability records, generated JSON Schema/TypeScript and an owner-scoped API
@@ -233,10 +235,33 @@ pending; blocks five and six remain.**
    eight-bit channels.
 5. **Remaining:** temporal proposals, review and composition for animated input.
    The new renderer explicitly refuses APNG instead of flattening it.
-6. **Remaining:** customer-page native routing, candidate review/progress recovery
-   and streamed downloads for remote-only/high-precision/oversized face results,
-   including expired/failed private-artifact lifecycle cleanup.
-   The existing browser face path remains unregistered and unchanged.
+6. **Customer mechanics implemented; lifecycle work remains:** a native client
+   receives only the server-issued upload/base
+   identifiers emitted by `ProductionImageQualityEngine`. It preflights server
+   capabilities for the exact owner/source/base, creates source-bound candidate or
+   reviewed-composition commands, polls durable progress, resumes unexpired jobs,
+   preserves interrupted work, clears stale/failed/cancelled jobs and exposes a
+   private download only for an exact succeeded composition. Idempotency keys are
+   derived from the complete intent; browser recovery contains identifiers/hashes,
+   never pixels, credentials, model paths or client approval. Guest sign-out clears
+   this state. Composition recovery is checked before candidate recovery so an
+   interrupted reviewed result is not erased by probing the other operation.
+   The customer panel displays the server blockers but cannot use them as a model-
+   release bypass. When a release is eventually approved, consent is per-open
+   review session; candidate patches and masks are owner-scoped, release-bound and
+   verified byte-for-byte in both API and browser before an off-main-thread 8/16-
+   bit preview. Original, ordinary enhanced and proposed output share one geometry,
+   synchronized pan/zoom and a visible reconstruction map. Selection changes clear
+   acknowledgement; only an acknowledged exact candidate can create a separate
+   durable composition and private download. Closing stops local polling without
+   destroying resumable server work. Withdrawing consent clears local candidate
+   state. The existing browser face path stays unregistered and unchanged.
+
+   Raw review artifacts above 256 MiB are currently refused instead of being
+   buffered into the API/browser; a bounded server-generated preview is still
+   required for that exceptional case. Garbage collection for expired or orphaned
+   private candidate artifacts also remains. These are production lifecycle tasks,
+   not reasons to loosen hashes, ownership, source fidelity or memory safety.
 
 The native still core currently accepts non-interlaced, full-channel 8/16-bit
 RGB/RGBA PNG bases and matching-precision straight-RGBA proposals. Palette,
@@ -276,7 +301,8 @@ collection must be completed with the native customer/lifecycle integration befo
 enabling a production model. No deployment or application migration was performed.
 
 Release remains blocked on exact commercial face-model/dependency clearance,
-real-photo quality/identity acceptance and the three integration blocks above.
+real-photo quality/identity acceptance, animation, and the unfinished candidate-
+review/artifact-lifecycle portion of block six above.
 Linux-container, real Cloud Run/GCS large-file, calibrated HDR/P3 and physical
 Safari/iOS/low-memory-device validations remain outstanding, not cleared by this
 native mechanics increment. PDF, old Studio, deployment and merge remain out of scope.
@@ -358,3 +384,18 @@ selection and rejects unknown channels; its default remains `chrome`. No timeout
 assertion, tolerance or canonical Linux authority changed. Installed-Chrome
 shutdown, Linux and real face-model release validation remain outstanding. The
 owned synthetic PostgreSQL cluster was stopped; no application database was used.
+
+On 22 September 2026, the completed block-six customer-mechanics increment passed
+all 117 isolated web unit/component tests, including nine focused native routing,
+recovery, raw-byte verification and 8/16-bit preview cases; web and API TypeScript
+checks; the API build; and four focused owner-scoped face delivery/cancellation/
+candidate-artifact tests. The API returns an explicit not-found error if an expired
+cancellation loses its view instead of returning a nullable success. No model was
+registered, no candidate job was created by capability preflight, no application
+migration was run and no deployment occurred. The ordinary upload, real-pixel
+enhancement, aligned comparison, reset and processed-download browser journey
+passed by itself in bundled Chromium (1/1, 3.9 minutes on the final rerun). The earlier broader run
+remains uncounted because its synthetic face-review harness timed out; no timeout,
+assertion or tolerance was changed to hide that runner issue. These checks do not
+validate an approved real model, a raw review artifact above 256 MiB, backend
+artifact garbage collection or restoration quality.

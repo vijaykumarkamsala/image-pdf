@@ -48,6 +48,10 @@ import type {
   PdfExportRequestRecord,
   PdfExportResult,
   PdfPreflightReport,
+  FaceQualityCandidateRequest,
+  FaceQualityCapabilities,
+  FaceQualityCompositionIntent,
+  FaceQualityJobView,
 } from "ipw-contracts-ts/product";
 import { nextGcsOffset } from "./uploadState.ts";
 
@@ -218,6 +222,21 @@ export interface ImageQualityRequestResponse {
   schema_version: string;
   image_quality_request: ImageQualityRequestRecord;
   replayed?: boolean;
+}
+
+export interface FaceQualityCommandResponse {
+  value: FaceQualityJobView;
+  replayed: boolean;
+}
+
+export interface FaceQualityCandidateArtifactResponse {
+  bytes: ArrayBuffer;
+  candidateSha256: string;
+  artifactSha256: string;
+  width: number;
+  height: number;
+  bitDepth: 8 | 16;
+  kind: "pixels" | "mask";
 }
 
 export type AuthSessionResponse = { authenticated: false } | {
@@ -526,6 +545,111 @@ export const api = {
   },
   imageQualityDownloadUrl(requestId: string): string {
     return `/v1/image-quality-requests/${encodeURIComponent(requestId)}/download`;
+  },
+  faceQualityCapabilities(uploadSessionId: string, traceId: string, signal?: AbortSignal): Promise<FaceQualityCapabilities> {
+    return request(
+      `/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-capabilities`,
+      { signal },
+      { traceId },
+    );
+  },
+  createFaceQualityCandidates(
+    uploadSessionId: string,
+    intent: FaceQualityCandidateRequest,
+    traceId: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<FaceQualityCommandResponse> {
+    return request(
+      `/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-candidate-requests`,
+      {
+        method: "POST",
+        headers: { "idempotency-key": idempotencyKey },
+        body: JSON.stringify(intent),
+        signal,
+      },
+      { traceId },
+    );
+  },
+  createFaceQualityComposition(
+    uploadSessionId: string,
+    intent: FaceQualityCompositionIntent,
+    traceId: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<FaceQualityCommandResponse> {
+    return request(
+      `/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-compositions`,
+      {
+        method: "POST",
+        headers: { "idempotency-key": idempotencyKey },
+        body: JSON.stringify(intent),
+        signal,
+      },
+      { traceId },
+    );
+  },
+  faceQualityJob(uploadSessionId: string, jobId: string, traceId: string, signal?: AbortSignal): Promise<FaceQualityJobView> {
+    return request(
+      `/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-jobs/${encodeURIComponent(jobId)}`,
+      { signal },
+      { traceId },
+    );
+  },
+  cancelFaceQualityJob(uploadSessionId: string, jobId: string, traceId: string, signal?: AbortSignal): Promise<FaceQualityJobView> {
+    return request(
+      `/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-jobs/${encodeURIComponent(jobId)}/cancel`,
+      { method: "POST", signal },
+      { traceId },
+    );
+  },
+  retryFaceQualityJob(
+    uploadSessionId: string,
+    jobId: string,
+    traceId: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<FaceQualityCommandResponse> {
+    return request(
+      `/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-jobs/${encodeURIComponent(jobId)}/retry`,
+      { method: "POST", headers: { "idempotency-key": idempotencyKey }, signal },
+      { traceId },
+    );
+  },
+  faceQualityDownloadUrl(uploadSessionId: string, jobId: string): string {
+    return `/v1/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-jobs/${encodeURIComponent(jobId)}/download`;
+  },
+  async faceQualityCandidateArtifact(
+    uploadSessionId: string,
+    jobId: string,
+    candidateId: string,
+    kind: "pixels" | "mask",
+    signal?: AbortSignal,
+  ): Promise<FaceQualityCandidateArtifactResponse> {
+    const response = await fetch(`/v1/upload-sessions/${encodeURIComponent(uploadSessionId)}/face-quality-jobs/${encodeURIComponent(jobId)}`
+      + `/candidates/${encodeURIComponent(candidateId)}/${kind}`, {
+      credentials: "same-origin",
+      headers: { "x-trace-id": createTraceId() },
+      signal,
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as ErrorBody;
+      throw new ApiError(response.status, body.error?.code ?? "face-quality-candidate-download-failed",
+        body.error?.message ?? "The face candidate comparison could not be downloaded");
+    }
+    const width = Number(response.headers.get("x-ipw-face-region-width"));
+    const height = Number(response.headers.get("x-ipw-face-region-height"));
+    const bitDepth = Number(response.headers.get("x-ipw-face-bit-depth"));
+    const responseKind = response.headers.get("x-ipw-face-artifact-kind");
+    const candidateSha256 = response.headers.get("x-ipw-face-candidate-sha256") ?? "";
+    const artifactSha256 = response.headers.get("x-ipw-artifact-sha256") ?? "";
+    if (!Number.isSafeInteger(width) || width < 1 || !Number.isSafeInteger(height) || height < 1
+      || (bitDepth !== 8 && bitDepth !== 16) || responseKind !== kind
+      || !/^[0-9a-f]{64}$/.test(candidateSha256) || !/^[0-9a-f]{64}$/.test(artifactSha256)) {
+      throw new ApiError(409, "face-quality-candidate-metadata-invalid", "The face candidate comparison metadata is invalid");
+    }
+    return { bytes: await response.arrayBuffer(), candidateSha256, artifactSha256,
+      width, height, bitDepth, kind };
   },
   intakePresentation(
     uploadSessionId: string,

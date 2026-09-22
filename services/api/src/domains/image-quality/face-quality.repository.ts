@@ -231,5 +231,26 @@ export class PostgresFaceQualityRepository {
     [id, owner.ownerScope, owner.ownerKind, uploadId, this.runtime.now()]);
     return (result.rows[0]?.["output"] as NativeFaceOutput | null) ?? null;
   }
+
+  async candidateArtifact(
+    owner: IntakeOwner,
+    uploadId: string,
+    id: string,
+    candidateId: string,
+  ): Promise<{ stored: StoredNativeFaceCandidate; candidateSha256: string; release: NativeFaceRelease } | null> {
+    const result = await this.pool.query(`SELECT c.stored_candidate,c.candidate_sha256,f.release
+      FROM face_quality_candidates c JOIN face_quality_jobs f USING(face_quality_job_id)
+      JOIN processing_jobs j USING(job_id)
+      WHERE f.face_quality_job_id=$1 AND f.owner_scope=$2 AND f.owner_kind=$3
+      AND f.upload_session_id=$4 AND f.operation='candidates' AND j.state='succeeded'
+      AND f.expires_at>$5 AND c.stored_candidate->'candidate'->>'candidate_id'=$6`,
+    [id, owner.ownerScope, owner.ownerKind, uploadId, this.runtime.now(), candidateId]);
+    const row = result.rows[0];
+    return row ? {
+      stored: row["stored_candidate"] as StoredNativeFaceCandidate,
+      candidateSha256: String(row["candidate_sha256"]),
+      release: row["release"] as NativeFaceRelease,
+    } : null;
+  }
   close() { return this.pool.end(); }
 }

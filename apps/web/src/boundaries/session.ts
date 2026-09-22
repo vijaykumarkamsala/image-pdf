@@ -37,7 +37,8 @@ export function storeGuestSession(session: StoredGuestSession): void {
 
 export function clearGuestBrowserState(): void {
   for (const key of Object.keys(sessionStorage)) {
-    if (key === GUEST_SESSION_KEY || key.startsWith("ipw-active-uploads-") || key.startsWith("ipw-handoff-key-")) {
+    if (key === GUEST_SESSION_KEY || key.startsWith("ipw-active-uploads-") || key.startsWith("ipw-handoff-key-")
+      || key.startsWith("ipw-face-quality-active-v1-")) {
       sessionStorage.removeItem(key);
     }
   }

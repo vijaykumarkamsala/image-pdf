@@ -25,6 +25,8 @@ import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
 import type { ImageQualityEngine } from "./ImageQualityEngine";
 import { createImageQualityEngine } from "./ProductionImageQualityEngine";
 import { FaceDetailPanel } from "./FaceDetailPanel";
+import { NativeFaceDetailPanel } from "./NativeFaceDetailPanel";
+import type { NativeFaceRemoteContext } from "./NativeFaceQualityClient";
 import type { FaceReviewInput } from "./WorkerFaceReviewRenderer";
 import {
   imageQualitySessionReducer,
@@ -225,6 +227,16 @@ export function ImageQualityEditorPage() {
         scale: result.scale, modelSha256: result.model.sha256, usage: result.model.usage,
         contentClass: result.contentClass, classificationConfidence: result.classificationConfidence,
         outputWidth: result.width, outputHeight: result.height },
+    };
+  }, [state.source, state.result]);
+  const nativeFaceContext = useMemo<NativeFaceRemoteContext | undefined>(() => {
+    const source = state.source; const result = state.result;
+    if (!source?.facts || !result?.remoteContext) return undefined;
+    return {
+      uploadSessionId: result.remoteContext.uploadSessionId,
+      baseImageQualityRequestId: result.remoteContext.imageQualityRequestId,
+      sourceSha256: source.facts.sourceSha256,
+      baseOutputSha256: result.outputSha256,
     };
   }, [state.source, state.result]);
 
@@ -482,8 +494,13 @@ export function ImageQualityEditorPage() {
       </dl>
       {state.result.warnings.map((warning) => <p key={warning}>{warning}</p>)}
     </details>}
-    {dimensionsReady && <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting || resultIsStale}
-      filename={state.source.name} input={faceReviewInput} />}
+    {dimensionsReady && (nativeFaceContext && state.result
+      ? <NativeFaceDetailPanel key={`native-${faceDetailRevision}`} disabled={processing || processorRestarting || resultIsStale}
+        context={nativeFaceContext} filename={state.source.name} viewer={{ originalUrl: state.source.url,
+          baseUrl: enhancedUrl, sourceWidth: state.source.width!, sourceHeight: state.source.height!,
+          outputWidth: state.result.width, outputHeight: state.result.height }} />
+      : <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting || resultIsStale}
+        filename={state.source.name} input={faceReviewInput} />)}
     </section>
 
     {dimensionsReady && <section className="quality-comparison" aria-label="Original and enhanced comparison">

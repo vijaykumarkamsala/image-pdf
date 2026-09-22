@@ -428,6 +428,9 @@
 .quality-face-fit img { position: static; }
 .quality-face-fit .quality-face-map { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 .quality-face-map { opacity: 0.4; pointer-events: none; }
+.quality-native-face-viewer { height: 320px; }
+.quality-native-face-viewer svg { position: absolute; top: 50%; left: 50%; max-width: none; }
+.quality-native-face-viewer.quality-face-fit svg { position: static; max-width: 100%; max-height: 100%; }
 .quality-face-final img { display: block; max-width: 100%; height: auto; }
 .quality-face-final code { overflow-wrap: anywhere; }
 
