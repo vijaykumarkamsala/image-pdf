@@ -1,7 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 // Test-only browser selection; never changes model approval or production authority.
-const imageQualityChannel = process.env["IPW_PLAYWRIGHT_IMAGE_QUALITY_CHANNEL"] ?? "chrome";
+const imageQualityChannel = process.env["IPW_PLAYWRIGHT_IMAGE_QUALITY_CHANNEL"]
+  ?? (process.env["IPW_CANONICAL_LINUX"] === "1" ? "chromium" : "chrome");
 if (imageQualityChannel !== "chrome" && imageQualityChannel !== "chromium") {
   throw new Error("IPW_PLAYWRIGHT_IMAGE_QUALITY_CHANNEL must be chrome or chromium");
 }

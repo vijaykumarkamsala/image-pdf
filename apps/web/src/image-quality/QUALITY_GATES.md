@@ -440,3 +440,27 @@ owned synthetic mechanics checks. The ordinary upload/process/compare/reset/down
 browser journey also passed by itself in bundled Chromium (1/1): no model was
 registered, no private photograph or research weight was committed, and no
 application database, deployment, PDF or Studio path was touched.
+
+On 24 September 2026, the focused image-quality gates were exercised in the
+pinned Linux `canonical-ci` container on Docker Desktop's Linux x86_64 engine.
+The environment verifier confirmed Python 3.14.5, Node 24.10.0, Playwright
+1.62.1, Chromium 151.0.7922.34, Torch 2.13.0 CPU with one thread, Pillow
+12.3.0, NumPy 2.5.2, ONNX Runtime 1.30.0, libvips 8.18.5 and the pinned font
+digest. The focused Python contract/native-renderer/native-engine set passed
+75/75, the durable face-worker set passed 28/28, isolated API delivery checks
+passed 13/13 plus 2/2 against disposable PostgreSQL 17.11, and the isolated web
+set passed 117/117. After a test-only canonical-route correction and clean image
+rebuild, web TypeScript and all 117 web tests passed again in that container.
+
+The ordinary upload/process/compare/reset/download journey then passed 1/1 in
+7.1 seconds using the pinned bundled Chromium and production-safe browser
+worker. It retained every decoded-pixel, no-CSS, aligned comparison,
+nonprocessing zoom, exact reset, provenance and downloaded-byte assertion, and
+additionally proved that canonical production evidence requested no quarantined
+research model. A separate diagnostic confirmed WebGPU and worker adapters and
+the exact locally held research-model digests, but one 64-pixel research tile
+took about 174 seconds on software WebGPU. That research-only path is therefore
+kept as local hardware-browser evidence; it is not distributed, deployed or
+misrepresented as the authoritative Linux production route. No product
+processing code, assertion threshold, visual tolerance, database migration,
+PDF/Studio path, deployment or application data changed.

@@ -12,6 +12,7 @@ const fixture = resolve(
   fileURLToPath(new URL("../../../../", import.meta.url)),
   "data/fixtures/images/synthetic-noise-64.png",
 );
+const canonicalLinux = process.env["IPW_CANONICAL_LINUX"] === "1";
 
 function pngChunk(type: string, data: Buffer): Buffer {
   const typeBytes = Buffer.from(type, "ascii");
@@ -302,6 +303,10 @@ test("face detail stays opt-in and unavailable without affecting enhancement, or
 
 test("image quality editor uploads, processes, compares, resets and downloads real pixels", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
+  const researchModelRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/\/quality-models\/.*\.onnx(?:\?|$)/i.test(request.url())) researchModelRequests.push(request.url());
+  });
   await page.addInitScript(() => {
     const NativeWorker = window.Worker;
     Object.defineProperty(window, "__qualityWorkerCount", { value: 0, writable: true });
@@ -312,7 +317,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
       }
     };
   });
-  await page.goto("/image-quality");
+  await page.goto(canonicalLinux ? "/image-quality?engine=deterministic" : "/image-quality");
   await page.locator('input[type="file"]').setInputFiles(fixture);
 
   await expect(page).toHaveURL(/\/image-quality\/editor$/);
@@ -327,7 +332,10 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   expect(originalUrl).toMatch(/^blob:/);
   await page.getByRole("button", { name: "Enhance quality" }).click();
   await expect(page.getByText(/(?:AI-restored|Enhanced) image ready/)).toBeVisible({ timeout: 120_000 });
-  await expect(page.getByText(/Identity-constrained Real-ESRGAN x4v3 DNI 0\.5 · WebGPU/)).toBeVisible();
+  await expect(page.getByText(canonicalLinux
+    ? /(?:Deterministic adaptive|Production-safe deterministic) restoration · Worker/
+    : /Identity-constrained Real-ESRGAN x4v3 DNI 0\.5 · WebGPU/)).toBeVisible();
+  if (canonicalLinux) expect(researchModelRequests).toEqual([]);
 
   const enhanced = page.getByTestId("enhanced-image");
   const enhancedUrl = await enhanced.getAttribute("src");

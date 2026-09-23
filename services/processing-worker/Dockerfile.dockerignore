@@ -8,6 +8,7 @@ data/runs/
 .git/
 .venv/
 .tools/
+.tmp/
 node_modules/
 test-results/
 playwright-report/
