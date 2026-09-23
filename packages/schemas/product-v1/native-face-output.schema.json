@@ -57,7 +57,7 @@
       "type": "integer"
     },
     "changed_pixels": {
-      "maximum": 4000000,
+      "maximum": 16000000,
       "minimum": 1,
       "title": "Changed Pixels",
       "type": "integer"
@@ -66,6 +66,13 @@
       "additionalProperties": true,
       "title": "Evidence",
       "type": "object"
+    },
+    "frame_count": {
+      "default": 1,
+      "maximum": 10000,
+      "minimum": 1,
+      "title": "Frame Count",
+      "type": "integer"
     },
     "height": {
       "maximum": 2147483647,

@@ -12,6 +12,7 @@ from PIL import Image, PngImagePlugin
 from pydantic import ValidationError
 
 from ipw.contracts.image_quality_face import (
+    NativeFaceAlignment,
     NativeFaceCandidate,
     NativeFaceCompositionRequest,
     NativeFaceContext,
@@ -21,6 +22,10 @@ from ipw.contracts.image_quality_face import (
     native_face_candidate_sha256,
 )
 from ipw.processing_worker import native_face_renderer as module
+from ipw.processing_worker.face_quality import (
+    NativeFaceProposal,
+    TemporalNativeFaceCandidateEngine,
+)
 from ipw.processing_worker.native_face_renderer import (
     NativeFaceRenderCancelledError,
     NativeFaceRenderer,
@@ -387,3 +392,210 @@ def test_apng_is_rejected_instead_of_flattened(tmp_path: Path) -> None:
     with pytest.raises(NativeFaceRenderError, match="Animated"):
         NativeFaceRenderer().compose(**incoming)
     assert not incoming["output_path"].exists()
+
+
+def test_reviewed_temporal_candidate_preserves_frames_timing_and_outside_pixels(
+    tmp_path: Path,
+) -> None:
+    frames = [
+        Image.new("RGBA", (18, 12), (30, 40, 50, 255)),
+        Image.new("RGBA", (18, 12), (80, 90, 100, 255)),
+    ]
+    for index, frame in enumerate(frames):
+        frame.putpixel((1, 1), (10 + index, 20 + index, 30 + index, 0))
+    base_path = tmp_path / "base.apng"
+    frames[0].save(
+        base_path,
+        format="PNG",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[80, 120],
+        loop=2,
+        disposal=0,
+        blend=0,
+        optimize=False,
+    )
+    source_path = tmp_path / "source.apng"
+    source_path.write_bytes(base_path.read_bytes())
+    pixels = np.zeros((2, 4, 5, 4), dtype=np.uint8)
+    pixels[0, ..., :3] = (140, 80, 60)
+    pixels[1, ..., :3] = (60, 150, 90)
+    pixels[..., 3] = 255
+    mask = np.full((2, 4, 5), 255, dtype=np.uint8)
+    mask[:, 0, 0] = 0
+    alignment = NativeFaceAlignment(
+        detector_sha256="d" * 64,
+        confidence_permyriad=9000,
+        source_landmarks_micropixels=(
+            (1_000_000, 1_000_000),
+            (2_000_000, 1_000_000),
+            (1_500_000, 2_000_000),
+            (1_000_000, 3_000_000),
+            (2_000_000, 3_000_000),
+        ),
+        similarity_nanounits=(1_000_000_000, 0, 0, 0),
+        reprojection_error_millipixels=10,
+    )
+    context = NativeFaceContext(
+        source_sha256=_hash_file(source_path),
+        base_output_sha256=_hash_file(base_path),
+        source_width=18,
+        source_height=12,
+        output_width=18,
+        output_height=12,
+        bit_depth=8,
+        colour_authority_sha256=native_face_colour_sha256(base_path),
+        frame_count=2,
+    )
+    candidate = NativeFaceCandidate(
+        candidate_id="temporal-owned-face",
+        context=context,
+        model_sha256="a" * 64,
+        dependency_lock_sha256="b" * 64,
+        fidelity_permyriad=8000,
+        region=NativeFaceRegion(x=4, y=3, width=5, height=4),
+        pixels_sha256=native_face_pixel_sha256(pixels),
+        mask_sha256=hashlib.sha256(mask.tobytes()).hexdigest(),
+        frame_alignments=(alignment, alignment),
+    )
+    request = NativeFaceCompositionRequest(
+        candidate=candidate,
+        review=NativeFaceReview(
+            source_sha256=context.source_sha256,
+            base_output_sha256=context.base_output_sha256,
+            candidate_sha256=native_face_candidate_sha256(candidate),
+            allow_reconstructed_face_detail=True,
+            acknowledged_possible_identity_change=True,
+        ),
+    )
+    output_path = tmp_path / "reviewed.apng"
+    result = NativeFaceRenderer().compose(
+        request,
+        release=NativeFaceRelease(
+            model_id="owned-temporal-test",
+            model_version="1",
+            model_sha256=candidate.model_sha256,
+            dependency_lock_sha256=candidate.dependency_lock_sha256,
+            commercial_rights="approved",
+            rights_evidence_id="test-only",
+            quality_review="approved",
+            quality_evidence_id="test-only",
+        ),
+        source_path=source_path,
+        base_path=base_path,
+        pixels=pixels,
+        mask=mask,
+        output_path=output_path,
+    )
+    assert result.evidence["frame_count"] == 2
+    assert result.evidence["animation_policy"] == "all-frames-reviewed-no-flattening"
+    with Image.open(base_path) as original, Image.open(output_path) as rendered:
+        assert rendered.n_frames == original.n_frames == 2
+        assert rendered.info["loop"] == original.info["loop"] == 2
+        for index, duration in enumerate((80, 120)):
+            original.seek(index)
+            rendered.seek(index)
+            assert rendered.info["duration"] == duration
+            before = np.asarray(original.convert("RGBA"))
+            after = np.asarray(rendered.convert("RGBA"))
+            assert np.array_equal(after[:3], before[:3])
+            assert np.array_equal(after[:, :4], before[:, :4])
+            assert np.array_equal(after[..., 3], before[..., 3])
+            assert not np.array_equal(after[4:7, 5:8, :3], before[4:7, 5:8, :3])
+
+
+def test_temporal_candidate_adapter_infers_each_frame_and_unions_motion(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "source.webp"
+    base_path = tmp_path / "base.apng"
+    source_frames = [
+        Image.new("RGBA", (9, 7), (20, 30, 40, 255)),
+        Image.new("RGBA", (9, 7), (50, 60, 70, 255)),
+    ]
+    source_frames[0].save(
+        source_path,
+        format="WEBP",
+        save_all=True,
+        append_images=source_frames[1:],
+        duration=[70, 110],
+        loop=0,
+        lossless=True,
+    )
+    source_frames[0].save(
+        base_path,
+        format="PNG",
+        save_all=True,
+        append_images=source_frames[1:],
+        duration=[70, 110],
+        loop=0,
+        disposal=0,
+        blend=0,
+    )
+    alignment = NativeFaceAlignment(
+        detector_sha256="d" * 64,
+        confidence_permyriad=9000,
+        source_landmarks_micropixels=(
+            (1_000_000, 1_000_000),
+            (2_000_000, 1_000_000),
+            (1_500_000, 2_000_000),
+            (1_000_000, 3_000_000),
+            (2_000_000, 3_000_000),
+        ),
+        similarity_nanounits=(1_000_000_000, 0, 0, 0),
+        reprojection_error_millipixels=10,
+    )
+
+    class StillEngine:
+        calls = 0
+        clears = 0
+
+        def release(self) -> NativeFaceRelease | None:
+            return None
+
+        def clear_source(self) -> None:
+            self.clears += 1
+
+        def propose(self, **kwargs: Any) -> NativeFaceProposal:
+            assert kwargs["context"].frame_count == 1
+            with Image.open(kwargs["source_path"]) as source, Image.open(
+                kwargs["base_path"]
+            ) as base:
+                assert source.n_frames == base.n_frames == 1
+            offset = self.calls
+            self.calls += 1
+            return NativeFaceProposal(
+                region=NativeFaceRegion(x=1 + offset, y=2, width=3, height=2),
+                pixels=np.full((2, 3, 4), 90 + offset, dtype=np.uint8),
+                mask=np.full((2, 3), 255, dtype=np.uint8),
+                alignment=alignment,
+            )
+
+    still = StillEngine()
+    context = NativeFaceContext(
+        source_sha256=_hash_file(source_path),
+        base_output_sha256=_hash_file(base_path),
+        source_width=9,
+        source_height=7,
+        output_width=9,
+        output_height=7,
+        bit_depth=8,
+        colour_authority_sha256=native_face_colour_sha256(base_path),
+        frame_count=2,
+    )
+    proposal = TemporalNativeFaceCandidateEngine(still).propose(
+        source_path=source_path,
+        base_path=base_path,
+        context=context,
+        fidelity_permyriad=8000,
+        cancelled=lambda: False,
+    )
+    assert still.calls == still.clears == 2
+    assert proposal.region == NativeFaceRegion(x=1, y=2, width=4, height=2)
+    assert proposal.pixels.shape == (2, 2, 4, 4)
+    assert proposal.mask.shape == (2, 2, 4)
+    assert len(proposal.frame_alignments) == 2
+    assert np.all(proposal.mask[0, :, :3] == 255)
+    assert np.all(proposal.mask[0, :, 3] == 0)
+    assert np.all(proposal.mask[1, :, 0] == 0)
+    assert np.all(proposal.mask[1, :, 1:] == 255)

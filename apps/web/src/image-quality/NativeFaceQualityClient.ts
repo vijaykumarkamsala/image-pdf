@@ -75,6 +75,7 @@ export interface NativeFaceCandidateArtifact {
   artifactSha256: string;
   width: number;
   height: number;
+  frameCount: number;
   bitDepth: 8 | 16;
   kind: "pixels" | "mask";
   boundedPreview: boolean;
@@ -345,10 +346,12 @@ export class NativeFaceQualityCoordinator {
       context.uploadSessionId, job.face_quality_job_id, candidateId, kind, signal,
     );
     const expectedSha256 = kind === "pixels" ? candidate.pixels_sha256 : candidate.mask_sha256;
-    const expectedBytes = artifact.width * artifact.height
+    const expectedFrameCount = candidate.context.frame_count ?? 1;
+    const expectedBytes = artifact.width * artifact.height * artifact.frameCount
       * (kind === "pixels" ? 4 * (candidate.context.bit_depth === 16 ? 2 : 1) : 1);
     if (artifact.kind !== kind || !Number.isInteger(artifact.width) || !Number.isInteger(artifact.height)
       || artifact.width < 1 || artifact.height < 1
+      || artifact.frameCount !== expectedFrameCount
       || artifact.width > candidate.region.width || artifact.height > candidate.region.height
       || (!artifact.boundedPreview && (artifact.width !== candidate.region.width || artifact.height !== candidate.region.height))
       || artifact.bitDepth !== candidate.context.bit_depth

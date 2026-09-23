@@ -43,6 +43,8 @@ class NativeFaceLease:
     output_width: int
     output_height: int
     bit_depth: Literal[8, 16]
+    source_frame_count: int
+    output_frame_count: int
     intent: FaceQualityCandidateRequest | FaceQualityCompositionIntent
     release: NativeFaceRelease
     lease_hash: str
@@ -136,9 +138,13 @@ class PostgresFaceQualityWorkerRepository(PostgresWorkerRepository):
                     or row["base_owner"] != row["owner_scope"]
                     or min(row["expires_at"], row["upload_expires_at"], row["base_expires_at"])
                     <= now
-                    or row["source_frame_count"] != 1
-                    or row["output_frame_count"] != 1
+                    or row["source_frame_count"] != row["output_frame_count"]
+                    or not 1 <= int(row["output_frame_count"]) <= 10_000
                     or row["output_bit_depth"] not in {8, 16}
+                    or (
+                        row["output_frame_count"] > 1
+                        and row["output_bit_depth"] != 8
+                    )
                 )
             ):
                 self._finish(
@@ -183,6 +189,7 @@ class PostgresFaceQualityWorkerRepository(PostgresWorkerRepository):
             output_height=row["output_height"],
             bit_depth=row["output_bit_depth"],
             colour_authority_sha256="0" * 64,
+            frame_count=row["output_frame_count"],
         )  # Actual colour authority is read from the verified native PNG before inference.
         release = NativeFaceRelease.model_validate(row["release"])
         intent = (
@@ -210,23 +217,25 @@ class PostgresFaceQualityWorkerRepository(PostgresWorkerRepository):
         ):
             raise ValueError("native source/base zones do not match their immutable roles")
         return NativeFaceLease(
-            str(job["job_id"]),
-            str(row["face_quality_job_id"]),
-            row["operation"],
-            scope,
-            source,
-            base,
-            context.source_width,
-            context.source_height,
-            context.output_width,
-            context.output_height,
-            context.bit_depth,
-            intent,
-            release,
-            token_hash,
-            int(job["attempt"]) + 1,
-            int(job["max_attempts"]),
-            trace_id,
+            job_id=str(job["job_id"]),
+            face_id=str(row["face_quality_job_id"]),
+            operation=row["operation"],
+            owner_scope=scope,
+            source=source,
+            base=base,
+            source_width=context.source_width,
+            source_height=context.source_height,
+            output_width=context.output_width,
+            output_height=context.output_height,
+            bit_depth=context.bit_depth,
+            source_frame_count=int(row["source_frame_count"]),
+            output_frame_count=context.frame_count,
+            intent=intent,
+            release=release,
+            lease_hash=token_hash,
+            attempt=int(job["attempt"]) + 1,
+            max_attempts=int(job["max_attempts"]),
+            trace_id=trace_id,
         )
 
     def _require(self, cursor: Any, lease: NativeFaceLease) -> dict[str, Any]:

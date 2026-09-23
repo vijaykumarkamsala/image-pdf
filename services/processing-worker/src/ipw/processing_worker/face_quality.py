@@ -59,6 +59,7 @@ class NativeFaceProposal:
     pixels: np.ndarray[Any, Any]
     mask: np.ndarray[Any, Any]
     alignment: NativeFaceAlignment | None = None
+    frame_alignments: tuple[NativeFaceAlignment, ...] = ()
 
 
 @runtime_checkable
@@ -83,6 +84,148 @@ class NativeFaceCandidateEngine(Protocol):
     ) -> NativeFaceProposal: ...
 
 
+class TemporalNativeFaceCandidateEngine:
+    """Run a cleared still adapter once per logical frame without reusing stale scratch."""
+
+    def __init__(self, engine: NativeFaceCandidateEngine) -> None:
+        self._engine = engine
+
+    def release(self) -> NativeFaceRelease | None:
+        return self._engine.release()
+
+    def propose(
+        self,
+        *,
+        source_path: Path,
+        base_path: Path,
+        context: NativeFaceContext,
+        fidelity_permyriad: int,
+        cancelled: Callable[[], bool],
+    ) -> NativeFaceProposal:
+        if context.frame_count == 1:
+            return self._engine.propose(
+                source_path=source_path,
+                base_path=base_path,
+                context=context,
+                fidelity_permyriad=fidelity_permyriad,
+                cancelled=cancelled,
+            )
+        if context.bit_depth != 8:
+            raise NativeFaceRenderError("Temporal native face inference requires 8-bit frames")
+        try:
+            from PIL import Image, UnidentifiedImageError
+        except ImportError as error:
+            raise NativeFaceRenderError("The temporal image runtime is unavailable") from error
+
+        proposals: list[NativeFaceProposal] = []
+        with tempfile.TemporaryDirectory(prefix="ipw-temporal-face-") as temporary:
+            directory = Path(temporary)
+            try:
+                with Image.open(source_path) as source, Image.open(base_path) as base:
+                    source_default = bool(source.info.get("default_image", False))
+                    base_default = bool(base.info.get("default_image", False))
+                    source_profile = source.info.get("icc_profile")
+                    base_profile = base.info.get("icc_profile")
+                    source_indices = range(int(source_default), int(getattr(source, "n_frames", 1)))
+                    base_indices = range(int(base_default), int(getattr(base, "n_frames", 1)))
+                    if (
+                        len(source_indices) != context.frame_count
+                        or len(base_indices) != context.frame_count
+                        or source.size != (context.source_width, context.source_height)
+                        or base.size != (context.output_width, context.output_height)
+                    ):
+                        raise NativeFaceRenderError(
+                            "Temporal source/base framing changed before face inference"
+                        )
+                    for frame_index, (source_index, base_index) in enumerate(
+                        zip(source_indices, base_indices, strict=True)
+                    ):
+                        if cancelled():
+                            raise NativeFaceRenderCancelledError("Face work cancelled")
+                        source.seek(source_index)
+                        base.seek(base_index)
+                        source_frame = directory / f"source-{frame_index:08d}.png"
+                        base_frame = directory / f"base-{frame_index:08d}.png"
+                        source.convert("RGBA").save(
+                            source_frame,
+                            format="PNG",
+                            optimize=False,
+                            compress_level=1,
+                            **({"icc_profile": source_profile} if source_profile else {}),
+                        )
+                        base.convert("RGBA").save(
+                            base_frame,
+                            format="PNG",
+                            optimize=False,
+                            compress_level=1,
+                            **({"icc_profile": base_profile} if base_profile else {}),
+                        )
+                        frame_context = NativeFaceContext(
+                            source_width=context.source_width,
+                            source_height=context.source_height,
+                            output_width=context.output_width,
+                            output_height=context.output_height,
+                            bit_depth=context.bit_depth,
+                            source_sha256=hashlib.sha256(source_frame.read_bytes()).hexdigest(),
+                            base_output_sha256=hashlib.sha256(base_frame.read_bytes()).hexdigest(),
+                            colour_authority_sha256=native_face_colour_sha256(base_frame),
+                            frame_count=1,
+                        )
+                        try:
+                            proposal = self._engine.propose(
+                                source_path=source_frame,
+                                base_path=base_frame,
+                                context=frame_context,
+                                fidelity_permyriad=fidelity_permyriad,
+                                cancelled=cancelled,
+                            )
+                        finally:
+                            lifecycle = cast(object, self._engine)
+                            if isinstance(lifecycle, NativeFaceSourceLifecycle):
+                                lifecycle.clear_source()
+                        if proposal.alignment is None or proposal.frame_alignments:
+                            raise NativeFaceRenderError(
+                                "Every temporal face frame requires native alignment evidence"
+                            )
+                        proposals.append(proposal)
+            except (UnidentifiedImageError, OSError, EOFError) as error:
+                raise NativeFaceRenderError(
+                    "Temporal face source/base could not be decoded safely"
+                ) from error
+        if len(proposals) != context.frame_count:
+            raise NativeFaceRenderError("Temporal face inference returned incomplete frames")
+        left = min(item.region.x for item in proposals)
+        top = min(item.region.y for item in proposals)
+        right = max(item.region.x + item.region.width for item in proposals)
+        bottom = max(item.region.y + item.region.height for item in proposals)
+        region = NativeFaceRegion(x=left, y=top, width=right - left, height=bottom - top)
+        if region.width * region.height * context.frame_count > 16_000_000:
+            raise NativeFaceRenderError("Temporal face region exceeds the bounded review budget")
+        pixels = np.zeros(
+            (context.frame_count, region.height, region.width, 4), dtype=np.uint8
+        )
+        mask = np.zeros((context.frame_count, region.height, region.width), dtype=np.uint8)
+        for frame_index, proposal in enumerate(proposals):
+            x = proposal.region.x - left
+            y = proposal.region.y - top
+            pixels[
+                frame_index,
+                y : y + proposal.region.height,
+                x : x + proposal.region.width,
+            ] = proposal.pixels
+            mask[
+                frame_index,
+                y : y + proposal.region.height,
+                x : x + proposal.region.width,
+            ] = proposal.mask
+        return NativeFaceProposal(
+            region=region,
+            pixels=pixels,
+            mask=mask,
+            frame_alignments=tuple(cast(NativeFaceAlignment, item.alignment) for item in proposals),
+        )
+
+
 class FaceSliceYieldError(RuntimeError):
     """Resume from committed candidate patches; never publish a partial PNG."""
 
@@ -97,7 +240,7 @@ def bounded_native_face_review(
     max_side: int = NATIVE_FACE_REVIEW_MAX_SIDE,
 ) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]] | None:
     """Create a bounded, non-generative review proxy from exact proposal samples."""
-    height, width = mask.shape
+    height, width = mask.shape[-2:]
     if max_side < 1:
         raise ValueError("native face review bound must be positive")
     if max(height, width) <= max_side:
@@ -115,7 +258,12 @@ def bounded_native_face_review(
         ((np.arange(review_height, dtype=np.int64) * 2 + 1) * height)
         // (review_height * 2),
     )
-    return pixels[y[:, None], x[None, :]].copy(), mask[y[:, None], x[None, :]].copy()
+    if mask.ndim == 2:
+        return pixels[y[:, None], x[None, :]].copy(), mask[y[:, None], x[None, :]].copy()
+    return (
+        pixels[:, y[:, None], x[None, :], :].copy(),
+        mask[:, y[:, None], x[None, :]].copy(),
+    )
 
 
 def native_face_fidelities(fidelity: int, count: int) -> tuple[int, ...]:
@@ -234,6 +382,7 @@ class DurableNativeFaceProcessor:
                     output_height=lease.output_height,
                     bit_depth=lease.bit_depth,
                     colour_authority_sha256=native_face_colour_sha256(base_path),
+                    frame_count=lease.output_frame_count,
                 )
                 stored = self._repository.candidates_face(lease)
                 if lease.operation == "candidates":
@@ -248,7 +397,12 @@ class DurableNativeFaceProcessor:
                         if ordinal < len(stored):
                             self._verify_candidate(lease, stored[ordinal], context, fidelity)
                             continue
-                        proposal = cast(NativeFaceCandidateEngine, self._engine).propose(
+                        candidate_engine: NativeFaceCandidateEngine = cast(
+                            NativeFaceCandidateEngine, self._engine
+                        )
+                        if context.frame_count > 1:
+                            candidate_engine = TemporalNativeFaceCandidateEngine(candidate_engine)
+                        proposal = candidate_engine.propose(
                             source_path=source_path,
                             base_path=base_path,
                             context=context,
@@ -345,6 +499,7 @@ class DurableNativeFaceProcessor:
                         width=lease.output_width,
                         height=lease.output_height,
                         bit_depth=lease.bit_depth,
+                        frame_count=lease.output_frame_count,
                         changed_pixels=result.changed_pixels,
                         evidence=result.evidence,
                     )
@@ -445,10 +600,13 @@ class DurableNativeFaceProcessor:
                 "Native face checkpoint belongs to different pixels/settings/model"
             )
         area = candidate.region
+        frame_prefix = (context.frame_count,) if context.frame_count > 1 else ()
         pixels = np.frombuffer(
             self._read(stored.pixels), dtype="<u2" if context.bit_depth == 16 else "u1"
-        ).reshape(area.height, area.width, 4)
-        mask = np.frombuffer(self._read(stored.mask), dtype="u1").reshape(area.height, area.width)
+        ).reshape(*frame_prefix, area.height, area.width, 4)
+        mask = np.frombuffer(self._read(stored.mask), dtype="u1").reshape(
+            *frame_prefix, area.height, area.width
+        )
         return pixels, mask
 
     def _store_proposal(
@@ -461,10 +619,11 @@ class DurableNativeFaceProcessor:
         uncommitted: list[FaceQualityObject],
     ) -> StoredNativeFaceCandidate:
         region = proposal.region
+        frame_prefix = (context.frame_count,) if context.frame_count > 1 else ()
         if proposal.pixels.dtype != np.dtype("uint16" if context.bit_depth == 16 else "uint8") or (
-            proposal.pixels.shape != (region.height, region.width, 4)
+            proposal.pixels.shape != (*frame_prefix, region.height, region.width, 4)
             or proposal.mask.dtype != np.dtype("uint8")
-            or proposal.mask.shape != (region.height, region.width)
+            or proposal.mask.shape != (*frame_prefix, region.height, region.width)
             or not np.any(proposal.mask)
         ):
             raise NativeFaceRenderError("Native proposal shape, mask or precision is invalid")
@@ -482,6 +641,7 @@ class DurableNativeFaceProcessor:
             pixels_sha256=native_face_pixel_sha256(pixels),
             mask_sha256=hashlib.sha256(mask_raw).hexdigest(),
             alignment=proposal.alignment,
+            frame_alignments=proposal.frame_alignments,
         )
         identity = native_face_candidate_sha256(candidate)
 
@@ -527,7 +687,7 @@ class DurableNativeFaceProcessor:
             review_mask = write(
                 "review-mask", review_mask_raw, hashlib.sha256(review_mask_raw).hexdigest()
             )
-            review_height, review_width = review_mask_array.shape
+            review_height, review_width = review_mask_array.shape[-2:]
 
         return StoredNativeFaceCandidate(
             candidate=candidate,

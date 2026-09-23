@@ -589,6 +589,8 @@ def test_optional_alignment_preserves_old_digest_and_binds_new_review(
         )
         old = candidate.model_dump(mode="json")
         del old["alignment"]
+        del old["frame_alignments"]
+        del old["context"]["frame_count"]
         expected = hashlib.sha256(
             json.dumps(
                 ["ipw-native-face-candidate-v1", old],

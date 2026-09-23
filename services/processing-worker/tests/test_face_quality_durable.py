@@ -16,6 +16,7 @@ import pytest
 
 from ipw.contracts.image_quality_face import (
     FaceQualityCompositionIntent,
+    NativeFaceAlignment,
     NativeFaceContext,
     NativeFaceRegion,
     NativeFaceRelease,
@@ -156,7 +157,22 @@ class Engine:
         mask[0, 0] = 0
         if self.after:
             self.after()
-        return NativeFaceProposal(NativeFaceRegion(x=4, y=3, width=5, height=4), pixels, mask)
+        alignment = NativeFaceAlignment(
+            detector_sha256="d" * 64,
+            confidence_permyriad=9000,
+            source_landmarks_micropixels=(
+                (1_000_000, 1_000_000),
+                (2_000_000, 1_000_000),
+                (1_500_000, 2_000_000),
+                (1_000_000, 3_000_000),
+                (2_000_000, 3_000_000),
+            ),
+            similarity_nanounits=(1_000_000_000, 0, 0, 0),
+            reprojection_error_millipixels=10,
+        )
+        return NativeFaceProposal(
+            NativeFaceRegion(x=4, y=3, width=5, height=4), pixels, mask, alignment
+        )
 
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.uint16])
@@ -182,9 +198,25 @@ def test_bounded_native_face_review_is_deterministic_and_never_changes_source(
     assert module.bounded_native_face_review(pixels, mask, max_side=5) is None
 
 
+def test_bounded_temporal_review_retains_every_frame() -> None:
+    pixels = np.arange(2 * 3 * 5 * 4, dtype=np.uint8).reshape(2, 3, 5, 4)
+    mask = np.arange(2 * 3 * 5, dtype=np.uint8).reshape(2, 3, 5)
+    review = module.bounded_native_face_review(pixels, mask, max_side=2)
+    assert review is not None
+    review_pixels, review_mask = review
+    assert review_pixels.shape == (2, 1, 2, 4)
+    assert review_mask.shape == (2, 1, 2)
+    assert np.array_equal(review_pixels, pixels[:, 1:2, [1, 3], :])
+    assert np.array_equal(review_mask, mask[:, 1:2, [1, 3]])
+
+
 class Fixture:
-    def __init__(self, tmp_path: Path, *, depth: int = 8) -> None:
+    def __init__(self, tmp_path: Path, *, depth: int = 8, frames: int = 1) -> None:
         import pyvips
+        from PIL import Image
+
+        assert frames in {1, 2}
+        assert frames == 1 or depth == 8
 
         self.repo = repository()
         self.connection = self.repo._connection  # noqa: SLF001 -- Owned integration-test connection.
@@ -201,11 +233,27 @@ class Fixture:
         pixels[4, 5, 3] = 0
         pixels[5, 6, 3] = 32123 if depth == 16 else 127
         native = tmp_path / "owned-synthetic.png"
-        pyvips.Image.new_from_memory(
-            memoryview(pixels), 18, 12, 4, "ushort" if depth == 16 else "uchar"
-        ).copy(interpretation="rgb16" if depth == 16 else "srgb").pngsave(
-            str(native), bitdepth=depth
-        )
+        if frames == 1:
+            pyvips.Image.new_from_memory(
+                memoryview(pixels), 18, 12, 4, "ushort" if depth == 16 else "uchar"
+            ).copy(interpretation="rgb16" if depth == 16 else "srgb").pngsave(
+                str(native), bitdepth=depth
+            )
+        else:
+            first = Image.fromarray(pixels, "RGBA")
+            second_pixels = pixels.copy()
+            second_pixels[..., :3] += 7
+            first.save(
+                native,
+                format="PNG",
+                save_all=True,
+                append_images=[Image.fromarray(second_pixels, "RGBA")],
+                duration=[80, 120],
+                loop=2,
+                disposal=0,
+                blend=0,
+                optimize=False,
+            )
         self.bytes = native.read_bytes()
         self.sha = hashlib.sha256(self.bytes).hexdigest()
         self.source_key = f"immutable/{self.ids['guest']}/{self.sha}"
@@ -255,7 +303,7 @@ class Fixture:
             source_storage_generation,source_sha256,source_media_type,source_byte_size,
             source_width,source_height,source_frame_count,source_bit_depth,source_has_icc_profile,
             content_class,strength,job_id,state,expires_at,created_at,updated_at)
-            VALUES(%s,'guest',%s,%s,%s,'source-test',%s,%s,%s,'image/png',%s,18,12,1,%s,
+            VALUES(%s,'guest',%s,%s,%s,'source-test',%s,%s,%s,'image/png',%s,18,12,%s,%s,
             false,'photo',80,%s,'queued',now()+interval '1 day',now(),now())""",
             (
                 self.ids["base"],
@@ -266,6 +314,7 @@ class Fixture:
                 self.sha,
                 self.sha,
                 len(self.bytes),
+                frames,
                 depth,
                 self.ids["basejob"],
             ),
@@ -280,12 +329,21 @@ class Fixture:
         cursor.execute(
             """UPDATE image_quality_requests SET state='succeeded',output_object_key=%s,
             output_storage_generation=%s,output_sha256=%s,output_media_type='image/png',
-            output_byte_size=%s,output_width=18,output_height=12,output_frame_count=1,
+            output_byte_size=%s,output_width=18,output_height=12,output_frame_count=%s,
             output_bit_depth=%s,output_has_icc_profile=false,output_colour_policy='synthetic-only',
             model_id='owned-synthetic',model_version='1',model_sha256=%s,
             model_usage='deterministic',deterministic=true,processor_name='owned-synthetic-test',
             processor_version='1',output_fidelity='{}' WHERE image_quality_request_id=%s""",
-            (self.base_key, self.sha, self.sha, len(self.bytes), depth, self.sha, self.ids["base"]),
+            (
+                self.base_key,
+                self.sha,
+                self.sha,
+                len(self.bytes),
+                frames,
+                depth,
+                self.sha,
+                self.ids["base"],
+            ),
         )
         cursor.close()
         self.connection.commit()
@@ -452,6 +510,42 @@ def test_restart_checkpoints_and_actual_native_png_composition(tmp_path: Path, d
             )[0][0]
             == "ready"
         )
+    finally:
+        sample.repo.close()
+
+
+def test_durable_temporal_candidates_and_reviewed_apng_retain_every_frame(
+    tmp_path: Path,
+) -> None:
+    from PIL import Image
+
+    sample = Fixture(tmp_path, frames=2)
+    try:
+        assert sample.run() == "succeeded"
+        assert sample.engine.calls == 4
+        candidates = sample.sql(
+            "SELECT stored_candidate FROM face_quality_candidates "
+            "WHERE face_quality_job_id=%s ORDER BY ordinal",
+            (sample.ids["face"],),
+        )
+        assert len(candidates) == 2
+        assert all(item[0]["candidate"]["context"]["frame_count"] == 2 for item in candidates)
+        face, job = sample.compose()
+        assert sample.run(job) == "succeeded"
+        output = sample.sql(
+            "SELECT output FROM face_quality_jobs WHERE face_quality_job_id=%s", (face,)
+        )[0][0]
+        assert output["frame_count"] == 2
+        payload = sample.objects.values[output["object"]["object_key"]]
+        reviewed = tmp_path / "durable-reviewed.apng"
+        reviewed.write_bytes(payload)
+        with Image.open(reviewed) as image:
+            assert image.n_frames == 2
+            assert image.info["loop"] == 2
+            image.seek(0)
+            assert image.info["duration"] == 80
+            image.seek(1)
+            assert image.info["duration"] == 120
     finally:
         sample.repo.close()
 

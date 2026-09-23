@@ -125,7 +125,8 @@ export class FaceQualityService implements OnApplicationShutdown {
     const height = boundedPreview ? value.stored.review_height! : candidate.region.height;
     const expectedSha256 = boundedPreview ? object.sha256
       : kind === "pixels" ? candidate.pixels_sha256 : candidate.mask_sha256;
-    const expectedBytes = width * height
+    const frameCount = candidate.context.frame_count ?? 1;
+    const expectedBytes = width * height * frameCount
       * (kind === "pixels" ? 4 * (candidate.context.bit_depth === 16 ? 2 : 1) : 1);
     if (!/^[0-9a-f]{64}$/.test(value.candidateSha256)
       || !/^[0-9a-f]{64}$/.test(expectedSha256)
@@ -145,7 +146,7 @@ export class FaceQualityService implements OnApplicationShutdown {
       throw new DomainError(409, "face-quality-candidate-changed", "The private face candidate failed its identity check");
     }
     return { bytes, artifactSha256: object.sha256, candidateSha256: value.candidateSha256,
-      width, height, bitDepth: candidate.context.bit_depth, kind, boundedPreview };
+      width, height, frameCount, bitDepth: candidate.context.bit_depth, kind, boundedPreview };
   }
   async cleanupExpiredArtifacts(limit = 100): Promise<{ cleaned: number; objectsRemoved: number; failed: number }> {
     const now = this.runtime.now();

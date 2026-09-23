@@ -48,6 +48,7 @@ export class FaceQualityController {
       .setHeader("X-IPW-Artifact-SHA256", value.artifactSha256)
       .setHeader("X-IPW-Face-Region-Width", String(value.width))
       .setHeader("X-IPW-Face-Region-Height", String(value.height))
+      .setHeader("X-IPW-Face-Frame-Count", String(value.frameCount))
       .setHeader("X-IPW-Face-Bit-Depth", String(value.bitDepth))
       .setHeader("X-IPW-Face-Artifact-Kind", value.kind)
       .setHeader("X-IPW-Face-Bounded-Preview", value.boundedPreview ? "true" : "false")

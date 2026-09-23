@@ -231,6 +231,14 @@
           "title": "Fidelity Permyriad",
           "type": "integer"
         },
+        "frame_alignments": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NativeFaceAlignment"
+          },
+          "title": "Frame Alignments",
+          "type": "array"
+        },
         "mask_sha256": {
           "description": "Lower-case hexadecimal SHA-256 digest.",
           "pattern": "^[0-9a-f]{64}$",
@@ -288,6 +296,13 @@
           "pattern": "^[0-9a-f]{64}$",
           "title": "Colour Authority Sha256",
           "type": "string"
+        },
+        "frame_count": {
+          "default": 1,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Frame Count",
+          "type": "integer"
         },
         "output_height": {
           "maximum": 2147483647,

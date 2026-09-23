@@ -232,7 +232,8 @@ test("native face capability is owner-scoped and never implies a released model"
     assert.equal(capabilities.available, false);
     assert.equal(capabilities.native_still_renderer_implemented, true);
     assert.equal(capabilities.native_jobs_integrated, true);
-    assert.equal(capabilities.native_animation_supported, false);
+    assert.equal(capabilities.native_animation_supported, true);
+    assert.deepEqual(capabilities.supported_animation_bit_depths, [8]);
     assert.deepEqual(capabilities.supported_still_bit_depths, [8, 16]);
     assert.ok(capabilities.blockers.includes("commercial-rights-pending"));
     const denied = await server.request(`/upload-sessions/${uploadId}/face-quality-capabilities`, {

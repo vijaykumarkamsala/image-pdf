@@ -65,8 +65,9 @@ class Transport implements NativeFaceQualityTransport {
       available: false,
       native_still_renderer_implemented: true,
       native_jobs_integrated: true,
-      native_animation_supported: false,
+      native_animation_supported: true,
       supported_still_bit_depths: [8, 16],
+      supported_animation_bit_depths: [8],
       preserves_base_alpha: true,
       blockers: ["face-model-unregistered"],
     };
@@ -263,14 +264,14 @@ test("candidate artifact delivery verifies exact raw bytes before review", async
     kind: "pixels" | "mask",
   ): Promise<NativeFaceCandidateArtifact> => ({
     bytes: (kind === "pixels" ? pixels : mask).slice().buffer, candidateSha256: "9".repeat(64),
-    artifactSha256: kind === "pixels" ? pixelSha : maskSha, width: 1, height: 1, bitDepth: 8 as const, kind,
+    artifactSha256: kind === "pixels" ? pixelSha : maskSha, width: 1, height: 1, frameCount: 1, bitDepth: 8 as const, kind,
     boundedPreview: false,
   });
   const coordinator = new NativeFaceQualityCoordinator(transport, new MemoryStorage());
   const artifact = await coordinator.candidateArtifact(context, completed, "candidate-owned", "pixels");
   assert.deepEqual(new Uint8Array(artifact.bytes), pixels); assert.equal(artifact.candidateSha256,"9".repeat(64));
   transport.candidateArtifact = async () => ({ bytes: new Uint8Array([0,0,0,0]).buffer,
-    candidateSha256: "9".repeat(64), artifactSha256: pixelSha, width: 1, height: 1, bitDepth: 8,
+    candidateSha256: "9".repeat(64), artifactSha256: pixelSha, width: 1, height: 1, frameCount: 1, bitDepth: 8,
     kind: "pixels", boundedPreview: false });
   await assert.rejects(coordinator.candidateArtifact(context,completed,"candidate-owned","pixels"),/does not match/);
 
@@ -279,7 +280,7 @@ test("candidate artifact delivery verifies exact raw bytes before review", async
   const boundedSha = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bounded)),
     (value) => value.toString(16).padStart(2,"0")).join("");
   transport.candidateArtifact = async () => ({ bytes: bounded.slice().buffer,
-    candidateSha256: "9".repeat(64), artifactSha256: boundedSha, width: 1, height: 1, bitDepth: 8,
+    candidateSha256: "9".repeat(64), artifactSha256: boundedSha, width: 1, height: 1, frameCount: 1, bitDepth: 8,
     kind: "pixels", boundedPreview: true });
   const proxy = await coordinator.candidateArtifact(context,completed,"candidate-owned","pixels");
   assert.equal(proxy.boundedPreview,true); assert.deepEqual(new Uint8Array(proxy.bytes),bounded);

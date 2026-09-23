@@ -774,6 +774,7 @@ export interface NativeFaceCandidate {
   /** Lower-case hexadecimal SHA-256 digest. */
   mask_sha256: string;
   alignment?: NativeFaceAlignment | null;
+  frame_alignments?: NativeFaceAlignment[];
 }
 
 export interface NativeFaceContext {
@@ -788,6 +789,7 @@ export interface NativeFaceContext {
   bit_depth: 8 | 16;
   /** Lower-case hexadecimal SHA-256 digest. */
   colour_authority_sha256: string;
+  frame_count?: number;
 }
 
 export interface NativeFaceRegion {
@@ -1592,8 +1594,9 @@ export interface FaceQualityCapabilities {
   available?: false;
   native_still_renderer_implemented?: true;
   native_jobs_integrated?: true;
-  native_animation_supported?: false;
+  native_animation_supported?: true;
   supported_still_bit_depths?: (8 | 16)[];
+  supported_animation_bit_depths?: 8[];
   preserves_base_alpha?: true;
   blockers: string[];
 }
@@ -1730,6 +1733,7 @@ export interface NativeFaceOutput {
   width: number;
   height: number;
   bit_depth: 8 | 16;
+  frame_count?: number;
   changed_pixels: number;
   evidence: Record<string, unknown>;
 }

@@ -9,8 +9,9 @@ export function faceQualityCapabilities(): FaceQualityCapabilities {
     available: false,
     native_still_renderer_implemented: true,
     native_jobs_integrated: true,
-    native_animation_supported: false,
+    native_animation_supported: true,
     supported_still_bit_depths: [8, 16],
+    supported_animation_bit_depths: [8],
     preserves_base_alpha: true,
     blockers: [
       "face-model-unregistered",

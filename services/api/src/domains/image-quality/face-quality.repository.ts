@@ -105,9 +105,14 @@ export class PostgresFaceQualityRepository {
         || new Date(row["upload_expires_at"] as string).getTime() <= new Date(now).getTime()) {
         throw new DomainError(409, "face-quality-source-changed", "The immutable source or completed base is stale");
       }
-      if (Number(row["source_frame_count"]) !== 1 || Number(row["output_frame_count"]) !== 1
-        || ![8, 16].includes(Number(row["output_bit_depth"]))) {
-        throw new DomainError(415, "face-quality-native-layout-unsupported", "Native face processing currently requires an 8/16-bit still base");
+      const sourceFrames = Number(row["source_frame_count"]);
+      const outputFrames = Number(row["output_frame_count"]);
+      const outputDepth = Number(row["output_bit_depth"]);
+      if (!Number.isSafeInteger(sourceFrames) || sourceFrames < 1 || sourceFrames > 10_000
+        || sourceFrames !== outputFrames || ![8, 16].includes(outputDepth)
+        || (outputFrames > 1 && outputDepth !== 8)) {
+        throw new DomainError(415, "face-quality-native-layout-unsupported",
+          "Native face processing requires matching source/output frames and supports animation at 8-bit precision");
       }
       const id = this.runtime.id("face"); const jobId = this.runtime.id("job");
       await client.query(`INSERT INTO face_quality_jobs(face_quality_job_id,job_id,operation,

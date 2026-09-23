@@ -199,9 +199,8 @@ remain to be validated after commercial clearance.
 ## Native face follow-up — implementation ledger
 
 This ledger counts six native follow-up coding blocks, not the earlier P0/P1/P2
-audit or whole-product completion. **Blocks one, two, three and six are implemented;
-block four's native adapter mechanics are implemented but its real-model release is
-still pending; block five remains.**
+audit or whole-product completion. **All six mechanics blocks are implemented;
+block four's real-model release is still pending.**
 
 1. **Implemented:** additive `image-quality-face-v1` intent/composition/release/
    capability records, generated JSON Schema/TypeScript and an owner-scoped API
@@ -231,8 +230,17 @@ still pending; block five remains.**
    No trained restorer is registered. The renderer rejects an 8-bit patch for a
    16-bit base; neither adapter nor renderer manufactures precision by scaling
    eight-bit channels.
-5. **Remaining:** temporal proposals, review and composition for animated input.
-   The new renderer explicitly refuses APNG instead of flattening it.
+5. **Implemented:** temporal proposals bind one native alignment, patch and mask
+   per logical frame under one reviewed candidate digest. The durable worker
+   decodes the immutable source/base frame-by-frame, clears detector/model scratch
+   between frames, checkpoints the complete candidate stack and composes only the
+   exact acknowledged stack. The APNG renderer preserves frame count, default-image
+   semantics, loop count, frame delays, base alpha, colour authority and every
+   decoded pixel outside the reviewed region. It does not repeat one still patch,
+   flatten, drop frames or substitute a smaller result. This first native temporal
+   adapter is deliberately limited to 8-bit full-canvas source-blend APNG bases;
+   16-bit animation and other APNG disposal/blend layouts require separately
+   qualified native adapters.
 6. **Customer and private-artifact lifecycle mechanics implemented:** a native client
    receives only the server-issued upload/base
    identifiers emitted by `ProductionImageQualityEngine`. It preflights server
@@ -268,8 +276,10 @@ still pending; block five remains.**
    unregistered and unchanged.
 
 The native still core currently accepts non-interlaced, full-channel 8/16-bit
-RGB/RGBA PNG bases and matching-precision straight-RGBA proposals. Palette,
-grayscale, keyed-transparency and interlaced bases require a separate adapter.
+RGB/RGBA PNG bases and matching-precision straight-RGBA proposals. The temporal
+core accepts verified 8-bit full-canvas source-blend APNG bases and one reviewed
+RGBA proposal/mask per logical frame. Palette, grayscale, keyed-transparency,
+interlaced bases and other APNG layouts require a separate adapter.
 Scratch-storage checks are technical safety limits, not billing limits or a
 claim that arbitrary GB files have been validated. Cancellation is checked around
 native decode and during composition/encoding. Cancellation is cooperative; an
@@ -305,8 +315,8 @@ bucket's inventory/lifecycle policy; enabling and validating that provider polic
 deployment work, not a reason to delete shared content-addressed objects from an
 unfenced worker. No deployment or application database migration was performed.
 
-Release remains blocked on exact commercial face-model/dependency clearance,
-real-photo quality/identity acceptance and animation.
+Release remains blocked on exact commercial face-model/dependency clearance and
+real-photo quality/identity acceptance.
 Linux-container, real Cloud Run/GCS large-file, calibrated HDR/P3 and physical
 Safari/iOS/low-memory-device validations remain outstanding, not cleared by this
 native mechanics increment. PDF, old Studio, deployment and merge remain out of scope.
@@ -357,8 +367,8 @@ anchored. Native conversion/detail correction uses bounded tiles, not full-outpu
 model tensors. No new clipped channels are accepted. Neural observations still
 use an sRGB proxy, not an HDR/wide-gamut neural model. ICC/P3 colour accuracy still
 needs qualified profiles and calibrated hardware review. PQ/HLG/unknown transfer,
-conflicting colour authority, CMYK, unsupported PNG layouts, animation and
-transparent face-source inference fail clearly instead of being silently converted.
+conflicting colour authority, CMYK, unsupported PNG/APNG layouts, 16-bit animation
+and transparent face-source inference fail clearly instead of being silently converted.
 
 Focused owned synthetic ONNX graphs exercise actual CPU sessions, distinct
 fidelities, sub-eight-bit native corrections, exact zero-delta colour, native ICC
@@ -417,3 +427,16 @@ was fixed by registering the exact generation immediately after storage write; b
 targeted cases then passed (2/2). No coverage threshold was changed, no broad suite
 was claimed, the temporary database container was removed, and no application
 database, release registration, deployment, PDF or Studio path was touched.
+
+On 23 September 2026, the block-five temporal increment passed 75 focused Python
+contract/native-renderer/native-adapter checks and all 28 durable face-worker checks.
+The latter ran against an isolated PostgreSQL 17.11 loopback container and include
+an actual two-frame durable candidate/composition journey. The output retained both
+frames, the 80/120 ms delays and loop count; the temporary container was removed.
+The focused API capability/delivery set passed 13/13, real PostgreSQL API checks
+passed 2/2, all 117 isolated web tests passed, scoped Ruff/Mypy and web/API/
+contract TypeScript checks passed, and generated schemas had no drift. These are
+owned synthetic mechanics checks. The ordinary upload/process/compare/reset/download
+browser journey also passed by itself in bundled Chromium (1/1): no model was
+registered, no private photograph or research weight was committed, and no
+application database, deployment, PDF or Studio path was touched.

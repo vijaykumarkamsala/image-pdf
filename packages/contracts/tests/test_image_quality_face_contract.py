@@ -7,6 +7,8 @@ from ipw.contracts.image_quality_face import (
     FaceQualityCandidateRequest,
     FaceQualityCompositionIntent,
     FaceQualityObject,
+    NativeFaceAlignment,
+    NativeFaceCandidate,
     NativeFaceContext,
     NativeFaceRegion,
     StoredNativeFaceCandidate,
@@ -62,6 +64,45 @@ def test_native_framing_rejects_stretching_and_unbounded_patch() -> None:
             NativeFaceContext.model_validate({**context, **updates})
     with pytest.raises(ValidationError, match="budget"):
         NativeFaceRegion(x=0, y=0, width=4000, height=4000)
+
+
+def test_temporal_candidate_binds_every_8bit_frame_and_rejects_partial_review() -> None:
+    context = NativeFaceContext(
+        source_sha256="a" * 64,
+        base_output_sha256="b" * 64,
+        source_width=100,
+        source_height=100,
+        output_width=200,
+        output_height=200,
+        bit_depth=8,
+        colour_authority_sha256="c" * 64,
+        frame_count=2,
+    )
+    alignment = NativeFaceAlignment(
+        detector_sha256="d" * 64,
+        confidence_permyriad=9000,
+        source_landmarks_micropixels=(
+            (1, 1), (2, 1), (1, 2), (1, 3), (2, 3),
+        ),
+        similarity_nanounits=(1, 0, 0, 0),
+        reprojection_error_millipixels=1,
+    )
+    candidate = {
+        "candidate_id": "candidate-temporal",
+        "context": context,
+        "model_sha256": "e" * 64,
+        "dependency_lock_sha256": "f" * 64,
+        "fidelity_permyriad": 8000,
+        "region": {"x": 0, "y": 0, "width": 4, "height": 3},
+        "pixels_sha256": "1" * 64,
+        "mask_sha256": "2" * 64,
+        "frame_alignments": [alignment, alignment],
+    }
+    assert NativeFaceCandidate.model_validate(candidate).context.frame_count == 2
+    with pytest.raises(ValidationError, match="one alignment per frame"):
+        NativeFaceCandidate.model_validate({**candidate, "frame_alignments": [alignment]})
+    with pytest.raises(ValidationError, match="8-bit"):
+        NativeFaceContext.model_validate({**context.model_dump(), "bit_depth": 16})
 
 
 def test_composition_requires_exact_candidate_permission_without_client_pixels() -> None:

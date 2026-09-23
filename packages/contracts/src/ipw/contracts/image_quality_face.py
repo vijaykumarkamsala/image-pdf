@@ -17,6 +17,7 @@ from ipw.contracts.common import ContractModel, NonEmptyStr, Sha256Hex, SlugId
 
 FaceCoordinate = Annotated[int, Field(strict=True, ge=0, le=2**31 - 1)]
 FaceDimension = Annotated[int, Field(strict=True, ge=1, le=2**31 - 1)]
+FaceFrameCount = Annotated[int, Field(strict=True, ge=1, le=10_000)]
 FaceFixedPoint = Annotated[int, Field(strict=True, ge=-(2**53 - 1), le=2**53 - 1)]
 
 
@@ -68,6 +69,7 @@ class NativeFaceContext(ContractModel):
     output_height: FaceDimension
     bit_depth: Literal[8, 16]
     colour_authority_sha256: Sha256Hex
+    frame_count: FaceFrameCount = 1
 
     @model_validator(mode="after")
     def _same_source_framing(self) -> NativeFaceContext:
@@ -75,6 +77,8 @@ class NativeFaceContext(ContractModel):
             raise ValueError("native face composition cannot change source framing")
         if self.output_width * self.output_height * 8 > 2**53 - 1:
             raise ValueError("native face dimensions exceed safe addressing")
+        if self.frame_count > 1 and self.bit_depth != 8:
+            raise ValueError("animated native face composition currently requires 8-bit frames")
         return self
 
 
@@ -101,6 +105,7 @@ class NativeFaceCandidate(ContractModel):
     pixels_sha256: Sha256Hex
     mask_sha256: Sha256Hex
     alignment: NativeFaceAlignment | None = None
+    frame_alignments: tuple[NativeFaceAlignment, ...] = ()
 
     @model_validator(mode="after")
     def _region_fits(self) -> NativeFaceCandidate:
@@ -115,6 +120,20 @@ class NativeFaceCandidate(ContractModel):
             for x, y in self.alignment.source_landmarks_micropixels
         ):
             raise ValueError("native face landmarks must fit the immutable source")
+        if context.frame_count == 1:
+            if self.frame_alignments:
+                raise ValueError("still native face candidates cannot contain temporal alignments")
+        elif self.alignment is not None or len(self.frame_alignments) != context.frame_count:
+            raise ValueError("animated native face candidates require one alignment per frame")
+        if any(
+            not (0 <= x < context.source_width * 1_000_000)
+            or not (0 <= y < context.source_height * 1_000_000)
+            for alignment in self.frame_alignments
+            for x, y in alignment.source_landmarks_micropixels
+        ):
+            raise ValueError("temporal native face landmarks must fit the immutable source")
+        if region.width * region.height * context.frame_count > 16_000_000:
+            raise ValueError("temporal face proposal exceeds the bounded review budget")
         return self
 
 
@@ -125,7 +144,10 @@ def native_face_candidate_sha256(candidate: NativeFaceCandidate) -> str:
     uint16; mask hashes use row-major uint8. Alignment uses integers only.
     Absent optional evidence is omitted to preserve pre-alignment v1 digests.
     """
-    payload = ["ipw-native-face-candidate-v1", candidate.model_dump(mode="json", exclude_none=True)]
+    payload = [
+        "ipw-native-face-candidate-v1",
+        candidate.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
+    ]
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(encoded.encode("ascii")).hexdigest()
 
@@ -182,8 +204,9 @@ class FaceQualityCapabilities(ContractModel):
     available: Literal[False] = False
     native_still_renderer_implemented: Literal[True] = True
     native_jobs_integrated: Literal[True] = True
-    native_animation_supported: Literal[False] = False
+    native_animation_supported: Literal[True] = True
     supported_still_bit_depths: tuple[Literal[8, 16], ...] = (8, 16)
+    supported_animation_bit_depths: tuple[Literal[8], ...] = (8,)
     preserves_base_alpha: Literal[True] = True
     blockers: tuple[NonEmptyStr, ...] = Field(min_length=1)
 
@@ -234,8 +257,9 @@ class StoredNativeFaceCandidate(ContractModel):
         if self.pixels.owner_scope != self.mask.owner_scope or (
             self.pixels.sha256 != candidate.pixels_sha256
             or self.mask.sha256 != candidate.mask_sha256
-            or self.pixels.byte_size != area * 4 * (candidate.context.bit_depth // 8)
-            or self.mask.byte_size != area
+            or self.pixels.byte_size
+            != area * candidate.context.frame_count * 4 * (candidate.context.bit_depth // 8)
+            or self.mask.byte_size != area * candidate.context.frame_count
             or not self.pixels.object_key.startswith("derivative/")
             or not self.mask.object_key.startswith("derivative/")
         ):
@@ -258,8 +282,11 @@ class StoredNativeFaceCandidate(ContractModel):
             or review_pixels.owner_scope != self.pixels.owner_scope
             or review_mask.owner_scope != self.pixels.owner_scope
             or review_pixels.byte_size
-            != review_area * 4 * (candidate.context.bit_depth // 8)
-            or review_mask.byte_size != review_area
+            != review_area
+            * candidate.context.frame_count
+            * 4
+            * (candidate.context.bit_depth // 8)
+            or review_mask.byte_size != review_area * candidate.context.frame_count
             or not review_pixels.object_key.startswith("derivative/")
             or not review_mask.object_key.startswith("derivative/")
         ):
@@ -272,7 +299,8 @@ class NativeFaceOutput(ContractModel):
     width: FaceDimension
     height: FaceDimension
     bit_depth: Literal[8, 16]
-    changed_pixels: int = Field(strict=True, ge=1, le=4_000_000)
+    frame_count: FaceFrameCount = 1
+    changed_pixels: int = Field(strict=True, ge=1, le=16_000_000)
     evidence: dict[str, builtins.object]
 
     @model_validator(mode="after")
@@ -286,8 +314,13 @@ class NativeFaceOutput(ContractModel):
             self.evidence.get("kind") != "explicit-face-recreate"
             or self.evidence.get("candidate_sha256") != request.review.candidate_sha256
             or self.evidence.get("changed_pixels") != self.changed_pixels
-            or (self.width, self.height, self.bit_depth)
-            != (context.output_width, context.output_height, context.bit_depth)
+            or (self.width, self.height, self.bit_depth, self.frame_count)
+            != (
+                context.output_width,
+                context.output_height,
+                context.bit_depth,
+                context.frame_count,
+            )
             or not self.object.object_key.startswith("derivative/")
         ):
             raise ValueError("native face output must bind its exact review and geometry")

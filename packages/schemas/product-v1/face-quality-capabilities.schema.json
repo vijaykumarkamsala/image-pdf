@@ -26,8 +26,8 @@
       "type": "string"
     },
     "native_animation_supported": {
-      "const": false,
-      "default": false,
+      "const": true,
+      "default": true,
       "title": "Native Animation Supported",
       "type": "boolean"
     },
@@ -48,6 +48,17 @@
       "default": true,
       "title": "Preserves Base Alpha",
       "type": "boolean"
+    },
+    "supported_animation_bit_depths": {
+      "default": [
+        8
+      ],
+      "items": {
+        "const": 8,
+        "type": "integer"
+      },
+      "title": "Supported Animation Bit Depths",
+      "type": "array"
     },
     "supported_still_bit_depths": {
       "default": [
