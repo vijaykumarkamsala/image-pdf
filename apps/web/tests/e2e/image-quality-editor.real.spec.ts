@@ -431,6 +431,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
   const downloaded = Buffer.concat(chunks);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(expectedDigest);
   const pngMetadata = { types: [] as string[], provenance: "" };
@@ -449,7 +450,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   expect(pngMetadata.types).toContain("iTXt");
   expect(pngMetadata.provenance).toContain("ipw.image-quality.provenance.v1");
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
-  await page.goto("about:blank");
+  await page.close();
 });
 
 test("photo restoration preserves a warm low-texture background", async ({ page }) => {

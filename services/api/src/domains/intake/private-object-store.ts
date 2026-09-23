@@ -164,6 +164,10 @@ export class MemoryPrivateObjectStore implements PrivateObjectStore {
   }
 
   async remove(ref: PrivateObjectRef): Promise<void> {
+    const value = this.objects.get(ref.objectKey);
+    if (value && ref.generation && createHash("sha256").update(value).digest("hex") !== ref.generation) {
+      throw new Error("private object generation changed");
+    }
     this.objects.delete(ref.objectKey);
   }
 
@@ -277,7 +281,17 @@ export class LocalFilesystemPrivateObjectStore implements PrivateObjectStore {
   }
 
   async remove(ref: PrivateObjectRef): Promise<void> {
-    await rm(this.path(ref), { force: true });
+    const path = this.path(ref);
+    if (ref.generation) {
+      const bytes = await readFile(path).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (bytes && createHash("sha256").update(bytes).digest("hex") !== ref.generation) {
+        throw new Error("private object generation changed");
+      }
+    }
+    await rm(path, { force: true });
   }
 
   async rehome(ref: PrivateObjectRef, targetOwnerScope: string, sha256: string): Promise<PrivateObjectRef> {

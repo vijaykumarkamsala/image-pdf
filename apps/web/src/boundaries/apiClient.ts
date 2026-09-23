@@ -237,6 +237,7 @@ export interface FaceQualityCandidateArtifactResponse {
   height: number;
   bitDepth: 8 | 16;
   kind: "pixels" | "mask";
+  boundedPreview: boolean;
 }
 
 export type AuthSessionResponse = { authenticated: false } | {
@@ -641,15 +642,17 @@ export const api = {
     const height = Number(response.headers.get("x-ipw-face-region-height"));
     const bitDepth = Number(response.headers.get("x-ipw-face-bit-depth"));
     const responseKind = response.headers.get("x-ipw-face-artifact-kind");
+    const boundedPreview = response.headers.get("x-ipw-face-bounded-preview");
     const candidateSha256 = response.headers.get("x-ipw-face-candidate-sha256") ?? "";
     const artifactSha256 = response.headers.get("x-ipw-artifact-sha256") ?? "";
     if (!Number.isSafeInteger(width) || width < 1 || !Number.isSafeInteger(height) || height < 1
       || (bitDepth !== 8 && bitDepth !== 16) || responseKind !== kind
+      || (boundedPreview !== "true" && boundedPreview !== "false")
       || !/^[0-9a-f]{64}$/.test(candidateSha256) || !/^[0-9a-f]{64}$/.test(artifactSha256)) {
       throw new ApiError(409, "face-quality-candidate-metadata-invalid", "The face candidate comparison metadata is invalid");
     }
     return { bytes: await response.arrayBuffer(), candidateSha256, artifactSha256,
-      width, height, bitDepth, kind };
+      width, height, bitDepth, kind, boundedPreview: boundedPreview === "true" };
   },
   intakePresentation(
     uploadSessionId: string,

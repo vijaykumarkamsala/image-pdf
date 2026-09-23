@@ -25,6 +25,7 @@ const release: NativeFaceRelease = { model_id: "owned-synthetic-not-production",
 const command = (key: string, payload: unknown) => ({ principal: { actorId: "test-synthetic", displayName: "Synthetic test" },
   traceId: "trace-face-test", idempotencyKey: key, requestHash: requestDigest(payload) });
 const down = () => readFile(new URL("../../migrations/rollback/0025_image_face_jobs.sql", import.meta.url), "utf8");
+const cleanupDown = () => readFile(new URL("../../migrations/rollback/0026_image_face_artifact_cleanup.sql", import.meta.url), "utf8");
 
 async function fixture(connection: Pool) {
   const suffix = randomUUID().slice(0, 8); const guest = `guest-face-${suffix}`; const upload = `upload-face-${suffix}`;
@@ -66,12 +67,14 @@ test("face migration applies idempotently and rollback restores exact old target
   try {
     await runMigrations(connection); await runMigrations(connection);
     const old = (await connection.query("SELECT * FROM image_face_migration_backup")).rows[0];
+    await connection.query(await cleanupDown());
     await connection.query(await down());
     const restored = await connection.query("SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='processing_jobs'::regclass AND conname IN ('processing_jobs_kind_check','processing_jobs_target_check')");
     for (const row of restored.rows) assert.equal(row.definition, row.conname === "processing_jobs_kind_check" ? old.kind_check : old.target_check);
     assert.equal((await connection.query("SELECT pg_get_indexdef('processing_jobs_upload_session_unique_idx'::regclass) AS definition")).rows[0].definition, old.upload_index);
     await runMigrations(connection); await runMigrations(connection);
     assert.equal((await connection.query("SELECT * FROM schema_migrations WHERE version='0025_image_face_jobs'")).rowCount, 1);
+    assert.equal((await connection.query("SELECT * FROM schema_migrations WHERE version='0026_image_face_artifact_cleanup'")).rowCount, 1);
   } finally { await connection.end(); }
 });
 
@@ -94,6 +97,8 @@ test("durable face creation, exact review, ownership, retry and cancellation do 
     await assert.rejects(repo.createCandidates(command(`foreign-${key}`,intent),other.scope,upload,intent,release), /not found/);
     const view = await repo.get(scope,upload,value.face_quality_job_id);
     assert.ok(view && !JSON.stringify(view).includes("object_key") && !JSON.stringify(view).includes("rights_evidence_id"));
+    assert.equal((await connection.query("SELECT count(*) FROM face_quality_artifact_cleanup WHERE face_quality_job_id=$1",
+      [value.face_quality_job_id])).rows[0].count,"1");
     const review: FaceQualityCompositionIntent = { contract_version:"image-quality-face-v1",candidate_request_id:value.face_quality_job_id,
       candidate_sha256:"f".repeat(64),source_sha256:intent.source_sha256,base_output_sha256:intent.base_output_sha256,
       allow_reconstructed_face_detail:true,acknowledged_possible_identity_change:true };
@@ -114,6 +119,17 @@ test("durable face creation, exact review, ownership, retry and cancellation do 
       if (ordinal===0) review.candidate_sha256=digest;
     }
     await connection.query("UPDATE processing_jobs SET state='succeeded',progress_percent=100 WHERE job_id=$1",[value.job_id]);
+    const cleanupLease = await repo.claimArtifactCleanup(
+      "cleanup-worker-a","2099-01-01T00:00:00.000Z","2099-01-01T00:01:30.000Z",100,
+    );
+    const claimed = cleanupLease.find((item)=>item.faceQualityJobId===value.face_quality_job_id);
+    assert.ok(claimed); assert.equal(claimed.objects.length,4);
+    assert.equal((await repo.claimArtifactCleanup(
+      "cleanup-worker-b","2099-01-01T00:00:30.000Z","2099-01-01T00:02:00.000Z",100,
+    )).some((item)=>item.faceQualityJobId===value.face_quality_job_id),false);
+    await repo.releaseArtifactCleanup(value.face_quality_job_id,"cleanup-worker-a","2099-01-01T00:00:45.000Z");
+    assert.equal((await connection.query("SELECT failure_count,lease_owner FROM face_quality_artifact_cleanup WHERE face_quality_job_id=$1",
+      [value.face_quality_job_id])).rows[0].failure_count,1);
     await assert.rejects(connection.query("UPDATE processing_jobs SET kind='image_face_compose' WHERE job_id=$1",[value.job_id]), /operation and target/);
     await assert.rejects(connection.query("UPDATE face_quality_jobs SET intent='{}' WHERE face_quality_job_id=$1",[value.face_quality_job_id]), /immutable/);
     await assert.rejects(repo.createComposition(command(`stale-${key}`,review),scope,upload,{...review,candidate_sha256:"0".repeat(64)},release), /not found/);
@@ -135,8 +151,11 @@ test("durable face creation, exact review, ownership, retry and cancellation do 
     assert.equal((await connection.query("SELECT output_sha256,state FROM image_quality_requests WHERE image_quality_request_id=$1",[sample.base.image_quality_request_id])).rows[0].output_sha256,intent.base_output_sha256);
     assert.equal((await connection.query("SELECT state FROM upload_sessions WHERE upload_session_id=$1",[upload])).rows[0].state,"ready");
     const client = await connection.connect();
-    try { await assert.rejects(client.query(await down()), /refuses to delete customer work/); }
-    finally { await client.query("ROLLBACK");client.release(); }
+    try {
+      await assert.rejects(client.query(await cleanupDown()), /refuses to discard lifecycle state/);
+      await client.query("ROLLBACK");
+      await assert.rejects(client.query(await down()), /refuses to delete customer work/);
+    } finally { await client.query("ROLLBACK");client.release(); }
     assert.equal((await repo.get(scope,upload,composed.value.face_quality_job_id))!.state,"queued");
   } finally { await connection.end(); }
 });

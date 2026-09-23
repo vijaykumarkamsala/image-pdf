@@ -77,6 +77,7 @@ export interface NativeFaceCandidateArtifact {
   height: number;
   bitDepth: 8 | 16;
   kind: "pixels" | "mask";
+  boundedPreview: boolean;
 }
 
 function createTraceId(): string {
@@ -344,11 +345,16 @@ export class NativeFaceQualityCoordinator {
       context.uploadSessionId, job.face_quality_job_id, candidateId, kind, signal,
     );
     const expectedSha256 = kind === "pixels" ? candidate.pixels_sha256 : candidate.mask_sha256;
-    const expectedBytes = candidate.region.width * candidate.region.height
+    const expectedBytes = artifact.width * artifact.height
       * (kind === "pixels" ? 4 * (candidate.context.bit_depth === 16 ? 2 : 1) : 1);
-    if (artifact.kind !== kind || artifact.width !== candidate.region.width || artifact.height !== candidate.region.height
-      || artifact.bitDepth !== candidate.context.bit_depth || artifact.artifactSha256 !== expectedSha256
-      || artifact.bytes.byteLength !== expectedBytes || await sha256(artifact.bytes) !== expectedSha256) {
+    if (artifact.kind !== kind || !Number.isInteger(artifact.width) || !Number.isInteger(artifact.height)
+      || artifact.width < 1 || artifact.height < 1
+      || artifact.width > candidate.region.width || artifact.height > candidate.region.height
+      || (!artifact.boundedPreview && (artifact.width !== candidate.region.width || artifact.height !== candidate.region.height))
+      || artifact.bitDepth !== candidate.context.bit_depth
+      || (!artifact.boundedPreview && artifact.artifactSha256 !== expectedSha256)
+      || !SHA256.test(artifact.artifactSha256) || !SHA256.test(artifact.candidateSha256)
+      || artifact.bytes.byteLength !== expectedBytes || await sha256(artifact.bytes) !== artifact.artifactSha256) {
       throw new Error("The downloaded face candidate does not match its reviewed metadata.");
     }
     return artifact;

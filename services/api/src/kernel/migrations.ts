@@ -31,6 +31,7 @@ export const MIGRATION_VERSIONS = [
   "0023_guest_handoff_completion",
   "0024_image_quality_jobs",
   "0025_image_face_jobs",
+  "0026_image_face_artifact_cleanup",
 ] as const;
 
 export async function runMigrations(pool: Pool): Promise<void> {

@@ -4,6 +4,7 @@ export interface NativeFacePreview {
   patch: Blob;
   regionMap: Blob;
   candidateSha256: string;
+  boundedPreview: boolean;
 }
 
 export interface NativeFacePreviewer {
@@ -23,7 +24,8 @@ export class WorkerNativeFacePreview implements NativeFacePreviewer {
       if (!pending) return;
       this.pending.delete(event.data.id);
       if (event.data.ok && event.data.patch && event.data.regionMap) {
-        pending.resolve({ patch: event.data.patch, regionMap: event.data.regionMap, candidateSha256: "" });
+        pending.resolve({ patch: event.data.patch, regionMap: event.data.regionMap,
+          candidateSha256: "", boundedPreview: false });
       } else pending.reject(new Error(event.data.message ?? "Face comparison preparation failed."));
     };
     this.worker.onerror = () => this.dispose();
@@ -33,7 +35,8 @@ export class WorkerNativeFacePreview implements NativeFacePreviewer {
     signal.throwIfAborted();
     if (this.disposed) throw new Error("The native face preview worker has closed.");
     if (pixels.kind !== "pixels" || mask.kind !== "mask" || pixels.candidateSha256 !== mask.candidateSha256
-      || pixels.width !== mask.width || pixels.height !== mask.height || pixels.bitDepth !== mask.bitDepth) {
+      || pixels.width !== mask.width || pixels.height !== mask.height || pixels.bitDepth !== mask.bitDepth
+      || pixels.boundedPreview !== mask.boundedPreview) {
       throw new Error("The native face patch and mask do not belong to the same candidate.");
     }
     const id = ++this.sequence; const candidateSha256 = pixels.candidateSha256;
@@ -46,7 +49,7 @@ export class WorkerNativeFacePreview implements NativeFacePreviewer {
             pixels: pixels.bytes, mask: mask.bytes }, [pixels.bytes, mask.bytes]);
         } catch (error) { this.pending.delete(id); reject(error); }
       });
-      return { ...result, candidateSha256 };
+      return { ...result, candidateSha256, boundedPreview: pixels.boundedPreview };
     } finally { signal.removeEventListener("abort", cancel); }
   }
 

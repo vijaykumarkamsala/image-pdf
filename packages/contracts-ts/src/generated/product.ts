@@ -1928,6 +1928,10 @@ export interface StoredNativeFaceCandidate {
   candidate: NativeFaceCandidate;
   pixels: FaceQualityObject;
   mask: FaceQualityObject;
+  review_pixels?: FaceQualityObject | null;
+  review_mask?: FaceQualityObject | null;
+  review_width?: number | null;
+  review_height?: number | null;
 }
 
 export interface StudioFormatCapability {

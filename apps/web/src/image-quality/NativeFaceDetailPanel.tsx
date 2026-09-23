@@ -242,6 +242,8 @@ export function NativeFaceDetailPanel({ disabled, context, viewer, filename,
           </div>
           <p>Pink marks reconstructed pixels. This display preview may reduce 16-bit samples to the screen;
             the reviewed native composition retains its recorded precision.</p>
+          {preview.boundedPreview && <p role="note">This exceptionally large face region uses a bounded,
+            non-generative review proxy. The approved server composition still uses the exact native-resolution candidate.</p>}
           <div className="quality-face-comparison">
             <CandidateViewer label="Original image" imageUrl={viewer.originalUrl} viewer={viewer} zoom={zoom} pan={pan} showMap={false} onPan={(x,y)=>setPan({x,y})} />
             <CandidateViewer label="Current enhanced image" imageUrl={viewer.baseUrl} viewer={viewer} zoom={zoom} pan={pan} showMap={false} onPan={(x,y)=>setPan({x,y})} />

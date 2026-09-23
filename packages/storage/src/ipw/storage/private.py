@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import copyfileobj
 from typing import Any, Protocol, runtime_checkable
 
-from google.api_core.exceptions import PreconditionFailed
+from google.api_core.exceptions import NotFound, PreconditionFailed
 from google.cloud import storage
 
 from ipw.storage.boundary import ObjectZone, PrivateObjectRef
@@ -216,7 +217,8 @@ class GcsWorkerPrivateObjectStore:
 
     def delete(self, ref: PrivateObjectRef, *, generation: str | None = None) -> None:
         blob = self._bucket.blob(ref.object_key, generation=int(generation) if generation else None)
-        blob.delete(if_generation_match=int(generation) if generation else None, timeout=30)
+        with suppress(NotFound):
+            blob.delete(if_generation_match=int(generation) if generation else None, timeout=30)
 
     def write_derivative(
         self,

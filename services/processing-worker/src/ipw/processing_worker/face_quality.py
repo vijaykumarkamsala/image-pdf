@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 import tempfile
 import threading
@@ -49,6 +50,8 @@ from ipw.storage import (
     PrivateObjectRef,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class NativeFaceProposal:
@@ -82,6 +85,37 @@ class NativeFaceCandidateEngine(Protocol):
 
 class FaceSliceYieldError(RuntimeError):
     """Resume from committed candidate patches; never publish a partial PNG."""
+
+
+NATIVE_FACE_REVIEW_MAX_SIDE = 2048
+
+
+def bounded_native_face_review(
+    pixels: np.ndarray[Any, Any],
+    mask: np.ndarray[Any, Any],
+    *,
+    max_side: int = NATIVE_FACE_REVIEW_MAX_SIDE,
+) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]] | None:
+    """Create a bounded, non-generative review proxy from exact proposal samples."""
+    height, width = mask.shape
+    if max_side < 1:
+        raise ValueError("native face review bound must be positive")
+    if max(height, width) <= max_side:
+        return None
+    scale = min(max_side / width, max_side / height)
+    review_width = max(1, min(width, round(width * scale)))
+    review_height = max(1, min(height, round(height * scale)))
+    x = np.minimum(
+        width - 1,
+        ((np.arange(review_width, dtype=np.int64) * 2 + 1) * width)
+        // (review_width * 2),
+    )
+    y = np.minimum(
+        height - 1,
+        ((np.arange(review_height, dtype=np.int64) * 2 + 1) * height)
+        // (review_height * 2),
+    )
+    return pixels[y[:, None], x[None, :]].copy(), mask[y[:, None], x[None, :]].copy()
 
 
 def native_face_fidelities(fidelity: int, count: int) -> tuple[int, ...]:
@@ -165,6 +199,7 @@ class DurableNativeFaceProcessor:
         cancelled = False
         deadline = time.monotonic() + self._max_slice_seconds
         made_checkpoint = False
+        uncommitted: list[FaceQualityObject] = []
 
         def check() -> bool:
             nonlocal next_poll, cancelled
@@ -223,11 +258,20 @@ class DurableNativeFaceProcessor:
                         self._release(lease)
                         if self._repository.cancelled_face(lease):
                             raise NativeFaceRenderCancelledError("Face work cancelled")
-                        saved = self._store_proposal(lease, proposal, context, fidelity, ordinal)
+                        saved = self._store_proposal(
+                            lease, proposal, context, fidelity, ordinal, uncommitted
+                        )
                         self._release(lease)
                         if self._repository.cancelled_face(lease):
                             raise NativeFaceRenderCancelledError("Face work cancelled")
                         self._repository.checkpoint_candidate(lease, ordinal, saved)
+                        self._committed(
+                            uncommitted,
+                            saved.pixels,
+                            saved.mask,
+                            saved.review_pixels,
+                            saved.review_mask,
+                        )
                         made_checkpoint = True
                     self._release(lease)
                     self._repository.complete_face(lease)
@@ -272,7 +316,8 @@ class DurableNativeFaceProcessor:
                         raise NativeFaceRenderCancelledError("Face work cancelled")
                     ref = PrivateObjectRef(
                         lease.owner_scope,
-                        f"derivative/{lease.owner_scope}/face/{lease.face_id}/{result.sha256}.png",
+                        f"derivative/{lease.owner_scope}/face/{lease.face_id}/"
+                        f"attempt-{lease.attempt}-{lease.lease_hash[:12]}/{result.sha256}.png",
                         ObjectZone.DERIVATIVE,
                     )
                     if not isinstance(self._objects, LargeWorkerPrivateObjectStore):
@@ -286,15 +331,17 @@ class DurableNativeFaceProcessor:
                         sha256=result.sha256,
                         max_bytes=result.byte_size,
                     )
+                    stored_output = FaceQualityObject(
+                        owner_scope=lease.owner_scope,
+                        object_key=ref.object_key,
+                        generation=written.generation,
+                        sha256=result.sha256,
+                        byte_size=result.byte_size,
+                    )
+                    uncommitted.append(stored_output)
                     self._release(lease)
                     output = NativeFaceOutput(
-                        object=FaceQualityObject(
-                            owner_scope=lease.owner_scope,
-                            object_key=ref.object_key,
-                            generation=written.generation,
-                            sha256=result.sha256,
-                            byte_size=result.byte_size,
-                        ),
+                        object=stored_output,
                         width=lease.output_width,
                         height=lease.output_height,
                         bit_depth=lease.bit_depth,
@@ -302,6 +349,7 @@ class DurableNativeFaceProcessor:
                         evidence=result.evidence,
                     )
                     self._repository.complete_face(lease, output)
+                    self._committed(uncommitted, output.object)
             return WorkerOutcome("succeeded", lease.job_id)
         except JobBusyError:
             return WorkerOutcome("busy", lease.job_id)
@@ -338,6 +386,7 @@ class DurableNativeFaceProcessor:
             stop.set()
             if thread.ident is not None:
                 thread.join(timeout=35)
+            self._discard_uncommitted(uncommitted)
             lifecycle = cast(object, self._engine)
             if isinstance(lifecycle, NativeFaceSourceLifecycle):
                 lifecycle.clear_source()
@@ -409,6 +458,7 @@ class DurableNativeFaceProcessor:
         context: NativeFaceContext,
         fidelity: int,
         ordinal: int,
+        uncommitted: list[FaceQualityObject],
     ) -> StoredNativeFaceCandidate:
         region = proposal.region
         if proposal.pixels.dtype != np.dtype("uint16" if context.bit_depth == 16 else "uint8") or (
@@ -435,10 +485,12 @@ class DurableNativeFaceProcessor:
         )
         identity = native_face_candidate_sha256(candidate)
 
+        attempt = f"attempt-{lease.attempt}-{lease.lease_hash[:12]}"
+
         def write(label: str, data: bytes, digest: str) -> FaceQualityObject:
             ref = PrivateObjectRef(
                 lease.owner_scope,
-                f"derivative/{lease.owner_scope}/face/{lease.face_id}/{identity}/{label}",
+                f"derivative/{lease.owner_scope}/face/{lease.face_id}/{identity}/{attempt}/{label}",
                 ObjectZone.DERIVATIVE,
             )
             written = self._objects.write_derivative(
@@ -448,16 +500,65 @@ class DurableNativeFaceProcessor:
                 media_type="application/octet-stream",
                 max_bytes=len(data),
             )
-            return FaceQualityObject(
+            stored = FaceQualityObject(
                 owner_scope=lease.owner_scope,
                 object_key=ref.object_key,
                 generation=written.generation,
                 sha256=digest,
                 byte_size=len(data),
             )
+            uncommitted.append(stored)
+            return stored
+
+        review = bounded_native_face_review(pixels, mask)
+        review_pixels: FaceQualityObject | None = None
+        review_mask: FaceQualityObject | None = None
+        review_width: int | None = None
+        review_height: int | None = None
+        if review is not None:
+            review_pixel_array, review_mask_array = review
+            review_raw = review_pixel_array.astype(
+                "<u2" if context.bit_depth == 16 else "u1", copy=False
+            ).tobytes()
+            review_mask_raw = review_mask_array.astype("u1", copy=False).tobytes()
+            review_pixels = write(
+                "review-pixels", review_raw, hashlib.sha256(review_raw).hexdigest()
+            )
+            review_mask = write(
+                "review-mask", review_mask_raw, hashlib.sha256(review_mask_raw).hexdigest()
+            )
+            review_height, review_width = review_mask_array.shape
 
         return StoredNativeFaceCandidate(
             candidate=candidate,
             pixels=write("pixels", raw, candidate.pixels_sha256),
             mask=write("mask", mask_raw, candidate.mask_sha256),
+            review_pixels=review_pixels,
+            review_mask=review_mask,
+            review_width=review_width,
+            review_height=review_height,
         )
+
+    @staticmethod
+    def _committed(
+        uncommitted: list[FaceQualityObject], *objects: FaceQualityObject | None
+    ) -> None:
+        committed = {(item.object_key, item.generation) for item in objects if item is not None}
+        uncommitted[:] = [
+            item
+            for item in uncommitted
+            if (item.object_key, item.generation) not in committed
+        ]
+
+    def _discard_uncommitted(self, objects: list[FaceQualityObject]) -> None:
+        for item in reversed(objects):
+            try:
+                self._objects.delete(
+                    PrivateObjectRef(item.owner_scope, item.object_key, ObjectZone.DERIVATIVE),
+                    generation=item.generation,
+                )
+            except Exception:  # noqa: BLE001 -- Best-effort unique-attempt orphan cleanup.
+                logger.warning(
+                    "Uncommitted native face artifact cleanup failed; "
+                    "provider lifecycle cleanup is required"
+                )

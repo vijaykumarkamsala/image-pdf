@@ -383,6 +383,56 @@
     },
     "pixels": {
       "$ref": "#/$defs/FaceQualityObject"
+    },
+    "review_height": {
+      "anyOf": [
+        {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review Height"
+    },
+    "review_mask": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FaceQualityObject"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "review_pixels": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FaceQualityObject"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "review_width": {
+      "anyOf": [
+        {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review Width"
     }
   },
   "required": [

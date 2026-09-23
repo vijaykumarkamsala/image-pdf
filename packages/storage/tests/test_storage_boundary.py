@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from google.api_core.exceptions import PreconditionFailed
+from google.api_core.exceptions import NotFound, PreconditionFailed
 
 from ipw.contracts.product import StorageObjectRef, TraceContext
 from ipw.storage import (
@@ -29,6 +29,7 @@ class FakeBlob:
         self.requested_generation: int | None = None
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.fail_upload = False
+        self.fail_delete_not_found = False
 
     def reload(self, **kwargs: Any) -> None:
         self.calls.append(("reload", kwargs))
@@ -46,6 +47,8 @@ class FakeBlob:
 
     def delete(self, **kwargs: Any) -> None:
         self.calls.append(("delete", kwargs))
+        if self.fail_delete_not_found:
+            raise NotFound("already removed")  # type: ignore[no-untyped-call]
 
     def upload_from_string(self, data: bytes, **kwargs: Any) -> None:
         self.calls.append(("upload", kwargs))
@@ -201,6 +204,9 @@ def test_gcs_worker_promotion_is_conditional_idempotent_and_private() -> None:
         "delete",
         {"if_generation_match": None, "timeout": 30},
     )
+    blob = client.private_bucket.blobs[source.object_key]
+    blob.fail_delete_not_found = True
+    store.delete(source, generation="17")
 
 
 def test_gcs_worker_derivative_write_is_conditional_and_idempotent() -> None:

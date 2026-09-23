@@ -9,6 +9,7 @@ from ipw.contracts.image_quality_face import (
     FaceQualityObject,
     NativeFaceContext,
     NativeFaceRegion,
+    StoredNativeFaceCandidate,
 )
 from ipw.contracts.product_kernel import ProcessingJobRecord
 
@@ -103,6 +104,72 @@ def test_native_object_refs_are_owner_private_and_bounded_without_traversal() ->
     ]:
         with pytest.raises(ValidationError):
             FaceQualityObject.model_validate({**stored, **updates})
+
+
+def test_bounded_candidate_review_is_complete_owner_scoped_and_exactly_sized() -> None:
+    context = {
+        "source_sha256": "a" * 64,
+        "base_output_sha256": "b" * 64,
+        "source_width": 2049,
+        "source_height": 1,
+        "output_width": 2049,
+        "output_height": 1,
+        "bit_depth": 8,
+        "colour_authority_sha256": "c" * 64,
+    }
+    candidate = {
+        "candidate_id": "candidate-owned",
+        "context": context,
+        "model_sha256": "d" * 64,
+        "dependency_lock_sha256": "e" * 64,
+        "fidelity_permyriad": 8000,
+        "region": {"x": 0, "y": 0, "width": 2049, "height": 1},
+        "pixels_sha256": "f" * 64,
+        "mask_sha256": "1" * 64,
+    }
+    stored = {
+        "candidate": candidate,
+        "pixels": {
+            "owner_scope": "guest-owned",
+            "object_key": "derivative/guest-owned/face/candidate/pixels",
+            "generation": "pixels-generation",
+            "sha256": candidate["pixels_sha256"],
+            "byte_size": 8196,
+        },
+        "mask": {
+            "owner_scope": "guest-owned",
+            "object_key": "derivative/guest-owned/face/candidate/mask",
+            "generation": "mask-generation",
+            "sha256": candidate["mask_sha256"],
+            "byte_size": 2049,
+        },
+        "review_pixels": {
+            "owner_scope": "guest-owned",
+            "object_key": "derivative/guest-owned/face/candidate/review-pixels",
+            "generation": "review-pixels-generation",
+            "sha256": "2" * 64,
+            "byte_size": 4,
+        },
+        "review_mask": {
+            "owner_scope": "guest-owned",
+            "object_key": "derivative/guest-owned/face/candidate/review-mask",
+            "generation": "review-mask-generation",
+            "sha256": "3" * 64,
+            "byte_size": 1,
+        },
+        "review_width": 1,
+        "review_height": 1,
+    }
+    assert StoredNativeFaceCandidate.model_validate(stored).review_width == 1
+    for updates in [
+        {"review_mask": None},
+        {"review_width": 2049},
+        {"review_pixels": {**stored["review_pixels"], "byte_size": 8}},
+        {"review_mask": {**stored["review_mask"], "owner_scope": "guest-other",
+            "object_key": "derivative/guest-other/face/candidate/review-mask"}},
+    ]:
+        with pytest.raises(ValidationError):
+            StoredNativeFaceCandidate.model_validate({**stored, **updates})
 
 
 @pytest.mark.parametrize("kind", ["image_face_candidates", "image_face_compose"])

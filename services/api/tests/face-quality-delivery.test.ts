@@ -8,6 +8,7 @@ import type { PostgresFaceQualityRepository } from "../src/domains/image-quality
 import type { IntakeService } from "../src/domains/intake/intake.service.js";
 import type { PrivateObjectRef, PrivateObjectStore } from "../src/domains/intake/private-object-store.js";
 import { DomainError } from "../src/kernel/errors.js";
+import { DeterministicRuntimeValues } from "../src/kernel/runtime.js";
 
 /** Boundary-only mocks: actual native PNG rendering is tested in the Python worker. */
 function boundary() {
@@ -38,8 +39,18 @@ function boundary() {
   let fetched: Uint8Array = bytes;
   let signed: { url: string; expiresAt: string } | null = null;
   let reads = 0; let authorizations = 0; let cancelled: { state: string } | null = { state: "cancel_requested" };
+  const artifactBytes = new Map<string, Uint8Array>([
+    [candidate.pixels.object_key, candidatePixels], [candidate.mask.object_key, candidateMask],
+  ]);
+  let cleanupCandidates: Array<{ faceQualityJobId: string; objects: Array<typeof candidate.pixels> }> = [];
+  const completedCleanup: string[] = []; const releasedCleanup: string[] = []; const removed: PrivateObjectRef[] = [];
+  let removeFailure: string | null = null;
   const repo = { delivery: async () => output, cancel: async () => cancelled,
-    candidateArtifact: async () => ({ stored: candidate, candidateSha256: "4".repeat(64), release }) } as unknown as PostgresFaceQualityRepository;
+    candidateArtifact: async () => ({ stored: candidate, candidateSha256: "4".repeat(64), release }),
+    claimArtifactCleanup: async () => cleanupCandidates,
+    completeArtifactCleanup: async (id: string) => { completedCleanup.push(id); },
+    releaseArtifactCleanup: async (id: string) => { releasedCleanup.push(id); },
+  } as unknown as PostgresFaceQualityRepository;
   const intake = { requireForInternal: async (headers: Record<string,string>) => {
     if (headers["x-ipw-guest-token"] !== "owned-synthetic-token") throw new DomainError(404,"upload-not-found","Upload was not found");
     return { record: {} };
@@ -49,16 +60,22 @@ function boundary() {
     return signed;
   }, read: async (ref: PrivateObjectRef, limit: number) => {
     reads++;
-    if (ref.objectKey === candidate.pixels.object_key) { assert.equal(limit,candidatePixels.byteLength); return candidatePixels; }
-    if (ref.objectKey === candidate.mask.object_key) { assert.equal(limit,candidateMask.byteLength); return candidateMask; }
+    const artifact = artifactBytes.get(ref.objectKey);
+    if (artifact) { assert.equal(limit,artifact.byteLength); return artifact; }
     assert.equal(ref.generation,output.object.generation); assert.equal(limit,output.object.byte_size); return fetched;
+  }, remove: async (ref: PrivateObjectRef) => {
+    removed.push(ref);
+    if (ref.objectKey === removeFailure) throw new Error("owned synthetic deletion failure");
   } } as unknown as PrivateObjectStore;
-  const service = new FaceQualityService(repo,{current:()=>current},objects,intake);
+  const service = new FaceQualityService(repo,{current:()=>current},objects,intake,new DeterministicRuntimeValues());
   return { service, bytes, output, release, candidate, candidatePixels, candidateMask,
     headers: {"x-ipw-guest-token":"owned-synthetic-token","x-trace-id":"trace-owned"},
     setRelease: (value: NativeFaceRelease|null) => {current=value;}, setBytes: (value: Uint8Array) => {fetched=value;},
     setSigned: (value: {url:string;expiresAt:string}) => {signed=value;}, setCancelled: (value: {state:string}|null) => {cancelled=value;},
-    reads:()=>reads, authorizations:()=>authorizations };
+    setArtifactBytes: (key: string, value: Uint8Array) => { artifactBytes.set(key, value); },
+    setCleanupCandidates: (value: typeof cleanupCandidates) => { cleanupCandidates=value; },
+    setRemoveFailure: (value: string | null) => { removeFailure=value; },
+    completedCleanup, releasedCleanup, removed, reads:()=>reads, authorizations:()=>authorizations };
 }
 const rejected = (code: string) => (error: unknown) => error instanceof DomainError && error.code === code;
 
@@ -104,4 +121,58 @@ test("candidate review artifacts are owner scoped, release bound and byte verifi
   sample.setRelease(null);
   await assert.rejects(sample.service.candidateArtifact(sample.headers,"upload-owned","face-owned","candidate-owned","mask"),
     rejected("face-quality-unavailable"));
+});
+
+test("oversized native candidates use exact bounded review artifacts without reading the raw allocation", async () => {
+  const sample = boundary();
+  const reviewPixels = new Uint8Array([21,22,23,255]); const reviewMask = new Uint8Array([255]);
+  const pixelKey = "derivative/guest-owned/face/review-pixels";
+  const maskKey = "derivative/guest-owned/face/review-mask";
+  sample.candidate.candidate.region = { x: 0, y: 0, width: 2049, height: 1 };
+  sample.candidate.pixels.byte_size = 2049 * 4;
+  sample.candidate.mask.byte_size = 2049;
+  sample.candidate.review_pixels = { owner_scope: "guest-owned", object_key: pixelKey,
+    generation: "review-pixels-generation", byte_size: reviewPixels.byteLength,
+    sha256: createHash("sha256").update(reviewPixels).digest("hex") };
+  sample.candidate.review_mask = { owner_scope: "guest-owned", object_key: maskKey,
+    generation: "review-mask-generation", byte_size: reviewMask.byteLength,
+    sha256: createHash("sha256").update(reviewMask).digest("hex") };
+  sample.candidate.review_width = 1; sample.candidate.review_height = 1;
+  sample.setArtifactBytes(pixelKey, reviewPixels); sample.setArtifactBytes(maskKey, reviewMask);
+
+  const pixels = await sample.service.candidateArtifact(
+    sample.headers,"upload-owned","face-owned","candidate-owned","pixels",
+  );
+  const mask = await sample.service.candidateArtifact(
+    sample.headers,"upload-owned","face-owned","candidate-owned","mask",
+  );
+  assert.deepEqual(pixels.bytes, reviewPixels); assert.deepEqual(mask.bytes, reviewMask);
+  assert.equal(pixels.boundedPreview,true); assert.equal(mask.boundedPreview,true);
+  assert.equal(pixels.width,1); assert.equal(mask.height,1); assert.equal(sample.reads(),2);
+});
+
+test("expired private face artifacts are generation-bound, de-duplicated and independent of release revocation", async () => {
+  const sample = boundary(); sample.setRelease(null);
+  sample.setCleanupCandidates([{ faceQualityJobId: "face-owned", objects: [
+    sample.candidate.pixels, sample.candidate.pixels, sample.candidate.mask, sample.output.object,
+  ] }]);
+  const result = await sample.service.cleanupExpiredArtifacts();
+  assert.deepEqual(result,{cleaned:1,objectsRemoved:3,failed:0});
+  assert.deepEqual(sample.completedCleanup,["face-owned"]); assert.deepEqual(sample.releasedCleanup,[]);
+  assert.deepEqual(sample.removed.map((ref) => [ref.objectKey,ref.generation]),[
+    [sample.candidate.pixels.object_key,sample.candidate.pixels.generation],
+    [sample.candidate.mask.object_key,sample.candidate.mask.generation],
+    [sample.output.object.object_key,sample.output.object.generation],
+  ]);
+});
+
+test("partial face artifact cleanup releases its durable lease and reports no completed object count", async () => {
+  const sample = boundary();
+  sample.setCleanupCandidates([{ faceQualityJobId: "face-owned", objects: [
+    sample.candidate.pixels, sample.candidate.mask,
+  ] }]);
+  sample.setRemoveFailure(sample.candidate.mask.object_key);
+  const result = await sample.service.cleanupExpiredArtifacts();
+  assert.deepEqual(result,{cleaned:0,objectsRemoved:0,failed:1});
+  assert.deepEqual(sample.completedCleanup,[]); assert.deepEqual(sample.releasedCleanup,["face-owned"]);
 });

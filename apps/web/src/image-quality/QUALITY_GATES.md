@@ -199,11 +199,9 @@ remain to be validated after commercial clearance.
 ## Native face follow-up — implementation ledger
 
 This ledger counts six native follow-up coding blocks, not the earlier P0/P1/P2
-audit or whole-product completion. **Three blocks are implemented; block four's
-native adapter mechanics are implemented but its real-model release is still
-pending; block five remains; block six has its customer routing, review and
-private-delivery mechanics, while oversized-preview and private-artifact garbage
-collection remain.**
+audit or whole-product completion. **Blocks one, two, three and six are implemented;
+block four's native adapter mechanics are implemented but its real-model release is
+still pending; block five remains.**
 
 1. **Implemented:** additive `image-quality-face-v1` intent/composition/release/
    capability records, generated JSON Schema/TypeScript and an owner-scoped API
@@ -235,7 +233,7 @@ collection remain.**
    eight-bit channels.
 5. **Remaining:** temporal proposals, review and composition for animated input.
    The new renderer explicitly refuses APNG instead of flattening it.
-6. **Customer mechanics implemented; lifecycle work remains:** a native client
+6. **Customer and private-artifact lifecycle mechanics implemented:** a native client
    receives only the server-issued upload/base
    identifiers emitted by `ProductionImageQualityEngine`. It preflights server
    capabilities for the exact owner/source/base, creates source-bound candidate or
@@ -255,13 +253,19 @@ collection remain.**
    acknowledgement; only an acknowledged exact candidate can create a separate
    durable composition and private download. Closing stops local polling without
    destroying resumable server work. Withdrawing consent clears local candidate
-   state. The existing browser face path stays unregistered and unchanged.
-
-   Raw review artifacts above 256 MiB are currently refused instead of being
-   buffered into the API/browser; a bounded server-generated preview is still
-   required for that exceptional case. Garbage collection for expired or orphaned
-   private candidate artifacts also remains. These are production lifecycle tasks,
-   not reasons to loosen hashes, ownership, source fidelity or memory safety.
+   state. Exceptionally large candidate regions receive a worker-generated,
+   at-most-2048-pixel-side, non-generative review proxy; both proxy byte streams are
+   owner/release/generation/hash bound and the UI labels the proxy explicitly. Exact
+   native candidate bytes, not the proxy, remain the only composition input. The API
+   never buffers the oversized native region merely to display it. Attempt-and-lease-
+   unique object keys prevent a stale worker from deleting another attempt. Objects
+   written before checkpoint/publication are deleted immediately on failure,
+   cancellation, lease loss or release revocation. A durable scheduled cleanup lease
+   deletes expired referenced candidates, masks, bounded proxies and reviewed outputs
+   by exact provider generation; retries are idempotent and a nonterminal child
+   composition protects its parent candidates. Migration rollback refuses to discard
+   this lifecycle state while face jobs exist. The existing browser face path stays
+   unregistered and unchanged.
 
 The native still core currently accepts non-interlaced, full-channel 8/16-bit
 RGB/RGBA PNG bases and matching-precision straight-RGBA proposals. Palette,
@@ -294,15 +298,15 @@ test requires a fresh isolated `ipw_face_test` database supplied through
 validation. Scoped Ruff/Mypy, web/API TypeScript checks and generated contract
 drift checks also passed. These results do not clear Linux or real-model quality gates.
 
-A private object written before lease loss, cancellation or revocation can remain
-unreferenced and unavailable to customer delivery. The worker never deletes shared
-content-addressed objects to "clean up" a stale invocation. Retention/garbage
-collection must be completed with the native customer/lifecycle integration before
-enabling a production model. No deployment or application migration was performed.
+A provider outage during the worker's best-effort deletion can still leave an
+unreferenced attempt object that was never checkpointed into PostgreSQL. Attempt-
+unique prefixes make that object unreachable and safe to reap with the production
+bucket's inventory/lifecycle policy; enabling and validating that provider policy is
+deployment work, not a reason to delete shared content-addressed objects from an
+unfenced worker. No deployment or application database migration was performed.
 
 Release remains blocked on exact commercial face-model/dependency clearance,
-real-photo quality/identity acceptance, animation, and the unfinished candidate-
-review/artifact-lifecycle portion of block six above.
+real-photo quality/identity acceptance and animation.
 Linux-container, real Cloud Run/GCS large-file, calibrated HDR/P3 and physical
 Safari/iOS/low-memory-device validations remain outstanding, not cleared by this
 native mechanics increment. PDF, old Studio, deployment and merge remain out of scope.
@@ -397,5 +401,19 @@ enhancement, aligned comparison, reset and processed-download browser journey
 passed by itself in bundled Chromium (1/1, 3.9 minutes on the final rerun). The earlier broader run
 remains uncounted because its synthetic face-review harness timed out; no timeout,
 assertion or tolerance was changed to hide that runner issue. These checks do not
-validate an approved real model, a raw review artifact above 256 MiB, backend
-artifact garbage collection or restoration quality.
+validate an approved real model or restoration quality.
+
+On 23 September 2026, the block-six lifecycle increment passed 19 focused Python
+contract/storage/bounded-preview checks, 12 focused API delivery/storage/migration-
+registry tests, all 117 isolated web tests, web/API TypeScript checks and the API
+build. The focused real-pixel upload/enhance/compare/reset/download browser journey
+also passed by itself (1/1); its download stream and page are explicitly closed so
+the Windows Playwright worker exits cleanly. A pinned PostgreSQL 17.11 container on loopback verified the two focused
+migration/repository journeys, including idempotent migration, guarded rollback,
+cleanup-row seeding, exclusive leases and retry accounting. The 26-case durable
+worker run passed 24 cases and exposed two new assertions: a real post-write release-
+revocation tracking race and an incorrect zero-based-attempt assumption. The race
+was fixed by registering the exact generation immediately after storage write; both
+targeted cases then passed (2/2). No coverage threshold was changed, no broad suite
+was claimed, the temporary database container was removed, and no application
+database, release registration, deployment, PDF or Studio path was touched.

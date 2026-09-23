@@ -1,4 +1,4 @@
-import type { FaceQualityCandidateRequest, FaceQualityCompositionIntent, FaceQualityJobView, NativeFaceOutput, NativeFaceRelease, StoredNativeFaceCandidate } from "ipw-contracts-ts/product";
+import type { FaceQualityCandidateRequest, FaceQualityCompositionIntent, FaceQualityJobView, FaceQualityObject, NativeFaceOutput, NativeFaceRelease, StoredNativeFaceCandidate } from "ipw-contracts-ts/product";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 import { DomainError } from "../../kernel/errors.js";
@@ -9,6 +9,10 @@ import type { IntakeOwner } from "../intake/intake.types.js";
 export const FACE_QUALITY_REPOSITORY = Symbol("FACE_QUALITY_REPOSITORY");
 export const FACE_QUALITY_RELEASES = Symbol("FACE_QUALITY_RELEASES");
 export interface NativeFaceReleases { current(): NativeFaceRelease | null; }
+export interface FaceArtifactCleanupCandidate {
+  faceQualityJobId: string;
+  objects: FaceQualityObject[];
+}
 
 /** Empty until exact commercial artefacts and real-photo acceptance are registered. */
 export class UnregisteredNativeFaceReleases implements NativeFaceReleases {
@@ -251,6 +255,66 @@ export class PostgresFaceQualityRepository {
       candidateSha256: String(row["candidate_sha256"]),
       release: row["release"] as NativeFaceRelease,
     } : null;
+  }
+
+  async claimArtifactCleanup(
+    workerId: string,
+    now: string,
+    leaseExpiresAt: string,
+    limit: number,
+  ): Promise<FaceArtifactCleanupCandidate[]> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("invalid face cleanup limit");
+    const result = await this.pool.query(`WITH selected AS (
+        SELECT cleanup.face_quality_job_id FROM face_quality_artifact_cleanup cleanup
+        JOIN face_quality_jobs face USING(face_quality_job_id)
+        JOIN processing_jobs job USING(job_id)
+        WHERE cleanup.completed_at IS NULL AND face.expires_at<=$2
+          AND job.state IN ('succeeded','failed','cancelled')
+          AND (cleanup.lease_expires_at IS NULL OR cleanup.lease_expires_at<=$2)
+          AND NOT EXISTS (
+            SELECT 1 FROM face_quality_jobs child JOIN processing_jobs child_job USING(job_id)
+            WHERE child.candidate_request_id=face.face_quality_job_id
+              AND child_job.state NOT IN ('succeeded','failed','cancelled')
+          )
+        ORDER BY cleanup.created_at,cleanup.face_quality_job_id
+        FOR UPDATE OF cleanup SKIP LOCKED LIMIT $4
+      ), claimed AS (
+        UPDATE face_quality_artifact_cleanup cleanup
+        SET lease_owner=$1,lease_expires_at=$3,updated_at=$2
+        FROM selected WHERE cleanup.face_quality_job_id=selected.face_quality_job_id
+        RETURNING cleanup.face_quality_job_id
+      )
+      SELECT face.face_quality_job_id,face.output,
+        coalesce(jsonb_agg(candidate.stored_candidate) FILTER (WHERE candidate.stored_candidate IS NOT NULL),'[]'::jsonb) AS candidates
+      FROM claimed JOIN face_quality_jobs face USING(face_quality_job_id)
+      LEFT JOIN face_quality_candidates candidate USING(face_quality_job_id)
+      GROUP BY face.face_quality_job_id,face.output`, [workerId, now, leaseExpiresAt, limit]);
+    return result.rows.map((row) => {
+      const objects: FaceQualityObject[] = [];
+      for (const raw of row["candidates"] as StoredNativeFaceCandidate[]) {
+        objects.push(raw.pixels, raw.mask);
+        if (raw.review_pixels) objects.push(raw.review_pixels);
+        if (raw.review_mask) objects.push(raw.review_mask);
+      }
+      const output = row["output"] as NativeFaceOutput | null;
+      if (output?.object) objects.push(output.object);
+      return { faceQualityJobId: String(row["face_quality_job_id"]), objects };
+    });
+  }
+
+  async completeArtifactCleanup(faceQualityJobId: string, workerId: string, now: string): Promise<void> {
+    const result = await this.pool.query(`UPDATE face_quality_artifact_cleanup
+      SET completed_at=$1,lease_owner=NULL,lease_expires_at=NULL,updated_at=$1
+      WHERE face_quality_job_id=$2 AND lease_owner=$3 AND completed_at IS NULL`,
+    [now, faceQualityJobId, workerId]);
+    if (!result.rowCount) throw new DomainError(409, "face-quality-cleanup-lease-invalid", "Face artifact cleanup lease is invalid");
+  }
+
+  async releaseArtifactCleanup(faceQualityJobId: string, workerId: string, now: string): Promise<void> {
+    await this.pool.query(`UPDATE face_quality_artifact_cleanup
+      SET lease_owner=NULL,lease_expires_at=NULL,failure_count=failure_count+1,updated_at=$1
+      WHERE face_quality_job_id=$2 AND lease_owner=$3 AND completed_at IS NULL`,
+    [now, faceQualityJobId, workerId]);
   }
   close() { return this.pool.end(); }
 }

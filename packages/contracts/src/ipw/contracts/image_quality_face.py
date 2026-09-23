@@ -9,7 +9,7 @@ from __future__ import annotations
 import builtins
 import hashlib
 import json
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 from pydantic import Field, model_validator
 
@@ -222,6 +222,10 @@ class StoredNativeFaceCandidate(ContractModel):
     candidate: NativeFaceCandidate
     pixels: FaceQualityObject
     mask: FaceQualityObject
+    review_pixels: FaceQualityObject | None = None
+    review_mask: FaceQualityObject | None = None
+    review_width: FaceDimension | None = None
+    review_height: FaceDimension | None = None
 
     @model_validator(mode="after")
     def _exact_region_storage(self) -> StoredNativeFaceCandidate:
@@ -236,6 +240,30 @@ class StoredNativeFaceCandidate(ContractModel):
             or not self.mask.object_key.startswith("derivative/")
         ):
             raise ValueError("stored face pixels/mask must bind exact native region bytes")
+        review = (self.review_pixels, self.review_mask, self.review_width, self.review_height)
+        if all(value is None for value in review):
+            return self
+        if any(value is None for value in review):
+            raise ValueError("bounded face review artifacts must be complete")
+        review_pixels = cast(FaceQualityObject, self.review_pixels)
+        review_mask = cast(FaceQualityObject, self.review_mask)
+        review_width = cast(int, self.review_width)
+        review_height = cast(int, self.review_height)
+        review_area = review_width * review_height
+        if (
+            max(candidate.region.width, candidate.region.height) <= 2048
+            or max(review_width, review_height) > 2048
+            or review_width > candidate.region.width
+            or review_height > candidate.region.height
+            or review_pixels.owner_scope != self.pixels.owner_scope
+            or review_mask.owner_scope != self.pixels.owner_scope
+            or review_pixels.byte_size
+            != review_area * 4 * (candidate.context.bit_depth // 8)
+            or review_mask.byte_size != review_area
+            or not review_pixels.object_key.startswith("derivative/")
+            or not review_mask.object_key.startswith("derivative/")
+        ):
+            raise ValueError("bounded face review artifacts must preserve candidate ownership")
         return self
 
 

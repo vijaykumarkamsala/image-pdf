@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import type { FaceQualityCandidateRequest, FaceQualityObject } from "ipw-contracts-ts/product";
 
 import { DomainError, requireId } from "../../kernel/errors.js";
-import type { CommandContext } from "../../kernel/product.types.js";
-import { requestDigest } from "../../kernel/runtime.js";
+import { RUNTIME_VALUES, type CommandContext } from "../../kernel/product.types.js";
+import { requestDigest, type RuntimeValues } from "../../kernel/runtime.js";
 import { IntakeService } from "../intake/intake.service.js";
 import { PRIVATE_OBJECT_STORE, type PrivateObjectStore } from "../intake/private-object-store.js";
 import { parseFaceQualityCompositionIntent } from "./face-quality.contract.js";
@@ -18,7 +18,8 @@ export class FaceQualityService implements OnApplicationShutdown {
   constructor(@Inject(FACE_QUALITY_REPOSITORY) private readonly jobs: PostgresFaceQualityRepository | null,
     @Inject(FACE_QUALITY_RELEASES) private readonly releases: NativeFaceReleases,
     @Inject(PRIVATE_OBJECT_STORE) private readonly objects: PrivateObjectStore,
-    private readonly intake: IntakeService) {}
+    private readonly intake: IntakeService,
+    @Inject(RUNTIME_VALUES) private readonly runtime: RuntimeValues) {}
 
   private repository(): PostgresFaceQualityRepository {
     if (!this.jobs) throw new DomainError(503, "face-quality-unavailable", "Durable native face processing requires the private database worker");
@@ -109,11 +110,27 @@ export class FaceQualityService implements OnApplicationShutdown {
       || candidate.dependency_lock_sha256 !== release.dependency_lock_sha256) {
       throw new DomainError(503, "face-quality-release-changed", "The candidate belongs to a different model release");
     }
-    const object: FaceQualityObject = kind === "pixels" ? value.stored.pixels : value.stored.mask;
-    const expectedSha256 = kind === "pixels" ? candidate.pixels_sha256 : candidate.mask_sha256;
-    const expectedBytes = candidate.region.width * candidate.region.height
+    const boundedPreview = Boolean(value.stored.review_pixels || value.stored.review_mask
+      || value.stored.review_width || value.stored.review_height)
+      || value.stored.pixels.byte_size > CANDIDATE_PREVIEW_LIMIT
+      || value.stored.mask.byte_size > CANDIDATE_PREVIEW_LIMIT;
+    if (boundedPreview && (!value.stored.review_pixels || !value.stored.review_mask
+      || !value.stored.review_width || !value.stored.review_height)) {
+      throw new DomainError(413, "face-quality-candidate-preview-too-large", "This face comparison requires a bounded server preview");
+    }
+    const object: FaceQualityObject = boundedPreview
+      ? kind === "pixels" ? value.stored.review_pixels! : value.stored.review_mask!
+      : kind === "pixels" ? value.stored.pixels : value.stored.mask;
+    const width = boundedPreview ? value.stored.review_width! : candidate.region.width;
+    const height = boundedPreview ? value.stored.review_height! : candidate.region.height;
+    const expectedSha256 = boundedPreview ? object.sha256
+      : kind === "pixels" ? candidate.pixels_sha256 : candidate.mask_sha256;
+    const expectedBytes = width * height
       * (kind === "pixels" ? 4 * (candidate.context.bit_depth === 16 ? 2 : 1) : 1);
     if (!/^[0-9a-f]{64}$/.test(value.candidateSha256)
+      || !/^[0-9a-f]{64}$/.test(expectedSha256)
+      || (boundedPreview && (Math.max(candidate.region.width, candidate.region.height) <= 2048
+        || Math.max(width, height) > 2048))
       || !Number.isSafeInteger(expectedBytes) || expectedBytes < 1 || expectedBytes !== object.byte_size
       || object.sha256 !== expectedSha256 || object.owner_scope !== owner.ownerScope
       || !object.object_key.startsWith(`derivative/${owner.ownerScope}/`)) {
@@ -128,7 +145,42 @@ export class FaceQualityService implements OnApplicationShutdown {
       throw new DomainError(409, "face-quality-candidate-changed", "The private face candidate failed its identity check");
     }
     return { bytes, artifactSha256: object.sha256, candidateSha256: value.candidateSha256,
-      width: candidate.region.width, height: candidate.region.height, bitDepth: candidate.context.bit_depth, kind };
+      width, height, bitDepth: candidate.context.bit_depth, kind, boundedPreview };
+  }
+  async cleanupExpiredArtifacts(limit = 100): Promise<{ cleaned: number; objectsRemoved: number; failed: number }> {
+    const now = this.runtime.now();
+    const workerId = this.runtime.id("face-cleanup");
+    const leaseExpiresAt = new Date(new Date(now).getTime() + 90_000).toISOString();
+    const candidates = await this.repository().claimArtifactCleanup(workerId, now, leaseExpiresAt, limit);
+    let cleaned = 0; let objectsRemoved = 0; let failed = 0;
+    for (const candidate of candidates) {
+      try {
+        let removedForCandidate = 0;
+        const unique = new Map<string, FaceQualityObject>();
+        for (const object of candidate.objects) {
+          if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(object.owner_scope)
+            || !object.object_key.startsWith(`derivative/${object.owner_scope}/face/`)
+            || !object.generation || !/^[0-9a-f]{64}$/.test(object.sha256)) {
+            throw new Error("face cleanup object reference is invalid");
+          }
+          unique.set(`${object.object_key}\0${object.generation}`, object);
+        }
+        for (const object of unique.values()) {
+          await this.objects.remove({ ownerScope: object.owner_scope, objectKey: object.object_key,
+            zone: "derivative", generation: object.generation });
+          removedForCandidate += 1;
+        }
+        await this.repository().completeArtifactCleanup(candidate.faceQualityJobId, workerId, this.runtime.now());
+        objectsRemoved += removedForCandidate;
+        cleaned += 1;
+      } catch {
+        failed += 1;
+        await this.repository().releaseArtifactCleanup(
+          candidate.faceQualityJobId, workerId, this.runtime.now(),
+        ).catch(() => undefined);
+      }
+    }
+    return { cleaned, objectsRemoved, failed };
   }
   async onApplicationShutdown() { await this.jobs?.close(); }
 }

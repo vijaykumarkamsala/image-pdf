@@ -54,6 +54,7 @@ def decoded(data: bytes) -> np.ndarray[Any, Any]:
 class Objects:
     def __init__(self) -> None:
         self.values: dict[str, bytes] = {}
+        self.deleted: list[tuple[str, str | None]] = []
         self.file_writes = 0
         self.file_error = False
         self.after_write: Any = None
@@ -96,10 +97,13 @@ class Objects:
             self.after_write()
         return written
 
-    def delete(self, *_args: Any, **_kwargs: Any) -> None:
-        pytest.fail(
-            "Durable face worker must not delete original, base or another worker's artefact"
-        )
+    def delete(self, ref: Any, *, generation: str | None = None) -> None:
+        assert ref.object_key.startswith(f"derivative/{ref.owner_scope}/face/")
+        data = self.values.get(ref.object_key)
+        if data is not None and generation is not None:
+            assert hashlib.sha256(data).hexdigest() == generation
+        self.values.pop(ref.object_key, None)
+        self.deleted.append((ref.object_key, generation))
 
 
 class Engine:
@@ -153,6 +157,29 @@ class Engine:
         if self.after:
             self.after()
         return NativeFaceProposal(NativeFaceRegion(x=4, y=3, width=5, height=4), pixels, mask)
+
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.uint16])
+def test_bounded_native_face_review_is_deterministic_and_never_changes_source(
+    dtype: Any,
+) -> None:
+    pixels = np.arange(3 * 5 * 4, dtype=dtype).reshape(3, 5, 4)
+    mask = np.arange(3 * 5, dtype=np.uint8).reshape(3, 5)
+    original_pixels = pixels.copy()
+    original_mask = mask.copy()
+
+    review = module.bounded_native_face_review(pixels, mask, max_side=2)
+
+    assert review is not None
+    review_pixels, review_mask = review
+    assert review_pixels.dtype == dtype
+    assert review_pixels.shape == (1, 2, 4)
+    assert review_mask.shape == (1, 2)
+    assert np.array_equal(review_pixels, pixels[1:2, [1, 3]])
+    assert np.array_equal(review_mask, mask[1:2, [1, 3]])
+    assert np.array_equal(pixels, original_pixels)
+    assert np.array_equal(mask, original_mask)
+    assert module.bounded_native_face_review(pixels, mask, max_side=5) is None
 
 
 class Fixture:
@@ -618,7 +645,35 @@ def test_release_revocation_after_private_write_prevents_publication(tmp_path: P
             )[0][0]
             is None
         )
+        assert len(sample.objects.deleted) == 1
+        assert "/attempt-" in sample.objects.deleted[0][0]
         assert sample.objects.values[sample.source_key] == sample.bytes
+    finally:
+        sample.repo.close()
+
+
+def test_checkpoint_failure_deletes_only_attempt_unique_uncommitted_candidate_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sample = Fixture(tmp_path)
+    try:
+        def fail_checkpoint(*_args: Any, **_kwargs: Any) -> None:
+            raise RuntimeError("synthetic checkpoint failure")
+
+        monkeypatch.setattr(sample.repo, "checkpoint_candidate", fail_checkpoint)
+        assert sample.run() == "retry_wait"
+        assert len(sample.objects.deleted) == 2
+        assert all("/attempt-" in key for key, _generation in sample.objects.deleted)
+        assert {key.rsplit("/", 1)[-1] for key, _generation in sample.objects.deleted} == {
+            "pixels",
+            "mask",
+        }
+        assert sample.sql(
+            "SELECT count(*) FROM face_quality_candidates WHERE face_quality_job_id=%s",
+            (sample.ids["face"],),
+        )[0][0] == 0
+        assert sample.objects.values[sample.source_key] == sample.bytes
+        assert sample.objects.values[sample.base_key] == sample.bytes
     finally:
         sample.repo.close()
 
