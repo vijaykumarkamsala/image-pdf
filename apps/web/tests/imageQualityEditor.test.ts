@@ -225,7 +225,9 @@ test("flat-graphic cleanup removes isolated field noise without shifting hard co
   source[(5 * width + 5) * 4 + 3] = 128;
   const contourOffset = (24 * width + 31) * 4;
 
+  const neutral = enhanceFlatGraphicPixels(source, width, height, 0).pixels;
   const result = enhanceFlatGraphicPixels(source, width, height, 80).pixels;
+  assert.deepEqual(neutral, source, "0% must not clean or repaint flat-graphic pixels");
   assert.ok(Math.abs(result[noisyOffset] - 245) < Math.abs(source[noisyOffset] - 245));
   assert.deepEqual(
     result.slice(contourOffset, contourOffset + 3),
@@ -322,11 +324,15 @@ test("restoration keeps softly printed illustration strokes eligible for visible
 });
 
 test("restoration strength increases bounded detail without changing source chroma", () => {
+  const neutral = new Uint8ClampedArray([142, 106, 78, 255]);
+  const neutralReference = new Uint8ClampedArray(neutral);
   const weak = new Uint8ClampedArray([142, 106, 78, 255]);
   const strong = new Uint8ClampedArray(weak);
+  fuseRestoredPixel(neutral, 0, 190, 150, 115, 72, 0, 18);
   fuseRestoredPixel(weak, 0, 190, 150, 115, 72, 35, 18);
   fuseRestoredPixel(strong, 0, 190, 150, 115, 72, 100, 18);
   const luma = (pixels: Uint8ClampedArray) => (pixels[0] + pixels[1] * 2 + pixels[2]) / 4;
+  assert.deepEqual(neutral, neutralReference, "0% must not mix reconstructed detail");
   assert.ok(luma(strong) > luma(weak));
   assert.ok(Math.abs((strong[0] - strong[2]) - (142 - 78)) <= 1);
   assert.ok(Math.abs((strong[1] - (strong[0] + strong[2]) / 2) - (106 - (142 + 78) / 2)) <= 1);
@@ -443,11 +449,48 @@ test("diagnostic correction affects textured regions without repainting protecte
     180, 180, 180, 255,
     165, 130, 95, 255,
   ]);
-  const result = applyTextureConstrainedCorrection(source, corrected, new Uint8Array([0, 100]));
+  const result = applyTextureConstrainedCorrection(source, corrected, new Uint8Array([0, 100]), 100);
   assert.deepEqual(result.slice(0, 4), source.slice(0, 4));
   assert.notDeepEqual(result.slice(4, 7), source.slice(4, 7));
   assert.equal(result[4] - result[6], source[4] - source[6]);
   assert.equal(result[7], source[7]);
+});
+
+test("0%, 50% and 100% deterministically produce progressively different reconstructed pixels", () => {
+  const width = 320;
+  const height = 256;
+  const source = testPixels(width, height);
+  const immutableSource = new Uint8ClampedArray(source);
+  const process = (strength: number) => {
+    const corrected = enhancePixels(source, width, height, strength);
+    const protectedPixels = applyTextureConstrainedCorrection(
+      source,
+      corrected.pixels,
+      buildSourceTextureMap(source, width, height),
+      strength,
+    );
+    return reconstructPixels(protectedPixels, width, height);
+  };
+
+  const neutral = process(0);
+  const balanced = process(50);
+  const strong = process(100);
+  const repeatedBalanced = process(50);
+  const neutralReference = reconstructPixels(source, width, height);
+
+  assert.deepEqual(source, immutableSource, "all strengths must retain the immutable source pixels");
+  assert.equal(neutral.scale, 2);
+  assert.equal(balanced.scale, 2);
+  assert.equal(strong.scale, 2);
+  assert.deepEqual(neutral.pixels, neutralReference.pixels, "0% is neutral edge-directed resampling");
+  assert.deepEqual(balanced.pixels, repeatedBalanced.pixels, "the same source and strength are deterministic");
+
+  const balancedDifference = meanRgbDifference(neutral.pixels, balanced.pixels);
+  const strongDifference = meanRgbDifference(neutral.pixels, strong.pixels);
+  const strengthSeparation = meanRgbDifference(balanced.pixels, strong.pixels);
+  assert.ok(balancedDifference > 0.05, `50% must make a visible bounded correction; measured ${balancedDifference}`);
+  assert.ok(strongDifference > balancedDifference * 1.5, `100% must be materially stronger than 50%; measured ${balancedDifference} vs ${strongDifference}`);
+  assert.ok(strengthSeparation > 0.05, `50% and 100% must not collapse to nearly identical output; measured ${strengthSeparation}`);
 });
 
 test("moderate edge-directed reconstruction retains every corrected source sample", () => {

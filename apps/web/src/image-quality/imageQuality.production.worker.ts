@@ -133,16 +133,19 @@ async function enhance(strength: number, id: number): Promise<ImageQualityResult
       sourcePixels,
       corrected.pixels,
       buildSourceTextureMap(sourcePixels, sourceWidth, sourceHeight),
+      strength,
     );
   const reconstructed = graphic.isFlatGraphic
     ? { pixels: routePixels, width: sourceWidth, height: sourceHeight, scale: 1 as const }
     : reconstructPixels(routePixels, sourceWidth, sourceHeight, budget.outputPixels);
   const scale = graphic.isFlatGraphic ? scalePlan.scale : reconstructed.scale;
-  const scaleRationale = graphic.isFlatGraphic
-    ? scalePlan.rationale
-    : scale === 1
-      ? "Source pixels were corrected at native dimensions; enlargement was not justified."
-      : "2× edge-directed resampling followed source-pixel correction.";
+  const scaleRationale = strength === 0
+    ? `${scale}× neutral high-quality resampling without enhancement corrections.`
+    : graphic.isFlatGraphic
+      ? scalePlan.rationale
+      : scale === 1
+        ? "Source pixels were corrected at native dimensions; enlargement was not justified."
+        : "2× edge-directed resampling followed source-pixel correction.";
   const raw = await encodePixels(reconstructed.pixels, reconstructed.width, reconstructed.height, scale, id);
   const fidelity = await validateFidelity(raw, id);
   if (!fidelity.passed) {

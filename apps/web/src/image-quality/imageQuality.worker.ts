@@ -183,8 +183,13 @@ async function enhance(strength: number, requestId: number, preferDeterministic:
     : null;
   let raw: RawEnhancement;
   if (flatPixels) {
-    if (!LOCAL_RESEARCH_COMPONENTS_ENABLED) {
-      raw = await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId);
+    if (strength === 0 || !LOCAL_RESEARCH_COMPONENTS_ENABLED) {
+      raw = await renderFlatPixelFallback(
+        flatPixels,
+        corrected.analysis,
+        requestId,
+        strength === 0 ? ["0% uses neutral high-quality resampling without enhancement corrections."] : undefined,
+      );
     } else {
       try {
         raw = await renderFlatGraphic(flatPixels, corrected.analysis, strength, requestId);
@@ -200,7 +205,7 @@ async function enhance(strength: number, requestId: number, preferDeterministic:
   if (!fidelity.passed) {
     raw = flatPixels
       ? await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId)
-      : await renderDeterministicPhoto(corrected, content.contentClass, requestId, [
+      : await renderDeterministicPhoto(corrected, content.contentClass, strength, requestId, [
         "The optional reconstruction was rejected by source-fidelity checks; deterministic restoration was used.",
       ]);
     fidelity = await validateOutputFidelity(raw.bytes, requestId);
@@ -296,6 +301,9 @@ async function renderPhoto(
   requestId: number,
   preferDeterministic: boolean,
 ): Promise<RawEnhancement> {
+  if (strength === 0) return renderDeterministicPhoto(corrected, contentClass, strength, requestId, [
+    "0% uses neutral high-quality resampling without enhancement corrections.",
+  ]);
   const gpu = (navigator as typeof navigator & {
     gpu?: { requestAdapter(options: { powerPreference: string }): Promise<unknown | null> };
   }).gpu;
@@ -308,7 +316,7 @@ async function renderPhoto(
     purpose: LOCAL_RESEARCH_COMPONENTS_ENABLED ? "local-research" : "production",
     webGpuAvailable: Boolean(adapter),
   });
-  if (selectedEngine.implementation !== "neural") return renderDeterministicPhoto(corrected, contentClass, requestId, [
+  if (selectedEngine.implementation !== "neural") return renderDeterministicPhoto(corrected, contentClass, strength, requestId, [
     LOCAL_RESEARCH_COMPONENTS_ENABLED
       ? "WebGPU was unavailable; a deterministic restoration was used."
       : "Production-safe deterministic restoration was used because research-only model weights are not distributable.",
@@ -321,7 +329,7 @@ async function renderPhoto(
     ort = await getOrtModule();
     session = await getModelSession(ort, modelVariant);
   } catch {
-    return renderDeterministicPhoto(corrected, contentClass, requestId, [
+    return renderDeterministicPhoto(corrected, contentClass, strength, requestId, [
       "The optional local-research model was unavailable; deterministic restoration completed instead.",
     ]);
   }
@@ -329,7 +337,7 @@ async function renderPhoto(
   const skinToneProtection = contentClass === "photograph"
     ? buildSkinToneProtectionMap(originalPixels, sourceWidth, sourceHeight)
     : null;
-  const correctedReference = applyTextureConstrainedCorrection(originalPixels, corrected.pixels, sourceTexture);
+  const correctedReference = applyTextureConstrainedCorrection(originalPixels, corrected.pixels, sourceTexture, strength);
   const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
   const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
   if (!sourceContext) throw new Error("Your browser could not prepare source-reference pixels.");
@@ -429,13 +437,14 @@ async function renderPhoto(
 async function renderDeterministicPhoto(
   corrected: { pixels: Uint8ClampedArray; analysis: ImageQualityAnalysis },
   contentClass: ImageContentClass,
+  strength: number,
   requestId: number,
   warnings: string[],
 ): Promise<RawEnhancement> {
   report(requestId, { phase: "reconstruct", completed: 0, total: 1, message: "Applying deterministic edge-directed reconstruction…" });
   if (!sourcePixels) throw new Error("The immutable source pixels are unavailable.");
   const texture = buildSourceTextureMap(sourcePixels, sourceWidth, sourceHeight);
-  const protectedCorrection = applyTextureConstrainedCorrection(sourcePixels, corrected.pixels, texture);
+  const protectedCorrection = applyTextureConstrainedCorrection(sourcePixels, corrected.pixels, texture, strength);
   const reconstructed = reconstructPixels(
     protectedCorrection,
     sourceWidth,
@@ -461,9 +470,11 @@ async function renderDeterministicPhoto(
     route: `${contentClass}-deterministic-x${reconstructed.scale}`,
     analysis: corrected.analysis,
     scale: reconstructed.scale,
-    scaleRationale: reconstructed.scale === 1
-      ? "Source pixels were corrected at native dimensions; enlargement was not justified."
-      : "2× edge-directed resampling followed source-pixel correction.",
+    scaleRationale: strength === 0
+      ? `${reconstructed.scale}× neutral high-quality resampling without enhancement corrections.`
+      : reconstructed.scale === 1
+        ? "Source pixels were corrected at native dimensions; enlargement was not justified."
+        : "2× edge-directed resampling followed source-pixel correction.",
     model: {
       id: "ipw-deterministic-image-quality",
       version: "1.0.0",
@@ -478,6 +489,7 @@ async function renderFlatPixelFallback(
   pixels: Uint8ClampedArray,
   analysis: ImageQualityAnalysis,
   requestId: number,
+  warnings = ["A contour candidate was rejected by source-fidelity checks; protected pixel reconstruction was used."],
 ): Promise<RawEnhancement> {
   const plan = chooseScalePlan(
     sourceWidth,
@@ -515,7 +527,7 @@ async function renderFlatPixelFallback(
       sha256: null,
       usage: "deterministic",
     },
-    warnings: ["A contour candidate was rejected by source-fidelity checks; protected pixel reconstruction was used."],
+    warnings,
   };
 }
 

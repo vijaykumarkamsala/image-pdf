@@ -44,6 +44,7 @@ const qualityZooms: Array<{ label: string; value: QualityZoom }> = [
 ];
 
 function strengthLabel(strength: number) {
+  if (strength === 0) return "Neutral";
   if (strength < 35) return "Gentle";
   if (strength < 70) return "Balanced";
   return "Strong";
@@ -458,7 +459,7 @@ export function ImageQualityEditorPage() {
         <span><strong>Enhancement strength</strong><output>{strengthLabel(state.strength)} · {state.strength}%</output></span>
         <input
           type="range"
-          min="1"
+          min="0"
           max="100"
           value={state.strength}
           disabled={processing}

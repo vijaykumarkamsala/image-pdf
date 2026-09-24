@@ -1,6 +1,6 @@
 import type { ImageQualityAnalysis } from "./ImageQualityEngine";
 
-export const MIN_STRENGTH = 1;
+export const MIN_STRENGTH = 0;
 export const MAX_STRENGTH = 100;
 
 export interface PixelEnhancementResult {
@@ -136,7 +136,17 @@ export function enhanceFlatGraphicPixels(
   if (source.length !== width * height * 4) throw new Error("Decoded pixel data is incomplete.");
   const measured = analyse(source, width, height);
   const output = new Uint8ClampedArray(source);
-  const mixLimit = 0.16 + strength / MAX_STRENGTH * 0.38;
+  const amount = strength / MAX_STRENGTH;
+  if (amount === 0) return {
+    pixels: output,
+    analysis: {
+      noiseLevel: measured.noiseLevel,
+      edgeDefinition: measured.edgeDefinition,
+      tonalRange: measured.tonalRange,
+      colourCast: measured.colourCast,
+    },
+  };
+  const mixLimit = amount * 0.54;
   for (let y = 1; y < height - 1; y += 1) {
     for (let x = 1; x < width - 1; x += 1) {
       const offset = (y * width + x) * 4;
@@ -626,18 +636,28 @@ export function applyTextureConstrainedCorrection(
   source: Uint8ClampedArray,
   corrected: Uint8ClampedArray,
   texture: Uint8Array,
+  strength: number,
 ): Uint8ClampedArray {
   if (source.length !== corrected.length || texture.length * 4 !== source.length) {
     throw new Error("Texture-constrained correction inputs are inconsistent.");
   }
+  if (!Number.isFinite(strength) || strength < MIN_STRENGTH || strength > MAX_STRENGTH) {
+    throw new Error("Enhancement strength is outside the supported range.");
+  }
   const output = new Uint8ClampedArray(source);
+  const amount = strength / MAX_STRENGTH;
+  if (amount === 0) return output;
+  // The corrected reference already responds to strength. This second, bounded
+  // mix makes the final protected result perceptually progressive without
+  // relaxing the low-texture and maximum-delta fidelity guards.
+  const correctionMix = amount * (2 - amount);
   for (let pixel = 0; pixel < texture.length; pixel += 1) {
     const offset = pixel * 4;
     if (source[offset + 3] === 0) continue;
     const sourceLuma = luma(source[offset], source[offset + 1], source[offset + 2]);
     const correctedLuma = luma(corrected[offset], corrected[offset + 1], corrected[offset + 2]);
     const eligibility = clamp((texture[pixel] - 10) / 90, 0, 1);
-    const delta = clamp((correctedLuma - sourceLuma) * eligibility * 0.45, -8, 8);
+    const delta = clamp((correctedLuma - sourceLuma) * eligibility * correctionMix, -8, 8);
     output[offset] = clamp(source[offset] + delta);
     output[offset + 1] = clamp(source[offset + 1] + delta);
     output[offset + 2] = clamp(source[offset + 2] + delta);
@@ -663,6 +683,7 @@ export function fuseRestoredPixel(
   modelTrust = 1,
 ): void {
   const amount = clamp(strength / MAX_STRENGTH, 0, 1);
+  if (amount === 0) return;
   const trust = clamp(modelTrust, 0, 1);
   // A square-root response lets softly printed fur, feathers and brush lines
   // participate in restoration without treating truly uniform pixels as
@@ -678,8 +699,8 @@ export function fuseRestoredPixel(
   // Restore the model's useful source-scale structure response in textured
   // regions. Low-texture fields retain only a 2.4% contribution at maximum
   // strength, so paper, skies, walls and skin cannot be repainted wholesale.
-  const learnedMix = (0.12 + amount * 0.48) * (0.04 + texture * 0.96);
-  const structureLimit = 2 + amount * (2 + texture * 22);
+  const learnedMix = amount * (0.2 + amount * 0.4) * (0.04 + texture * 0.96);
+  const structureLimit = amount * (4 + texture * 22);
   const structureChange = clamp(
     (learnedY - referenceY) * learnedMix,
     -structureLimit,
@@ -691,7 +712,7 @@ export function fuseRestoredPixel(
     -detailLimit,
     detailLimit,
   );
-  const combinedLimit = 2 + amount * (2 + texture * 23);
+  const combinedLimit = amount * (4 + texture * 23);
   const targetY = referenceY + clamp(
     (structureChange + detailChange) * trust,
     -combinedLimit * trust,
@@ -856,7 +877,7 @@ function boxBlur(
 }
 
 function reduceNoise(luminance: Uint8Array, blurred: Uint8Array, noiseSigma: number, amount: number) {
-  const denoiseAmount = clamp((noiseSigma - 0.55) / 7, 0, 1) * (0.38 + amount * 0.55);
+  const denoiseAmount = clamp((noiseSigma - 0.55) / 7, 0, 1) * amount * (1.5 - amount * 0.55);
   if (denoiseAmount <= 0) return;
   const detailProtectionStart = Math.max(3, noiseSigma * 1.6);
   const detailProtectionEnd = detailProtectionStart + 12;
@@ -1243,6 +1264,15 @@ export function enhancePixels(
 
   const measured = analyse(source, width, height);
   const amount = strength / MAX_STRENGTH;
+  if (amount === 0) return {
+    pixels: new Uint8ClampedArray(source),
+    analysis: {
+      noiseLevel: measured.noiseLevel,
+      edgeDefinition: measured.edgeDefinition,
+      tonalRange: measured.tonalRange,
+      colourCast: measured.colourCast,
+    },
+  };
   const pixelCount = width * height;
   const luminance = new Uint8Array(pixelCount);
   const fineBlur = new Uint8Array(pixelCount);

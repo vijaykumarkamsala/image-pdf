@@ -88,6 +88,34 @@ function warmIllustrationPng(size: number): Buffer {
   ]);
 }
 
+function progressiveStrengthPng(width: number, height: number): Buffer {
+  const scanlines = Buffer.alloc((width * 4 + 1) * height);
+  const byte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (width * 4 + 1);
+    for (let x = 0; x < width; x += 1) {
+      const offset = row + 1 + x * 4;
+      const gradient = 58 + x / (width - 1) * 118 + y / (height - 1) * 24;
+      const region = x > width * 0.52 ? 34 : 0;
+      const texture = (x * 37 + y * 53 + x * y * 7) % 31 - 15;
+      scanlines[offset] = byte(gradient + region + texture + 10);
+      scanlines[offset + 1] = byte(gradient + region + texture * 0.72);
+      scanlines[offset + 2] = byte(gradient + region + texture * 0.46 - 13);
+      scanlines[offset + 3] = 255;
+    }
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 test("face detail stays opt-in and unavailable without affecting enhancement, originals or downloads", async ({ page }, testInfo) => {
   // Includes the ordinary editor and real-worker synthetic selection/export/cancel/revocation flows.
   test.setTimeout(120_000);
@@ -458,6 +486,100 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   expect(pngMetadata.types).toContain("iTXt");
   expect(pngMetadata.provenance).toContain("ipw.image-quality.provenance.v1");
   await page.screenshot({ path: testInfo.outputPath("image-quality-editor.png"), fullPage: true });
+  await page.close();
+});
+
+test("enhancement strength produces neutral, balanced and strong pixels from the immutable original", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "synthetic-strength.png",
+    mimeType: "image/png",
+    buffer: progressiveStrengthPng(320, 256),
+  });
+  await expect(page.getByTestId("image-quality-editor")).toBeVisible();
+
+  const slider = page.locator('.quality-strength input[type="range"]');
+  const capture = async (strength: 0 | 50 | 100, key: string) => {
+    await slider.fill(String(strength));
+    await expect(page.locator(".quality-strength output")).toContainText(`${strength}%`);
+    if (strength === 0) await expect(page.locator(".quality-strength output")).toContainText("Neutral");
+    await page.getByRole("button", { name: "Enhance quality", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled({ timeout: 120_000 });
+    await expect(page.locator(".quality-provenance")).toContainText(`Applied strength${strength}%`);
+    return page.evaluate(async ({ selectedStrength, storageKey }) => {
+      const image = document.querySelector<HTMLImageElement>('[data-testid="enhanced-image"]');
+      if (!image?.src) throw new Error("Enhanced preview is missing.");
+      await image.decode();
+      const bytes = await (await fetch(image.src)).arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) throw new Error("Pixel evidence canvas is unavailable.");
+      context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const scope = window as typeof window & { __strengthPixels?: Record<string, Uint8ClampedArray> };
+      scope.__strengthPixels ??= {};
+      scope.__strengthPixels[storageKey] = new Uint8ClampedArray(pixels);
+      return {
+        digest: Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join(""),
+        height: canvas.height,
+        strength: selectedStrength,
+        width: canvas.width,
+      };
+    }, { selectedStrength: strength, storageKey: key });
+  };
+
+  const neutral = await capture(0, "neutral");
+  const balanced = await capture(50, "balanced");
+  const strong = await capture(100, "strong");
+  const repeatedBalanced = await capture(50, "balanced-repeat");
+
+  for (const result of [neutral, balanced, strong, repeatedBalanced]) {
+    expect(result.width).toBe(640);
+    expect(result.height).toBe(512);
+  }
+  expect(repeatedBalanced.digest).toBe(balanced.digest);
+
+  const separation = await page.evaluate(() => {
+    const values = (window as typeof window & { __strengthPixels: Record<string, Uint8ClampedArray> }).__strengthPixels;
+    const compare = (first: Uint8ClampedArray, second: Uint8ClampedArray) => {
+      let total = 0;
+      let changed = 0;
+      const pixels = first.length / 4;
+      for (let offset = 0; offset < first.length; offset += 4) {
+        const difference = (
+          Math.abs(first[offset] - second[offset])
+          + Math.abs(first[offset + 1] - second[offset + 1])
+          + Math.abs(first[offset + 2] - second[offset + 2])
+        ) / 3;
+        total += difference;
+        if (difference >= 1) changed += 1;
+      }
+      return { changedFraction: changed / pixels, meanRgbDifference: total / pixels };
+    };
+    return {
+      balancedFromNeutral: compare(values.neutral, values.balanced),
+      strongFromBalanced: compare(values.balanced, values.strong),
+      strongFromNeutral: compare(values.neutral, values.strong),
+    };
+  });
+  expect(separation.balancedFromNeutral.meanRgbDifference).toBeGreaterThan(0.05);
+  expect(separation.strongFromNeutral.meanRgbDifference).toBeGreaterThan(
+    separation.balancedFromNeutral.meanRgbDifference * 1.5,
+  );
+  expect(separation.strongFromBalanced.changedFraction).toBeGreaterThan(0.1);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download enhanced image" }).click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  expect(createHash("sha256").update(Buffer.concat(chunks)).digest("hex")).toBe(repeatedBalanced.digest);
   await page.close();
 });
 
