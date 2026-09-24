@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
+import { fileURLToPath } from "node:url";
 
 import { renderProductTemplate, resolveProductName } from "./src/config/product.ts";
 import { createProductManifest } from "./src/pwa/manifest.ts";
@@ -89,20 +90,29 @@ function localResearchModelPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), productManifestPlugin(), localResearchModelPlugin()],
-  server: {
-    proxy: {
-      "/v1": apiOrigin,
+export default defineConfig(({ mode }) => {
+  const imageQualityStandalone = mode === "image-quality";
+  return {
+    plugins: [react(), productManifestPlugin(), localResearchModelPlugin()],
+    server: {
+      proxy: {
+        "/v1": apiOrigin,
+      },
     },
-  },
-  preview: {
-    headers: PRODUCTION_SECURITY_HEADERS,
-    proxy: {
-      "/v1": apiOrigin,
+    preview: {
+      headers: PRODUCTION_SECURITY_HEADERS,
+      proxy: {
+        "/v1": apiOrigin,
+      },
     },
-  },
-  build: {
-    sourcemap: true,
-  },
+    build: {
+      // The normal workspace build keeps reviewable maps. The public dev
+      // editor image contains only deployable artifacts, not source maps.
+      sourcemap: !imageQualityStandalone,
+      outDir: imageQualityStandalone ? "dist-image-quality" : "dist",
+      rollupOptions: imageQualityStandalone
+        ? { input: fileURLToPath(new URL("./image-quality.html", import.meta.url)) }
+        : undefined,
+    },
+  };
 });

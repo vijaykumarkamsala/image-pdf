@@ -34,6 +34,7 @@
     "test:panel-e2e": "playwright test --config playwright.panel.config.ts",
     "test:visual": "playwright test --grep @visual",
     "test:visual:update": "playwright test --grep @visual --update-snapshots",
-    "build": "tsc --noEmit && vite build"
+    "build": "tsc --noEmit && vite build",
+    "build:image-quality": "tsc --noEmit && vite build --mode image-quality"
   }
 }

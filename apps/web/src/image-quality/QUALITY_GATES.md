@@ -464,3 +464,17 @@ kept as local hardware-browser evidence; it is not distributed, deployed or
 misrepresented as the authoritative Linux production route. No product
 processing code, assertion threshold, visual tolerance, database migration,
 PDF/Studio path, deployment or application data changed.
+
+## Standalone dev web runtime evidence
+
+On 24 September 2026 the isolated editor was also compiled through the pinned
+`apps/web/Dockerfile` Linux image and exercised through that container rather
+than Vite's development server. The runtime contains no PDF, Studio or batch
+editor chunks, no source maps, and no `.onnx`/`.pth` research weights. Its root
+redirect, deep-link fallback, health response and production security headers
+were checked before the focused real browser journey passed upload, worker
+processing, aligned comparison, reset and processed-PNG download (1/1, 2.0
+minutes cold, then 1/1 in 13.9 seconds from the final rebuilt image). All 119
+focused web unit tests and TypeScript also passed. This proves the deployable
+browser surface; it does not claim the separate private Cloud Run/GCS
+durable-worker validation.

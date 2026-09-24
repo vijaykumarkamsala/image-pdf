@@ -5,6 +5,7 @@ __pycache__/
 .eggs/
 build/
 dist/
+apps/web/dist-image-quality/
 .venv/
 venv/
 .mypy_cache/
