@@ -14,8 +14,8 @@ import {
 import { measureCoordinateMatchedFidelity } from "../src/image-quality/imageQualityFidelity.ts";
 import { planImageQualityTiles } from "../src/image-quality/imageQualityTiling.ts";
 import {
-  chooseScalePlan,
   classifyImageContent,
+  planRequestedScale,
   processingBudget,
 } from "../src/image-quality/imageQualityPolicy.ts";
 import { pngOutputSha256, tagSrgbPng } from "../src/image-quality/pngMetadata.ts";
@@ -264,14 +264,27 @@ test("production selects only the approved neural model while research weights s
   assert.equal(protectedGraphic.weightsSha256, null);
 });
 
-test("scale planning is explicit, device-budgeted and route-aware", () => {
+test("2× and 4× scale planning is exact and never silently clamps", () => {
   const budget = processingBudget(8);
-  const logo = chooseScalePlan(2_048, 2_048, "flat-graphic", "deterministic", budget);
-  const deterministicPhoto = chooseScalePlan(960, 1_114, "photograph", "deterministic", budget);
-  assert.equal(logo.scale, 4);
-  assert.match(logo.rationale, /contours/);
-  assert.equal(deterministicPhoto.scale, 2);
+  const double = planRequestedScale(960, 1_114, 2, budget);
+  const quadruple = planRequestedScale(2_048, 2_048, 4, budget);
+  assert.equal(double.scale, 2);
+  assert.equal(double.estimatedOutputBytes, 1_920 * 2_228 * 4);
+  assert.equal(quadruple.scale, 4);
+  assert.equal(quadruple.estimatedOutputBytes, 8_192 * 8_192 * 4);
+  assert.match(quadruple.rationale, /exact requested dimensions/i);
   assert.ok(budget.sourcePixels <= budget.outputPixels);
+});
+
+test("an over-budget 4× request fails visibly instead of returning 2× or 1×", () => {
+  const budget = processingBudget(8);
+  assert.doesNotThrow(() => planRequestedScale(5_000, 3_000, 2, budget));
+  assert.throws(
+    () => planRequestedScale(5_000, 3_000, 4, budget),
+    (error: unknown) => error instanceof Error
+      && /requested 4× output requires 20000 × 12000 px/i.test(error.message)
+      && /No smaller output was created/i.test(error.message),
+  );
 });
 
 test("tile planning covers every source pixel exactly once, including uneven edges", () => {

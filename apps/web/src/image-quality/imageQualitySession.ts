@@ -1,4 +1,5 @@
 import type {
+  ImageQualityOutputScale,
   ImageQualityProgress,
   ImageQualityResult,
   ImageQualitySource,
@@ -27,6 +28,7 @@ export interface ImageQualitySessionState {
   result: QualityResultState | null;
   error: string | null;
   strength: number;
+  outputScale: ImageQualityOutputScale;
   mode: ComparisonMode;
   zoom: QualityZoom;
   pan: { x: number; y: number };
@@ -44,6 +46,7 @@ export type ImageQualitySessionAction =
   | { type: "processing-cancelled" }
   | { type: "reset" }
   | { type: "strength-changed"; strength: number }
+  | { type: "output-scale-changed"; outputScale: ImageQualityOutputScale }
   | { type: "mode-changed"; mode: ComparisonMode }
   | { type: "zoom-changed"; zoom: QualityZoom }
   | { type: "pan-changed"; x: number; y: number }
@@ -55,6 +58,7 @@ export const initialImageQualitySession: ImageQualitySessionState = {
   result: null,
   error: null,
   strength: 65,
+  outputScale: 2,
   mode: "side-by-side",
   zoom: "fit",
   pan: { x: 0, y: 0 },
@@ -114,6 +118,13 @@ export function imageQualitySessionReducer(
       return {
         ...state,
         strength: action.strength,
+        status: state.source ? (state.result ? "success" : "ready") : state.status,
+        error: null,
+      };
+    case "output-scale-changed":
+      return {
+        ...state,
+        outputScale: action.outputScale,
         status: state.source ? (state.result ? "success" : "ready") : state.status,
         error: null,
       };

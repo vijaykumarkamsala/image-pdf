@@ -72,7 +72,10 @@ export interface ImageQualityResult {
 
 export interface ImageQualityOperationOptions {
   onProgress?: (progress: ImageQualityProgress) => void;
+  outputScale?: ImageQualityOutputScale;
 }
+
+export type ImageQualityOutputScale = 2 | 4;
 
 export interface ImageQualityEngine {
   load(source: Blob, options?: ImageQualityOperationOptions): Promise<ImageQualitySource>;

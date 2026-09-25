@@ -22,11 +22,12 @@ import {
   reconstructPixels,
 } from "./imageQualityPipeline";
 import {
-  chooseScalePlan,
   classifyImageContent,
+  planRequestedScale,
   processingBudget,
   qualityNeed,
   type ImageContentClass,
+  type ScalePlan,
 } from "./imageQualityPolicy";
 import { planImageQualityTiles } from "./imageQualityTiling";
 import { pngOutputSha256, tagSrgbPng } from "./pngMetadata";
@@ -38,7 +39,7 @@ type ResvgModule = typeof import("@resvg/resvg-wasm");
 
 type WorkerRequest =
   | { id: number; type: "load"; source: Blob }
-  | { id: number; type: "enhance"; strength: number; preferDeterministic: boolean }
+  | { id: number; type: "enhance"; strength: number; outputScale: 2 | 4; preferDeterministic: boolean }
   | { type: "cancel"; targetId: number };
 
 type WorkerResponse =
@@ -169,13 +170,24 @@ interface RawEnhancement {
   warnings: string[];
 }
 
-async function enhance(strength: number, requestId: number, preferDeterministic: boolean): Promise<ImageQualityResult> {
+async function enhance(
+  strength: number,
+  outputScale: 2 | 4,
+  requestId: number,
+  preferDeterministic: boolean,
+): Promise<ImageQualityResult> {
   if (!sourcePixels || !sourceInspection || !sourceSha256) throw new Error("Choose an image before enhancing it.");
   const started = performance.now();
   report(requestId, { phase: "analyse", completed: 0, total: 1, message: "Measuring noise, edges, tone and content structure…" });
   const corrected = enhancePixels(sourcePixels, sourceWidth, sourceHeight, strength);
   const graphic = classifyFlatGraphic(sourcePixels, sourceWidth, sourceHeight);
   const content = classifyImageContent(graphic, corrected.analysis);
+  const scalePlan = planRequestedScale(
+    sourceWidth,
+    sourceHeight,
+    outputScale,
+    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
+  );
   report(requestId, { phase: "analyse", completed: 1, total: 1, message: `${content.contentClass} route selected with ${Math.round(content.confidence * 100)}% confidence.` });
   assertNotCancelled(requestId);
   const flatPixels = graphic.isFlatGraphic
@@ -188,24 +200,25 @@ async function enhance(strength: number, requestId: number, preferDeterministic:
         flatPixels,
         corrected.analysis,
         requestId,
+        scalePlan,
         strength === 0 ? ["0% uses neutral high-quality resampling without enhancement corrections."] : undefined,
       );
     } else {
       try {
-        raw = await renderFlatGraphic(flatPixels, corrected.analysis, strength, requestId);
+        raw = await renderFlatGraphic(flatPixels, corrected.analysis, strength, requestId, scalePlan);
       } catch {
-        raw = await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId);
+        raw = await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId, scalePlan);
       }
     }
   } else {
-    raw = await renderPhoto(sourcePixels, corrected, content.contentClass, strength, requestId, preferDeterministic);
+    raw = await renderPhoto(sourcePixels, corrected, content.contentClass, strength, requestId, preferDeterministic, scalePlan);
   }
   assertNotCancelled(requestId);
   let fidelity = await validateOutputFidelity(raw.bytes, requestId);
   if (!fidelity.passed) {
     raw = flatPixels
-      ? await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId)
-      : await renderDeterministicPhoto(corrected, content.contentClass, strength, requestId, [
+      ? await renderFlatPixelFallback(flatPixels, corrected.analysis, requestId, scalePlan)
+      : await renderDeterministicPhoto(corrected, content.contentClass, strength, requestId, scalePlan, [
         "The optional reconstruction was rejected by source-fidelity checks; deterministic restoration was used.",
       ]);
     fidelity = await validateOutputFidelity(raw.bytes, requestId);
@@ -300,8 +313,9 @@ async function renderPhoto(
   strength: number,
   requestId: number,
   preferDeterministic: boolean,
+  scalePlan: ScalePlan,
 ): Promise<RawEnhancement> {
-  if (strength === 0) return renderDeterministicPhoto(corrected, contentClass, strength, requestId, [
+  if (strength === 0) return renderDeterministicPhoto(corrected, contentClass, strength, requestId, scalePlan, [
     "0% uses neutral high-quality resampling without enhancement corrections.",
   ]);
   const gpu = (navigator as typeof navigator & {
@@ -316,7 +330,7 @@ async function renderPhoto(
     purpose: LOCAL_RESEARCH_COMPONENTS_ENABLED ? "local-research" : "production",
     webGpuAvailable: Boolean(adapter),
   });
-  if (selectedEngine.implementation !== "neural") return renderDeterministicPhoto(corrected, contentClass, strength, requestId, [
+  if (selectedEngine.implementation !== "neural") return renderDeterministicPhoto(corrected, contentClass, strength, requestId, scalePlan, [
     LOCAL_RESEARCH_COMPONENTS_ENABLED
       ? "WebGPU was unavailable; a deterministic restoration was used."
       : "Production-safe deterministic restoration was used because research-only model weights are not distributable.",
@@ -329,7 +343,7 @@ async function renderPhoto(
     ort = await getOrtModule();
     session = await getModelSession(ort, modelVariant);
   } catch {
-    return renderDeterministicPhoto(corrected, contentClass, strength, requestId, [
+    return renderDeterministicPhoto(corrected, contentClass, strength, requestId, scalePlan, [
       "The optional local-research model was unavailable; deterministic restoration completed instead.",
     ]);
   }
@@ -346,14 +360,7 @@ async function renderPhoto(
     0,
     0,
   );
-  const plan = chooseScalePlan(
-    sourceWidth,
-    sourceHeight,
-    contentClass,
-    "neural",
-    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
-  );
-  const outputScale = plan.scale;
+  const outputScale = scalePlan.scale;
   const width = sourceWidth * outputScale;
   const height = sourceHeight * outputScale;
   const outputCanvas = new OffscreenCanvas(width, height);
@@ -418,7 +425,7 @@ async function renderPhoto(
     route: `${contentClass}-${modelVariant === "natural" ? "natural-" : ""}${outputScale === 4 ? "reconstruct-x4" : outputScale === 2 ? "reconstruct-x2" : "restore-native"}`,
     analysis: corrected.analysis,
     scale: outputScale,
-    scaleRationale: plan.rationale,
+    scaleRationale: scalePlan.rationale,
     model: {
       id: modelVariant === "natural" ? `${selectedEngine.id}-dni50` : selectedEngine.id,
       version: modelVariant === "natural" ? `${selectedEngine.version}/dni0.5` : selectedEngine.version,
@@ -439,6 +446,7 @@ async function renderDeterministicPhoto(
   contentClass: ImageContentClass,
   strength: number,
   requestId: number,
+  scalePlan: ScalePlan,
   warnings: string[],
 ): Promise<RawEnhancement> {
   report(requestId, { phase: "reconstruct", completed: 0, total: 1, message: "Applying deterministic edge-directed reconstruction…" });
@@ -452,29 +460,35 @@ async function renderDeterministicPhoto(
     processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE).outputPixels,
   );
   assertNotCancelled(requestId);
-  const canvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
-  const context = canvas.getContext("2d", { colorSpace: "srgb" });
-  if (!context) throw new Error("Your browser could not allocate the deterministic result.");
-  context.putImageData(
+  const reconstructedCanvas = new OffscreenCanvas(reconstructed.width, reconstructed.height);
+  const reconstructedContext = reconstructedCanvas.getContext("2d", { colorSpace: "srgb" });
+  if (!reconstructedContext) throw new Error("Your browser could not prepare the deterministic result.");
+  reconstructedContext.putImageData(
     new ImageData(new Uint8ClampedArray(reconstructed.pixels), reconstructed.width, reconstructed.height, { colorSpace: "srgb" }),
     0,
     0,
   );
+  const width = sourceWidth * scalePlan.scale;
+  const height = sourceHeight * scalePlan.scale;
+  const canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext("2d", { colorSpace: "srgb" });
+  if (!context) throw new Error(`The browser could not allocate the requested exact ${scalePlan.scale}× output at ${width} × ${height} px. No smaller output was created.`);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(reconstructedCanvas, 0, 0, width, height);
   const blob = await canvas.convertToBlob({ type: "image/png" });
   report(requestId, { phase: "reconstruct", completed: 1, total: 1, message: "Deterministic reconstruction complete." });
   return {
     bytes: await blob.arrayBuffer(),
-    width: reconstructed.width,
-    height: reconstructed.height,
+    width,
+    height,
     engine: "Deterministic adaptive restoration · Worker",
-    route: `${contentClass}-deterministic-x${reconstructed.scale}`,
+    route: `${contentClass}-deterministic-x${scalePlan.scale}`,
     analysis: corrected.analysis,
-    scale: reconstructed.scale,
+    scale: scalePlan.scale,
     scaleRationale: strength === 0
-      ? `${reconstructed.scale}× neutral high-quality resampling without enhancement corrections.`
-      : reconstructed.scale === 1
-        ? "Source pixels were corrected at native dimensions; enlargement was not justified."
-        : "2× edge-directed resampling followed source-pixel correction.",
+      ? `${scalePlan.scale}× neutral high-quality resampling without enhancement corrections.`
+      : scalePlan.rationale,
     model: {
       id: "ipw-deterministic-image-quality",
       version: "1.0.0",
@@ -489,15 +503,9 @@ async function renderFlatPixelFallback(
   pixels: Uint8ClampedArray,
   analysis: ImageQualityAnalysis,
   requestId: number,
+  plan: ScalePlan,
   warnings = ["A contour candidate was rejected by source-fidelity checks; protected pixel reconstruction was used."],
 ): Promise<RawEnhancement> {
-  const plan = chooseScalePlan(
-    sourceWidth,
-    sourceHeight,
-    "flat-graphic",
-    "deterministic",
-    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
-  );
   const sourceCanvas = new OffscreenCanvas(sourceWidth, sourceHeight);
   const sourceContext = sourceCanvas.getContext("2d", { colorSpace: "srgb" });
   if (!sourceContext) throw new Error("Your browser could not prepare the protected graphic fallback.");
@@ -536,15 +544,9 @@ async function renderFlatGraphic(
   analysis: ImageQualityAnalysis,
   strength: number,
   requestId: number,
+  plan: ScalePlan,
 ): Promise<RawEnhancement> {
   report(requestId, { phase: "reconstruct", completed: 0, total: 1, message: "Reconstructing smooth source-colour contours…" });
-  const plan = chooseScalePlan(
-    sourceWidth,
-    sourceHeight,
-    "flat-graphic",
-    "deterministic",
-    processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE),
-  );
   const outputScale = plan.scale;
   const traceScale = Math.min(1, MAX_TRACE_EDGE / Math.max(sourceWidth, sourceHeight));
   const traceWidth = Math.max(1, Math.round(sourceWidth * traceScale));
@@ -969,7 +971,7 @@ workerScope.onmessage = (event) => {
         workerScope.postMessage({ id: request.id, ok: true, type: "loaded", ...loaded });
         return;
       }
-      const result = await enhance(request.strength, request.id, request.preferDeterministic);
+      const result = await enhance(request.strength, request.outputScale, request.id, request.preferDeterministic);
       if (!result.bytes) throw new Error("The local worker did not encode its result.");
       workerScope.postMessage(
         { id: request.id, ok: true, type: "enhanced", ...result },

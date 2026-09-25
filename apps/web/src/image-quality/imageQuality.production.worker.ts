@@ -14,13 +14,13 @@ import {
   enhancePixels,
   reconstructPixels,
 } from "./imageQualityPipeline";
-import { chooseScalePlan, classifyImageContent, processingBudget, qualityNeed } from "./imageQualityPolicy";
+import { classifyImageContent, planRequestedScale, processingBudget, qualityNeed } from "./imageQualityPolicy";
 import { pngOutputSha256, tagSrgbPng } from "./pngMetadata";
 import { sha256Blob } from "./sha256";
 
 type WorkerRequest =
   | { id: number; type: "load"; source: Blob; allowAnalysisSample?: boolean }
-  | { id: number; type: "enhance"; strength: number; preferDeterministic: boolean }
+  | { id: number; type: "enhance"; strength: number; outputScale: 2 | 4; preferDeterministic: boolean }
   | { type: "cancel"; targetId: number };
 
 type WorkerResponse =
@@ -117,7 +117,7 @@ async function loadSource(
   }
 }
 
-async function enhance(strength: number, id: number): Promise<ImageQualityResult> {
+async function enhance(strength: number, outputScale: 2 | 4, id: number): Promise<ImageQualityResult> {
   if (!sourcePixels || !sourceInspection || !sourceSha256) throw new Error("Choose an image before enhancing it.");
   const started = performance.now();
   report(id, { phase: "analyse", completed: 0, total: 1, message: "Measuring noise, edges, tone and content structure…" });
@@ -125,7 +125,7 @@ async function enhance(strength: number, id: number): Promise<ImageQualityResult
   const graphic = classifyFlatGraphic(sourcePixels, sourceWidth, sourceHeight);
   const content = classifyImageContent(graphic, corrected.analysis);
   const budget = processingBudget((navigator as typeof navigator & { deviceMemory?: number }).deviceMemory, MAX_CANVAS_EDGE);
-  const scalePlan = chooseScalePlan(sourceWidth, sourceHeight, content.contentClass, "deterministic", budget);
+  const scalePlan = planRequestedScale(sourceWidth, sourceHeight, outputScale, budget);
   report(id, { phase: "reconstruct", completed: 0, total: 1, message: "Applying production-safe source-pixel reconstruction…" });
   const routePixels = graphic.isFlatGraphic
     ? enhanceFlatGraphicPixels(sourcePixels, sourceWidth, sourceHeight, strength).pixels
@@ -138,14 +138,10 @@ async function enhance(strength: number, id: number): Promise<ImageQualityResult
   const reconstructed = graphic.isFlatGraphic
     ? { pixels: routePixels, width: sourceWidth, height: sourceHeight, scale: 1 as const }
     : reconstructPixels(routePixels, sourceWidth, sourceHeight, budget.outputPixels);
-  const scale = graphic.isFlatGraphic ? scalePlan.scale : reconstructed.scale;
+  const scale = scalePlan.scale;
   const scaleRationale = strength === 0
     ? `${scale}× neutral high-quality resampling without enhancement corrections.`
-    : graphic.isFlatGraphic
-      ? scalePlan.rationale
-      : scale === 1
-        ? "Source pixels were corrected at native dimensions; enlargement was not justified."
-        : "2× edge-directed resampling followed source-pixel correction.";
+    : scalePlan.rationale;
   const raw = await encodePixels(reconstructed.pixels, reconstructed.width, reconstructed.height, scale, id);
   const fidelity = await validateFidelity(raw, id);
   if (!fidelity.passed) {
@@ -264,7 +260,7 @@ workerScope.onmessage = (event) => {
         workerScope.postMessage({ id: request.id, ok: true, type: "loaded", ...loaded });
         return;
       }
-      const result = await enhance(request.strength, request.id);
+      const result = await enhance(request.strength, request.outputScale, request.id);
       if (!result.bytes) throw new Error("The local worker did not encode its result.");
       workerScope.postMessage(
         { id: request.id, ok: true, type: "enhanced", ...result },

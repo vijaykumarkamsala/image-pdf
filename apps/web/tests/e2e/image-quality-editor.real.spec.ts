@@ -463,7 +463,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download enhanced image" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("synthetic-noise-64-enhanced.png");
+  expect(download.suggestedFilename()).toBe("synthetic-noise-64-enhanced-2x.png");
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
@@ -591,6 +591,7 @@ test("photo restoration preserves a warm low-texture background", async ({ page 
     mimeType: "image/png",
     buffer: warmIllustrationPng(64),
   });
+  await page.getByRole("button", { name: "4×", exact: true }).click();
   await page.locator('input[type="range"]').fill("100");
   const originalUrl = await page.getByTestId("original-image").getAttribute("src");
   await page.getByRole("button", { name: "Enhance quality" }).click();
@@ -680,6 +681,7 @@ test("flat graphics reconstruct curves without tracing background noise", async 
   });
   await expect(page).toHaveURL(/\/image-quality\/editor$/);
   await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+  await page.getByRole("button", { name: "4×", exact: true }).click();
   await page.locator('input[type="range"]').fill("100");
   await page.getByRole("button", { name: "Enhance quality" }).click();
   await expect(page.getByText(/Enhanced image ready \(Source-colour smooth-spline reconstruction · Worker\)/)).toBeVisible({ timeout: 90_000 });
@@ -772,6 +774,7 @@ test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) 
     buffer: flatCurvePng(2_048),
   });
   await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+  await page.getByRole("button", { name: "4×", exact: true }).click();
   await page.getByRole("button", { name: "Enhance quality" }).click();
   await expect(page.getByText(/Enhanced image ready \(Source-colour smooth-spline reconstruction · Worker\)/)).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText("8192 × 8192 px")).toBeVisible();
@@ -788,6 +791,46 @@ test("2048px flat artwork is curve-fitted into an 8192px PNG", async ({ page }) 
   expect(header.width).toBe(8_192);
   expect(header.height).toBe(8_192);
   await page.goto("about:blank");
+});
+
+test("explicit output scale produces exact 2× and 4× dimensions and names the downloaded scale", async ({ page }) => {
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "dimension-contract.png",
+    mimeType: "image/png",
+    buffer: flatCurvePng(64),
+  });
+  const scaleGroup = page.getByRole("group", { name: "Output scale" });
+  const two = scaleGroup.getByRole("button", { name: "2×", exact: true });
+  const four = scaleGroup.getByRole("button", { name: "4×", exact: true });
+  await expect(two).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("128 × 128 px selected", { exact: true })).toBeVisible();
+
+  await four.click();
+  await expect(four).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("256 × 256 px selected", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Enhance quality", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled();
+  expect(await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    await (node as HTMLImageElement).decode();
+    return [(node as HTMLImageElement).naturalWidth, (node as HTMLImageElement).naturalHeight];
+  })).toEqual([256, 256]);
+  let downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download enhanced image" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe("dimension-contract-enhanced-4x.png");
+
+  await two.click();
+  await expect(page.getByText(/Enhancement settings changed/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeDisabled();
+  await page.getByRole("button", { name: "Enhance quality", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled();
+  expect(await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    await (node as HTMLImageElement).decode();
+    return [(node as HTMLImageElement).naturalWidth, (node as HTMLImageElement).naturalHeight];
+  })).toEqual([128, 128]);
+  downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download enhanced image" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe("dimension-contract-enhanced-2x.png");
 });
 
 test("transparent artwork preserves alpha without opaque seams", async ({ page }) => {

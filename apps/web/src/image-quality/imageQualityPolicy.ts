@@ -1,4 +1,4 @@
-import type { ImageQualityAnalysis } from "./ImageQualityEngine";
+import type { ImageQualityAnalysis, ImageQualityOutputScale } from "./ImageQualityEngine";
 import type { GraphicClassification } from "./imageQualityPipeline";
 
 export type ImageContentClass = "flat-graphic" | "illustration" | "photograph";
@@ -20,6 +20,41 @@ export interface ScalePlan {
   scale: 1 | 2 | 4;
   rationale: string;
   estimatedOutputBytes: number;
+}
+
+export function planRequestedScale(
+  width: number,
+  height: number,
+  scale: ImageQualityOutputScale,
+  budget: ProcessingBudget,
+): ScalePlan {
+  const outputWidth = width * scale;
+  const outputHeight = height * scale;
+  const outputPixels = outputWidth * outputHeight;
+  const exactDimensionsAreSafe = Number.isSafeInteger(outputWidth)
+    && Number.isSafeInteger(outputHeight)
+    && Number.isSafeInteger(outputPixels);
+  if (
+    !exactDimensionsAreSafe
+    || outputWidth > budget.maxCanvasEdge
+    || outputHeight > budget.maxCanvasEdge
+    || outputPixels > budget.outputPixels
+  ) {
+    const requestedMegapixels = Number.isFinite(outputPixels)
+      ? (outputPixels / 1_000_000).toFixed(1)
+      : "an unsupported number of";
+    const budgetMegapixels = (budget.outputPixels / 1_000_000).toFixed(1);
+    throw new Error(
+      `The requested ${scale}× output requires ${outputWidth} × ${outputHeight} px (${requestedMegapixels} MP), `
+      + `which exceeds this browser/device's verified local limit of ${budget.maxCanvasEdge} px per edge and ${budgetMegapixels} MP. `
+      + "Choose 2× if it fits, or use a higher-memory processing environment. No smaller output was created.",
+    );
+  }
+  return {
+    scale,
+    rationale: `${scale}× was explicitly selected and produced at the exact requested dimensions; it was not silently clamped.`,
+    estimatedOutputBytes: outputPixels * 4,
+  };
 }
 
 const gibibyte = 1024 ** 3;
@@ -77,40 +112,6 @@ export function processingBudget(
     outputPixels,
     maxCanvasEdge,
     estimatedWorkingBytes: Math.floor(memoryGiB * gibibyte * 0.28),
-  };
-}
-
-export function chooseScalePlan(
-  width: number,
-  height: number,
-  contentClass: ImageContentClass,
-  route: "neural" | "deterministic",
-  budget: ProcessingBudget,
-): ScalePlan {
-  const sourcePixels = width * height;
-  const candidates: Array<1 | 2 | 4> = route === "neural" || contentClass === "flat-graphic"
-    ? [4, 2, 1]
-    : [2, 1];
-  for (const scale of candidates) {
-    if (
-      width * scale <= budget.maxCanvasEdge
-      && height * scale <= budget.maxCanvasEdge
-      && sourcePixels * scale * scale <= budget.outputPixels
-    ) {
-      const reason = scale === 1
-        ? "Pixel correction is retained at native dimensions because enlargement would exceed the measured local budget."
-        : contentClass === "flat-graphic"
-          ? `${scale}× output is justified by reconstructed contours; it is not described as recovered photographic detail.`
-          : route === "neural"
-            ? `${scale}× output uses a restoration model after source-pixel correction.`
-            : `${scale}× output uses conservative edge-directed resampling after source-pixel correction.`;
-      return { scale, rationale: reason, estimatedOutputBytes: sourcePixels * scale * scale * 4 };
-    }
-  }
-  return {
-    scale: 1,
-    rationale: "Pixel correction is retained at native dimensions.",
-    estimatedOutputBytes: sourcePixels * 4,
   };
 }
 

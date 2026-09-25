@@ -64,7 +64,12 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
   }
 
   async enhance(strength: number, options?: ImageQualityOperationOptions): Promise<ImageQualityResult> {
-    const response = await this.request({ type: "enhance", strength, preferDeterministic: this.preferDeterministic }, options);
+    const response = await this.request({
+      type: "enhance",
+      strength,
+      outputScale: options?.outputScale ?? 2,
+      preferDeterministic: this.preferDeterministic,
+    }, options);
     if (response.type !== "enhanced") throw new Error("The image processor returned an unexpected response.");
     return {
       bytes: response.bytes,
@@ -105,7 +110,7 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
 
   private request(
     message: { type: "load"; source: Blob; allowAnalysisSample?: boolean }
-      | { type: "enhance"; strength: number; preferDeterministic: boolean },
+      | { type: "enhance"; strength: number; outputScale: 2 | 4; preferDeterministic: boolean },
     options?: ImageQualityOperationOptions,
   ): Promise<WorkerSuccess> {
     if (this.disposed) return Promise.reject(new Error("The image processor is unavailable."));

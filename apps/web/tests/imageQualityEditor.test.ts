@@ -607,6 +607,9 @@ test("view changes do not replace image bytes and reset restores the exact origi
   state = imageQualitySessionReducer(state, { type: "strength-changed", strength: 80 });
   assert.equal(state.result?.strength, 65, "changing controls must not relabel prior output bytes");
   assert.equal(state.strength, 80);
+  state = imageQualitySessionReducer(state, { type: "output-scale-changed", outputScale: 4 });
+  assert.equal(state.result, resultBeforeViewChange, "changing output scale must not relabel or replace prior bytes");
+  assert.equal(state.outputScale, 4);
   state = imageQualitySessionReducer(state, { type: "processing-started" });
   state = imageQualitySessionReducer(state, {
     type: "processing-progress",

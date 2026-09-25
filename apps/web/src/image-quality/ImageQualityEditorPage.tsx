@@ -22,7 +22,7 @@ import {
 
 import { Button, Dropzone, InlineNotice } from "../design-system";
 import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
-import type { ImageQualityEngine } from "./ImageQualityEngine";
+import type { ImageQualityEngine, ImageQualityOutputScale } from "./ImageQualityEngine";
 import { createImageQualityEngine } from "./ProductionImageQualityEngine";
 import { FaceDetailPanel } from "./FaceDetailPanel";
 import { NativeFaceDetailPanel } from "./NativeFaceDetailPanel";
@@ -50,9 +50,9 @@ function strengthLabel(strength: number) {
   return "Strong";
 }
 
-function downloadName(filename: string) {
+function downloadName(filename: string, scale: 1 | 2 | 4) {
   const stem = filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return `${stem || "image"}-enhanced.png`;
+  return `${stem || "image"}-enhanced-${scale}x.png`;
 }
 
 function useFrameSize() {
@@ -304,11 +304,20 @@ export function ImageQualityEditorPage() {
     const currentOperation = ++operation.current;
     try {
       const result = await engine.current.enhance(state.strength, {
+        outputScale: state.outputScale,
         onProgress: (progress) => {
           if (operation.current === currentOperation) dispatch({ type: "processing-progress", progress });
         },
       });
       if (operation.current !== currentOperation) return;
+      const expectedWidth = state.source.width! * state.outputScale;
+      const expectedHeight = state.source.height! * state.outputScale;
+      if (result.width !== expectedWidth || result.height !== expectedHeight || result.scale !== state.outputScale) {
+        throw new Error(
+          `The processor returned ${result.width} × ${result.height} px instead of the requested exact ${state.outputScale}× `
+          + `output (${expectedWidth} × ${expectedHeight} px). No smaller output was accepted.`,
+        );
+      }
       const blob = result.bytes ? new Blob([result.bytes], { type: result.mediaType }) : null;
       const url = blob
         ? URL.createObjectURL(blob)
@@ -367,7 +376,7 @@ export function ImageQualityEditorPage() {
     if (!state.source || !state.result) return;
     const anchor = document.createElement("a");
     anchor.href = state.result.remoteDownloadUrl ?? state.result.url;
-    anchor.download = downloadName(state.source.name);
+    anchor.download = downloadName(state.source.name, state.result.scale);
     anchor.click();
   };
 
@@ -389,10 +398,16 @@ export function ImageQualityEditorPage() {
 
   const dimensionsReady = state.source.width !== null && state.source.height !== null;
   const enhancedUrl = state.result?.url ?? state.source.url;
-  const outputDimensions = state.result ? `${state.result.width} × ${state.result.height} px` : "Not created yet";
+  const outputDimensions = state.result
+    ? `${state.result.width} × ${state.result.height} px`
+    : dimensionsReady
+      ? `${state.source.width! * state.outputScale} × ${state.source.height! * state.outputScale} px selected`
+      : "Not created yet";
   const processing = state.status === "processing";
   const canEnhance = dimensionsReady && !processing && !processorRestarting;
-  const resultIsStale = Boolean(state.result && state.result.strength !== state.strength);
+  const resultIsStale = Boolean(state.result && (
+    state.result.strength !== state.strength || state.result.scale !== state.outputScale
+  ));
   const progressPercent = state.progress && state.progress.total > 0
     ? Math.max(0, Math.min(100, Math.round(state.progress.completed / state.progress.total * 100)))
     : null;
@@ -404,7 +419,7 @@ export function ImageQualityEditorPage() {
       ? state.progress?.message ?? "Analysing the image and running its dedicated reconstruction path in a background worker…"
       : state.status === "success"
         ? resultIsStale
-          ? `Enhancement strength changed to ${state.strength}%. The displayed result is still the verified ${state.result?.strength}% result; enhance again before downloading.`
+          ? `Enhancement settings changed. The displayed result is still the verified ${state.result?.strength}% at ${state.result?.scale}×; enhance again before downloading.`
           : state.result?.model.usage === "production-restore"
             ? `AI-restored image ready (${state.result.engine}). The full image contains bounded reconstructed detail; compare it closely before downloading.`
             : `Enhanced image ready (${state.result?.engine ?? "reconstruction engine"}). Compare it closely before downloading.`
@@ -454,6 +469,18 @@ export function ImageQualityEditorPage() {
           aria-pressed={state.zoom === item.value}
           onClick={() => dispatch({ type: "zoom-changed", zoom: item.value })}
         >{item.label}</Button>)}
+      </div>
+      <div className="quality-scale-control">
+        <strong>Output scale</strong>
+        <div className="quality-control-group" role="group" aria-label="Output scale">
+          {([2, 4] as ImageQualityOutputScale[]).map((scale) => <Button
+            key={scale}
+            size="compact"
+            disabled={processing}
+            aria-pressed={state.outputScale === scale}
+            onClick={() => dispatch({ type: "output-scale-changed", outputScale: scale })}
+          >{scale}×</Button>)}
+        </div>
       </div>
       <label className="quality-strength">
         <span><strong>Enhancement strength</strong><output>{strengthLabel(state.strength)} · {state.strength}%</output></span>

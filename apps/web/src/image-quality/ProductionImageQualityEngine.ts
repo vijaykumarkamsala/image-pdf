@@ -72,6 +72,7 @@ export class ProductionImageQualityEngine implements ImageQualityEngine {
       throw new Error("Choose and prepare an image before enhancing it.");
     }
     const started = performance.now();
+    const outputScale = options?.outputScale ?? 2;
     // This protected local pass is also the content classifier. Flat graphics
     // must never be sent through a perceptual model that can repaint geometry.
     const protectedResult = await this.local.enhance(strength, options);
@@ -89,10 +90,18 @@ export class ProductionImageQualityEngine implements ImageQualityEngine {
         : protectedResult.contentClass,
       strength,
       traceId,
-      `quality-${this.sourceFacts.sourceSha256}-${strength}`,
+      `quality-${this.sourceFacts.sourceSha256}-${strength}-${outputScale}x`,
     );
     const completed = await this.waitForResult(created.image_quality_request, traceId, options);
     if (!completed.output) throw new Error("The production worker finished without a verified output.");
+    const expectedWidth = this.sourceFacts.width * outputScale;
+    const expectedHeight = this.sourceFacts.height * outputScale;
+    if (completed.output.width !== expectedWidth || completed.output.height !== expectedHeight) {
+      throw new Error(
+        `The production worker returned ${completed.output.width} × ${completed.output.height} px instead of the requested exact ${outputScale}× `
+        + `output (${expectedWidth} × ${expectedHeight} px). No smaller output was accepted.`,
+      );
+    }
     const browserVerifiable = completed.output.byte_size <= VERIFIED_BROWSER_BYTE_LIMIT;
     const bytes = browserVerifiable
       ? await api.imageQualityDownload(completed.image_quality_request_id)
@@ -106,8 +115,6 @@ export class ProductionImageQualityEngine implements ImageQualityEngine {
     if (outputSha256 !== completed.output.sha256) {
       throw new Error("The downloaded result failed its integrity check.");
     }
-    const scaleValue = completed.output.width / this.sourceFacts.width;
-    const scale: 1 | 2 | 4 = scaleValue >= 3 ? 4 : scaleValue >= 1.5 ? 2 : 1;
     return {
       bytes,
       ...(browserVerifiable ? {} : {
@@ -123,7 +130,7 @@ export class ProductionImageQualityEngine implements ImageQualityEngine {
       sourceSha256: this.sourceFacts.sourceSha256,
       outputSha256,
       strength,
-      scale,
+      scale: outputScale,
       processingTimeMs: Math.round(performance.now() - started),
       contentClass: protectedResult.contentClass,
       classificationConfidence: protectedResult.classificationConfidence,
