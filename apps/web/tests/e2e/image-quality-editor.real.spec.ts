@@ -833,6 +833,35 @@ test("explicit output scale produces exact 2× and 4× dimensions and names the 
   expect((await downloadPromise).suggestedFilename()).toBe("dimension-contract-enhanced-2x.png");
 });
 
+test("659 by 710 source downloads exact 2636 by 2840 PNG bytes at 4×", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "dimension-regression-659x710.png",
+    mimeType: "image/png",
+    buffer: progressiveStrengthPng(659, 710),
+  });
+  await expect(page.getByText("659 × 710 px", { exact: true })).toBeVisible();
+  await page.getByRole("group", { name: "Output scale" })
+    .getByRole("button", { name: "4×", exact: true })
+    .click();
+  await expect(page.getByText("2636 × 2840 px selected", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Enhance quality", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled({ timeout: 150_000 });
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download enhanced image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("dimension-regression-659x710-enhanced-4x.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const png = Buffer.concat(chunks);
+  expect(Array.from(png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  expect(png.readUInt32BE(16)).toBe(2_636);
+  expect(png.readUInt32BE(20)).toBe(2_840);
+});
+
 test("transparent artwork preserves alpha without opaque seams", async ({ page }) => {
   await page.goto("/image-quality");
   await page.locator('input[type="file"]').setInputFiles({

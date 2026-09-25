@@ -18,7 +18,7 @@ import {
   planRequestedScale,
   processingBudget,
 } from "../src/image-quality/imageQualityPolicy.ts";
-import { pngOutputSha256, tagSrgbPng } from "../src/image-quality/pngMetadata.ts";
+import { assertPngDimensions, pngOutputSha256, tagSrgbPng } from "../src/image-quality/pngMetadata.ts";
 import { sha256Blob, sha256Bytes } from "../src/image-quality/sha256.ts";
 import { clampViewerPan } from "../src/image-quality/viewerGeometry.ts";
 
@@ -210,7 +210,7 @@ test("extended WebP dimensions, alpha, ICC, EXIF and animation flags are inspect
 });
 
 test("processed PNG is tagged as sRGB and carries source-bound provenance", () => {
-  const source = concat(pngHeader(2, 2), chunk("sRGB", new Uint8Array([2])), chunk("IEND", new Uint8Array()));
+  const source = concat(pngHeader(4, 4), chunk("sRGB", new Uint8Array([2])), chunk("IEND", new Uint8Array()));
   const tagged = tagSrgbPng(source, {
     sourceSha256: "a".repeat(64),
     engineId: "engine",
@@ -237,6 +237,15 @@ test("processed PNG is tagged as sRGB and carries source-bound provenance", () =
   const chunks = pngChunks(tagged);
   assert.ok(chunks.every((item) => item.crcValid));
   assert.equal(chunks.filter((item) => item.type === "sRGB").length, 1, "conflicting colour chunks are replaced, not duplicated");
+});
+
+test("download-boundary PNG inspection rejects dimensions that differ from the selected target", () => {
+  const exact = pngStructure(2_636, 2_840, 6);
+  assert.doesNotThrow(() => assertPngDimensions(exact, 2_636, 2_840));
+  assert.throws(
+    () => assertPngDimensions(pngStructure(1_900, 2_048, 6), 2_636, 2_840),
+    /encoded PNG is 1900 × 2048 px instead of the required 2636 × 2840 px.*no mismatched download/i,
+  );
 });
 
 test("content routing reports confidence and keeps accepted flat graphics deterministic", () => {

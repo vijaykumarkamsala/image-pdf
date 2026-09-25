@@ -24,6 +24,34 @@ const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const encoder = new TextEncoder();
 let crcTable: Uint32Array | null = null;
 
+export function inspectPngDimensions(bytes: Uint8Array): { width: number; height: number } {
+  if (bytes.byteLength < 33 || !signature.every((value, index) => bytes[index] === value)) {
+    throw new Error("The processed PNG bytes are invalid.");
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (view.getUint32(8, false) !== 13 || String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR") {
+    throw new Error("The processed PNG header is invalid.");
+  }
+  const width = view.getUint32(16, false);
+  const height = view.getUint32(20, false);
+  if (width < 1 || height < 1) throw new Error("The processed PNG dimensions are invalid.");
+  return { width, height };
+}
+
+export function assertPngDimensions(
+  bytes: Uint8Array,
+  expectedWidth: number,
+  expectedHeight: number,
+): void {
+  const actual = inspectPngDimensions(bytes);
+  if (actual.width !== expectedWidth || actual.height !== expectedHeight) {
+    throw new Error(
+      `The encoded PNG is ${actual.width} × ${actual.height} px instead of the required ${expectedWidth} × ${expectedHeight} px. `
+      + "The result was rejected and no mismatched download was created.",
+    );
+  }
+}
+
 function table() {
   if (crcTable) return crcTable;
   crcTable = new Uint32Array(256);
@@ -93,9 +121,7 @@ function provenance(metadata: PngOutputMetadata) {
 }
 
 export function tagSrgbPng(bytes: Uint8Array, metadata: PngOutputMetadata): Uint8Array {
-  if (bytes.byteLength < 33 || !signature.every((value, index) => bytes[index] === value)) {
-    throw new Error("The processed PNG bytes are invalid.");
-  }
+  assertPngDimensions(bytes, metadata.outputWidth, metadata.outputHeight);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const evidence = metadata.faceRecreateEvidence;
   if (metadata.usage === "explicit-face-recreate") {
@@ -110,14 +136,10 @@ export function tagSrgbPng(bytes: Uint8Array, metadata: PngOutputMetadata): Uint
       || ![evidence.outputRegion.x, evidence.outputRegion.y, evidence.outputRegion.width, evidence.outputRegion.height].every(Number.isSafeInteger)
       || evidence.outputRegion.x < 0 || evidence.outputRegion.y < 0 || evidence.outputRegion.width <= 0 || evidence.outputRegion.height <= 0
       || evidence.outputRegion.x + evidence.outputRegion.width > metadata.outputWidth
-      || evidence.outputRegion.y + evidence.outputRegion.height > metadata.outputHeight
-      || view.getUint32(16, false) !== metadata.outputWidth || view.getUint32(20, false) !== metadata.outputHeight) {
+      || evidence.outputRegion.y + evidence.outputRegion.height > metadata.outputHeight) {
       throw new Error("Face-recreated PNG requires matching reviewed region and release evidence.");
     }
   } else if (evidence) throw new Error("Ordinary enhancement cannot carry an undisclosed face reconstruction.");
-  if (view.getUint32(8, false) !== 13 || String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR") {
-    throw new Error("The processed PNG header is invalid.");
-  }
   const additions = [
     chunk("sRGB", new Uint8Array([0])),
     chunk("gAMA", uint32(45_455)),

@@ -39,12 +39,12 @@ type ResvgModule = typeof import("@resvg/resvg-wasm");
 
 type WorkerRequest =
   | { id: number; type: "load"; source: Blob }
-  | { id: number; type: "enhance"; strength: number; outputScale: 2 | 4; preferDeterministic: boolean }
+  | { id: number; type: "enhance"; strength: number; outputScale: 2 | 4; dimensionContractVersion: 2; preferDeterministic: boolean }
   | { type: "cancel"; targetId: number };
 
 type WorkerResponse =
   | ({ id: number; ok: true; type: "loaded" } & ImageQualitySource)
-  | ({ id: number; ok: true; type: "enhanced" } & ImageQualityResult)
+  | ({ id: number; ok: true; type: "enhanced"; dimensionContractVersion: 2 } & ImageQualityResult)
   | { id: number; type: "progress"; progress: ImageQualityProgress }
   | { id: number; ok: false; message: string };
 
@@ -974,7 +974,7 @@ workerScope.onmessage = (event) => {
       const result = await enhance(request.strength, request.outputScale, request.id, request.preferDeterministic);
       if (!result.bytes) throw new Error("The local worker did not encode its result.");
       workerScope.postMessage(
-        { id: request.id, ok: true, type: "enhanced", ...result },
+        { id: request.id, ok: true, type: "enhanced", dimensionContractVersion: request.dimensionContractVersion, ...result },
         [result.bytes],
       );
     } catch (error) {

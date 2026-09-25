@@ -6,9 +6,11 @@ import type {
   ImageQualitySource,
 } from "./ImageQualityEngine";
 
+const DIMENSION_CONTRACT_VERSION = 2 as const;
+
 type WorkerSuccess =
   | ({ id: number; ok: true; type: "loaded" } & ImageQualitySource)
-  | ({ id: number; ok: true; type: "enhanced" } & ImageQualityResult);
+  | ({ id: number; ok: true; type: "enhanced"; dimensionContractVersion: 2 } & ImageQualityResult);
 type WorkerResponse = WorkerSuccess | { id: number; ok: false; message: string };
 type WorkerMessage = WorkerResponse | { id: number; type: "progress"; progress: ImageQualityProgress };
 
@@ -31,7 +33,7 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
     const useLocalResearchWorker = import.meta.env.DEV
       && import.meta.env.VITE_IMAGE_QUALITY_RESEARCH === "1";
     this.worker = useLocalResearchWorker
-      ? new Worker("/src/image-quality/imageQuality.worker.ts", { type: "module" })
+      ? new Worker(`/src/image-quality/imageQuality.worker.ts?dimension-contract=${DIMENSION_CONTRACT_VERSION}`, { type: "module" })
       : new Worker(new URL("./imageQuality.production.worker.ts", import.meta.url), { type: "module" });
     this.worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
       const request = this.pending.get(event.data.id);
@@ -68,9 +70,13 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
       type: "enhance",
       strength,
       outputScale: options?.outputScale ?? 2,
+      dimensionContractVersion: DIMENSION_CONTRACT_VERSION,
       preferDeterministic: this.preferDeterministic,
     }, options);
     if (response.type !== "enhanced") throw new Error("The image processor returned an unexpected response.");
+    if (response.dimensionContractVersion !== DIMENSION_CONTRACT_VERSION) {
+      throw new Error("A cached image worker returned an obsolete dimension contract. Reload the editor and enhance again; no download was created.");
+    }
     return {
       bytes: response.bytes,
       mediaType: response.mediaType,
@@ -110,7 +116,7 @@ export class WorkerImageQualityEngine implements ImageQualityEngine {
 
   private request(
     message: { type: "load"; source: Blob; allowAnalysisSample?: boolean }
-      | { type: "enhance"; strength: number; outputScale: 2 | 4; preferDeterministic: boolean },
+      | { type: "enhance"; strength: number; outputScale: 2 | 4; dimensionContractVersion: 2; preferDeterministic: boolean },
     options?: ImageQualityOperationOptions,
   ): Promise<WorkerSuccess> {
     if (this.disposed) return Promise.reject(new Error("The image processor is unavailable."));

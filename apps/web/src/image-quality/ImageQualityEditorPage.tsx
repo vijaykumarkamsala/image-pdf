@@ -27,6 +27,7 @@ import { createImageQualityEngine } from "./ProductionImageQualityEngine";
 import { FaceDetailPanel } from "./FaceDetailPanel";
 import { NativeFaceDetailPanel } from "./NativeFaceDetailPanel";
 import type { NativeFaceRemoteContext } from "./NativeFaceQualityClient";
+import { assertPngDimensions } from "./pngMetadata";
 import type { FaceReviewInput } from "./WorkerFaceReviewRenderer";
 import {
   imageQualitySessionReducer,
@@ -312,6 +313,7 @@ export function ImageQualityEditorPage() {
       if (operation.current !== currentOperation) return;
       const expectedWidth = state.source.width! * state.outputScale;
       const expectedHeight = state.source.height! * state.outputScale;
+      if (result.bytes) assertPngDimensions(new Uint8Array(result.bytes), expectedWidth, expectedHeight);
       if (result.width !== expectedWidth || result.height !== expectedHeight || result.scale !== state.outputScale) {
         throw new Error(
           `The processor returned ${result.width} × ${result.height} px instead of the requested exact ${state.outputScale}× `
@@ -374,6 +376,21 @@ export function ImageQualityEditorPage() {
 
   const download = () => {
     if (!state.source || !state.result) return;
+    try {
+      if (state.result.bytes) {
+        assertPngDimensions(
+          new Uint8Array(state.result.bytes),
+          state.source.width! * state.outputScale,
+          state.source.height! * state.outputScale,
+        );
+      }
+    } catch (error) {
+      dispatch({
+        type: "processing-failed",
+        message: error instanceof Error ? error.message : "The encoded PNG dimensions could not be verified.",
+      });
+      return;
+    }
     const anchor = document.createElement("a");
     anchor.href = state.result.remoteDownloadUrl ?? state.result.url;
     anchor.download = downloadName(state.source.name, state.result.scale);
