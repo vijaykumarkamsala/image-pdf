@@ -30,6 +30,10 @@ An implementation agent must report contradictions and request product-owner app
 
 ## Feature implementation records
 
+- [`IMAGE_EDITOR_MASTER_BACKLOG.md`](IMAGE_EDITOR_MASTER_BACKLOG.md) preserves
+  the product-owner-approved IE-18 image-editing capability catalogue and the
+  proposed editor UX direction. It is discovery evidence, not blanket
+  implementation approval.
 - [`BATCH_PROCESSING.md`](BATCH_PROCESSING.md) defines the implemented customer,
   orchestration, durability, security and verification boundary.
 - [`ADR-0017`](../adr/ADR-0017-durable-batch-aggregate.md) records why batches
