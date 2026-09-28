@@ -6,6 +6,10 @@ individual feature scope remain subject to explicit approval.
 **Implementation authority:** None. This document preserves product discovery and
 must not be treated as approval to implement every listed capability.
 
+**Local delivery note:** The product owner subsequently approved incremental
+implementation. Only explicitly completed slices below change state; the rest
+of the catalogue remains backlog, not a completion claim.
+
 ## Purpose and boundaries
 
 This catalogue preserves the candidate capabilities for the isolated Image
@@ -34,6 +38,13 @@ dimensions.
 - Progress, cancel, retry and understandable resource-limit failures.
 
 ## IE-02 — Geometry
+
+**Implemented locally, pending product-owner image testing:** source-coordinate
+free crop, Original/1:1/4:5/16:9 ratios, clockwise/counter-clockwise quarter
+turns and bounded ±15° straightening. The derivative is rendered in a worker,
+retains geometry provenance, verifies its encoded PNG dimensions and uses the
+same bytes for preview and download. Flip, perspective, resize, canvas and
+content-aware operations remain pending.
 
 - Free and fixed-ratio crop, including social, print, marketplace and identity
   photograph presets.
@@ -261,4 +272,3 @@ customize a dense professional workspace.
   text-preservation workflows.
 - Canva and Pixlr: approachable one-click tools and progressive editing.
 - Photoroom: product-image consistency, brand rules and batch automation.
-

@@ -351,7 +351,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await expect(page).toHaveURL(/\/image-quality\/editor$/);
   await expect(page.getByTestId("image-quality-editor")).toBeVisible();
   await expect(page.getByRole("heading", { name: "synthetic-noise-64.png" })).toBeVisible();
-  await expect(page.getByText("64 × 64 px")).toBeVisible();
+  await expect(page.locator(".quality-inspector .quality-dimensions dd").first()).toHaveText("64 × 64 px");
   await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __qualityWorkerCount: number }).__qualityWorkerCount)).toBe(1);
 
@@ -372,7 +372,7 @@ test("image quality editor uploads, processes, compares, resets and downloads re
   await expect(enhanced).toHaveCSS("filter", "none");
 
   await page.locator('input[type="range"]').fill("80");
-  await expect(page.getByText(/displayed result is still the verified 65% result/i)).toBeVisible();
+  await expect(page.getByText(/displayed result is still the verified 65% at 2×/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeDisabled();
   await page.locator('input[type="range"]').fill("65");
   await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled();
@@ -860,6 +860,72 @@ test("659 by 710 source downloads exact 2636 by 2840 PNG bytes at 4×", async ({
   expect(Array.from(png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   expect(png.readUInt32BE(16)).toBe(2_636);
   expect(png.readUInt32BE(20)).toBe(2_840);
+});
+
+test("crop rotate and download use one source-bound geometry recipe and identical verified PNG bytes", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const sourceBytes = progressiveStrengthPng(96, 80);
+  const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "geometry-workspace.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Crop", exact: true }).click();
+  await expect(page.getByTestId("crop-selection-editor")).toBeVisible();
+  await page.getByLabel("Left").fill("8");
+  await page.getByLabel("Top").fill("10");
+  await page.getByLabel("Width").fill("64");
+  await page.getByLabel("Height").fill("48");
+  await page.getByRole("button", { name: "90° right" }).click();
+  await page.locator(".quality-straighten input").fill("5");
+  await page.screenshot({ path: testInfo.outputPath("crop-rotate-workspace.png"), fullPage: true });
+  await page.getByRole("button", { name: "Apply geometry" }).click();
+  await expect(page.getByText(/Geometry derivative ready from the immutable original/)).toBeVisible();
+  await expect(page.locator(".quality-inspector .quality-dimensions dd").filter({ hasText: "48 × 64 px" })).toBeVisible();
+
+  const preview = page.getByTestId("enhanced-image");
+  await expect(preview).toBeVisible();
+  const previewEvidence = await preview.evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const bytes = await (await fetch(image.src)).arrayBuffer();
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true })!;
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const cornerOffsets = [
+      3,
+      (canvas.width - 1) * 4 + 3,
+      ((canvas.height - 1) * canvas.width) * 4 + 3,
+      (canvas.width * canvas.height - 1) * 4 + 3,
+    ];
+    return { width: image.naturalWidth, height: image.naturalHeight, digest,
+      minimumCornerAlpha: Math.min(...cornerOffsets.map((offset) => pixels[offset])) };
+  });
+  expect(previewEvidence).toMatchObject({ width: 48, height: 64 });
+  expect(previewEvidence.minimumCornerAlpha).toBe(255);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download edited image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("geometry-workspace-edited-1x.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(64);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.geometry.provenance.v1");
+  expect(createHash("sha256").update(sourceBytes).digest("hex")).toBe(sourceDigest);
 });
 
 test("transparent artwork preserves alpha without opaque seams", async ({ page }) => {
