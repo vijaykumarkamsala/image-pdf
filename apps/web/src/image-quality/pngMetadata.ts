@@ -30,6 +30,9 @@ export interface PngGeometryMetadata {
   crop: { x: number; y: number; width: number; height: number };
   quarterTurns: 0 | 1 | 2 | 3;
   straighten: number;
+  flipHorizontal: boolean;
+  flipVertical: boolean;
+  resize: { width: number; height: number } | null;
   outputWidth: number;
   outputHeight: number;
 }
@@ -143,10 +146,13 @@ function geometryProvenance(metadata: PngGeometryMetadata) {
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
-    operation_order: ["crop", "quarter_turn", "straighten"],
+    operation_order: ["crop", "flip", "quarter_turn", "straighten", "resize"],
     crop: metadata.crop,
+    flip_horizontal: metadata.flipHorizontal,
+    flip_vertical: metadata.flipVertical,
     quarter_turns_clockwise: metadata.quarterTurns,
     straighten_degrees: metadata.straighten,
+    resize: metadata.resize,
     output_width: metadata.outputWidth,
     output_height: metadata.outputHeight,
   });
@@ -223,10 +229,13 @@ export function tagGeometryPng(bytes: Uint8Array, metadata: PngGeometryMetadata)
     throw new Error("Geometry provenance requires verified source and base SHA-256 values.");
   }
   const cropValues = [metadata.crop.x, metadata.crop.y, metadata.crop.width, metadata.crop.height];
+  const resizeValues = metadata.resize ? [metadata.resize.width, metadata.resize.height] : [];
   if (!cropValues.every(Number.isSafeInteger) || metadata.crop.x < 0 || metadata.crop.y < 0
     || metadata.crop.width < 1 || metadata.crop.height < 1
     || !Number.isSafeInteger(metadata.quarterTurns) || metadata.quarterTurns < 0 || metadata.quarterTurns > 3
     || !Number.isFinite(metadata.straighten) || Math.abs(metadata.straighten) > 15
+    || typeof metadata.flipHorizontal !== "boolean" || typeof metadata.flipVertical !== "boolean"
+    || !resizeValues.every(Number.isSafeInteger) || resizeValues.some((value) => value < 1)
     || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1) {
     throw new Error("Geometry provenance requires a valid bounded source-coordinate recipe.");
   }

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createIdentityGeometry,
   cropToAspect,
+  geometryNaturalDimensions,
   geometryOutputDimensions,
   isIdentityGeometry,
   rotateGeometry,
@@ -38,6 +39,9 @@ test("geometry recipe remains source-bound and produces exact scaled dimensions"
     crop: { x: 31, y: 45, width: 600, height: 640 },
     quarterTurns: 0,
     straighten: 4.5,
+    flipHorizontal: false,
+    flipVertical: false,
+    resize: null,
   }, 659, 710);
   assert.deepEqual(geometryOutputDimensions(crop), { width: 600, height: 640 });
   assert.deepEqual(geometryOutputDimensions(crop, 4), { width: 2400, height: 2560 });
@@ -47,6 +51,21 @@ test("geometry recipe remains source-bound and produces exact scaled dimensions"
   assert.deepEqual(geometryOutputDimensions(rotated, 4), { width: 2560, height: 2400 });
   assert.equal(sameGeometry(crop, rotated), false);
   assert.deepEqual(crop, sanitizeGeometryRecipe(crop, 659, 710), "sanitising a valid recipe must be deterministic");
+});
+
+test("flip state and exact resize are deterministic and resize is independent of base scale", () => {
+  const recipe = sanitizeGeometryRecipe({
+    ...createIdentityGeometry(659, 710),
+    flipHorizontal: true,
+    resize: { width: 2636, height: 2840 },
+  }, 659, 710);
+  assert.deepEqual(geometryNaturalDimensions(recipe), { width: 659, height: 710 });
+  assert.deepEqual(geometryNaturalDimensions(recipe, 4), { width: 2636, height: 2840 });
+  assert.deepEqual(geometryOutputDimensions(recipe), { width: 2636, height: 2840 });
+  assert.deepEqual(geometryOutputDimensions(recipe, 4), { width: 2636, height: 2840 });
+  assert.equal(isIdentityGeometry(recipe, 659, 710), false);
+  assert.equal(sameGeometry(recipe, { ...recipe, flipHorizontal: false }), false);
+  assert.deepEqual(recipe, sanitizeGeometryRecipe(recipe, 659, 710));
 });
 
 test("crop constraints and aspect presets stay inside the immutable source", () => {
@@ -82,13 +101,18 @@ test("geometry PNG tagging preserves exact bytes dimensions and records the sour
     crop: { x: 31, y: 45, width: 600, height: 640 },
     quarterTurns: 0,
     straighten: 4.5,
+    flipHorizontal: true,
+    flipVertical: false,
+    resize: { width: 2400, height: 2560 },
     outputWidth: 2400,
     outputHeight: 2560,
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 2400, height: 2560 });
   const text = new TextDecoder().decode(tagged);
   assert.match(text, /ipw\.image-edit\.geometry\.provenance\.v1/);
-  assert.match(text, /"operation_order":\["crop","quarter_turn","straighten"\]/);
+  assert.match(text, /"operation_order":\["crop","flip","quarter_turn","straighten","resize"\]/);
+  assert.match(text, /"flip_horizontal":true/);
+  assert.match(text, /"resize":\{"width":2400,"height":2560\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.throws(() => tagGeometryPng(framedPng(1200, 1280), {
     sourceSha256: sourceHash,
@@ -100,6 +124,9 @@ test("geometry PNG tagging preserves exact bytes dimensions and records the sour
     crop: { x: 0, y: 0, width: 1200, height: 1280 },
     quarterTurns: 0,
     straighten: 0,
+    flipHorizontal: false,
+    flipVertical: false,
+    resize: null,
     outputWidth: 2400,
     outputHeight: 2560,
   }), /instead of the required/);

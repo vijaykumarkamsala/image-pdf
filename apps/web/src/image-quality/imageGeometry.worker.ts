@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import {
+  geometryNaturalDimensions,
   geometryOutputDimensions,
   sanitizeGeometryRecipe,
   straightenCoverScale,
@@ -39,6 +40,7 @@ async function load(id: number, source: Blob) {
 async function render(id: number, recipe: ImageGeometryRecipe, metadata: PngGeometryMetadata) {
   if (!bitmap) throw new Error("The source must be prepared before applying geometry edits.");
   const safe = sanitizeGeometryRecipe(recipe, bitmap.width, bitmap.height);
+  const natural = geometryNaturalDimensions(safe);
   const output = geometryOutputDimensions(safe);
   if (output.width > MAX_CANVAS_EDGE || output.height > MAX_CANVAS_EDGE) {
     throw new Error(
@@ -56,12 +58,16 @@ async function render(id: number, recipe: ImageGeometryRecipe, metadata: PngGeom
   const quarterRadians = safe.quarterTurns * Math.PI / 2;
   const cover = safe.straighten === 0
     ? 1
-    : straightenCoverScale(output.width, output.height, safe.straighten) * 1.002;
+    : straightenCoverScale(natural.width, natural.height, safe.straighten) * 1.002;
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
   context.translate(output.width / 2, output.height / 2);
+  context.scale(output.width / natural.width, output.height / natural.height);
   context.rotate(quarterRadians + radians);
-  context.scale(cover, cover);
+  context.scale(
+    cover * (safe.flipHorizontal ? -1 : 1),
+    cover * (safe.flipVertical ? -1 : 1),
+  );
   context.drawImage(
     bitmap,
     safe.crop.x,

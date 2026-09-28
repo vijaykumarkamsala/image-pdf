@@ -1,6 +1,8 @@
 import {
   Crop,
   Download,
+  FlipHorizontal2,
+  FlipVertical2,
   RotateCcw,
   RotateCw,
   SlidersHorizontal,
@@ -12,6 +14,7 @@ import { Button } from "../design-system";
 import type { ImageQualityOutputScale } from "./ImageQualityEngine";
 import {
   cropToAspect,
+  geometryNaturalDimensions,
   isIdentityGeometry,
   rotateGeometry,
   sanitizeCropRect,
@@ -94,6 +97,8 @@ export function EnhancementToolPanel(props: EnhancementToolPanelProps) {
 interface GeometryToolPanelProps {
   recipe: ImageGeometryRecipe | null;
   aspect: ImageCropAspect;
+  resizeAspectLocked: boolean;
+  baseScale: number;
   sourceWidth: number;
   sourceHeight: number;
   dimensionsReady: boolean;
@@ -102,6 +107,7 @@ interface GeometryToolPanelProps {
   canDownload: boolean;
   onRecipe: (recipe: ImageGeometryRecipe) => void;
   onAspect: (aspect: ImageCropAspect) => void;
+  onResizeAspectLocked: (locked: boolean) => void;
   onApply: () => void;
   onReset: () => void;
   onDownload: () => void;
@@ -112,8 +118,22 @@ export function GeometryToolPanel(props: GeometryToolPanelProps) {
   if (!recipe || !props.dimensionsReady) {
     return <aside className="quality-tool-panel quality-controls" aria-label="Crop and rotate controls"><p>Preparing geometry controls…</p></aside>;
   }
-  return <aside className="quality-tool-panel quality-controls" aria-label="Crop and rotate controls">
-    <div className="quality-panel-heading"><Crop aria-hidden="true" /><div><h2>Crop & rotate</h2><p>Non-destructive source-coordinate recipe.</p></div></div>
+  const natural = geometryNaturalDimensions(recipe, props.baseScale);
+  const resize = recipe.resize ?? natural;
+  const updateResize = (field: "width" | "height", value: number) => {
+    const next = Math.max(1, Math.round(Number.isFinite(value) ? value : 1));
+    const ratio = natural.width / natural.height;
+    props.onRecipe({
+      ...recipe,
+      resize: props.resizeAspectLocked
+        ? field === "width"
+          ? { width: next, height: Math.max(1, Math.round(next / ratio)) }
+          : { width: Math.max(1, Math.round(next * ratio)), height: next }
+        : { ...resize, [field]: next },
+    });
+  };
+  return <aside className="quality-tool-panel quality-controls" aria-label="Crop, rotate, flip and resize controls">
+    <div className="quality-panel-heading"><Crop aria-hidden="true" /><div><h2>Transform</h2><p>Non-destructive source-coordinate recipe.</p></div></div>
     <fieldset className="quality-aspect-control">
       <legend>Aspect ratio</legend>
       <div className="quality-control-group">
@@ -163,17 +183,53 @@ export function GeometryToolPanel(props: GeometryToolPanelProps) {
         <Button size="compact" disabled={props.busy} onClick={() => props.onRecipe(rotateGeometry(recipe, 1))}><RotateCw aria-hidden="true" />90° right</Button>
       </div>
     </div>
+    <div className="quality-rotate-controls">
+      <strong>Flip</strong>
+      <div className="quality-control-group">
+        <Button size="compact" aria-pressed={recipe.flipHorizontal} disabled={props.busy}
+          onClick={() => props.onRecipe({ ...recipe, flipHorizontal: !recipe.flipHorizontal })}>
+          <FlipHorizontal2 aria-hidden="true" />Horizontal
+        </Button>
+        <Button size="compact" aria-pressed={recipe.flipVertical} disabled={props.busy}
+          onClick={() => props.onRecipe({ ...recipe, flipVertical: !recipe.flipVertical })}>
+          <FlipVertical2 aria-hidden="true" />Vertical
+        </Button>
+      </div>
+    </div>
     <label className="quality-strength quality-straighten">
       <span><strong>Straighten</strong><output>{recipe.straighten.toFixed(1)}°</output></span>
       <input type="range" min="-15" max="15" step="0.1" value={recipe.straighten} disabled={props.busy}
         onChange={(event) => props.onRecipe({ ...recipe, straighten: Number(event.target.value) })} />
     </label>
+    <fieldset className="quality-resize-control">
+      <legend>Resize output</legend>
+      <label className="quality-check-control">
+        <input type="checkbox" checked={recipe.resize !== null} disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...recipe, resize: event.target.checked ? natural : null })} />
+        <span>Use exact pixel dimensions</span>
+      </label>
+      <div className="quality-resize-fields">
+        <label><span>Width</span><input aria-label="Output width" type="number" min="1" value={resize.width}
+          disabled={props.busy || recipe.resize === null}
+          onChange={(event) => updateResize("width", Number(event.target.value))} /></label>
+        <span aria-hidden="true">x</span>
+        <label><span>Height</span><input aria-label="Output height" type="number" min="1" value={resize.height}
+          disabled={props.busy || recipe.resize === null}
+          onChange={(event) => updateResize("height", Number(event.target.value))} /></label>
+      </div>
+      <label className="quality-check-control">
+        <input type="checkbox" checked={props.resizeAspectLocked} disabled={props.busy || recipe.resize === null}
+          onChange={(event) => props.onResizeAspectLocked(event.target.checked)} />
+        <span>Lock current aspect ratio</span>
+      </label>
+      <p>Natural size: {natural.width} x {natural.height} px. Requests beyond the browser limit fail visibly; they are never reduced silently.</p>
+    </fieldset>
     <div className="quality-actions">
       <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Crop aria-hidden="true" />{props.busy ? "Applying…" : "Apply geometry"}</Button>
       <Button disabled={props.busy || isIdentityGeometry(recipe, props.sourceWidth, props.sourceHeight)} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset geometry</Button>
       <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download edited image</Button>
     </div>
-    <p className="quality-view-note">Crop is selected in the original orientation. Quarter-turn and straighten are applied afterward; straighten fills the frame without transparent corners.</p>
+    <p className="quality-view-note">Order: crop, flip, rotate, straighten, then optional exact resize. Straighten fills the frame without transparent corners.</p>
   </aside>;
 }
 
@@ -204,6 +260,10 @@ export function ImageEditorInspector({
       <div><dt>Crop</dt><dd>{recipe.crop.width} × {recipe.crop.height} px</dd></div>
       <div><dt>Position</dt><dd>{recipe.crop.x}, {recipe.crop.y}</dd></div>
       <div><dt>Rotation</dt><dd>{recipe.quarterTurns * 90 + recipe.straighten}°</dd></div>
+      <div><dt>Flip</dt><dd>{recipe.flipHorizontal || recipe.flipVertical
+        ? [recipe.flipHorizontal && "horizontal", recipe.flipVertical && "vertical"].filter(Boolean).join(" + ")
+        : "None"}</dd></div>
+      <div><dt>Resize</dt><dd>{recipe.resize ? `${recipe.resize.width} x ${recipe.resize.height} px` : "Natural size"}</dd></div>
       <div><dt>Recipe</dt><dd>{geometryIsDirty ? "Unapplied changes" : geometryDisplayReady ? "Applied" : "None"}</dd></div>
     </dl>}
     <p className="quality-inspector-note">Original bytes are immutable. Enhancement and geometry remain separate, traceable derivative stages.</p>

@@ -8,6 +8,11 @@ export interface ImageCropRect {
 export type ImageQuarterTurns = 0 | 1 | 2 | 3;
 export type ImageCropAspect = "free" | "original" | "1:1" | "4:5" | "16:9";
 
+export interface ImageResizeTarget {
+  width: number;
+  height: number;
+}
+
 export interface ImageGeometryRecipe {
   /** Crop coordinates are integer pixels in the immutable original. */
   crop: ImageCropRect;
@@ -15,6 +20,11 @@ export interface ImageGeometryRecipe {
   quarterTurns: ImageQuarterTurns;
   /** Bounded fine rotation, in degrees, applied after the quarter turn. */
   straighten: number;
+  /** Source-coordinate flips applied after crop and before rotation. */
+  flipHorizontal: boolean;
+  flipVertical: boolean;
+  /** Absolute final PNG dimensions. Null preserves the post-crop natural size. */
+  resize: ImageResizeTarget | null;
 }
 
 export const MAX_STRAIGHTEN_DEGREES = 15;
@@ -25,7 +35,14 @@ export function createIdentityGeometry(width: number, height: number): ImageGeom
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
     throw new Error("Image geometry requires positive integer source dimensions.");
   }
-  return { crop: { x: 0, y: 0, width, height }, quarterTurns: 0, straighten: 0 };
+  return {
+    crop: { x: 0, y: 0, width, height },
+    quarterTurns: 0,
+    straighten: 0,
+    flipHorizontal: false,
+    flipVertical: false,
+    resize: null,
+  };
 }
 
 export function sanitizeCropRect(
@@ -53,6 +70,12 @@ export function sanitizeGeometryRecipe(
   minimumCropSize = 1,
 ): ImageGeometryRecipe {
   const turns = ((Math.round(recipe.quarterTurns) % 4) + 4) % 4 as ImageQuarterTurns;
+  const resize = recipe.resize === null || recipe.resize === undefined
+    ? null
+    : {
+      width: Math.max(1, Math.round(Number.isFinite(recipe.resize.width) ? recipe.resize.width : 1)),
+      height: Math.max(1, Math.round(Number.isFinite(recipe.resize.height) ? recipe.resize.height : 1)),
+    };
   return {
     crop: sanitizeCropRect(recipe.crop, sourceWidth, sourceHeight, minimumCropSize),
     quarterTurns: turns,
@@ -61,6 +84,9 @@ export function sanitizeGeometryRecipe(
       -MAX_STRAIGHTEN_DEGREES,
       MAX_STRAIGHTEN_DEGREES,
     ),
+    flipHorizontal: recipe.flipHorizontal === true,
+    flipVertical: recipe.flipVertical === true,
+    resize,
   };
 }
 
@@ -117,7 +143,7 @@ export function scaledCropRect(crop: ImageCropRect, scale: number): ImageCropRec
   };
 }
 
-export function geometryOutputDimensions(
+export function geometryNaturalDimensions(
   recipe: ImageGeometryRecipe,
   scale = 1,
 ): { width: number; height: number } {
@@ -125,6 +151,14 @@ export function geometryOutputDimensions(
   return recipe.quarterTurns % 2 === 0
     ? { width: crop.width, height: crop.height }
     : { width: crop.height, height: crop.width };
+}
+
+export function geometryOutputDimensions(
+  recipe: ImageGeometryRecipe,
+  scale = 1,
+): { width: number; height: number } {
+  if (recipe.resize) return { width: recipe.resize.width, height: recipe.resize.height };
+  return geometryNaturalDimensions(recipe, scale);
 }
 
 /** Scale required to rotate without exposing empty corners in the fixed output frame. */
@@ -142,7 +176,9 @@ export function isIdentityGeometry(recipe: ImageGeometryRecipe, sourceWidth: num
   const safe = sanitizeGeometryRecipe(recipe, sourceWidth, sourceHeight);
   return safe.crop.x === 0 && safe.crop.y === 0
     && safe.crop.width === sourceWidth && safe.crop.height === sourceHeight
-    && safe.quarterTurns === 0 && Math.abs(safe.straighten) < 0.0001;
+    && safe.quarterTurns === 0 && Math.abs(safe.straighten) < 0.0001
+    && !safe.flipHorizontal && !safe.flipVertical
+    && (!safe.resize || (safe.resize.width === sourceWidth && safe.resize.height === sourceHeight));
 }
 
 export function sameGeometry(left: ImageGeometryRecipe | null, right: ImageGeometryRecipe): boolean {
@@ -150,5 +186,11 @@ export function sameGeometry(left: ImageGeometryRecipe | null, right: ImageGeome
     && left.crop.x === right.crop.x && left.crop.y === right.crop.y
     && left.crop.width === right.crop.width && left.crop.height === right.crop.height
     && left.quarterTurns === right.quarterTurns
-    && Math.abs(left.straighten - right.straighten) < 0.0001);
+    && Math.abs(left.straighten - right.straighten) < 0.0001
+    && left.flipHorizontal === right.flipHorizontal
+    && left.flipVertical === right.flipVertical
+    && ((!left.resize && !right.resize)
+      || Boolean(left.resize && right.resize
+        && left.resize.width === right.resize.width
+        && left.resize.height === right.resize.height)));
 }

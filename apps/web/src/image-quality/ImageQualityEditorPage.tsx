@@ -65,9 +65,9 @@ function downloadName(filename: string, scale: 1 | 2 | 4) {
   return `${stem || "image"}-enhanced-${scale}x.png`;
 }
 
-function editedDownloadName(filename: string, scale: number) {
+function editedDownloadName(filename: string, width: number, height: number) {
   const stem = filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return `${stem || "image"}-edited-${scale}x.png`;
+  return `${stem || "image"}-edited-${width}x${height}.png`;
 }
 
 interface GeometryDerivative extends ImageGeometryResult {
@@ -229,6 +229,7 @@ export function ImageQualityEditorPage() {
   const [faceDetailRevision, setFaceDetailRevision] = useState(0);
   const [activeTool, setActiveTool] = useState<"enhance" | "geometry">("enhance");
   const [cropAspect, setCropAspect] = useState<ImageCropAspect>("original");
+  const [resizeAspectLocked, setResizeAspectLocked] = useState(true);
   const [geometryRecipe, setGeometryRecipe] = useState<ImageGeometryRecipe | null>(null);
   const [appliedGeometry, setAppliedGeometry] = useState<ImageGeometryRecipe | null>(null);
   const [geometryOriginal, setGeometryOriginal] = useState<GeometryDerivative | null>(null);
@@ -318,6 +319,7 @@ export function ImageQualityEditorPage() {
     setFaceDetailRevision((revision) => revision + 1);
     setActiveTool("enhance");
     setCropAspect("original");
+    setResizeAspectLocked(true);
     setGeometryRecipe(null);
     setGeometryBusy(false);
     setGeometryError(null);
@@ -474,6 +476,9 @@ export function ImageQualityEditorPage() {
         crop: safe.crop,
         quarterTurns: safe.quarterTurns,
         straighten: safe.straighten,
+        flipHorizontal: safe.flipHorizontal,
+        flipVertical: safe.flipVertical,
+        resize: safe.resize,
         outputWidth: originalDimensions.width,
         outputHeight: originalDimensions.height,
       };
@@ -506,6 +511,9 @@ export function ImageQualityEditorPage() {
           crop: safe.crop,
           quarterTurns: safe.quarterTurns,
           straighten: safe.straighten,
+          flipHorizontal: safe.flipHorizontal,
+          flipVertical: safe.flipVertical,
+          resize: safe.resize,
           outputWidth: enhancedDimensions.width,
           outputHeight: enhancedDimensions.height,
         });
@@ -553,6 +561,7 @@ export function ImageQualityEditorPage() {
     setGeometryError(null);
     setGeometryMessage(null);
     setCropAspect("original");
+    setResizeAspectLocked(true);
     setGeometryRecipe(createIdentityGeometry(state.source.width, state.source.height));
     clearGeometryDerivatives();
     dispatch({ type: "zoom-changed", zoom: "fit" });
@@ -588,7 +597,7 @@ export function ImageQualityEditorPage() {
       }
       const anchor = document.createElement("a");
       anchor.href = geometryDownload.url;
-      anchor.download = editedDownloadName(state.source.name, state.result?.scale ?? 1);
+      anchor.download = editedDownloadName(state.source.name, geometryDownload.width, geometryDownload.height);
       anchor.click();
       return;
     }
@@ -744,6 +753,8 @@ export function ImageQualityEditorPage() {
         : <GeometryToolPanel
             recipe={geometryRecipe}
             aspect={cropAspect}
+            resizeAspectLocked={resizeAspectLocked}
+            baseScale={state.result?.scale ?? 1}
             sourceWidth={sourceWidth}
             sourceHeight={sourceHeight}
             dimensionsReady={dimensionsReady}
@@ -752,6 +763,7 @@ export function ImageQualityEditorPage() {
             canDownload={Boolean(downloadableGeometry)}
             onRecipe={setGeometryRecipe}
             onAspect={setCropAspect}
+            onResizeAspectLocked={setResizeAspectLocked}
             onApply={() => void applyGeometry()}
             onReset={resetGeometry}
             onDownload={download}

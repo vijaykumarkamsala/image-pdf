@@ -862,7 +862,7 @@ test("659 by 710 source downloads exact 2636 by 2840 PNG bytes at 4×", async ({
   expect(png.readUInt32BE(20)).toBe(2_840);
 });
 
-test("crop rotate and download use one source-bound geometry recipe and identical verified PNG bytes", async ({ page }, testInfo) => {
+test("crop rotate flip resize and download use one source-bound recipe and identical verified PNG bytes", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   const sourceBytes = progressiveStrengthPng(96, 80);
   const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
@@ -878,14 +878,19 @@ test("crop rotate and download use one source-bound geometry recipe and identica
   await expect(page.getByTestId("crop-selection-editor")).toBeVisible();
   await page.getByLabel("Left").fill("8");
   await page.getByLabel("Top").fill("10");
-  await page.getByLabel("Width").fill("64");
-  await page.getByLabel("Height").fill("48");
+  await page.getByLabel("Width", { exact: true }).fill("64");
+  await page.getByLabel("Height", { exact: true }).fill("48");
   await page.getByRole("button", { name: "90° right" }).click();
+  await page.getByRole("button", { name: "Horizontal", exact: true }).click();
+  await page.getByRole("button", { name: "Vertical", exact: true }).click();
   await page.locator(".quality-straighten input").fill("5");
+  await page.getByLabel("Use exact pixel dimensions").check();
+  await page.getByLabel("Output width").fill("120");
+  await expect(page.getByLabel("Output height")).toHaveValue("160");
   await page.screenshot({ path: testInfo.outputPath("crop-rotate-workspace.png"), fullPage: true });
   await page.getByRole("button", { name: "Apply geometry" }).click();
   await expect(page.getByText(/Geometry derivative ready from the immutable original/)).toBeVisible();
-  await expect(page.locator(".quality-inspector .quality-dimensions dd").filter({ hasText: "48 × 64 px" })).toBeVisible();
+  await expect(page.locator(".quality-inspector .quality-dimensions dd").filter({ hasText: "120 × 160 px" })).toBeVisible();
 
   const preview = page.getByTestId("enhanced-image");
   await expect(preview).toBeVisible();
@@ -909,23 +914,31 @@ test("crop rotate and download use one source-bound geometry recipe and identica
     return { width: image.naturalWidth, height: image.naturalHeight, digest,
       minimumCornerAlpha: Math.min(...cornerOffsets.map((offset) => pixels[offset])) };
   });
-  expect(previewEvidence).toMatchObject({ width: 48, height: 64 });
+  expect(previewEvidence).toMatchObject({ width: 120, height: 160 });
   expect(previewEvidence.minimumCornerAlpha).toBe(255);
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download edited image" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("geometry-workspace-edited-1x.png");
+  expect(download.suggestedFilename()).toBe("geometry-workspace-edited-120x160.png");
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   stream.destroy();
   const downloaded = Buffer.concat(chunks);
-  expect(downloaded.readUInt32BE(16)).toBe(48);
-  expect(downloaded.readUInt32BE(20)).toBe(64);
+  expect(downloaded.readUInt32BE(16)).toBe(120);
+  expect(downloaded.readUInt32BE(20)).toBe(160);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
   expect(downloaded.toString("utf8")).toContain("ipw.image-edit.geometry.provenance.v1");
+  expect(downloaded.toString("utf8")).toContain('"flip_horizontal":true');
+  expect(downloaded.toString("utf8")).toContain('"flip_vertical":true');
+  expect(downloaded.toString("utf8")).toContain('"resize":{"width":120,"height":160}');
   expect(createHash("sha256").update(sourceBytes).digest("hex")).toBe(sourceDigest);
+
+  await page.getByLabel("Output width").fill("20000");
+  await page.getByRole("button", { name: "Apply geometry" }).click();
+  await expect(page.getByText(/beyond this browser's 16384px canvas edge/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download edited image" })).toBeDisabled();
 });
 
 test("transparent artwork preserves alpha without opaque seams", async ({ page }) => {
