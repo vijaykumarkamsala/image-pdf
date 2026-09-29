@@ -41,12 +41,15 @@ dimensions.
 
 **Implemented locally, pending product-owner image testing:** source-coordinate
 free crop, Original/1:1/4:5/16:9 ratios, clockwise/counter-clockwise quarter
-turns, horizontal/vertical flip, bounded ±15° straightening and optional exact
-pixel resize with aspect locking. The derivative is rendered in a worker,
-retains ordered geometry provenance, verifies its encoded PNG dimensions and
-uses the same bytes for preview and download. Oversized browser requests fail
-visibly instead of being clamped. Perspective, physical/PPI sizing, fit/fill,
-canvas and content-aware operations remain pending.
+turns, manual four-corner perspective correction, horizontal/vertical flip,
+bounded ±15° straightening and optional exact pixel resize with aspect locking.
+Perspective uses bounded projective sampling with alpha-safe bilinear
+interpolation and a disclosed browser working-pixel budget. The derivative is
+rendered in a worker, retains ordered geometry provenance, verifies its encoded
+PNG dimensions and uses the same bytes for preview and download. Oversized
+browser requests fail visibly instead of being clamped. Automatic perspective,
+lens correction, physical/PPI sizing, fit/fill, canvas and content-aware
+operations remain pending.
 
 - Free and fixed-ratio crop, including social, print, marketplace and identity
   photograph presets.

@@ -2,15 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  assertBrowserPerspectiveBudget,
   createIdentityGeometry,
+  createIdentityPerspective,
   cropToAspect,
   geometryNaturalDimensions,
   geometryOutputDimensions,
   isIdentityGeometry,
+  mapPerspectivePoint,
+  perspectiveIsIdentity,
+  perspectiveTransform,
   rotateGeometry,
   sameGeometry,
   sanitizeCropRect,
   sanitizeGeometryRecipe,
+  sanitizePerspectiveQuad,
   scaledCropRect,
   straightenCoverScale,
 } from "../src/image-quality/imageGeometry.ts";
@@ -41,6 +47,7 @@ test("geometry recipe remains source-bound and produces exact scaled dimensions"
     straighten: 4.5,
     flipHorizontal: false,
     flipVertical: false,
+    perspective: null,
     resize: null,
   }, 659, 710);
   assert.deepEqual(geometryOutputDimensions(crop), { width: 600, height: 640 });
@@ -51,6 +58,54 @@ test("geometry recipe remains source-bound and produces exact scaled dimensions"
   assert.deepEqual(geometryOutputDimensions(rotated, 4), { width: 2560, height: 2400 });
   assert.equal(sameGeometry(crop, rotated), false);
   assert.deepEqual(crop, sanitizeGeometryRecipe(crop, 659, 710), "sanitising a valid recipe must be deterministic");
+});
+
+test("four-corner perspective mapping is bounded, stable and maps output corners to source corners", () => {
+  const perspective = sanitizePerspectiveQuad({
+    topLeft: { x: 0.18, y: 0.12 },
+    topRight: { x: 0.92, y: -1 },
+    bottomRight: { x: 2, y: 0.9 },
+    bottomLeft: { x: 0.08, y: 0.82 },
+  });
+  assert.deepEqual(perspective.topRight, { x: 0.92, y: 0 });
+  assert.deepEqual(perspective.bottomRight, { x: 1, y: 0.9 });
+  const transform = perspectiveTransform(perspective);
+  const corners = [
+    mapPerspectivePoint(transform, 0, 0),
+    mapPerspectivePoint(transform, 1, 0),
+    mapPerspectivePoint(transform, 1, 1),
+    mapPerspectivePoint(transform, 0, 1),
+  ];
+  const expectedCorners = [
+    perspective.topLeft,
+    perspective.topRight,
+    perspective.bottomRight,
+    perspective.bottomLeft,
+  ];
+  corners.forEach((corner, index) => {
+    assert.ok(Math.abs(corner.x - expectedCorners[index].x) < 1e-12);
+    assert.ok(Math.abs(corner.y - expectedCorners[index].y) < 1e-12);
+  });
+  const centre = mapPerspectivePoint(transform, 0.5, 0.5);
+  assert.ok(centre.x > 0 && centre.x < 1 && centre.y > 0 && centre.y < 1);
+  assert.equal(perspectiveIsIdentity(createIdentityPerspective()), true);
+  assert.equal(perspectiveIsIdentity(perspective), false);
+  const identityRecipe = createIdentityGeometry(64, 64);
+  assert.equal(isIdentityGeometry({ ...identityRecipe, perspective: createIdentityPerspective() }, 64, 64), true);
+  assert.equal(sameGeometry(identityRecipe, { ...identityRecipe, perspective: createIdentityPerspective() }), false,
+    "enabling perspective must remain an editable recipe state even before a corner moves");
+});
+
+test("perspective correction fails visibly instead of silently bypassing the browser pixel budget", () => {
+  assert.equal(assertBrowserPerspectiveBudget(4096, 4096), 16_777_216);
+  assert.throws(
+    () => assertBrowserPerspectiveBudget(4097, 4096),
+    /beyond this browser's 16,777,216-pixel safety budget.*No uncorrected substitute was created/,
+  );
+  assert.throws(
+    () => assertBrowserPerspectiveBudget(0, 4096),
+    /positive integer working dimensions/,
+  );
 });
 
 test("flip state and exact resize are deterministic and resize is independent of base scale", () => {
@@ -103,6 +158,12 @@ test("geometry PNG tagging preserves exact bytes dimensions and records the sour
     straighten: 4.5,
     flipHorizontal: true,
     flipVertical: false,
+    perspective: {
+      topLeft: { x: 0.1, y: 0.05 },
+      topRight: { x: 0.95, y: 0.08 },
+      bottomRight: { x: 1, y: 0.95 },
+      bottomLeft: { x: 0.04, y: 1 },
+    },
     resize: { width: 2400, height: 2560 },
     outputWidth: 2400,
     outputHeight: 2560,
@@ -110,10 +171,31 @@ test("geometry PNG tagging preserves exact bytes dimensions and records the sour
   assert.deepEqual(inspectPngDimensions(tagged), { width: 2400, height: 2560 });
   const text = new TextDecoder().decode(tagged);
   assert.match(text, /ipw\.image-edit\.geometry\.provenance\.v1/);
-  assert.match(text, /"operation_order":\["crop","flip","quarter_turn","straighten","resize"\]/);
+  assert.match(text, /"operation_order":\["crop","perspective","flip","quarter_turn","straighten","resize"\]/);
+  assert.match(text, /"perspective":\{"topLeft":\{"x":0.1,"y":0.05\}/);
   assert.match(text, /"flip_horizontal":true/);
   assert.match(text, /"resize":\{"width":2400,"height":2560\}/);
   assert.match(text, new RegExp(sourceHash));
+  assert.throws(() => tagGeometryPng(framedPng(2400, 2560), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    crop: { x: 0, y: 0, width: 600, height: 640 },
+    quarterTurns: 0,
+    straighten: 0,
+    flipHorizontal: false,
+    flipVertical: false,
+    perspective: {
+      ...createIdentityPerspective(),
+      topLeft: { x: 0.9, y: 0.9 },
+    },
+    resize: { width: 2400, height: 2560 },
+    outputWidth: 2400,
+    outputHeight: 2560,
+  }), /valid bounded source-coordinate recipe/);
   assert.throws(() => tagGeometryPng(framedPng(1200, 1280), {
     sourceSha256: sourceHash,
     baseOutputSha256: baseHash,
@@ -126,6 +208,7 @@ test("geometry PNG tagging preserves exact bytes dimensions and records the sour
     straighten: 0,
     flipHorizontal: false,
     flipVertical: false,
+    perspective: null,
     resize: null,
     outputWidth: 2400,
     outputHeight: 2560,

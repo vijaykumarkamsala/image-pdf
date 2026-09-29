@@ -1,5 +1,6 @@
 import { sha256Bytes } from "./sha256.ts";
 import type { FaceRecreateEvidence } from "./faceDetailRestoration.ts";
+import { sanitizePerspectiveQuad, type ImagePerspectiveQuad } from "./imageGeometry.ts";
 
 export interface PngOutputMetadata {
   sourceSha256: string;
@@ -32,6 +33,7 @@ export interface PngGeometryMetadata {
   straighten: number;
   flipHorizontal: boolean;
   flipVertical: boolean;
+  perspective: ImagePerspectiveQuad | null;
   resize: { width: number; height: number } | null;
   outputWidth: number;
   outputHeight: number;
@@ -146,8 +148,9 @@ function geometryProvenance(metadata: PngGeometryMetadata) {
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
-    operation_order: ["crop", "flip", "quarter_turn", "straighten", "resize"],
+    operation_order: ["crop", "perspective", "flip", "quarter_turn", "straighten", "resize"],
     crop: metadata.crop,
+    perspective: metadata.perspective,
     flip_horizontal: metadata.flipHorizontal,
     flip_vertical: metadata.flipVertical,
     quarter_turns_clockwise: metadata.quarterTurns,
@@ -230,11 +233,28 @@ export function tagGeometryPng(bytes: Uint8Array, metadata: PngGeometryMetadata)
   }
   const cropValues = [metadata.crop.x, metadata.crop.y, metadata.crop.width, metadata.crop.height];
   const resizeValues = metadata.resize ? [metadata.resize.width, metadata.resize.height] : [];
+  const perspectivePoints = metadata.perspective
+    ? [
+      metadata.perspective.topLeft,
+      metadata.perspective.topRight,
+      metadata.perspective.bottomRight,
+      metadata.perspective.bottomLeft,
+    ]
+    : [];
+  const perspectiveValues = perspectivePoints.flatMap((point) => point ? [point.x, point.y] : [Number.NaN, Number.NaN]);
+  const safePerspective = metadata.perspective ? sanitizePerspectiveQuad(metadata.perspective) : null;
+  const perspectiveIsSafe = !metadata.perspective || perspectivePoints.every((point, index) => {
+    if (!point || !safePerspective) return false;
+    const corner = (["topLeft", "topRight", "bottomRight", "bottomLeft"] as const)[index];
+    return point.x === safePerspective[corner].x && point.y === safePerspective[corner].y;
+  });
   if (!cropValues.every(Number.isSafeInteger) || metadata.crop.x < 0 || metadata.crop.y < 0
     || metadata.crop.width < 1 || metadata.crop.height < 1
     || !Number.isSafeInteger(metadata.quarterTurns) || metadata.quarterTurns < 0 || metadata.quarterTurns > 3
     || !Number.isFinite(metadata.straighten) || Math.abs(metadata.straighten) > 15
     || typeof metadata.flipHorizontal !== "boolean" || typeof metadata.flipVertical !== "boolean"
+    || !perspectiveValues.every((value) => Number.isFinite(value) && value >= 0 && value <= 1)
+    || !perspectiveIsSafe
     || !resizeValues.every(Number.isSafeInteger) || resizeValues.some((value) => value < 1)
     || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1) {
     throw new Error("Geometry provenance requires a valid bounded source-coordinate recipe.");

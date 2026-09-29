@@ -159,7 +159,7 @@ test("face detail stays opt-in and unavailable without affecting enhancement, or
   await panel.locator("summary").click();
   await expect(consent).not.toBeChecked();
   await consent.check();
-  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await page.getByRole("button", { name: "Reset all", exact: true }).click();
   await expect(panel).not.toHaveAttribute("open", "");
   await panel.locator("summary").click();
   await expect(panel.getByRole("checkbox")).not.toBeChecked();
@@ -657,7 +657,7 @@ test("changing the image replaces a processor created under an earlier route", a
     buffer: warmIllustrationPng(64),
   });
   await expect(page).toHaveURL(/\/image-quality\/editor$/);
-  await expect(page.getByText(/^64 .* 64 px$/)).toBeVisible();
+  await expect(page.locator(".quality-inspector .quality-dimensions dd").first()).toHaveText("64 × 64 px");
 
   await input.setInputFiles({
     name: "replacement-source.png",
@@ -841,7 +841,7 @@ test("659 by 710 source downloads exact 2636 by 2840 PNG bytes at 4×", async ({
     mimeType: "image/png",
     buffer: progressiveStrengthPng(659, 710),
   });
-  await expect(page.getByText("659 × 710 px", { exact: true })).toBeVisible();
+  await expect(page.locator(".quality-inspector .quality-dimensions dd").first()).toHaveText("659 × 710 px");
   await page.getByRole("group", { name: "Output scale" })
     .getByRole("button", { name: "4×", exact: true })
     .click();
@@ -862,7 +862,7 @@ test("659 by 710 source downloads exact 2636 by 2840 PNG bytes at 4×", async ({
   expect(png.readUInt32BE(20)).toBe(2_840);
 });
 
-test("crop rotate flip resize and download use one source-bound recipe and identical verified PNG bytes", async ({ page }, testInfo) => {
+test("crop perspective rotate flip resize and download use one source-bound recipe and identical verified PNG bytes", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   const sourceBytes = progressiveStrengthPng(96, 80);
   const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
@@ -880,6 +880,10 @@ test("crop rotate flip resize and download use one source-bound recipe and ident
   await page.getByLabel("Top").fill("10");
   await page.getByLabel("Width", { exact: true }).fill("64");
   await page.getByLabel("Height", { exact: true }).fill("48");
+  await page.getByLabel("Enable four-corner correction").check();
+  const topLeftPerspective = page.getByRole("button", { name: "Perspective top left point" });
+  await topLeftPerspective.press("Shift+ArrowRight");
+  await topLeftPerspective.press("Shift+ArrowDown");
   await page.getByRole("button", { name: "90° right" }).click();
   await page.getByRole("button", { name: "Horizontal", exact: true }).click();
   await page.getByRole("button", { name: "Vertical", exact: true }).click();
@@ -888,6 +892,8 @@ test("crop rotate flip resize and download use one source-bound recipe and ident
   await page.getByLabel("Output width").fill("120");
   await expect(page.getByLabel("Output height")).toHaveValue("160");
   await page.screenshot({ path: testInfo.outputPath("crop-rotate-workspace.png"), fullPage: true });
+  const accessibility = await new AxeBuilder({ page }).include(".quality-workspace").analyze();
+  expect(accessibility.violations).toEqual([]);
   await page.getByRole("button", { name: "Apply geometry" }).click();
   await expect(page.getByText(/Geometry derivative ready from the immutable original/)).toBeVisible();
   await expect(page.locator(".quality-inspector .quality-dimensions dd").filter({ hasText: "120 × 160 px" })).toBeVisible();
@@ -930,15 +936,76 @@ test("crop rotate flip resize and download use one source-bound recipe and ident
   expect(downloaded.readUInt32BE(20)).toBe(160);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
   expect(downloaded.toString("utf8")).toContain("ipw.image-edit.geometry.provenance.v1");
+  expect(downloaded.toString("utf8")).toContain('"perspective":{"topLeft":{"x":0.05,"y":0.05}');
   expect(downloaded.toString("utf8")).toContain('"flip_horizontal":true');
   expect(downloaded.toString("utf8")).toContain('"flip_vertical":true');
   expect(downloaded.toString("utf8")).toContain('"resize":{"width":120,"height":160}');
   expect(createHash("sha256").update(sourceBytes).digest("hex")).toBe(sourceDigest);
 
+  await page.getByRole("button", { name: "Edit corner points" }).click();
+  await expect(page.getByRole("button", { name: "Perspective top left point" })).toBeVisible();
   await page.getByLabel("Output width").fill("20000");
   await page.getByRole("button", { name: "Apply geometry" }).click();
   await expect(page.getByText(/beyond this browser's 16384px canvas edge/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Download edited image" })).toBeDisabled();
+});
+
+test("perspective worker samples the moved source corner instead of only recording metadata", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(64, 64);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "perspective-sampling.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Crop", exact: true }).click();
+  await page.getByLabel("Enable four-corner correction").check();
+  const topLeft = page.getByRole("button", { name: "Perspective top left point" });
+  await topLeft.press("Shift+ArrowRight");
+  await topLeft.press("Shift+ArrowDown");
+  await page.getByRole("button", { name: "Apply geometry" }).click();
+  await expect(page.getByText(/Geometry derivative ready from the immutable original/)).toBeVisible();
+
+  const evidence = await page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+    const decode = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return { width: canvas.width, pixels: context.getImageData(0, 0, canvas.width, canvas.height).data };
+    };
+    const [source, result] = await Promise.all([decode(sourceUrl), decode((node as HTMLImageElement).src)]);
+    const mapped = 0.05 * (source.width - 1);
+    const x0 = Math.floor(mapped);
+    const x1 = Math.min(source.width - 1, x0 + 1);
+    const fraction = mapped - x0;
+    const weights = [(1 - fraction) ** 2, fraction * (1 - fraction), (1 - fraction) * fraction, fraction ** 2];
+    const offsets = [
+      (x0 * source.width + x0) * 4,
+      (x0 * source.width + x1) * 4,
+      (x1 * source.width + x0) * 4,
+      (x1 * source.width + x1) * 4,
+    ];
+    const expected = [0, 1, 2].map((channel) => Math.round(offsets.reduce(
+      (total, offset, index) => total + source.pixels[offset + channel] * weights[index],
+      0,
+    )));
+    return {
+      actual: Array.from(result.pixels.subarray(0, 3)),
+      expected,
+      immutableCorner: Array.from(source.pixels.subarray(0, 3)),
+      width: (node as HTMLImageElement).naturalWidth,
+      height: (node as HTMLImageElement).naturalHeight,
+    };
+  }, immutableSourceUrl!);
+  expect(evidence).toMatchObject({ width: 64, height: 64 });
+  expect(Math.max(...evidence.actual.map((value, index) => Math.abs(value - evidence.expected[index])))).toBeLessThanOrEqual(2);
+  expect(evidence.actual).not.toEqual(evidence.immutableCorner);
 });
 
 test("transparent artwork preserves alpha without opaque seams", async ({ page }) => {
@@ -1033,7 +1100,7 @@ test("genuine browser-encoded JPEG and WebP files pass signature-first intake", 
       mimeType: mediaType,
       buffer: Buffer.from(values),
     });
-    await expect(page.getByText("48 × 32 px")).toBeVisible();
+    await expect(page.locator(".quality-inspector .quality-dimensions dd").first()).toHaveText("48 × 32 px");
     await expect(page.getByText(new RegExp(`Verified ${mediaType.split("/")[1].toUpperCase()}`))).toBeVisible();
   }
 });

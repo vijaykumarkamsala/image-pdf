@@ -230,6 +230,7 @@ export function ImageQualityEditorPage() {
   const [activeTool, setActiveTool] = useState<"enhance" | "geometry">("enhance");
   const [cropAspect, setCropAspect] = useState<ImageCropAspect>("original");
   const [resizeAspectLocked, setResizeAspectLocked] = useState(true);
+  const [geometrySelectionOpen, setGeometrySelectionOpen] = useState(false);
   const [geometryRecipe, setGeometryRecipe] = useState<ImageGeometryRecipe | null>(null);
   const [appliedGeometry, setAppliedGeometry] = useState<ImageGeometryRecipe | null>(null);
   const [geometryOriginal, setGeometryOriginal] = useState<GeometryDerivative | null>(null);
@@ -320,6 +321,7 @@ export function ImageQualityEditorPage() {
     setActiveTool("enhance");
     setCropAspect("original");
     setResizeAspectLocked(true);
+    setGeometrySelectionOpen(false);
     setGeometryRecipe(null);
     setGeometryBusy(false);
     setGeometryError(null);
@@ -453,7 +455,7 @@ export function ImageQualityEditorPage() {
     const currentGeometryOperation = ++geometryOperation.current;
     setGeometryBusy(true);
     setGeometryError(null);
-    setGeometryMessage("Rendering the crop and rotation from verified source coordinates…");
+    setGeometryMessage("Rendering the source-bound transform recipe…");
     try {
       if (!originalGeometryEngine.current) {
         const next = new WorkerImageGeometryEngine();
@@ -478,6 +480,7 @@ export function ImageQualityEditorPage() {
         straighten: safe.straighten,
         flipHorizontal: safe.flipHorizontal,
         flipVertical: safe.flipVertical,
+        perspective: safe.perspective,
         resize: safe.resize,
         outputWidth: originalDimensions.width,
         outputHeight: originalDimensions.height,
@@ -513,6 +516,7 @@ export function ImageQualityEditorPage() {
           straighten: safe.straighten,
           flipHorizontal: safe.flipHorizontal,
           flipVertical: safe.flipVertical,
+          perspective: safe.perspective,
           resize: safe.resize,
           outputWidth: enhancedDimensions.width,
           outputHeight: enhancedDimensions.height,
@@ -541,6 +545,7 @@ export function ImageQualityEditorPage() {
         : null);
       setGeometryRecipe(safe);
       setAppliedGeometry(safe);
+      setGeometrySelectionOpen(false);
       setGeometryMessage(state.result
         ? "Combined enhancement and geometry derivative ready. Preview and download use the same verified PNG bytes."
         : "Geometry derivative ready from the immutable original. Preview and download use the same verified PNG bytes.");
@@ -562,6 +567,7 @@ export function ImageQualityEditorPage() {
     setGeometryMessage(null);
     setCropAspect("original");
     setResizeAspectLocked(true);
+    setGeometrySelectionOpen(false);
     setGeometryRecipe(createIdentityGeometry(state.source.width, state.source.height));
     clearGeometryDerivatives();
     dispatch({ type: "zoom-changed", zoom: "fit" });
@@ -685,7 +691,8 @@ export function ImageQualityEditorPage() {
     && !geometryBusy && !processing && !processorRestarting && !resultIsStale
     && (geometryIsDirty || !geometryDisplayReady),
   );
-  const geometryEditing = activeTool === "geometry" && Boolean(geometryRecipe) && (geometryIsDirty || !geometryDisplayReady);
+  const geometryEditing = activeTool === "geometry" && Boolean(geometryRecipe)
+    && (geometrySelectionOpen || geometryIsDirty || !geometryDisplayReady);
   const progressPercent = state.progress && state.progress.total > 0
     ? Math.max(0, Math.min(100, Math.round(state.progress.completed / state.progress.total * 100)))
     : null;
@@ -732,7 +739,10 @@ export function ImageQualityEditorPage() {
     </header>
 
     <section className="quality-workspace">
-      <ImageEditorToolRail activeTool={activeTool} onChange={setActiveTool} />
+      <ImageEditorToolRail activeTool={activeTool} onChange={(tool) => {
+        setActiveTool(tool);
+        if (tool === "geometry") setGeometrySelectionOpen(true);
+      }} />
       {activeTool === "enhance"
         ? <EnhancementToolPanel
             outputScale={state.outputScale}
@@ -764,6 +774,7 @@ export function ImageQualityEditorPage() {
             onRecipe={setGeometryRecipe}
             onAspect={setCropAspect}
             onResizeAspectLocked={setResizeAspectLocked}
+            onEditCanvas={() => setGeometrySelectionOpen(true)}
             onApply={() => void applyGeometry()}
             onReset={resetGeometry}
             onDownload={download}
@@ -806,9 +817,11 @@ export function ImageQualityEditorPage() {
               sourceWidth={state.source.width!}
               sourceHeight={state.source.height!}
               crop={geometryRecipe.crop}
+              perspective={geometryRecipe.perspective}
               aspect={cropAspect}
               disabled={geometryBusy}
               onChange={(crop) => setGeometryRecipe({ ...geometryRecipe, crop })}
+              onPerspectiveChange={(perspective) => setGeometryRecipe({ ...geometryRecipe, perspective })}
             />
           : dimensionsReady && <section className="quality-comparison" aria-label="Original and enhanced comparison">
               {state.mode === "side-by-side" ? <div className="quality-side-by-side">

@@ -13,9 +13,11 @@ import {
 import { Button } from "../design-system";
 import type { ImageQualityOutputScale } from "./ImageQualityEngine";
 import {
+  createIdentityPerspective,
   cropToAspect,
   geometryNaturalDimensions,
   isIdentityGeometry,
+  MAX_BROWSER_PERSPECTIVE_PIXELS,
   rotateGeometry,
   sanitizeCropRect,
   type ImageCropAspect,
@@ -108,6 +110,7 @@ interface GeometryToolPanelProps {
   onRecipe: (recipe: ImageGeometryRecipe) => void;
   onAspect: (aspect: ImageCropAspect) => void;
   onResizeAspectLocked: (locked: boolean) => void;
+  onEditCanvas: () => void;
   onApply: () => void;
   onReset: () => void;
   onDownload: () => void;
@@ -116,7 +119,7 @@ interface GeometryToolPanelProps {
 export function GeometryToolPanel(props: GeometryToolPanelProps) {
   const recipe = props.recipe;
   if (!recipe || !props.dimensionsReady) {
-    return <aside className="quality-tool-panel quality-controls" aria-label="Crop and rotate controls"><p>Preparing geometry controls…</p></aside>;
+    return <aside className="quality-tool-panel quality-controls" aria-label="Transform controls"><p>Preparing geometry controls…</p></aside>;
   }
   const natural = geometryNaturalDimensions(recipe, props.baseScale);
   const resize = recipe.resize ?? natural;
@@ -132,7 +135,7 @@ export function GeometryToolPanel(props: GeometryToolPanelProps) {
         : { ...resize, [field]: next },
     });
   };
-  return <aside className="quality-tool-panel quality-controls" aria-label="Crop, rotate, flip and resize controls">
+  return <aside className="quality-tool-panel quality-controls" aria-label="Crop, perspective, rotate, flip and resize controls">
     <div className="quality-panel-heading"><Crop aria-hidden="true" /><div><h2>Transform</h2><p>Non-destructive source-coordinate recipe.</p></div></div>
     <fieldset className="quality-aspect-control">
       <legend>Aspect ratio</legend>
@@ -175,6 +178,27 @@ export function GeometryToolPanel(props: GeometryToolPanelProps) {
           }}
         />
       </label>)}
+    </fieldset>
+    <fieldset className="quality-resize-control quality-perspective-control">
+      <legend>Perspective</legend>
+      <label className="quality-check-control">
+        <input type="checkbox" checked={recipe.perspective !== null} disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...recipe,
+            perspective: event.target.checked ? createIdentityPerspective() : null,
+          })} />
+        <span>Enable four-corner correction</span>
+      </label>
+      {recipe.perspective && <div className="quality-control-group">
+        <Button size="compact" disabled={props.busy} onClick={props.onEditCanvas}>
+          <Crop aria-hidden="true" />Edit corner points
+        </Button>
+        <Button size="compact" disabled={props.busy}
+          onClick={() => props.onRecipe({ ...recipe, perspective: createIdentityPerspective() })}>
+          <RotateCcw aria-hidden="true" />Reset perspective
+        </Button>
+      </div>}
+      <p>Drag the four blue corner points on the canvas. Points remain in stable corner zones. Local perspective work is limited to {MAX_BROWSER_PERSPECTIVE_PIXELS.toLocaleString()} crop pixels and larger requests fail visibly.</p>
     </fieldset>
     <div className="quality-rotate-controls">
       <strong>Rotate</strong>
@@ -229,7 +253,7 @@ export function GeometryToolPanel(props: GeometryToolPanelProps) {
       <Button disabled={props.busy || isIdentityGeometry(recipe, props.sourceWidth, props.sourceHeight)} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset geometry</Button>
       <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download edited image</Button>
     </div>
-    <p className="quality-view-note">Order: crop, flip, rotate, straighten, then optional exact resize. Straighten fills the frame without transparent corners.</p>
+    <p className="quality-view-note">Order: crop, perspective, flip, rotate, straighten, then optional exact resize. Straighten fills the frame without transparent corners.</p>
   </aside>;
 }
 
@@ -260,6 +284,7 @@ export function ImageEditorInspector({
       <div><dt>Crop</dt><dd>{recipe.crop.width} × {recipe.crop.height} px</dd></div>
       <div><dt>Position</dt><dd>{recipe.crop.x}, {recipe.crop.y}</dd></div>
       <div><dt>Rotation</dt><dd>{recipe.quarterTurns * 90 + recipe.straighten}°</dd></div>
+      <div><dt>Perspective</dt><dd>{recipe.perspective ? "Four-corner" : "None"}</dd></div>
       <div><dt>Flip</dt><dd>{recipe.flipHorizontal || recipe.flipVertical
         ? [recipe.flipHorizontal && "horizontal", recipe.flipVertical && "vertical"].filter(Boolean).join(" + ")
         : "None"}</dd></div>

@@ -8,8 +8,10 @@ import {
 import {
   cropAspectRatio,
   sanitizeCropRect,
+  sanitizePerspectiveQuad,
   type ImageCropAspect,
   type ImageCropRect,
+  type ImagePerspectiveQuad,
 } from "./imageGeometry";
 
 interface CropSelectionEditorProps {
@@ -18,12 +20,15 @@ interface CropSelectionEditorProps {
   sourceWidth: number;
   sourceHeight: number;
   crop: ImageCropRect;
+  perspective: ImagePerspectiveQuad | null;
   aspect: ImageCropAspect;
   disabled?: boolean;
   onChange: (crop: ImageCropRect) => void;
+  onPerspectiveChange: (perspective: ImagePerspectiveQuad) => void;
 }
 
 type DragMode = "move" | "nw" | "ne" | "se" | "sw";
+type PerspectiveCorner = keyof ImagePerspectiveQuad;
 
 interface FrameGeometry {
   left: number;
@@ -63,9 +68,11 @@ export function CropSelectionEditor({
   sourceWidth,
   sourceHeight,
   crop,
+  perspective,
   aspect,
   disabled = false,
   onChange,
+  onPerspectiveChange,
 }: CropSelectionEditorProps) {
   const { ref, size } = useElementSize();
   const drag = useRef<{
@@ -75,8 +82,11 @@ export function CropSelectionEditor({
     startY: number;
     crop: ImageCropRect;
   } | null>(null);
+  const perspectiveDrag = useRef<{ pointerId: number; corner: PerspectiveCorner } | null>(null);
+  const selectionRef = useRef<HTMLDivElement>(null);
   const frame = frameGeometry(size.width, size.height, sourceWidth, sourceHeight);
   const safeCrop = sanitizeCropRect(crop, sourceWidth, sourceHeight, Math.min(32, sourceWidth, sourceHeight));
+  const safePerspective = perspective ? sanitizePerspectiveQuad(perspective) : null;
   const selectionStyle = {
     left: `${frame.left + safeCrop.x * frame.scale}px`,
     top: `${frame.top + safeCrop.y * frame.scale}px`,
@@ -150,6 +160,38 @@ export function CropSelectionEditor({
     if (drag.current?.pointerId === event.pointerId) drag.current = null;
   };
 
+  const updatePerspective = (corner: PerspectiveCorner, clientX: number, clientY: number) => {
+    if (!safePerspective || !selectionRef.current) return;
+    const bounds = selectionRef.current.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    onPerspectiveChange(sanitizePerspectiveQuad({
+      ...safePerspective,
+      [corner]: {
+        x: (clientX - bounds.left) / bounds.width,
+        y: (clientY - bounds.top) / bounds.height,
+      },
+    }));
+  };
+
+  const beginPerspective = (event: ReactPointerEvent<HTMLButtonElement>, corner: PerspectiveCorner) => {
+    if (disabled || event.button !== 0) return;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    perspectiveDrag.current = { pointerId: event.pointerId, corner };
+  };
+
+  const movePerspective = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const active = perspectiveDrag.current;
+    if (!active || active.pointerId !== event.pointerId || disabled) return;
+    event.stopPropagation();
+    updatePerspective(active.corner, event.clientX, event.clientY);
+  };
+
+  const endPerspective = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (perspectiveDrag.current?.pointerId === event.pointerId) perspectiveDrag.current = null;
+  };
+
   return <div className="quality-crop-stage" ref={ref} data-testid="crop-selection-editor">
     <img
       src={sourceUrl}
@@ -159,6 +201,7 @@ export function CropSelectionEditor({
     />
     <div className="quality-crop-shade" style={{ left: frame.left, top: frame.top, width: frame.width, height: frame.height }} aria-hidden="true" />
     <div
+      ref={selectionRef}
       className="quality-crop-selection"
       style={selectionStyle}
       role="group"
@@ -169,7 +212,7 @@ export function CropSelectionEditor({
       onPointerCancel={end}
     >
       <span className="quality-crop-grid" aria-hidden="true" />
-      {(["nw", "ne", "se", "sw"] as const).map((handle) => <button
+      {!safePerspective && (["nw", "ne", "se", "sw"] as const).map((handle) => <button
         key={handle}
         type="button"
         className={`quality-crop-handle quality-crop-handle-${handle}`}
@@ -180,6 +223,46 @@ export function CropSelectionEditor({
         onPointerUp={end}
         onPointerCancel={end}
       />)}
+      {safePerspective && <>
+        <svg className="quality-perspective-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polygon points={[
+            safePerspective.topLeft,
+            safePerspective.topRight,
+            safePerspective.bottomRight,
+            safePerspective.bottomLeft,
+          ].map((point) => `${point.x * 100},${point.y * 100}`).join(" ")} />
+        </svg>
+        {(Object.keys(safePerspective) as PerspectiveCorner[]).map((corner) => {
+          const point = safePerspective[corner];
+          const name = corner.replace(/([A-Z])/g, " $1").toLowerCase();
+          return <button
+            key={corner}
+            type="button"
+            className="quality-perspective-handle"
+            aria-label={`Perspective ${name} point`}
+            disabled={disabled}
+            style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
+            onPointerDown={(event) => beginPerspective(event, corner)}
+            onPointerMove={movePerspective}
+            onPointerUp={endPerspective}
+            onPointerCancel={endPerspective}
+            onKeyDown={(event) => {
+              const step = event.shiftKey ? 0.05 : 0.01;
+              const delta = event.key === "ArrowLeft" ? { x: -step, y: 0 }
+                : event.key === "ArrowRight" ? { x: step, y: 0 }
+                  : event.key === "ArrowUp" ? { x: 0, y: -step }
+                    : event.key === "ArrowDown" ? { x: 0, y: step }
+                      : null;
+              if (!delta) return;
+              event.preventDefault();
+              onPerspectiveChange(sanitizePerspectiveQuad({
+                ...safePerspective,
+                [corner]: { x: point.x + delta.x, y: point.y + delta.y },
+              }));
+            }}
+          />;
+        })}
+      </>}
     </div>
   </div>;
 }
