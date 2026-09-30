@@ -62,6 +62,17 @@ operations remain pending.
 
 ## IE-03 — Light and tone
 
+Local implementation status (2026-09-30): the React image editor now provides
+deterministic global exposure, brightness, contrast, perceptual gamma,
+highlights, shadows, whites and blacks controls. Each apply starts from the
+latest verified original, enhancement or geometry derivative rather than a
+previous tone result. Processing is worker-isolated and pixel-budgeted,
+preserves alpha, retains source/base hashes and clipping statistics in PNG
+provenance, verifies exact dimensions, and serves identical bytes to preview
+and download. Pending slider changes cannot download a stale derivative.
+Levels, curves, histogram visualization, local/clarity controls and automatic
+tonal correction remain separate future increments.
+
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.
 - Dynamic-range recovery, local contrast, clarity, texture and dehaze.

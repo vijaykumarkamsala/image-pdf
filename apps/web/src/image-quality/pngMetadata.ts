@@ -1,6 +1,7 @@
 import { sha256Bytes } from "./sha256.ts";
 import type { FaceRecreateEvidence } from "./faceDetailRestoration.ts";
 import { sanitizePerspectiveQuad, type ImagePerspectiveQuad } from "./imageGeometry.ts";
+import { sanitizeToneRecipe, type ImageToneRecipe, type ImageToneStatistics } from "./imageTone.ts";
 
 export interface PngOutputMetadata {
   sourceSha256: string;
@@ -35,6 +36,19 @@ export interface PngGeometryMetadata {
   flipVertical: boolean;
   perspective: ImagePerspectiveQuad | null;
   resize: { width: number; height: number } | null;
+  outputWidth: number;
+  outputHeight: number;
+}
+
+export interface PngToneMetadata {
+  sourceSha256: string;
+  baseOutputSha256: string;
+  baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced";
+  baseRoute: string;
+  baseStrength: number | null;
+  baseScale: number;
+  recipe: ImageToneRecipe;
+  statistics: ImageToneStatistics;
   outputWidth: number;
   outputHeight: number;
 }
@@ -167,6 +181,34 @@ function geometryProvenance(metadata: PngGeometryMetadata) {
   return data;
 }
 
+function toneProvenance(metadata: PngToneMetadata) {
+  const value = JSON.stringify({
+    schema: "ipw.image-edit.tone.provenance.v1",
+    source_sha256: metadata.sourceSha256,
+    base_output_sha256: metadata.baseOutputSha256,
+    base_kind: metadata.baseKind,
+    base_route: metadata.baseRoute,
+    base_strength: metadata.baseStrength,
+    base_scale: metadata.baseScale,
+    operation_order: ["exposure", "brightness", "shadows", "highlights", "blacks", "whites", "contrast", "gamma"],
+    recipe: metadata.recipe,
+    statistics: {
+      processed_pixels: metadata.statistics.processedPixels,
+      changed_pixels: metadata.statistics.changedPixels,
+      new_shadow_clipped_pixels: metadata.statistics.newShadowClippedPixels,
+      new_highlight_clipped_pixels: metadata.statistics.newHighlightClippedPixels,
+    },
+    output_width: metadata.outputWidth,
+    output_height: metadata.outputHeight,
+  });
+  const keyword = encoder.encode("ImageToneProvenance");
+  const text = encoder.encode(value);
+  const data = new Uint8Array(keyword.byteLength + 5 + text.byteLength);
+  data.set(keyword, 0);
+  data.set(text, keyword.byteLength + 5);
+  return data;
+}
+
 export function tagSrgbPng(bytes: Uint8Array, metadata: PngOutputMetadata): Uint8Array {
   assertPngDimensions(bytes, metadata.outputWidth, metadata.outputHeight);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -278,6 +320,67 @@ export function tagGeometryPng(bytes: Uint8Array, metadata: PngGeometryMetadata)
       : "";
     if (!["sRGB", "gAMA", "iCCP", "cICP", "pHYs"].includes(type)
       && !(type === "iTXt" && ["ImageQualityProvenance", "ImageEditProvenance"].includes(keyword))) {
+      parts.push(bytes.subarray(inputOffset, end));
+    }
+    inputOffset = end;
+    if (type === "IEND") {
+      foundEnd = true;
+      break;
+    }
+  }
+  if (!foundEnd || inputOffset !== bytes.byteLength) throw new Error("The processed PNG is incomplete.");
+  const output = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0));
+  let outputOffset = 0;
+  for (const part of parts) {
+    output.set(part, outputOffset);
+    outputOffset += part.byteLength;
+  }
+  return output;
+}
+
+export function tagTonePng(bytes: Uint8Array, metadata: PngToneMetadata): Uint8Array {
+  assertPngDimensions(bytes, metadata.outputWidth, metadata.outputHeight);
+  const hash = /^[a-f0-9]{64}$/;
+  const safeRecipe = sanitizeToneRecipe(metadata.recipe);
+  const recipeIsSafe = (Object.keys(safeRecipe) as Array<keyof ImageToneRecipe>)
+    .every((key) => metadata.recipe[key] === safeRecipe[key]);
+  const pixelCount = metadata.outputWidth * metadata.outputHeight;
+  const statistics = [
+    metadata.statistics.processedPixels,
+    metadata.statistics.changedPixels,
+    metadata.statistics.newShadowClippedPixels,
+    metadata.statistics.newHighlightClippedPixels,
+  ];
+  const baseKinds: PngToneMetadata["baseKind"][] = ["original", "enhanced", "geometry-original", "geometry-enhanced"];
+  if (!hash.test(metadata.sourceSha256) || !hash.test(metadata.baseOutputSha256)
+    || !baseKinds.includes(metadata.baseKind) || !metadata.baseRoute.trim()
+    || (metadata.baseStrength !== null && (!Number.isFinite(metadata.baseStrength) || metadata.baseStrength < 0 || metadata.baseStrength > 100))
+    || !recipeIsSafe || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
+    || !statistics.every(Number.isSafeInteger) || statistics.some((value) => value < 0 || value > pixelCount)
+    || metadata.statistics.changedPixels > metadata.statistics.processedPixels
+    || metadata.statistics.newShadowClippedPixels > metadata.statistics.changedPixels
+    || metadata.statistics.newHighlightClippedPixels > metadata.statistics.changedPixels) {
+    throw new Error("Light-adjustment provenance requires a valid bounded source-derived recipe.");
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const additions = [
+    chunk("sRGB", new Uint8Array([0])),
+    chunk("gAMA", uint32(45_455)),
+    chunk("iTXt", toneProvenance(metadata)),
+  ];
+  const parts = [bytes.subarray(0, 33), ...additions];
+  let inputOffset = 33;
+  let foundEnd = false;
+  while (inputOffset + 12 <= bytes.byteLength) {
+    const length = view.getUint32(inputOffset, false);
+    const end = inputOffset + 12 + length;
+    if (!Number.isSafeInteger(end) || end > bytes.byteLength) throw new Error("The processed PNG chunk structure is invalid.");
+    const type = String.fromCharCode(...bytes.subarray(inputOffset + 4, inputOffset + 8));
+    const keyword = type === "iTXt"
+      ? new TextDecoder().decode(bytes.subarray(inputOffset + 8, Math.min(end - 4, inputOffset + 96))).split("\0", 1)[0]
+      : "";
+    if (!["sRGB", "gAMA", "iCCP", "cICP", "pHYs"].includes(type)
+      && !(type === "iTXt" && ["ImageQualityProvenance", "ImageEditProvenance", "ImageToneProvenance"].includes(keyword))) {
       parts.push(bytes.subarray(inputOffset, end));
     }
     inputOffset = end;

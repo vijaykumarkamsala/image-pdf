@@ -7,6 +7,7 @@ import {
   RotateCw,
   SlidersHorizontal,
   Sparkles,
+  SunMedium,
   X,
 } from "lucide-react";
 
@@ -23,6 +24,14 @@ import {
   type ImageCropAspect,
   type ImageGeometryRecipe,
 } from "./imageGeometry";
+import {
+  isNeutralTone,
+  MAX_BROWSER_TONE_PIXELS,
+  type ImageToneRecipe,
+  type ImageToneStatistics,
+} from "./imageTone";
+
+export type ImageEditorTool = "enhance" | "adjust" | "geometry";
 
 function strengthLabel(strength: number) {
   if (strength === 0) return "Neutral";
@@ -35,17 +44,87 @@ export function ImageEditorToolRail({
   activeTool,
   onChange,
 }: {
-  activeTool: "enhance" | "geometry";
-  onChange: (tool: "enhance" | "geometry") => void;
+  activeTool: ImageEditorTool;
+  onChange: (tool: ImageEditorTool) => void;
 }) {
   return <nav className="quality-tool-rail" aria-label="Image editor tools">
     <button type="button" aria-current={activeTool === "enhance" ? "page" : undefined} onClick={() => onChange("enhance")}>
       <Sparkles aria-hidden="true" /><span>Enhance</span>
     </button>
+    <button type="button" aria-current={activeTool === "adjust" ? "page" : undefined} onClick={() => onChange("adjust")}>
+      <SunMedium aria-hidden="true" /><span>Adjust</span>
+    </button>
     <button type="button" aria-current={activeTool === "geometry" ? "page" : undefined} onClick={() => onChange("geometry")}>
       <Crop aria-hidden="true" /><span>Crop</span>
     </button>
   </nav>;
+}
+
+interface ToneToolPanelProps {
+  recipe: ImageToneRecipe;
+  statistics: ImageToneStatistics | null;
+  busy: boolean;
+  canApply: boolean;
+  canDownload: boolean;
+  onRecipe: (recipe: ImageToneRecipe) => void;
+  onApply: () => void;
+  onReset: () => void;
+  onDownload: () => void;
+}
+
+const toneControls: Array<{
+  key: keyof ImageToneRecipe;
+  label: string;
+  minimum: number;
+  maximum: number;
+  step: number;
+}> = [
+  { key: "exposure", label: "Exposure", minimum: -3, maximum: 3, step: 0.1 },
+  { key: "brightness", label: "Brightness", minimum: -100, maximum: 100, step: 1 },
+  { key: "contrast", label: "Contrast", minimum: -100, maximum: 100, step: 1 },
+  { key: "gamma", label: "Gamma", minimum: -100, maximum: 100, step: 1 },
+  { key: "highlights", label: "Highlights", minimum: -100, maximum: 100, step: 1 },
+  { key: "shadows", label: "Shadows", minimum: -100, maximum: 100, step: 1 },
+  { key: "whites", label: "Whites", minimum: -100, maximum: 100, step: 1 },
+  { key: "blacks", label: "Blacks", minimum: -100, maximum: 100, step: 1 },
+];
+
+function toneValue(control: typeof toneControls[number], value: number) {
+  if (control.key === "exposure") return `${value > 0 ? "+" : ""}${value.toFixed(1)} EV`;
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+export function ToneToolPanel(props: ToneToolPanelProps) {
+  const neutral = isNeutralTone(props.recipe);
+  return <aside className="quality-tool-panel quality-controls" aria-label="Light and tone controls">
+    <div className="quality-panel-heading"><SunMedium aria-hidden="true" /><div><h2>Light &amp; tone</h2><p>Deterministic correction from the latest verified base.</p></div></div>
+    <div className="quality-tone-controls">
+      {toneControls.map((control) => <label className="quality-tone-control" key={control.key}>
+        <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>
+        <input
+          aria-label={control.label}
+          type="range"
+          min={control.minimum}
+          max={control.maximum}
+          step={control.step}
+          value={props.recipe[control.key]}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, [control.key]: Number(event.target.value) })}
+        />
+      </label>)}
+    </div>
+    {props.statistics && <dl className="quality-tone-statistics">
+      <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
+      <div><dt>New shadow clipping</dt><dd>{props.statistics.newShadowClippedPixels.toLocaleString()}</dd></div>
+      <div><dt>New highlight clipping</dt><dd>{props.statistics.newHighlightClippedPixels.toLocaleString()}</dd></div>
+    </dl>}
+    <div className="quality-actions">
+      <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><SunMedium aria-hidden="true" />{props.busy ? "Applying…" : "Apply adjustments"}</Button>
+      <Button disabled={neutral && !props.statistics} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset adjustments</Button>
+      <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download adjusted image</Button>
+    </div>
+    <p className="quality-view-note">Every apply starts from the latest verified original, enhancement or geometry result—not a previous tone result. Alpha is preserved. Local work is limited to {MAX_BROWSER_TONE_PIXELS.toLocaleString()} pixels and larger requests fail visibly.</p>
+  </aside>;
 }
 
 interface EnhancementToolPanelProps {
@@ -57,6 +136,7 @@ interface EnhancementToolPanelProps {
   dimensionsReady: boolean;
   canEnhance: boolean;
   canDownload: boolean;
+  downloadLabel: string;
   onScale: (scale: ImageQualityOutputScale) => void;
   onStrength: (strength: number) => void;
   onEnhance: () => void;
@@ -90,7 +170,7 @@ export function EnhancementToolPanel(props: EnhancementToolPanelProps) {
       {props.processing
         ? <Button onClick={props.onCancel}><X aria-hidden="true" />Cancel</Button>
         : <Button disabled={!props.dimensionsReady} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset all</Button>}
-      <Button disabled={!props.canDownload || props.processing || props.geometryBusy} onClick={props.onDownload}><Download aria-hidden="true" />Download enhanced image</Button>
+      <Button disabled={!props.canDownload || props.processing || props.geometryBusy} onClick={props.onDownload}><Download aria-hidden="true" />{props.downloadLabel}</Button>
     </div>
     <p className="quality-view-note">Strength and output scale are independent. Every run starts from the immutable source, never a previous enhancement.</p>
   </aside>;
@@ -107,6 +187,7 @@ interface GeometryToolPanelProps {
   busy: boolean;
   canApply: boolean;
   canDownload: boolean;
+  downloadLabel: string;
   onRecipe: (recipe: ImageGeometryRecipe) => void;
   onAspect: (aspect: ImageCropAspect) => void;
   onResizeAspectLocked: (locked: boolean) => void;
@@ -251,7 +332,7 @@ export function GeometryToolPanel(props: GeometryToolPanelProps) {
     <div className="quality-actions">
       <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Crop aria-hidden="true" />{props.busy ? "Applying…" : "Apply geometry"}</Button>
       <Button disabled={props.busy || isIdentityGeometry(recipe, props.sourceWidth, props.sourceHeight)} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset geometry</Button>
-      <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download edited image</Button>
+      <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />{props.downloadLabel}</Button>
     </div>
     <p className="quality-view-note">Order: crop, perspective, flip, rotate, straighten, then optional exact resize. Straighten fills the frame without transparent corners.</p>
   </aside>;
@@ -265,6 +346,7 @@ export function ImageEditorInspector({
   recipe,
   geometryIsDirty,
   geometryDisplayReady,
+  toneStatus,
 }: {
   dimensionsReady: boolean;
   sourceWidth: number;
@@ -273,12 +355,14 @@ export function ImageEditorInspector({
   recipe: ImageGeometryRecipe | null;
   geometryIsDirty: boolean;
   geometryDisplayReady: boolean;
+  toneStatus: "Applied" | "Unapplied changes" | "None";
 }) {
-  return <aside className="quality-inspector" aria-label="Image properties">
+  return <aside className="quality-inspector" aria-label="Image properties" tabIndex={0}>
     <div className="quality-panel-heading"><SlidersHorizontal aria-hidden="true" /><div><h2>Properties</h2><p>Current source and derivative.</p></div></div>
     <dl className="quality-dimensions">
       <div><dt>Original</dt><dd>{dimensionsReady ? `${sourceWidth} × ${sourceHeight} px` : "Reading dimensions…"}</dd></div>
       <div><dt>Output</dt><dd>{outputDimensions}</dd></div>
+      <div><dt>Light &amp; tone</dt><dd>{toneStatus}</dd></div>
     </dl>
     {recipe && dimensionsReady && <dl className="quality-geometry-properties">
       <div><dt>Crop</dt><dd>{recipe.crop.width} × {recipe.crop.height} px</dd></div>
@@ -291,6 +375,6 @@ export function ImageEditorInspector({
       <div><dt>Resize</dt><dd>{recipe.resize ? `${recipe.resize.width} x ${recipe.resize.height} px` : "Natural size"}</dd></div>
       <div><dt>Recipe</dt><dd>{geometryIsDirty ? "Unapplied changes" : geometryDisplayReady ? "Applied" : "None"}</dd></div>
     </dl>}
-    <p className="quality-inspector-note">Original bytes are immutable. Enhancement and geometry remain separate, traceable derivative stages.</p>
+    <p className="quality-inspector-note">Original bytes are immutable. Enhancement, geometry and tone remain separate, traceable derivative stages.</p>
   </aside>;
 }

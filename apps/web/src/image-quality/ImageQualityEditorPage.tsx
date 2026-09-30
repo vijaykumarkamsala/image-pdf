@@ -25,6 +25,8 @@ import {
   GeometryToolPanel,
   ImageEditorInspector,
   ImageEditorToolRail,
+  ToneToolPanel,
+  type ImageEditorTool,
 } from "./ImageEditorWorkspacePanels";
 import { createImageQualityEngine } from "./ProductionImageQualityEngine";
 import { FaceDetailPanel } from "./FaceDetailPanel";
@@ -45,6 +47,14 @@ import {
   type ImageGeometryRecipe,
 } from "./imageGeometry";
 import { WorkerImageGeometryEngine, type ImageGeometryResult } from "./WorkerImageGeometryEngine";
+import {
+  createNeutralToneRecipe,
+  isNeutralTone,
+  sameToneRecipe,
+  sanitizeToneRecipe,
+  type ImageToneRecipe,
+} from "./imageTone";
+import { WorkerImageToneEngine, type ImageToneResult } from "./WorkerImageToneEngine";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -70,9 +80,20 @@ function editedDownloadName(filename: string, width: number, height: number) {
   return `${stem || "image"}-edited-${width}x${height}.png`;
 }
 
+function adjustedDownloadName(filename: string, width: number, height: number) {
+  const stem = filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${stem || "image"}-adjusted-${width}x${height}.png`;
+}
+
 interface GeometryDerivative extends ImageGeometryResult {
   url: string;
   baseKind: "original" | "enhanced";
+}
+
+interface ToneDerivative extends ImageToneResult {
+  url: string;
+  baseOutputSha256: string;
+  baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced";
 }
 
 function useFrameSize() {
@@ -227,7 +248,7 @@ export function ImageQualityEditorPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [processorRestarting, setProcessorRestarting] = useState(false);
   const [faceDetailRevision, setFaceDetailRevision] = useState(0);
-  const [activeTool, setActiveTool] = useState<"enhance" | "geometry">("enhance");
+  const [activeTool, setActiveTool] = useState<ImageEditorTool>("enhance");
   const [cropAspect, setCropAspect] = useState<ImageCropAspect>("original");
   const [resizeAspectLocked, setResizeAspectLocked] = useState(true);
   const [geometrySelectionOpen, setGeometrySelectionOpen] = useState(false);
@@ -238,18 +259,27 @@ export function ImageQualityEditorPage() {
   const [geometryBusy, setGeometryBusy] = useState(false);
   const [geometryError, setGeometryError] = useState<string | null>(null);
   const [geometryMessage, setGeometryMessage] = useState<string | null>(null);
+  const [toneRecipe, setToneRecipe] = useState<ImageToneRecipe>(createNeutralToneRecipe);
+  const [appliedTone, setAppliedTone] = useState<ImageToneRecipe | null>(null);
+  const [toneResult, setToneResult] = useState<ToneDerivative | null>(null);
+  const [toneBusy, setToneBusy] = useState(false);
+  const [toneError, setToneError] = useState<string | null>(null);
+  const [toneMessage, setToneMessage] = useState<string | null>(null);
   const engine = useRef<ImageQualityEngine | null>(null);
   const originalGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
   const enhancedGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
+  const toneEngine = useRef<WorkerImageToneEngine | null>(null);
   const selection = useRef(0);
   const operation = useRef(0);
   const geometryOperation = useRef(0);
+  const toneOperation = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const sourceObjectUrl = useRef<string | null>(null);
   const resultObjectUrl = useRef<string | null>(null);
   const resultBlob = useRef<Blob | null>(null);
   const geometryOriginalObjectUrl = useRef<string | null>(null);
   const geometryEditedObjectUrl = useRef<string | null>(null);
+  const toneObjectUrl = useRef<string | null>(null);
   const deterministicPreference = useRef(false);
 
   // Reuse the already-created result Blob. Pan/zoom must not copy a large pixel buffer.
@@ -281,14 +311,38 @@ export function ImageQualityEditorPage() {
     selection.current += 1;
     operation.current += 1;
     geometryOperation.current += 1;
+    toneOperation.current += 1;
     engine.current?.dispose();
     originalGeometryEngine.current?.dispose();
     enhancedGeometryEngine.current?.dispose();
+    toneEngine.current?.dispose();
     if (sourceObjectUrl.current) URL.revokeObjectURL(sourceObjectUrl.current);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     if (geometryOriginalObjectUrl.current) URL.revokeObjectURL(geometryOriginalObjectUrl.current);
     if (geometryEditedObjectUrl.current) URL.revokeObjectURL(geometryEditedObjectUrl.current);
+    if (toneObjectUrl.current) URL.revokeObjectURL(toneObjectUrl.current);
   }, []);
+
+  const clearToneDerivative = () => {
+    if (toneObjectUrl.current) URL.revokeObjectURL(toneObjectUrl.current);
+    toneObjectUrl.current = null;
+    setToneResult(null);
+    setAppliedTone(null);
+  };
+
+  const disposeToneEngine = () => {
+    toneEngine.current?.dispose();
+    toneEngine.current = null;
+  };
+
+  const invalidateToneDerivative = (message: string) => {
+    toneOperation.current += 1;
+    disposeToneEngine();
+    setToneBusy(false);
+    setToneError(null);
+    clearToneDerivative();
+    setToneMessage(isNeutralTone(toneRecipe) ? null : message);
+  };
 
   const clearGeometryDerivatives = () => {
     if (geometryOriginalObjectUrl.current) URL.revokeObjectURL(geometryOriginalObjectUrl.current);
@@ -326,11 +380,18 @@ export function ImageQualityEditorPage() {
     setGeometryBusy(false);
     setGeometryError(null);
     setGeometryMessage(null);
+    setToneRecipe(createNeutralToneRecipe());
+    setToneBusy(false);
+    setToneError(null);
+    setToneMessage(null);
+    clearToneDerivative();
+    disposeToneEngine();
     clearGeometryDerivatives();
     disposeGeometryEngines();
     selection.current += 1;
     operation.current += 1;
     geometryOperation.current += 1;
+    toneOperation.current += 1;
     const currentSelection = selection.current;
     const preferDeterministic = new URLSearchParams(globalThis.location.search).get("engine") === "deterministic";
     deterministicPreference.current = preferDeterministic;
@@ -405,6 +466,7 @@ export function ImageQualityEditorPage() {
       geometryEditedObjectUrl.current = null;
       setGeometryEdited(null);
       if (appliedGeometry) setGeometryMessage("Enhancement changed. Apply the geometry recipe again to update the combined derivative.");
+      invalidateToneDerivative("Enhancement changed. Apply the light-and-tone recipe again to update the adjusted derivative.");
       dispatch({ type: "processing-succeeded", result: { ...result, url } });
     } catch (error) {
       if (operation.current !== currentOperation) return;
@@ -549,6 +611,7 @@ export function ImageQualityEditorPage() {
       setGeometryMessage(state.result
         ? "Combined enhancement and geometry derivative ready. Preview and download use the same verified PNG bytes."
         : "Geometry derivative ready from the immutable original. Preview and download use the same verified PNG bytes.");
+      invalidateToneDerivative("Geometry changed. Apply the light-and-tone recipe again to update the adjusted derivative.");
       dispatch({ type: "zoom-changed", zoom: "fit" });
     } catch (error) {
       if (geometryOperation.current !== currentGeometryOperation) return;
@@ -559,7 +622,126 @@ export function ImageQualityEditorPage() {
     }
   };
 
-  const resetGeometry = () => {
+  const applyTone = async () => {
+    const source = state.source;
+    const safe = sanitizeToneRecipe(toneRecipe);
+    if (!source?.facts || !source.width || !source.height || toneBusy || processing || geometryBusy) return;
+    if (isNeutralTone(safe)) return;
+    const enhancementIsStale = Boolean(state.result && (
+      state.result.strength !== state.strength || state.result.scale !== state.outputScale
+    ));
+    if (enhancementIsStale) {
+      setToneError("Enhancement settings changed. Enhance again or reset the enhancement before applying light adjustments.");
+      return;
+    }
+    const geometryCurrent = Boolean(
+      geometryRecipe && sameGeometry(appliedGeometry, geometryRecipe)
+      && geometryOriginal && (!state.result || geometryEdited),
+    );
+    if (appliedGeometry && !geometryCurrent) {
+      setToneError("Geometry settings changed. Apply or reset geometry before applying light adjustments.");
+      return;
+    }
+
+    let baseBlob: Blob;
+    let baseOutputSha256: string;
+    let baseKind: ToneDerivative["baseKind"];
+    let baseRoute: string;
+    let baseStrength: number | null;
+    let baseScale: number;
+    let width: number;
+    let height: number;
+    if (geometryCurrent) {
+      const derivative = state.result ? geometryEdited! : geometryOriginal!;
+      baseBlob = new Blob([derivative.bytes], { type: "image/png" });
+      baseOutputSha256 = derivative.outputSha256;
+      baseKind = state.result ? "geometry-enhanced" : "geometry-original";
+      baseRoute = state.result ? `geometry:${state.result.route}` : "geometry:immutable-original";
+      baseStrength = state.result?.strength ?? null;
+      baseScale = state.result?.scale ?? 1;
+      width = derivative.width;
+      height = derivative.height;
+    } else if (state.result) {
+      if (!resultBlob.current) {
+        setToneError("This remote enhancement needs the future cloud adjustment route. The original remains unchanged; no partial derivative was created.");
+        return;
+      }
+      baseBlob = resultBlob.current;
+      baseOutputSha256 = state.result.outputSha256;
+      baseKind = "enhanced";
+      baseRoute = state.result.route;
+      baseStrength = state.result.strength;
+      baseScale = state.result.scale;
+      width = state.result.width;
+      height = state.result.height;
+    } else {
+      baseBlob = source.file;
+      baseOutputSha256 = source.facts.sourceSha256;
+      baseKind = "original";
+      baseRoute = "immutable-original";
+      baseStrength = null;
+      baseScale = 1;
+      width = source.width;
+      height = source.height;
+    }
+
+    const currentToneOperation = ++toneOperation.current;
+    disposeToneEngine();
+    const next = new WorkerImageToneEngine();
+    toneEngine.current = next;
+    setToneBusy(true);
+    setToneError(null);
+    setToneMessage("Rendering deterministic light-and-tone adjustments from the latest verified base…");
+    try {
+      const loaded = await next.load(baseBlob);
+      if (loaded.width !== width || loaded.height !== height) {
+        throw new Error(`The adjustment decoder returned ${loaded.width} × ${loaded.height} px instead of ${width} × ${height} px.`);
+      }
+      const result = await next.render(safe, {
+        sourceSha256: source.facts.sourceSha256,
+        baseOutputSha256,
+        baseKind,
+        baseRoute,
+        baseStrength,
+        baseScale,
+        outputWidth: width,
+        outputHeight: height,
+      });
+      if (toneOperation.current !== currentToneOperation) return;
+      assertPngDimensions(new Uint8Array(result.bytes), width, height);
+      const url = URL.createObjectURL(new Blob([result.bytes], { type: "image/png" }));
+      if (toneObjectUrl.current) URL.revokeObjectURL(toneObjectUrl.current);
+      toneObjectUrl.current = url;
+      setToneRecipe(safe);
+      setAppliedTone(safe);
+      setToneResult({ ...result, url, baseOutputSha256, baseKind });
+      setToneMessage("Light-and-tone derivative ready. Preview and download use the same verified PNG bytes.");
+      dispatch({ type: "zoom-changed", zoom: "fit" });
+    } catch (error) {
+      if (toneOperation.current !== currentToneOperation) return;
+      setToneError(error instanceof Error ? error.message : "The light adjustment could not be rendered.");
+      setToneMessage(null);
+    } finally {
+      if (toneOperation.current === currentToneOperation) {
+        setToneBusy(false);
+        next.dispose();
+        if (toneEngine.current === next) toneEngine.current = null;
+      }
+    }
+  };
+
+  const resetTone = () => {
+    toneOperation.current += 1;
+    disposeToneEngine();
+    setToneBusy(false);
+    setToneError(null);
+    setToneMessage(null);
+    setToneRecipe(createNeutralToneRecipe());
+    clearToneDerivative();
+    dispatch({ type: "zoom-changed", zoom: "fit" });
+  };
+
+  const resetGeometryState = (invalidateTone: boolean) => {
     if (!state.source?.width || !state.source.height) return;
     geometryOperation.current += 1;
     setGeometryBusy(false);
@@ -570,11 +752,17 @@ export function ImageQualityEditorPage() {
     setGeometrySelectionOpen(false);
     setGeometryRecipe(createIdentityGeometry(state.source.width, state.source.height));
     clearGeometryDerivatives();
+    if (invalidateTone) {
+      invalidateToneDerivative("Geometry changed. Apply the light-and-tone recipe again to update the adjusted derivative.");
+    }
     dispatch({ type: "zoom-changed", zoom: "fit" });
   };
 
+  const resetGeometry = () => resetGeometryState(true);
+
   const reset = () => {
-    resetGeometry();
+    resetTone();
+    resetGeometryState(false);
     enhancedGeometryEngine.current?.dispose();
     enhancedGeometryEngine.current = null;
     setFaceDetailRevision((revision) => revision + 1);
@@ -589,7 +777,20 @@ export function ImageQualityEditorPage() {
     const enhancementIsStale = Boolean(state.result && (
       state.result.strength !== state.strength || state.result.scale !== state.outputScale
     ));
-    if (enhancementIsStale) return;
+    if (enhancementIsStale || toneIsDirty) return;
+    if (toneDisplayReady && toneResult) {
+      try {
+        assertPngDimensions(new Uint8Array(toneResult.bytes), toneResult.width, toneResult.height);
+      } catch (error) {
+        setToneError(error instanceof Error ? error.message : "The adjusted PNG dimensions could not be verified.");
+        return;
+      }
+      const anchor = document.createElement("a");
+      anchor.href = toneResult.url;
+      anchor.download = adjustedDownloadName(state.source.name, toneResult.width, toneResult.height);
+      anchor.click();
+      return;
+    }
     const geometryIsCurrent = Boolean(geometryRecipe && sameGeometry(appliedGeometry, geometryRecipe));
     const geometryDownload = geometryIsCurrent
       ? (state.result ? geometryEdited : geometryOriginal)
@@ -649,7 +850,7 @@ export function ImageQualityEditorPage() {
   const sourceWidth = state.source.width ?? 1;
   const sourceHeight = state.source.height ?? 1;
   const processing = state.status === "processing";
-  const canEnhance = dimensionsReady && !processing && !processorRestarting && !geometryBusy;
+  const canEnhance = dimensionsReady && !processing && !processorRestarting && !geometryBusy && !toneBusy;
   const resultIsStale = Boolean(state.result && (
     state.result.strength !== state.strength || state.result.scale !== state.outputScale
   ));
@@ -663,10 +864,21 @@ export function ImageQualityEditorPage() {
   const geometryIsDirty = Boolean(
     geometryHasChanges && !sameGeometry(appliedGeometry, geometryRecipe!),
   ) || Boolean(appliedGeometry && state.result && !geometryEdited);
-  const displayOriginalUrl = geometryDisplayReady ? geometryOriginal!.url : state.source.url;
-  const enhancedUrl = geometryDisplayReady
+  const baseOriginalUrl = geometryDisplayReady ? geometryOriginal!.url : state.source.url;
+  const baseResultUrl = geometryDisplayReady
     ? (geometryEdited?.url ?? geometryOriginal!.url)
     : (state.result?.url ?? state.source.url);
+  const baseOutputSha256 = geometryDisplayReady
+    ? (state.result ? geometryEdited!.outputSha256 : geometryOriginal!.outputSha256)
+    : (state.result?.outputSha256 ?? state.source.facts?.sourceSha256 ?? "");
+  const toneHasChanges = !isNeutralTone(toneRecipe);
+  const toneDisplayReady = Boolean(
+    toneResult && appliedTone && sameToneRecipe(appliedTone, toneRecipe)
+    && toneResult.baseOutputSha256 === baseOutputSha256 && !resultIsStale && !geometryIsDirty,
+  );
+  const toneIsDirty = toneHasChanges && !toneDisplayReady;
+  const displayOriginalUrl = baseOriginalUrl;
+  const enhancedUrl = toneDisplayReady ? toneResult!.url : baseResultUrl;
   const displaySourceDimensions = geometryDisplayReady && appliedGeometry
     ? geometryOutputDimensions(appliedGeometry)
     : { width: state.source.width ?? 1, height: state.source.height ?? 1 };
@@ -676,7 +888,9 @@ export function ImageQualityEditorPage() {
   const pendingGeometryDimensions = activeTool === "geometry" && geometryRecipe
     ? geometryOutputDimensions(geometryRecipe, state.result?.scale ?? 1)
     : null;
-  const outputDimensions = downloadableGeometry
+  const outputDimensions = toneDisplayReady
+    ? `${toneResult!.width} × ${toneResult!.height} px`
+    : downloadableGeometry
     ? `${downloadableGeometry.width} × ${downloadableGeometry.height} px`
     : pendingGeometryDimensions
       ? `${pendingGeometryDimensions.width} × ${pendingGeometryDimensions.height} px after apply`
@@ -685,10 +899,22 @@ export function ImageQualityEditorPage() {
         : dimensionsReady
           ? `${state.source.width! * state.outputScale} × ${state.source.height! * state.outputScale} px selected`
           : "Not created yet";
-  const canDownload = Boolean(downloadableGeometry || (state.result && !resultIsStale && !appliedGeometry));
+  const canDownload = Boolean(
+    toneDisplayReady
+    || (!toneIsDirty && (downloadableGeometry || (state.result && !resultIsStale && !appliedGeometry))),
+  );
+  const currentDownloadLabel = toneDisplayReady
+    ? "Download adjusted image"
+    : downloadableGeometry
+      ? "Download edited image"
+      : "Download enhanced image";
+  const toneCanApply = Boolean(
+    dimensionsReady && toneHasChanges && !toneBusy && !processing && !processorRestarting && !geometryBusy
+    && !resultIsStale && !geometryIsDirty && !toneDisplayReady,
+  );
   const geometryCanApply = Boolean(
     dimensionsReady && geometryRecipe && !isIdentityGeometry(geometryRecipe, state.source.width!, state.source.height!)
-    && !geometryBusy && !processing && !processorRestarting && !resultIsStale
+    && !geometryBusy && !toneBusy && !processing && !processorRestarting && !resultIsStale
     && (geometryIsDirty || !geometryDisplayReady),
   );
   const geometryEditing = activeTool === "geometry" && Boolean(geometryRecipe)
@@ -712,7 +938,7 @@ export function ImageQualityEditorPage() {
           ? "Original ready. Enhance quality uses disclosed Restore processing for photos and illustrations, and protected deterministic processing for graphics."
           : null;
 
-  return <main className="quality-page quality-editor" data-testid="image-quality-editor" aria-busy={processing || geometryBusy}>
+  return <main className="quality-page quality-editor" data-testid="image-quality-editor" aria-busy={processing || geometryBusy || toneBusy}>
     <header className="quality-header">
       <div>
         <span className="quality-kicker"><ImageIcon aria-hidden="true" />Image Quality Editor</span>
@@ -734,7 +960,7 @@ export function ImageQualityEditorPage() {
             if (files.length) void selectFile(files);
           }}
         />
-        <Button size="compact" disabled={processing || processorRestarting || geometryBusy} onClick={() => fileInput.current?.click()}><Upload aria-hidden="true" />Change image</Button>
+        <Button size="compact" disabled={processing || processorRestarting || geometryBusy || toneBusy} onClick={() => fileInput.current?.click()}><Upload aria-hidden="true" />Change image</Button>
       </div>
     </header>
 
@@ -753,6 +979,7 @@ export function ImageQualityEditorPage() {
             dimensionsReady={dimensionsReady}
             canEnhance={canEnhance}
             canDownload={canDownload}
+            downloadLabel={currentDownloadLabel}
             onScale={(outputScale) => dispatch({ type: "output-scale-changed", outputScale })}
             onStrength={(strength) => dispatch({ type: "strength-changed", strength })}
             onEnhance={() => void enhance()}
@@ -760,7 +987,23 @@ export function ImageQualityEditorPage() {
             onReset={reset}
             onDownload={download}
           />
-        : <GeometryToolPanel
+        : activeTool === "adjust"
+          ? <ToneToolPanel
+              recipe={toneRecipe}
+              statistics={toneDisplayReady ? toneResult!.statistics : null}
+              busy={toneBusy}
+              canApply={toneCanApply}
+              canDownload={toneDisplayReady}
+              onRecipe={(recipe) => {
+                setToneRecipe(sanitizeToneRecipe(recipe));
+                setToneError(null);
+                setToneMessage(null);
+              }}
+              onApply={() => void applyTone()}
+              onReset={resetTone}
+              onDownload={download}
+            />
+          : <GeometryToolPanel
             recipe={geometryRecipe}
             aspect={cropAspect}
             resizeAspectLocked={resizeAspectLocked}
@@ -770,7 +1013,8 @@ export function ImageQualityEditorPage() {
             dimensionsReady={dimensionsReady}
             busy={geometryBusy}
             canApply={geometryCanApply}
-            canDownload={Boolean(downloadableGeometry)}
+            canDownload={canDownload}
+            downloadLabel={currentDownloadLabel}
             onRecipe={setGeometryRecipe}
             onAspect={setCropAspect}
             onResizeAspectLocked={setResizeAspectLocked}
@@ -788,6 +1032,8 @@ export function ImageQualityEditorPage() {
           {state.error && <InlineNotice tone="error" title="Enhancement did not complete"><p>{state.error}</p><p>Your original image is still unchanged and available above.</p></InlineNotice>}
           {geometryMessage && <InlineNotice tone={geometryDisplayReady ? "success" : "info"} title={geometryMessage} />}
           {geometryError && <InlineNotice tone="error" title="Geometry edit did not complete"><p>{geometryError}</p><p>Your original image is still unchanged.</p></InlineNotice>}
+          {toneMessage && <InlineNotice tone={toneDisplayReady ? "success" : "info"} title={toneMessage} />}
+          {toneError && <InlineNotice tone="error" title="Light adjustment did not complete"><p>{toneError}</p><p>The verified base image is still unchanged.</p></InlineNotice>}
           {state.result && <details className="quality-provenance">
             <summary>Result details and provenance</summary>
             <dl>
@@ -845,7 +1091,9 @@ export function ImageQualityEditorPage() {
                   zoom={state.zoom}
                   pan={state.pan}
                   onPan={(x, y) => dispatch({ type: "pan-changed", x, y })}
-                  label={state.result ? `Enhanced · ${state.result.strength}%${geometryDisplayReady ? " · geometry applied" : ""}${resultIsStale ? " · previous result" : ""}` : geometryDisplayReady ? "Edited original" : "Enhanced · awaiting processing"}
+                  label={toneDisplayReady
+                    ? state.result ? `Adjusted enhanced · ${state.result.strength}%` : "Adjusted original"
+                    : state.result ? `Enhanced · ${state.result.strength}%${geometryDisplayReady ? " · geometry applied" : ""}${resultIsStale ? " · previous result" : ""}` : geometryDisplayReady ? "Edited original" : "Enhanced · awaiting processing"}
                   enhanced
                 />
               </div> : <>
@@ -885,6 +1133,7 @@ export function ImageQualityEditorPage() {
         recipe={geometryRecipe}
         geometryIsDirty={geometryIsDirty}
         geometryDisplayReady={geometryDisplayReady}
+        toneStatus={toneDisplayReady ? "Applied" : toneIsDirty ? "Unapplied changes" : "None"}
       />
     </section>
   </main>;

@@ -950,6 +950,96 @@ test("crop perspective rotate flip resize and download use one source-bound reci
   await expect(page.getByRole("button", { name: "Download edited image" })).toBeDisabled();
 });
 
+test("light and tone applies from the verified base and preview matches downloaded PNG bytes", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(64, 48);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "tone-workspace.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Light and tone controls" })).toBeVisible();
+  await page.getByLabel("Exposure", { exact: true }).fill("0.5");
+  await page.getByLabel("Shadows", { exact: true }).fill("30");
+  await page.getByLabel("Highlights", { exact: true }).fill("-20");
+  await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeEnabled();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-workspace").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole("button", { name: "Apply adjustments" }).click();
+  await expect(page.getByText(/Light-and-tone derivative ready/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeEnabled();
+  const toneProperty = page.locator(".quality-inspector .quality-dimensions div").filter({ hasText: "Light & tone" }).locator("dd");
+  await expect(toneProperty).toHaveText("Applied");
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+    const decode = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        pixels: context.getImageData(0, 0, canvas.width, canvas.height).data,
+      };
+    };
+    const resultUrl = (node as HTMLImageElement).src;
+    const [source, result, bytes] = await Promise.all([
+      decode(sourceUrl),
+      decode(resultUrl),
+      (await fetch(resultUrl)).arrayBuffer(),
+    ]);
+    let changedChannels = 0;
+    for (let index = 0; index < source.pixels.length; index += 4) {
+      if (source.pixels[index] !== result.pixels[index]
+        || source.pixels[index + 1] !== result.pixels[index + 1]
+        || source.pixels[index + 2] !== result.pixels[index + 2]) changedChannels += 1;
+      if (source.pixels[index + 3] !== result.pixels[index + 3]) throw new Error("Tone changed alpha");
+    }
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { width: result.width, height: result.height, changedChannels, digest };
+  }, immutableSourceUrl!);
+  expect(previewEvidence).toMatchObject({ width: 64, height: 48 });
+  expect(previewEvidence.changedChannels).toBeGreaterThan(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("tone-workspace-adjusted-64x48.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(64);
+  expect(downloaded.readUInt32BE(20)).toBe(48);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v1");
+  expect(downloaded.toString("utf8")).toContain('"base_kind":"original"');
+  expect(downloaded.toString("utf8")).toContain(createHash("sha256").update(sourceBytes).digest("hex"));
+  expect(downloaded.toString("utf8")).toContain('"exposure":0.5');
+  expect(downloaded.toString("utf8")).toContain('"shadows":30');
+  expect(downloaded.toString("utf8")).toContain('"highlights":-20');
+
+  await page.getByLabel("Brightness", { exact: true }).fill("25");
+  await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
+  await expect(toneProperty).toHaveText("Unapplied changes");
+  await page.getByRole("button", { name: "Reset adjustments" }).click();
+  await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
+  await expect(toneProperty).toHaveText("None");
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(immutableSourceUrl);
+});
+
 test("perspective worker samples the moved source corner instead of only recording metadata", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(64, 64);
   await page.goto("/image-quality?engine=deterministic");
