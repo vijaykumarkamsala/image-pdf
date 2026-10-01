@@ -30,6 +30,9 @@ test("tone recipes are bounded, normalized and comparable", () => {
   const neutral = createNeutralToneRecipe();
   assert.equal(isNeutralTone(neutral), true);
   const safe = sanitizeToneRecipe({
+    levelBlack: 300,
+    levelWhite: 20,
+    levelMidtone: Number.NaN,
     exposure: 4.17,
     brightness: -101,
     contrast: 10.7,
@@ -40,6 +43,9 @@ test("tone recipes are bounded, normalized and comparable", () => {
     blacks: -49.5,
   });
   assert.deepEqual(safe, {
+    levelBlack: 254,
+    levelWhite: 255,
+    levelMidtone: 1,
     exposure: 3,
     brightness: -100,
     contrast: 11,
@@ -53,6 +59,29 @@ test("tone recipes are bounded, normalized and comparable", () => {
   assert.equal(sameToneRecipe(safe, { ...safe, exposure: 2.9 }), false);
   assert.equal(assertBrowserToneBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserToneBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
+});
+
+test("luminance levels map bounded endpoints and progressively control midtones", () => {
+  const endpoints = new Uint8ClampedArray([
+    32, 32, 32, 255,
+    220, 220, 220, 255,
+  ]);
+  applyToneToRgba(endpoints, {
+    ...createNeutralToneRecipe(),
+    levelBlack: 32,
+    levelWhite: 220,
+  });
+  assert.deepEqual(Array.from(endpoints), [0, 0, 0, 255, 255, 255, 255, 255]);
+
+  const source = new Uint8ClampedArray([128, 128, 128, 255]);
+  const darker = source.slice();
+  const brighter = source.slice();
+  applyToneToRgba(darker, { ...createNeutralToneRecipe(), levelMidtone: 0.5 });
+  applyToneToRgba(brighter, { ...createNeutralToneRecipe(), levelMidtone: 2 });
+  assert.ok(darker[0] < source[0]);
+  assert.ok(brighter[0] > source[0]);
+  assert.deepEqual([darker[0], darker[1], darker[2]], [darker[0], darker[0], darker[0]]);
+  assert.deepEqual([brighter[0], brighter[1], brighter[2]], [brighter[0], brighter[0], brighter[0]]);
 });
 
 test("neutral tone is an exact no-op and non-neutral tone preserves every alpha byte", () => {
@@ -123,10 +152,13 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v1/);
-  assert.match(text, /"operation_order":\["exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
+  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v2/);
+  assert.match(text, /"operation_order":\["levels_black","levels_white","levels_midtone","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
   assert.match(text, /"base_kind":"geometry-enhanced"/);
   assert.match(text, /"exposure":0.5/);
+  assert.match(text, /"levelBlack":0/);
+  assert.match(text, /"levelWhite":255/);
+  assert.match(text, /"levelMidtone":1/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 

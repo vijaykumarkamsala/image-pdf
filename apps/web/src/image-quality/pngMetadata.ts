@@ -197,14 +197,14 @@ function geometryProvenance(metadata: PngGeometryMetadata) {
 
 function toneProvenance(metadata: PngToneMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.tone.provenance.v1",
+    schema: "ipw.image-edit.tone.provenance.v2",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
-    operation_order: ["exposure", "brightness", "shadows", "highlights", "blacks", "whites", "contrast", "gamma"],
+    operation_order: ["levels_black", "levels_white", "levels_midtone", "exposure", "brightness", "shadows", "highlights", "blacks", "whites", "contrast", "gamma"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,

@@ -62,7 +62,7 @@ operations remain pending.
 
 ## IE-03 — Light and tone
 
-Local implementation status (2026-09-30): the React image editor now provides
+Local implementation status (2026-10-01): the React image editor now provides
 deterministic global exposure, brightness, contrast, perceptual gamma,
 highlights, shadows, whites and blacks controls. Each apply starts from the
 latest verified original, enhancement or geometry derivative rather than a
@@ -74,8 +74,11 @@ An analysis-only exact RGB/luminance histogram and factual shadow/highlight
 endpoint-occupancy review are also implemented locally. They analyse the exact
 current verified preview in a worker, exclude fully transparent pixels, do not
 modify derivative/download bytes, and fail visibly rather than silently sample
-when browser limits are exceeded. Levels, curves, local/clarity controls and
-automatic tonal correction remain separate future increments.
+when browser limits are exceeded. Source-bound input luminance Levels are also
+implemented with constrained black/white points and a bounded midtone control;
+they execute before the existing tone operations and are recorded in v2 tone
+provenance. Curves, local/clarity controls and automatic tonal correction remain
+separate future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

@@ -1020,6 +1020,9 @@ test("light and tone applies from the verified base and preview matches download
 
   await page.getByRole("button", { name: "Adjust", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "Light and tone controls" })).toBeVisible();
+  await page.getByLabel("Black point", { exact: true }).fill("12");
+  await page.getByLabel("Levels midtone", { exact: true }).fill("1.2");
+  await page.getByLabel("White point", { exact: true }).fill("238");
   await page.getByLabel("Exposure", { exact: true }).fill("0.5");
   await page.getByLabel("Shadows", { exact: true }).fill("30");
   await page.getByLabel("Highlights", { exact: true }).fill("-20");
@@ -1081,10 +1084,13 @@ test("light and tone applies from the verified base and preview matches download
   expect(downloaded.readUInt32BE(16)).toBe(64);
   expect(downloaded.readUInt32BE(20)).toBe(48);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v1");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v2");
   expect(downloaded.toString("utf8")).toContain('"base_kind":"original"');
   expect(downloaded.toString("utf8")).toContain(createHash("sha256").update(sourceBytes).digest("hex"));
   expect(downloaded.toString("utf8")).toContain('"exposure":0.5');
+  expect(downloaded.toString("utf8")).toContain('"levelBlack":12');
+  expect(downloaded.toString("utf8")).toContain('"levelWhite":238');
+  expect(downloaded.toString("utf8")).toContain('"levelMidtone":1.2');
   expect(downloaded.toString("utf8")).toContain('"shadows":30');
   expect(downloaded.toString("utf8")).toContain('"highlights":-20');
 

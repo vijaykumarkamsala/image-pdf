@@ -109,6 +109,49 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
   const neutral = isNeutralTone(props.recipe);
   return <aside className="quality-tool-panel quality-controls" aria-label="Light and tone controls">
     <div className="quality-panel-heading"><SunMedium aria-hidden="true" /><div><h2>Light &amp; tone</h2><p>Deterministic correction from the latest verified base.</p></div></div>
+    <fieldset className="quality-levels-control">
+      <legend>Input luminance levels</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Black point</strong><output>{props.recipe.levelBlack}</output></span>
+        <input
+          aria-label="Black point"
+          type="range"
+          min="0"
+          max={Math.max(0, props.recipe.levelWhite - 1)}
+          step="1"
+          value={props.recipe.levelBlack}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, levelBlack: Number(event.target.value) })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Levels midtone</strong><output>{props.recipe.levelMidtone.toFixed(2)}</output></span>
+        <input
+          aria-label="Levels midtone"
+          type="range"
+          min="0.1"
+          max="3"
+          step="0.01"
+          value={props.recipe.levelMidtone}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, levelMidtone: Number(event.target.value) })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>White point</strong><output>{props.recipe.levelWhite}</output></span>
+        <input
+          aria-label="White point"
+          type="range"
+          min={Math.min(255, props.recipe.levelBlack + 1)}
+          max="255"
+          step="1"
+          value={props.recipe.levelWhite}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, levelWhite: Number(event.target.value) })}
+        />
+      </label>
+      <p>Maps the selected input range to full black and white before the remaining tone controls. Black and white points cannot cross.</p>
+    </fieldset>
     <div className="quality-adjustment-controls">
       {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>
