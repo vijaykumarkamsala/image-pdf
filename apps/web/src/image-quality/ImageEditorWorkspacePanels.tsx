@@ -37,6 +37,7 @@ import {
   type ImageColorRecipe,
   type ImageColorStatistics,
 } from "./imageColor";
+import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 
 export type ImageEditorTool = "enhance" | "adjust" | "color" | "geometry";
 
@@ -412,6 +413,7 @@ export function ImageEditorInspector({
   geometryDisplayReady,
   toneStatus,
   colorStatus,
+  histogramInput,
 }: {
   dimensionsReady: boolean;
   sourceWidth: number;
@@ -422,6 +424,7 @@ export function ImageEditorInspector({
   geometryDisplayReady: boolean;
   toneStatus: "Applied" | "Unapplied changes" | "None";
   colorStatus: "Applied" | "Unapplied changes" | "None";
+  histogramInput: ImageHistogramInput | null;
 }) {
   return <aside className="quality-inspector" aria-label="Image properties" tabIndex={0}>
     <div className="quality-panel-heading"><SlidersHorizontal aria-hidden="true" /><div><h2>Properties</h2><p>Current source and derivative.</p></div></div>
@@ -442,6 +445,7 @@ export function ImageEditorInspector({
       <div><dt>Resize</dt><dd>{recipe.resize ? `${recipe.resize.width} x ${recipe.resize.height} px` : "Natural size"}</dd></div>
       <div><dt>Recipe</dt><dd>{geometryIsDirty ? "Unapplied changes" : geometryDisplayReady ? "Applied" : "None"}</dd></div>
     </dl>}
+    <ImageHistogramPanel input={histogramInput} />
     <p className="quality-inspector-note">Original bytes are immutable. Enhancement, geometry, tone and colour remain separate, traceable derivative stages.</p>
   </aside>;
 }

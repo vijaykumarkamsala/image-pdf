@@ -64,6 +64,7 @@ import {
   type ImageColorRecipe,
 } from "./imageColor";
 import { WorkerImageColorEngine, type ImageColorResult } from "./WorkerImageColorEngine";
+import type { ImageHistogramInput } from "./ImageHistogramPanel";
 import {
   imageQualitySessionReducer,
   initialImageQualitySession,
@@ -1099,6 +1100,50 @@ export function ImageQualityEditorPage() {
   const enhancedUrl = colorDisplayReady
     ? colorResult!.url
     : toneDisplayReady ? toneResult!.url : baseResultUrl;
+  const histogramGeometryDerivative = geometryDisplayReady
+    ? (state.result ? geometryEdited : geometryOriginal)
+    : null;
+  const histogramInput: ImageHistogramInput | null = colorDisplayReady && colorResult
+    ? {
+        blob: new Blob([colorResult.bytes], { type: "image/png" }),
+        sha256: colorResult.outputSha256,
+        width: colorResult.width,
+        height: colorResult.height,
+        label: "Colour-adjusted preview",
+      }
+    : toneDisplayReady && toneResult
+      ? {
+          blob: new Blob([toneResult.bytes], { type: "image/png" }),
+          sha256: toneResult.outputSha256,
+          width: toneResult.width,
+          height: toneResult.height,
+          label: "Light-and-tone preview",
+        }
+      : histogramGeometryDerivative
+        ? {
+            blob: new Blob([histogramGeometryDerivative.bytes], { type: "image/png" }),
+            sha256: histogramGeometryDerivative.outputSha256,
+            width: histogramGeometryDerivative.width,
+            height: histogramGeometryDerivative.height,
+            label: state.result ? "Geometry-adjusted enhanced preview" : "Geometry-adjusted original preview",
+          }
+        : state.result && resultBlob.current
+          ? {
+              blob: resultBlob.current,
+              sha256: state.result.outputSha256,
+              width: state.result.width,
+              height: state.result.height,
+              label: resultIsStale ? "Previous enhanced preview" : "Enhanced preview",
+            }
+          : state.source.facts && state.source.width && state.source.height
+            ? {
+                blob: state.source.file,
+                sha256: state.source.facts.sourceSha256,
+                width: state.source.width,
+                height: state.source.height,
+                label: "Immutable original preview",
+              }
+            : null;
   const displaySourceDimensions = geometryDisplayReady && appliedGeometry
     ? geometryOutputDimensions(appliedGeometry)
     : { width: state.source.width ?? 1, height: state.source.height ?? 1 };
@@ -1386,6 +1431,7 @@ export function ImageQualityEditorPage() {
         geometryDisplayReady={geometryDisplayReady}
         toneStatus={toneDisplayReady ? "Applied" : toneIsDirty ? "Unapplied changes" : "None"}
         colorStatus={colorDisplayReady ? "Applied" : colorIsDirty ? "Unapplied changes" : "None"}
+        histogramInput={histogramInput}
       />
     </section>
   </main>;

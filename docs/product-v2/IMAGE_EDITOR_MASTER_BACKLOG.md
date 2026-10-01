@@ -70,8 +70,12 @@ previous tone result. Processing is worker-isolated and pixel-budgeted,
 preserves alpha, retains source/base hashes and clipping statistics in PNG
 provenance, verifies exact dimensions, and serves identical bytes to preview
 and download. Pending slider changes cannot download a stale derivative.
-Levels, curves, histogram visualization, local/clarity controls and automatic
-tonal correction remain separate future increments.
+An analysis-only exact RGB/luminance histogram and factual shadow/highlight
+endpoint-occupancy review are also implemented locally. They analyse the exact
+current verified preview in a worker, exclude fully transparent pixels, do not
+modify derivative/download bytes, and fail visibly rather than silently sample
+when browser limits are exceeded. Levels, curves, local/clarity controls and
+automatic tonal correction remain separate future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

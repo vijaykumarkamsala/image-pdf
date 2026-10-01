@@ -116,6 +116,63 @@ function progressiveStrengthPng(width: number, height: number): Buffer {
   ]);
 }
 
+function clippingHistogramPng(width: number, height: number): Buffer {
+  const scanlines = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (width * 4 + 1);
+    for (let x = 0; x < width; x += 1) {
+      const offset = row + 1 + x * 4;
+      const value = x < width / 4 ? 0 : x >= width * 3 / 4 ? 255 : 112;
+      scanlines[offset] = value;
+      scanlines[offset + 1] = value;
+      scanlines[offset + 2] = value;
+      scanlines[offset + 3] = y === height - 1 ? 0 : 255;
+    }
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+test("histogram analyses exact current preview bytes without changing image output", async ({ page }) => {
+  const source = clippingHistogramPng(64, 48);
+  const sourceSha256 = createHash("sha256").update(source).digest("hex");
+  await page.setViewportSize({ width: 1760, height: 900 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "histogram-clipping.png",
+    mimeType: "image/png",
+    buffer: source,
+  });
+  await expect(page.getByTestId("image-quality-editor")).toBeVisible();
+
+  const histogram = page.getByTestId("image-histogram");
+  await expect(histogram).toHaveAttribute("data-preview-sha256", sourceSha256);
+  await expect(histogram).toContainText("Immutable original preview");
+  await expect(histogram.locator(".quality-histogram-chart")).toBeVisible();
+  await expect(histogram).toContainText("3,008 visible pixels analysed · 64 fully transparent pixels excluded.");
+  await expect(histogram.locator(".quality-clipping-summary > div").nth(0)).toContainText("752 (25.00%)");
+  await expect(histogram.locator(".quality-clipping-summary > div").nth(1)).toContainText("752 (25.00%)");
+  await expect(histogram.locator('[data-material="true"]')).toHaveCount(2);
+  const accessibility = await new AxeBuilder({ page }).include(".quality-histogram-panel").analyze();
+  expect(accessibility.violations).toEqual([]);
+  const originalUrl = await page.getByTestId("original-image").getAttribute("src");
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Enhance quality", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download enhanced image" })).toBeEnabled();
+  await expect(histogram).toContainText("Enhanced preview");
+  await expect(histogram).not.toHaveAttribute("data-preview-sha256", sourceSha256);
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", originalUrl!);
+});
+
 test("face detail stays opt-in and unavailable without affecting enhancement, originals or downloads", async ({ page }, testInfo) => {
   // Includes the ordinary editor and real-worker synthetic selection/export/cancel/revocation flows.
   test.setTimeout(120_000);
