@@ -87,8 +87,14 @@ Explainable automatic tonal correction now analyses the exact verified-base
 histogram and proposes conservative Levels, midtone and protected-recovery
 values. It reports its evidence, returns neutral for an already balanced range,
 and requires separate Use suggestion and Apply adjustments actions before any
-pixels change. Local contrast, clarity, texture and dehaze remain separate
-future increments.
+pixels change. Signed deterministic local contrast is also implemented as a
+separate neighbourhood stage before global tone operations. It reads every
+worker tile from the immutable verified base with source halos, excludes fully
+transparent pixels from its neighbourhood statistics, and uses a noise floor,
+bounded detail gain, endpoint protection and RGB-headroom limits to prevent
+tile seams, grain amplification and new clipping. Its setting and operation
+order are recorded in v5 tone provenance. Clarity, texture and dehaze remain
+separate future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

@@ -17,6 +17,8 @@ export interface ImageToneRecipe {
   shadowRecovery: number;
   /** Positive-only, endpoint-protected compression for bright tones. */
   highlightRecovery: number;
+  /** Bounded neighbourhood contrast. Positive adds separation; negative softens it. */
+  localContrast: number;
   /** Exposure compensation in stops. */
   exposure: number;
   brightness: number;
@@ -65,6 +67,7 @@ export function createNeutralToneRecipe(): ImageToneRecipe {
     curveWhite: 100,
     shadowRecovery: 0,
     highlightRecovery: 0,
+    localContrast: 0,
     exposure: 0,
     brightness: 0,
     contrast: 0,
@@ -95,6 +98,7 @@ export function sanitizeToneRecipe(recipe: ImageToneRecipe): ImageToneRecipe {
     curveWhite,
     shadowRecovery: Math.round(bounded(recipe.shadowRecovery, 0, 100, 0)),
     highlightRecovery: Math.round(bounded(recipe.highlightRecovery, 0, 100, 0)),
+    localContrast: Math.round(bounded(recipe.localContrast, -100, 100, 0)),
     exposure: Math.round(bounded(recipe.exposure, -3, 3, 0) * 10) / 10,
     brightness: Math.round(bounded(recipe.brightness, -100, 100, 0)),
     contrast: Math.round(bounded(recipe.contrast, -100, 100, 0)),
@@ -112,6 +116,7 @@ export function isNeutralTone(recipe: ImageToneRecipe): boolean {
     && safe.curveBlack === 0 && safe.curveShadows === 25 && safe.curveMidtones === 50
     && safe.curveHighlights === 75 && safe.curveWhite === 100
     && safe.shadowRecovery === 0 && safe.highlightRecovery === 0
+    && safe.localContrast === 0
     && safe.exposure === 0 && safe.brightness === 0 && safe.contrast === 0 && safe.gamma === 0
     && safe.highlights === 0 && safe.shadows === 0 && safe.whites === 0 && safe.blacks === 0;
 }
@@ -199,6 +204,100 @@ export function recommendToneCorrection(summary: ImageHistogramSummary): ImageTo
     reasons,
     isNeutral,
   };
+}
+
+export function localContrastRadius(width: number, height: number): number {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
+    throw new Error("Local contrast requires positive integer image dimensions.");
+  }
+  return Math.min(32, Math.max(4, Math.round(Math.min(width, height) / 80)));
+}
+
+/**
+ * Applies source-neighbourhood contrast to core rows of an RGBA tile.
+ * Callers provide halo rows around the core so independently rendered tiles match exactly.
+ */
+export function applyLocalContrastToRgba(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  coreTop: number,
+  coreHeight: number,
+  amount: number,
+  radius: number,
+): Uint8ClampedArray {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1
+    || pixels.byteLength !== width * height * 4) {
+    throw new Error("Local contrast requires complete RGBA tile dimensions.");
+  }
+  if (!Number.isSafeInteger(coreTop) || !Number.isSafeInteger(coreHeight) || coreTop < 0 || coreHeight < 1
+    || coreTop + coreHeight > height || !Number.isSafeInteger(radius) || radius < 1 || radius > 64) {
+    throw new Error("Local contrast requires a bounded core and halo radius.");
+  }
+  const safeAmount = Math.round(bounded(amount, -100, 100, 0));
+  const output = new Uint8ClampedArray(width * coreHeight * 4);
+  const stride = width + 1;
+  const entries = stride * (height + 1);
+  const luminanceIntegral = new Float64Array(entries);
+  const visibleIntegral = new Uint32Array(entries);
+  for (let y = 0; y < height; y += 1) {
+    let rowLuminance = 0;
+    let rowVisible = 0;
+    for (let x = 0; x < width; x += 1) {
+      const sourceOffset = (y * width + x) * 4;
+      if (pixels[sourceOffset + 3] !== 0) {
+        rowLuminance += 2126 * pixels[sourceOffset]
+          + 7152 * pixels[sourceOffset + 1]
+          + 722 * pixels[sourceOffset + 2];
+        rowVisible += 1;
+      }
+      const integralOffset = (y + 1) * stride + x + 1;
+      luminanceIntegral[integralOffset] = luminanceIntegral[integralOffset - stride] + rowLuminance;
+      visibleIntegral[integralOffset] = visibleIntegral[integralOffset - stride] + rowVisible;
+    }
+  }
+  const area = (integral: Float64Array | Uint32Array, left: number, top: number, right: number, bottom: number) => (
+    integral[(bottom + 1) * stride + right + 1]
+      - integral[top * stride + right + 1]
+      - integral[(bottom + 1) * stride + left]
+      + integral[top * stride + left]
+  );
+  const gain = safeAmount >= 0 ? safeAmount / 100 * 0.65 : safeAmount / 100 * 0.5;
+  const noiseFloor = 1.5 / 255;
+  for (let outputY = 0; outputY < coreHeight; outputY += 1) {
+    const sourceY = coreTop + outputY;
+    for (let x = 0; x < width; x += 1) {
+      const sourceOffset = (sourceY * width + x) * 4;
+      const outputOffset = (outputY * width + x) * 4;
+      output[outputOffset] = pixels[sourceOffset];
+      output[outputOffset + 1] = pixels[sourceOffset + 1];
+      output[outputOffset + 2] = pixels[sourceOffset + 2];
+      output[outputOffset + 3] = pixels[sourceOffset + 3];
+      if (safeAmount === 0 || pixels[sourceOffset + 3] === 0) continue;
+      const left = Math.max(0, x - radius);
+      const right = Math.min(width - 1, x + radius);
+      const top = Math.max(0, sourceY - radius);
+      const bottom = Math.min(height - 1, sourceY + radius);
+      const visible = area(visibleIntegral, left, top, right, bottom);
+      if (visible < 2) continue;
+      const localMean = area(luminanceIntegral, left, top, right, bottom) / visible / 2_550_000;
+      const red = pixels[sourceOffset] / 255;
+      const green = pixels[sourceOffset + 1] / 255;
+      const blue = pixels[sourceOffset + 2] / 255;
+      const luminance = (2126 * pixels[sourceOffset]
+        + 7152 * pixels[sourceOffset + 1]
+        + 722 * pixels[sourceOffset + 2]) / 2_550_000;
+      const detail = luminance - localMean;
+      const protectedDetail = Math.sign(detail) * Math.min(0.12, Math.max(0, Math.abs(detail) - noiseFloor));
+      let delta = protectedDetail * gain * 4 * luminance * (1 - luminance);
+      if (delta > 0) delta = Math.min(delta, Math.max(0, 1 - Math.max(red, green, blue)));
+      if (delta < 0) delta = Math.max(delta, -Math.max(0, Math.min(red, green, blue)));
+      output[outputOffset] = Math.round(clamp(red + delta, 0, 1) * 255);
+      output[outputOffset + 1] = Math.round(clamp(green + delta, 0, 1) * 255);
+      output[outputOffset + 2] = Math.round(clamp(blue + delta, 0, 1) * 255);
+    }
+  }
+  return output;
 }
 
 function srgbToLinear(value: number) {

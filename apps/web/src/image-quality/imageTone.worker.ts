@@ -1,9 +1,11 @@
 /// <reference lib="webworker" />
 
 import {
+  applyLocalContrastToRgba,
   applyToneToRgba,
   assertBrowserToneBudget,
   isNeutralTone,
+  localContrastRadius,
   sanitizeToneRecipe,
   type ImageToneRecipe,
   type ImageToneStatistics,
@@ -46,6 +48,47 @@ function addStatistics(target: ImageToneStatistics, next: ImageToneStatistics) {
   target.newHighlightClippedPixels += next.newHighlightClippedPixels;
 }
 
+function compareCoreStatistics(
+  sourceTile: Uint8ClampedArray,
+  width: number,
+  coreTop: number,
+  output: Uint8ClampedArray,
+): ImageToneStatistics {
+  const statistics: ImageToneStatistics = {
+    processedPixels: 0,
+    changedPixels: 0,
+    newShadowClippedPixels: 0,
+    newHighlightClippedPixels: 0,
+  };
+  const coreHeight = output.byteLength / 4 / width;
+  for (let y = 0; y < coreHeight; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sourceOffset = ((coreTop + y) * width + x) * 4;
+      const outputOffset = (y * width + x) * 4;
+      if (sourceTile[sourceOffset + 3] === 0) continue;
+      statistics.processedPixels += 1;
+      const beforeRed = sourceTile[sourceOffset];
+      const beforeGreen = sourceTile[sourceOffset + 1];
+      const beforeBlue = sourceTile[sourceOffset + 2];
+      const outputRed = output[outputOffset];
+      const outputGreen = output[outputOffset + 1];
+      const outputBlue = output[outputOffset + 2];
+      if (beforeRed !== outputRed || beforeGreen !== outputGreen || beforeBlue !== outputBlue) {
+        statistics.changedPixels += 1;
+      }
+      const beforeShadowClipped = beforeRed <= 1 && beforeGreen <= 1 && beforeBlue <= 1;
+      const beforeHighlightClipped = beforeRed >= 254 && beforeGreen >= 254 && beforeBlue >= 254;
+      if (!beforeShadowClipped && outputRed <= 1 && outputGreen <= 1 && outputBlue <= 1) {
+        statistics.newShadowClippedPixels += 1;
+      }
+      if (!beforeHighlightClipped && outputRed >= 254 && outputGreen >= 254 && outputBlue >= 254) {
+        statistics.newHighlightClippedPixels += 1;
+      }
+    }
+  }
+  return statistics;
+}
+
 async function render(
   id: number,
   recipe: ImageToneRecipe,
@@ -67,7 +110,6 @@ async function render(
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const context = canvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });
   if (!context) throw new Error("Your browser could not allocate the light-adjustment renderer.");
-  context.drawImage(bitmap, 0, 0);
   const rowsPerTile = Math.max(1, Math.floor(TILE_PIXELS / bitmap.width));
   const statistics: ImageToneStatistics = {
     processedPixels: 0,
@@ -75,11 +117,54 @@ async function render(
     newShadowClippedPixels: 0,
     newHighlightClippedPixels: 0,
   };
-  for (let y = 0; y < bitmap.height; y += rowsPerTile) {
-    const height = Math.min(rowsPerTile, bitmap.height - y);
-    const imageData = context.getImageData(0, y, bitmap.width, height);
-    addStatistics(statistics, applyToneToRgba(imageData.data, safe));
-    context.putImageData(imageData, 0, y);
+  if (safe.localContrast === 0) {
+    context.drawImage(bitmap, 0, 0);
+    for (let y = 0; y < bitmap.height; y += rowsPerTile) {
+      const height = Math.min(rowsPerTile, bitmap.height - y);
+      const imageData = context.getImageData(0, y, bitmap.width, height);
+      addStatistics(statistics, applyToneToRgba(imageData.data, safe));
+      context.putImageData(imageData, 0, y);
+    }
+  } else {
+    const radius = localContrastRadius(bitmap.width, bitmap.height);
+    const globalRecipe = { ...safe, localContrast: 0 };
+    const globalToneIsNeutral = isNeutralTone(globalRecipe);
+    for (let y = 0; y < bitmap.height; y += rowsPerTile) {
+      const height = Math.min(rowsPerTile, bitmap.height - y);
+      const tileTop = Math.max(0, y - radius);
+      const tileBottom = Math.min(bitmap.height, y + height + radius);
+      const tileHeight = tileBottom - tileTop;
+      const tileCanvas = new OffscreenCanvas(bitmap.width, tileHeight);
+      const tileContext = tileCanvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });
+      if (!tileContext) throw new Error("Your browser could not allocate the local-contrast tile renderer.");
+      tileContext.drawImage(
+        bitmap,
+        0,
+        tileTop,
+        bitmap.width,
+        tileHeight,
+        0,
+        0,
+        bitmap.width,
+        tileHeight,
+      );
+      const sourceTile = tileContext.getImageData(0, 0, bitmap.width, tileHeight).data;
+      const coreTop = y - tileTop;
+      const core = applyLocalContrastToRgba(
+        sourceTile,
+        bitmap.width,
+        tileHeight,
+        coreTop,
+        height,
+        safe.localContrast,
+        radius,
+      );
+      if (!globalToneIsNeutral) applyToneToRgba(core, globalRecipe);
+      addStatistics(statistics, compareCoreStatistics(sourceTile, bitmap.width, coreTop, core));
+      const outputImageData = new ImageData(bitmap.width, height);
+      outputImageData.data.set(core);
+      context.putImageData(outputImageData, 0, y);
+    }
   }
   if (statistics.changedPixels === 0) {
     throw new Error("These light settings did not change any visible pixels. No duplicate derivative was created.");

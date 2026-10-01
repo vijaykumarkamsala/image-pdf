@@ -271,6 +271,23 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
       </label>)}
       <p>Redistributes recoverable dark and bright tones while preserving true black, true white and RGB headroom. It cannot recreate detail already clipped in the source.</p>
     </fieldset>
+    <fieldset className="quality-levels-control quality-local-contrast">
+      <legend>Local contrast</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Local contrast</strong><output>{props.recipe.localContrast > 0 ? "+" : ""}{props.recipe.localContrast}</output></span>
+        <input
+          aria-label="Local contrast"
+          type="range"
+          min="-100"
+          max="100"
+          step="1"
+          value={props.recipe.localContrast}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, localContrast: Number(event.target.value) })}
+        />
+      </label>
+      <p>Separates or softens neighbourhood tones without sharpening. Halo-aware source tiles, endpoint protection and a noise floor limit seams, clipping and grain amplification.</p>
+    </fieldset>
     <div className="quality-adjustment-controls">
       {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>
