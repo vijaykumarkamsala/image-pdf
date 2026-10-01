@@ -690,6 +690,77 @@
   line-height: 1.45;
 }
 
+.quality-tone-curve {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+}
+
+.quality-tone-curve legend {
+  padding: 0 4px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.quality-tone-curve-chart {
+  display: block;
+  width: 100%;
+  height: 160px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #171d27 0%, #f8fafc 100%);
+  touch-action: none;
+}
+
+.quality-tone-curve-chart g line {
+  stroke: rgb(105 118 135 / 38%);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.quality-tone-curve-neutral {
+  stroke: rgb(105 118 135 / 60%);
+  stroke-dasharray: 3 3;
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.quality-tone-curve-line {
+  fill: none;
+  stroke: #3f73e8;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.quality-tone-curve-chart circle {
+  fill: #fff;
+  stroke: #2459d3;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: ns-resize;
+}
+
+.quality-tone-curve-controls {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quality-tone-curve > .ds-button {
+  justify-content: center;
+  width: 100%;
+}
+
+.quality-tone-curve > p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .quality-adjustment-control {
   display: grid;
   gap: var(--space-2);

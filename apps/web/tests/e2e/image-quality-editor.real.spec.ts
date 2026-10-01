@@ -1023,11 +1023,15 @@ test("light and tone applies from the verified base and preview matches download
   await page.getByLabel("Black point", { exact: true }).fill("12");
   await page.getByLabel("Levels midtone", { exact: true }).fill("1.2");
   await page.getByLabel("White point", { exact: true }).fill("238");
+  await page.getByLabel("Curve black", { exact: true }).fill("5");
+  await page.getByLabel("Curve shadows", { exact: true }).fill("18");
+  await page.getByLabel("Curve highlights", { exact: true }).fill("82");
+  await page.getByLabel("Curve white", { exact: true }).fill("95");
   await page.getByLabel("Exposure", { exact: true }).fill("0.5");
   await page.getByLabel("Shadows", { exact: true }).fill("30");
   await page.getByLabel("Highlights", { exact: true }).fill("-20");
   await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeEnabled();
-  const accessibility = await new AxeBuilder({ page }).include(".quality-workspace").analyze();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-tone-curve").analyze();
   expect(accessibility.violations).toEqual([]);
 
   await page.getByRole("button", { name: "Apply adjustments" }).click();
@@ -1084,16 +1088,25 @@ test("light and tone applies from the verified base and preview matches download
   expect(downloaded.readUInt32BE(16)).toBe(64);
   expect(downloaded.readUInt32BE(20)).toBe(48);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v2");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v3");
   expect(downloaded.toString("utf8")).toContain('"base_kind":"original"');
   expect(downloaded.toString("utf8")).toContain(createHash("sha256").update(sourceBytes).digest("hex"));
   expect(downloaded.toString("utf8")).toContain('"exposure":0.5');
   expect(downloaded.toString("utf8")).toContain('"levelBlack":12');
   expect(downloaded.toString("utf8")).toContain('"levelWhite":238');
   expect(downloaded.toString("utf8")).toContain('"levelMidtone":1.2');
+  expect(downloaded.toString("utf8")).toContain('"curveBlack":5');
+  expect(downloaded.toString("utf8")).toContain('"curveShadows":18');
+  expect(downloaded.toString("utf8")).toContain('"curveMidtones":50');
+  expect(downloaded.toString("utf8")).toContain('"curveHighlights":82');
+  expect(downloaded.toString("utf8")).toContain('"curveWhite":95');
   expect(downloaded.toString("utf8")).toContain('"shadows":30');
   expect(downloaded.toString("utf8")).toContain('"highlights":-20');
 
+  await expect(page.getByRole("button", { name: "Reset curve" })).toBeEnabled();
+  await page.getByRole("button", { name: "Reset curve" }).click();
+  await expect(page.getByLabel("Curve shadows", { exact: true })).toHaveValue("25");
+  await expect(page.getByLabel("Curve highlights", { exact: true })).toHaveValue("75");
   await page.getByLabel("Brightness", { exact: true }).fill("25");
   await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
   await expect(toneProperty).toHaveText("Unapplied changes");
@@ -1181,7 +1194,14 @@ test("colour applies after tone and binds preview and download to the exact veri
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
-  stream.destroy();
+  if (!stream.closed) {
+    const closed = new Promise<void>((resolve, reject) => {
+      stream.once("close", resolve);
+      stream.once("error", reject);
+    });
+    stream.destroy();
+    await closed;
+  }
   const downloaded = Buffer.concat(chunks);
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);

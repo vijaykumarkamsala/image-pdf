@@ -5,6 +5,7 @@ import {
   applyToneToRgba,
   assertBrowserToneBudget,
   createNeutralToneRecipe,
+  evaluateToneCurve,
   isNeutralTone,
   sameToneRecipe,
   sanitizeToneRecipe,
@@ -33,6 +34,11 @@ test("tone recipes are bounded, normalized and comparable", () => {
     levelBlack: 300,
     levelWhite: 20,
     levelMidtone: Number.NaN,
+    curveBlack: 20,
+    curveShadows: 10,
+    curveMidtones: -1,
+    curveHighlights: 200,
+    curveWhite: 50,
     exposure: 4.17,
     brightness: -101,
     contrast: 10.7,
@@ -46,6 +52,11 @@ test("tone recipes are bounded, normalized and comparable", () => {
     levelBlack: 254,
     levelWhite: 255,
     levelMidtone: 1,
+    curveBlack: 20,
+    curveShadows: 20,
+    curveMidtones: 20,
+    curveHighlights: 100,
+    curveWhite: 100,
     exposure: 3,
     brightness: -100,
     contrast: 11,
@@ -59,6 +70,37 @@ test("tone recipes are bounded, normalized and comparable", () => {
   assert.equal(sameToneRecipe(safe, { ...safe, exposure: 2.9 }), false);
   assert.equal(assertBrowserToneBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserToneBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
+});
+
+test("tone curve is anchor-exact, monotone and creates a bounded contrast curve", () => {
+  const recipe = {
+    ...createNeutralToneRecipe(),
+    curveBlack: 5,
+    curveShadows: 18,
+    curveMidtones: 50,
+    curveHighlights: 82,
+    curveWhite: 95,
+  };
+  assert.equal(evaluateToneCurve(0, recipe), 0.05);
+  assert.equal(evaluateToneCurve(0.25, recipe), 0.18);
+  assert.equal(evaluateToneCurve(0.5, recipe), 0.5);
+  assert.equal(evaluateToneCurve(0.75, recipe), 0.82);
+  assert.equal(evaluateToneCurve(1, recipe), 0.95);
+  let previous = evaluateToneCurve(0, recipe);
+  for (let index = 1; index <= 100; index += 1) {
+    const current = evaluateToneCurve(index / 100, recipe);
+    assert.ok(current >= previous, "safe curve must never invert tones");
+    previous = current;
+  }
+
+  const contrast = new Uint8ClampedArray([64, 64, 64, 255, 192, 192, 192, 255]);
+  applyToneToRgba(contrast, {
+    ...createNeutralToneRecipe(),
+    curveShadows: 18,
+    curveHighlights: 82,
+  });
+  assert.ok(contrast[0] < 64);
+  assert.ok(contrast[4] > 192);
 });
 
 test("luminance levels map bounded endpoints and progressively control midtones", () => {
@@ -152,13 +194,18 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v2/);
-  assert.match(text, /"operation_order":\["levels_black","levels_white","levels_midtone","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
+  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v3/);
+  assert.match(text, /"operation_order":\["levels_black","levels_white","levels_midtone","tone_curve","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
   assert.match(text, /"base_kind":"geometry-enhanced"/);
   assert.match(text, /"exposure":0.5/);
   assert.match(text, /"levelBlack":0/);
   assert.match(text, /"levelWhite":255/);
   assert.match(text, /"levelMidtone":1/);
+  assert.match(text, /"curveBlack":0/);
+  assert.match(text, /"curveShadows":25/);
+  assert.match(text, /"curveMidtones":50/);
+  assert.match(text, /"curveHighlights":75/);
+  assert.match(text, /"curveWhite":100/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 

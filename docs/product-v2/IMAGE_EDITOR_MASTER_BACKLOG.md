@@ -77,8 +77,10 @@ modify derivative/download bytes, and fail visibly rather than silently sample
 when browser limits are exceeded. Source-bound input luminance Levels are also
 implemented with constrained black/white points and a bounded midtone control;
 they execute before the existing tone operations and are recorded in v2 tone
-provenance. Curves, local/clarity controls and automatic tonal correction remain
-separate future increments.
+provenance. A five-anchor luminance tone curve is also implemented with smooth
+monotone interpolation, non-crossing points, a neutral reset and v3 tone
+provenance; it executes after Levels and cannot invert tones. Local/clarity
+controls and automatic tonal correction remain separate future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

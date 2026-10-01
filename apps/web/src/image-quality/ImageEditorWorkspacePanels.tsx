@@ -38,6 +38,7 @@ import {
   type ImageColorStatistics,
 } from "./imageColor";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
+import { ToneCurveControl } from "./ToneCurveControl";
 
 export type ImageEditorTool = "enhance" | "adjust" | "color" | "geometry";
 
@@ -152,6 +153,7 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
       </label>
       <p>Maps the selected input range to full black and white before the remaining tone controls. Black and white points cannot cross.</p>
     </fieldset>
+    <ToneCurveControl recipe={props.recipe} disabled={props.busy} onChange={props.onRecipe} />
     <div className="quality-adjustment-controls">
       {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>

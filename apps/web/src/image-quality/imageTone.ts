@@ -5,6 +5,12 @@ export interface ImageToneRecipe {
   levelWhite: number;
   /** Luminance-level midpoint. Values above 1 brighten midtones. */
   levelMidtone: number;
+  /** Output percentages at fixed perceptual-luminance inputs 0, 25, 50, 75 and 100. */
+  curveBlack: number;
+  curveShadows: number;
+  curveMidtones: number;
+  curveHighlights: number;
+  curveWhite: number;
   /** Exposure compensation in stops. */
   exposure: number;
   brightness: number;
@@ -36,6 +42,11 @@ export function createNeutralToneRecipe(): ImageToneRecipe {
     levelBlack: 0,
     levelWhite: 255,
     levelMidtone: 1,
+    curveBlack: 0,
+    curveShadows: 25,
+    curveMidtones: 50,
+    curveHighlights: 75,
+    curveWhite: 100,
     exposure: 0,
     brightness: 0,
     contrast: 0,
@@ -50,10 +61,20 @@ export function createNeutralToneRecipe(): ImageToneRecipe {
 export function sanitizeToneRecipe(recipe: ImageToneRecipe): ImageToneRecipe {
   const levelBlack = Math.round(bounded(recipe.levelBlack, 0, 254, 0));
   const requestedWhite = Math.round(bounded(recipe.levelWhite, 1, 255, 255));
+  const curveBlack = Math.round(bounded(recipe.curveBlack, 0, 100, 0));
+  const curveShadows = Math.round(bounded(recipe.curveShadows, curveBlack, 100, 25));
+  const curveMidtones = Math.round(bounded(recipe.curveMidtones, curveShadows, 100, 50));
+  const curveHighlights = Math.round(bounded(recipe.curveHighlights, curveMidtones, 100, 75));
+  const curveWhite = Math.round(bounded(recipe.curveWhite, curveHighlights, 100, 100));
   return {
     levelBlack,
     levelWhite: Math.max(levelBlack + 1, requestedWhite),
     levelMidtone: Math.round(bounded(recipe.levelMidtone, 0.1, 3, 1) * 100) / 100,
+    curveBlack,
+    curveShadows,
+    curveMidtones,
+    curveHighlights,
+    curveWhite,
     exposure: Math.round(bounded(recipe.exposure, -3, 3, 0) * 10) / 10,
     brightness: Math.round(bounded(recipe.brightness, -100, 100, 0)),
     contrast: Math.round(bounded(recipe.contrast, -100, 100, 0)),
@@ -68,6 +89,8 @@ export function sanitizeToneRecipe(recipe: ImageToneRecipe): ImageToneRecipe {
 export function isNeutralTone(recipe: ImageToneRecipe): boolean {
   const safe = sanitizeToneRecipe(recipe);
   return safe.levelBlack === 0 && safe.levelWhite === 255 && safe.levelMidtone === 1
+    && safe.curveBlack === 0 && safe.curveShadows === 25 && safe.curveMidtones === 50
+    && safe.curveHighlights === 75 && safe.curveWhite === 100
     && safe.exposure === 0 && safe.brightness === 0 && safe.contrast === 0 && safe.gamma === 0
     && safe.highlights === 0 && safe.shadows === 0 && safe.whites === 0 && safe.blacks === 0;
 }
@@ -93,14 +116,74 @@ export function assertBrowserToneBudget(width: number, height: number): number {
 }
 
 function srgbToLinear(value: number) {
-  const normalized = value / 255;
+  return srgbNormalizedToLinear(value / 255);
+}
+
+function srgbNormalizedToLinear(normalized: number) {
   return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
 }
 
-function linearToSrgb(value: number) {
+function linearToSrgbNormalized(value: number) {
   const safe = clamp(value, 0, 1);
-  const encoded = safe <= 0.0031308 ? safe * 12.92 : 1.055 * safe ** (1 / 2.4) - 0.055;
-  return Math.round(clamp(encoded * 255, 0, 255));
+  return safe <= 0.0031308 ? safe * 12.92 : 1.055 * safe ** (1 / 2.4) - 0.055;
+}
+
+function linearToSrgb(value: number) {
+  return Math.round(clamp(linearToSrgbNormalized(value) * 255, 0, 255));
+}
+
+const CURVE_STEP = 0.25;
+
+export function toneCurveOutputs(recipe: ImageToneRecipe): readonly number[] {
+  const safe = sanitizeToneRecipe(recipe);
+  return [safe.curveBlack, safe.curveShadows, safe.curveMidtones, safe.curveHighlights, safe.curveWhite]
+    .map((value) => value / 100);
+}
+
+export function isNeutralToneCurve(recipe: ImageToneRecipe): boolean {
+  const safe = sanitizeToneRecipe(recipe);
+  return safe.curveBlack === 0 && safe.curveShadows === 25 && safe.curveMidtones === 50
+    && safe.curveHighlights === 75 && safe.curveWhite === 100;
+}
+
+function toneCurveSlopes(outputs: readonly number[]): number[] {
+  const deltas = outputs.slice(0, -1).map((value, index) => (outputs[index + 1] - value) / CURVE_STEP);
+  const slopes = new Array<number>(outputs.length).fill(0);
+  for (let index = 1; index < outputs.length - 1; index += 1) {
+    const before = deltas[index - 1];
+    const after = deltas[index];
+    slopes[index] = before <= 0 || after <= 0 ? 0 : 2 / (1 / before + 1 / after);
+  }
+  const endpoint = (first: number, second: number) => {
+    let slope = (3 * first - second) / 2;
+    if (slope * first <= 0) return 0;
+    if (first * second < 0 && Math.abs(slope) > Math.abs(3 * first)) slope = 3 * first;
+    return slope;
+  };
+  slopes[0] = endpoint(deltas[0], deltas[1]);
+  slopes[slopes.length - 1] = endpoint(deltas[deltas.length - 1], deltas[deltas.length - 2]);
+  return slopes;
+}
+
+/** Evaluates the bounded monotone curve in perceptual sRGB luminance space. */
+function evaluatePreparedToneCurve(value: number, outputs: readonly number[], slopes: readonly number[]): number {
+  const input = clamp(Number.isFinite(value) ? value : 0, 0, 1);
+  if (input <= 0) return outputs[0];
+  if (input >= 1) return outputs[outputs.length - 1];
+  const segment = Math.min(outputs.length - 2, Math.floor(input / CURVE_STEP));
+  const position = (input - segment * CURVE_STEP) / CURVE_STEP;
+  const position2 = position * position;
+  const position3 = position2 * position;
+  const result = (2 * position3 - 3 * position2 + 1) * outputs[segment]
+    + (position3 - 2 * position2 + position) * CURVE_STEP * slopes[segment]
+    + (-2 * position3 + 3 * position2) * outputs[segment + 1]
+    + (position3 - position2) * CURVE_STEP * slopes[segment + 1];
+  return clamp(result, outputs[segment], outputs[segment + 1]);
+}
+
+export function evaluateToneCurve(value: number, recipe: ImageToneRecipe): number {
+  const outputs = toneCurveOutputs(recipe);
+  return evaluatePreparedToneCurve(value, outputs, toneCurveSlopes(outputs));
 }
 
 /**
@@ -127,6 +210,9 @@ export function applyToneToRgba(pixels: Uint8ClampedArray, recipe: ImageToneReci
   const whites = safe.whites / 100;
   const blacks = safe.blacks / 100;
   const levelsAreNeutral = safe.levelBlack === 0 && safe.levelWhite === 255 && safe.levelMidtone === 1;
+  const curveIsNeutral = isNeutralToneCurve(safe);
+  const curveOutputs = toneCurveOutputs(safe);
+  const curveSlopes = toneCurveSlopes(curveOutputs);
   const levelBlack = srgbToLinear(safe.levelBlack);
   const levelWhite = srgbToLinear(safe.levelWhite);
   const levelRange = levelWhite - levelBlack;
@@ -149,6 +235,15 @@ export function applyToneToRgba(pixels: Uint8ClampedArray, recipe: ImageToneReci
       red += levelsDelta;
       green += levelsDelta;
       blue += levelsDelta;
+    }
+    if (!curveIsNeutral) {
+      const sourceLuminance = clamp(0.2126 * red + 0.7152 * green + 0.0722 * blue, 0, 1);
+      const encodedLuminance = linearToSrgbNormalized(sourceLuminance);
+      const curveLuminance = srgbNormalizedToLinear(evaluatePreparedToneCurve(encodedLuminance, curveOutputs, curveSlopes));
+      const curveDelta = curveLuminance - sourceLuminance;
+      red += curveDelta;
+      green += curveDelta;
+      blue += curveDelta;
     }
     red *= exposure;
     green *= exposure;
