@@ -1,3 +1,5 @@
+import type { ImageHistogramSummary } from "./imageHistogram";
+
 export interface ImageToneRecipe {
   /** Input luminance value mapped to black, expressed as an 8-bit sRGB level. */
   levelBlack: number;
@@ -32,6 +34,16 @@ export interface ImageToneStatistics {
   changedPixels: number;
   newShadowClippedPixels: number;
   newHighlightClippedPixels: number;
+}
+
+export interface ImageToneRecommendation {
+  levelBlack: number;
+  levelWhite: number;
+  levelMidtone: number;
+  shadowRecovery: number;
+  highlightRecovery: number;
+  reasons: string[];
+  isNeutral: boolean;
 }
 
 export const MAX_BROWSER_TONE_PIXELS = 67_108_864;
@@ -122,6 +134,71 @@ export function assertBrowserToneBudget(width: number, height: number): number {
     );
   }
   return pixels;
+}
+
+function histogramPercentile(summary: ImageHistogramSummary, percentile: number): number {
+  if (summary.luminance.length !== 64 || summary.visiblePixels < 1
+    || summary.luminance.some((count) => !Number.isSafeInteger(count) || count < 0)
+    || summary.luminance.reduce((total, count) => total + count, 0) !== summary.visiblePixels) {
+    throw new Error("Automatic tone correction requires a complete exact luminance histogram.");
+  }
+  const target = Math.max(1, Math.ceil(summary.visiblePixels * clamp(percentile, 0, 1)));
+  let cumulative = 0;
+  for (let index = 0; index < summary.luminance.length; index += 1) {
+    cumulative += summary.luminance[index];
+    if (cumulative >= target) return index * 4 + 1.5;
+  }
+  return 253.5;
+}
+
+/** Creates a conservative, explainable suggestion; it never changes pixels by itself. */
+export function recommendToneCorrection(summary: ImageHistogramSummary): ImageToneRecommendation {
+  const low = histogramPercentile(summary, 0.005);
+  const lowerQuartile = histogramPercentile(summary, 0.25);
+  const median = histogramPercentile(summary, 0.5);
+  const upperQuartile = histogramPercentile(summary, 0.75);
+  const high = histogramPercentile(summary, 0.995);
+  const levelBlack = low >= 8 ? Math.min(24, Math.floor(low / 4) * 4) : 0;
+  const levelWhite = high <= 247 ? Math.max(231, Math.floor(high / 4) * 4 + 3) : 255;
+  const normalizedMedian = clamp((median - levelBlack) / (levelWhite - levelBlack), 0.01, 0.99);
+  const suggestedMidtone = Math.log(normalizedMedian) / Math.log(0.5);
+  const levelMidtone = normalizedMedian < 0.44 || normalizedMedian > 0.56
+    ? Math.round(clamp(suggestedMidtone, 0.8, 1.25) * 100) / 100
+    : 1;
+  const shadowRecovery = lowerQuartile < 52
+    ? Math.round(clamp((52 - lowerQuartile) / 52 * 45, 0, 45))
+    : 0;
+  const highlightRecovery = upperQuartile > 203
+    ? Math.round(clamp((upperQuartile - 203) / 52 * 45, 0, 45))
+    : 0;
+  const reasons: string[] = [];
+  if (levelBlack > 0 || levelWhite < 255) reasons.push(
+    `Conservative endpoint mapping uses the exact histogram's 0.5%–99.5% luminance bins (${Math.round(low)}–${Math.round(high)}).`,
+  );
+  if (levelMidtone !== 1) reasons.push(
+    `The median luminance is ${Math.round(median)}, so a bounded ${levelMidtone.toFixed(2)} midtone value is suggested.`,
+  );
+  if (shadowRecovery > 0) reasons.push(
+    `The lower luminance quartile is ${Math.round(lowerQuartile)}, indicating compressed dark tones.`,
+  );
+  if (highlightRecovery > 0) reasons.push(
+    `The upper luminance quartile is ${Math.round(upperQuartile)}, indicating compressed bright tones.`,
+  );
+  if (summary.shadowClippedPixels > 0 || summary.highlightClippedPixels > 0) reasons.push(
+    "Endpoint occupancy is present; tonal redistribution cannot recreate detail already clipped in the source.",
+  );
+  const isNeutral = levelBlack === 0 && levelWhite === 255 && levelMidtone === 1
+    && shadowRecovery === 0 && highlightRecovery === 0;
+  if (isNeutral) reasons.push("The measured tonal span is already inside the conservative correction thresholds.");
+  return {
+    levelBlack,
+    levelWhite,
+    levelMidtone,
+    shadowRecovery,
+    highlightRecovery,
+    reasons,
+    isNeutral,
+  };
 }
 
 function srgbToLinear(value: number) {

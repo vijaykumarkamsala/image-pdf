@@ -1103,6 +1103,33 @@ export function ImageQualityEditorPage() {
   const histogramGeometryDerivative = geometryDisplayReady
     ? (state.result ? geometryEdited : geometryOriginal)
     : null;
+  const toneRecommendationInput: ImageHistogramInput | null = resultIsStale || geometryIsDirty
+    ? null
+    : histogramGeometryDerivative
+      ? {
+          blob: new Blob([histogramGeometryDerivative.bytes], { type: "image/png" }),
+          sha256: histogramGeometryDerivative.outputSha256,
+          width: histogramGeometryDerivative.width,
+          height: histogramGeometryDerivative.height,
+          label: state.result ? "verified geometry-adjusted enhancement" : "verified geometry-adjusted original",
+        }
+      : state.result && resultBlob.current
+        ? {
+            blob: resultBlob.current,
+            sha256: state.result.outputSha256,
+            width: state.result.width,
+            height: state.result.height,
+            label: "verified enhancement",
+          }
+        : state.source.facts && state.source.width && state.source.height
+          ? {
+              blob: state.source.file,
+              sha256: state.source.facts.sourceSha256,
+              width: state.source.width,
+              height: state.source.height,
+              label: "immutable original",
+            }
+          : null;
   const histogramInput: ImageHistogramInput | null = colorDisplayReady && colorResult
     ? {
         blob: new Blob([colorResult.bytes], { type: "image/png" }),
@@ -1265,6 +1292,7 @@ export function ImageQualityEditorPage() {
           ? <ToneToolPanel
               recipe={toneRecipe}
               statistics={toneDisplayReady ? toneResult!.statistics : null}
+              recommendationInput={toneRecommendationInput}
               busy={toneBusy}
               canApply={toneCanApply}
               canDownload={toneDisplayReady && !colorDisplayReady}

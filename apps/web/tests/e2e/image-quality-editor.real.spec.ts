@@ -173,6 +173,45 @@ test("histogram analyses exact current preview bytes without changing image outp
   await expect(page.getByTestId("original-image")).toHaveAttribute("src", originalUrl!);
 });
 
+test("automatic tone correction is explainable and requires explicit use and apply actions", async ({ page }) => {
+  const source = clippingHistogramPng(64, 48);
+  await page.setViewportSize({ width: 1760, height: 900 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "automatic-tone-review.png",
+    mimeType: "image/png",
+    buffer: source,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  const analyse = page.getByRole("button", { name: "Analyse verified base" });
+  await expect(analyse).toBeEnabled();
+  await analyse.click();
+  const suggestion = page.locator(".quality-auto-tone-result");
+  await expect(suggestion).toContainText("Review suggested correction");
+  await expect(suggestion).toContainText("cannot recreate detail already clipped");
+  await expect(page.getByLabel("Shadow recovery", { exact: true })).toHaveValue("0");
+  await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeDisabled();
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(immutableSourceUrl);
+  const accessibility = await new AxeBuilder({ page }).include(".quality-auto-tone").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await suggestion.getByRole("button", { name: "Dismiss" }).click();
+  await expect(suggestion).toHaveCount(0);
+  await expect(page.getByLabel("Shadow recovery", { exact: true })).toHaveValue("0");
+  await analyse.click();
+  await expect(suggestion).toContainText("Review suggested correction");
+  await suggestion.getByRole("button", { name: "Use suggestion" }).click();
+  await expect(suggestion).toContainText("Suggestion loaded into the controls");
+  expect(Number(await page.getByLabel("Shadow recovery", { exact: true }).inputValue())).toBeGreaterThan(0);
+  await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeEnabled();
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  await page.getByRole("button", { name: "Apply adjustments" }).click();
+  await expect(page.getByText(/Light-and-tone derivative ready/)).toBeVisible();
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).not.toBe(immutableSourceUrl);
+});
+
 test("face detail stays opt-in and unavailable without affecting enhancement, originals or downloads", async ({ page }, testInfo) => {
   // Includes the ordinary editor and real-worker synthetic selection/export/cancel/revocation flows.
   test.setTimeout(120_000);

@@ -83,7 +83,11 @@ provenance; it executes after Levels and cannot invert tones. Positive-only
 shadow and highlight recovery is implemented as a distinct protected stage in
 v4 provenance: exact black/white remain fixed, RGB headroom prevents new
 channel clipping, and the UI explains that clipped detail cannot be recreated.
-Local contrast/clarity controls and automatic tonal correction remain separate
+Explainable automatic tonal correction now analyses the exact verified-base
+histogram and proposes conservative Levels, midtone and protected-recovery
+values. It reports its evidence, returns neutral for an already balanced range,
+and requires separate Use suggestion and Apply adjustments actions before any
+pixels change. Local contrast, clarity, texture and dehaze remain separate
 future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.

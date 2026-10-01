@@ -11,6 +11,7 @@ import {
   SunMedium,
   X,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../design-system";
 import type { ImageQualityOutputScale } from "./ImageQualityEngine";
@@ -28,6 +29,9 @@ import {
 import {
   isNeutralTone,
   MAX_BROWSER_TONE_PIXELS,
+  recommendToneCorrection,
+  sanitizeToneRecipe,
+  type ImageToneRecommendation,
   type ImageToneRecipe,
   type ImageToneStatistics,
 } from "./imageTone";
@@ -39,6 +43,7 @@ import {
 } from "./imageColor";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
+import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
 
 export type ImageEditorTool = "enhance" | "adjust" | "color" | "geometry";
 
@@ -75,6 +80,7 @@ export function ImageEditorToolRail({
 interface ToneToolPanelProps {
   recipe: ImageToneRecipe;
   statistics: ImageToneStatistics | null;
+  recommendationInput: ImageHistogramInput | null;
   busy: boolean;
   canApply: boolean;
   canDownload: boolean;
@@ -115,9 +121,95 @@ function toneValue(control: typeof toneControls[number], value: number) {
 }
 
 export function ToneToolPanel(props: ToneToolPanelProps) {
+  const [recommendation, setRecommendation] = useState<ImageToneRecommendation | null>(null);
+  const [recommendationBusy, setRecommendationBusy] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [recommendationUsed, setRecommendationUsed] = useState(false);
+  const recommendationEngine = useRef<WorkerImageHistogramEngine | null>(null);
+  const recommendationOperation = useRef(0);
+  const recommendationKey = props.recommendationInput
+    ? `${props.recommendationInput.sha256}:${props.recommendationInput.width}x${props.recommendationInput.height}`
+    : "";
+  useEffect(() => {
+    recommendationOperation.current += 1;
+    recommendationEngine.current?.dispose();
+    recommendationEngine.current = null;
+    setRecommendation(null);
+    setRecommendationBusy(false);
+    setRecommendationError(null);
+    setRecommendationUsed(false);
+  }, [recommendationKey]);
+  useEffect(() => () => {
+    recommendationOperation.current += 1;
+    recommendationEngine.current?.dispose();
+  }, []);
+  const analyseTone = async () => {
+    const input = props.recommendationInput;
+    if (!input || props.busy || recommendationBusy) return;
+    const currentOperation = ++recommendationOperation.current;
+    recommendationEngine.current?.dispose();
+    const next = new WorkerImageHistogramEngine();
+    recommendationEngine.current = next;
+    setRecommendationBusy(true);
+    setRecommendation(null);
+    setRecommendationError(null);
+    setRecommendationUsed(false);
+    try {
+      const result = await next.analyze(input.blob, input.width, input.height);
+      if (recommendationOperation.current !== currentOperation) return;
+      setRecommendation(recommendToneCorrection(result.summary));
+    } catch (error) {
+      if (recommendationOperation.current !== currentOperation) return;
+      setRecommendationError(error instanceof Error ? error.message : "Automatic tone analysis did not complete.");
+    } finally {
+      if (recommendationOperation.current === currentOperation) {
+        setRecommendationBusy(false);
+        next.dispose();
+        if (recommendationEngine.current === next) recommendationEngine.current = null;
+      }
+    }
+  };
   const neutral = isNeutralTone(props.recipe);
   return <aside className="quality-tool-panel quality-controls" aria-label="Light and tone controls">
     <div className="quality-panel-heading"><SunMedium aria-hidden="true" /><div><h2>Light &amp; tone</h2><p>Deterministic correction from the latest verified base.</p></div></div>
+    <fieldset className="quality-auto-tone">
+      <legend>Automatic tonal correction</legend>
+      <Button
+        size="compact"
+        disabled={props.busy || recommendationBusy || !props.recommendationInput}
+        onClick={() => void analyseTone()}
+      ><Sparkles aria-hidden="true" />{recommendationBusy ? "Analysing…" : "Analyse verified base"}</Button>
+      <p>Measures every visible pixel and proposes conservative Levels and protected recovery values. Nothing changes until you use the suggestion and apply it.</p>
+      {recommendationError && <p className="quality-auto-tone-error" role="alert">{recommendationError}</p>}
+      {recommendation && <div className="quality-auto-tone-result">
+        <strong role="status">{recommendation.isNeutral ? "No automatic correction suggested" : "Review suggested correction"}</strong>
+        <p>Analysed {props.recommendationInput?.label ?? "the verified base"}.</p>
+        <dl>
+          <div><dt>Levels</dt><dd>{recommendation.levelBlack}–{recommendation.levelWhite}</dd></div>
+          <div><dt>Midtone</dt><dd>{recommendation.levelMidtone.toFixed(2)}</dd></div>
+          <div><dt>Recovery</dt><dd>Shadows {recommendation.shadowRecovery}% · Highlights {recommendation.highlightRecovery}%</dd></div>
+        </dl>
+        <ul>{recommendation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+        <div className="quality-control-group">
+          {!recommendation.isNeutral && <Button size="compact" disabled={props.busy} onClick={() => {
+            props.onRecipe(sanitizeToneRecipe({
+              ...props.recipe,
+              levelBlack: recommendation.levelBlack,
+              levelWhite: recommendation.levelWhite,
+              levelMidtone: recommendation.levelMidtone,
+              shadowRecovery: recommendation.shadowRecovery,
+              highlightRecovery: recommendation.highlightRecovery,
+            }));
+            setRecommendationUsed(true);
+          }}>Use suggestion</Button>}
+          <Button size="compact" disabled={props.busy} onClick={() => {
+            setRecommendation(null);
+            setRecommendationUsed(false);
+          }}>Dismiss</Button>
+        </div>
+        {recommendationUsed && <p>Suggestion loaded into the controls. Review it, then choose Apply adjustments.</p>}
+      </div>}
+    </fieldset>
     <fieldset className="quality-levels-control">
       <legend>Input luminance levels</legend>
       <label className="quality-adjustment-control">

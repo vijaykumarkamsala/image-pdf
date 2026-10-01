@@ -8,6 +8,7 @@ import {
   evaluateProtectedRecovery,
   evaluateToneCurve,
   isNeutralTone,
+  recommendToneCorrection,
   sameToneRecipe,
   sanitizeToneRecipe,
 } from "../src/image-quality/imageTone.ts";
@@ -26,6 +27,23 @@ function framedPng(width: number, height: number) {
   view.setUint32(33, 0, false);
   bytes.set([73, 69, 78, 68], 37);
   return bytes;
+}
+
+function histogramSummary(luminance: number[], shadowClippedPixels = 0, highlightClippedPixels = 0) {
+  const visiblePixels = luminance.reduce((total, count) => total + count, 0);
+  return {
+    red: new Array(64).fill(0),
+    green: new Array(64).fill(0),
+    blue: new Array(64).fill(0),
+    luminance,
+    analyzedPixels: visiblePixels,
+    visiblePixels,
+    transparentPixels: 0,
+    shadowClippedPixels,
+    highlightClippedPixels,
+    shadowClippedPercent: visiblePixels ? shadowClippedPixels / visiblePixels * 100 : 0,
+    highlightClippedPercent: visiblePixels ? highlightClippedPixels / visiblePixels * 100 : 0,
+  };
 }
 
 test("tone recipes are bounded, normalized and comparable", () => {
@@ -106,6 +124,45 @@ test("tone curve is anchor-exact, monotone and creates a bounded contrast curve"
   });
   assert.ok(contrast[0] < 64);
   assert.ok(contrast[4] > 192);
+});
+
+test("automatic tone recommendation is conservative, explainable and deterministic", () => {
+  const balanced = recommendToneCorrection(histogramSummary(new Array(64).fill(1)));
+  assert.equal(balanced.isNeutral, true);
+  assert.deepEqual({
+    levelBlack: balanced.levelBlack,
+    levelWhite: balanced.levelWhite,
+    levelMidtone: balanced.levelMidtone,
+    shadowRecovery: balanced.shadowRecovery,
+    highlightRecovery: balanced.highlightRecovery,
+  }, {
+    levelBlack: 0,
+    levelWhite: 255,
+    levelMidtone: 1,
+    shadowRecovery: 0,
+    highlightRecovery: 0,
+  });
+  assert.match(balanced.reasons.join(" "), /already inside the conservative correction thresholds/);
+
+  const compressedDarkBins = new Array(64).fill(0);
+  compressedDarkBins[4] = 25;
+  compressedDarkBins[8] = 50;
+  compressedDarkBins[12] = 25;
+  const dark = recommendToneCorrection(histogramSummary(compressedDarkBins, 2, 0));
+  assert.equal(dark.isNeutral, false);
+  assert.ok(dark.levelBlack >= 0 && dark.levelBlack <= 24);
+  assert.ok(dark.levelWhite >= 231 && dark.levelWhite <= 255);
+  assert.ok(dark.levelMidtone >= 0.8 && dark.levelMidtone <= 1.25);
+  assert.ok(dark.shadowRecovery > 0 && dark.shadowRecovery <= 45);
+  assert.equal(dark.highlightRecovery, 0);
+  assert.match(dark.reasons.join(" "), /compressed dark tones/);
+  assert.match(dark.reasons.join(" "), /cannot recreate detail already clipped/);
+  assert.deepEqual(dark, recommendToneCorrection(histogramSummary(compressedDarkBins, 2, 0)));
+
+  assert.throws(
+    () => recommendToneCorrection(histogramSummary(new Array(63).fill(1))),
+    /complete exact luminance histogram/,
+  );
 });
 
 test("protected recovery is monotone, preserves endpoints and respects channel headroom", () => {
