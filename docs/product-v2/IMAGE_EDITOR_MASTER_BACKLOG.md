@@ -81,6 +81,17 @@ tonal correction remain separate future increments.
 
 ## IE-04 — Colour
 
+Local implementation status (2026-10-01): the React image editor now provides
+deterministic global temperature, tint, saturation and vibrance controls as a
+separate stage after geometry and light/tone. Each apply starts from the latest
+verified derivative rather than a previous colour result. Worker processing is
+pixel-budgeted, preserves alpha and exact dimensions, records source/base hashes,
+the ordered recipe and gamut-clipping statistics in PNG provenance, and exposes
+identical bytes to preview and download. Earlier-stage changes invalidate colour
+output and pending colour changes cannot download stale bytes. White-balance
+sampling, HSL/selective colour, colour grading, LUTs, colour matching and
+protected brand/product/skin colour remain future increments.
+
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.
 - Shadow/midtone/highlight grading and LUT support.

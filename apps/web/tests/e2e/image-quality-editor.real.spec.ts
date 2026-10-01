@@ -1040,6 +1040,105 @@ test("light and tone applies from the verified base and preview matches download
   expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(immutableSourceUrl);
 });
 
+test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "colour-chain.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByLabel("Exposure", { exact: true }).fill("0.3");
+  await page.getByRole("button", { name: "Apply adjustments" }).click();
+  await expect(page.getByText(/Light-and-tone derivative ready/)).toBeVisible();
+  const toneEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const bytes = await (await fetch(image.src)).arrayBuffer();
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { url: image.src, digest };
+  });
+
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Colour controls" })).toBeVisible();
+  await page.getByLabel("Temperature", { exact: true }).fill("35");
+  await page.getByLabel("Tint", { exact: true }).fill("-15");
+  await page.getByLabel("Saturation", { exact: true }).fill("20");
+  await page.getByLabel("Vibrance", { exact: true }).fill("30");
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-workspace").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeEnabled();
+  const colorProperty = page.locator(".quality-inspector .quality-dimensions div").filter({ hasText: "Colour" }).locator("dd");
+  await expect(colorProperty).toHaveText("Applied");
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node, baseUrl) => {
+    const decode = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return { width: image.naturalWidth, height: image.naturalHeight,
+        pixels: context.getImageData(0, 0, canvas.width, canvas.height).data };
+    };
+    const resultUrl = (node as HTMLImageElement).src;
+    const [base, result, bytes] = await Promise.all([
+      decode(baseUrl),
+      decode(resultUrl),
+      (await fetch(resultUrl)).arrayBuffer(),
+    ]);
+    let changedPixels = 0;
+    for (let index = 0; index < base.pixels.length; index += 4) {
+      if (base.pixels[index] !== result.pixels[index]
+        || base.pixels[index + 1] !== result.pixels[index + 1]
+        || base.pixels[index + 2] !== result.pixels[index + 2]) changedPixels += 1;
+      if (base.pixels[index + 3] !== result.pixels[index + 3]) throw new Error("Colour changed alpha");
+    }
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { width: result.width, height: result.height, changedPixels, digest };
+  }, toneEvidence.url);
+  expect(previewEvidence).toMatchObject({ width: 48, height: 40 });
+  expect(previewEvidence.changedPixels).toBeGreaterThan(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("colour-chain-colour-adjusted-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v1");
+  expect(downloaded.toString("utf8")).toContain('"base_kind":"tone"');
+  expect(downloaded.toString("utf8")).toContain(toneEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain('"temperature":35');
+  expect(downloaded.toString("utf8")).toContain('"tint":-15');
+  expect(downloaded.toString("utf8")).toContain('"saturation":20');
+  expect(downloaded.toString("utf8")).toContain('"vibrance":30');
+
+  await page.getByLabel("Saturation", { exact: true }).fill("25");
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+  await expect(colorProperty).toHaveText("Unapplied changes");
+  await page.getByRole("button", { name: "Reset colour" }).click();
+  await expect(colorProperty).toHaveText("None");
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(toneEvidence.url);
+});
+
 test("perspective worker samples the moved source corner instead of only recording metadata", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(64, 64);
   await page.goto("/image-quality?engine=deterministic");

@@ -3,6 +3,7 @@ import {
   Download,
   FlipHorizontal2,
   FlipVertical2,
+  Palette,
   RotateCcw,
   RotateCw,
   SlidersHorizontal,
@@ -30,8 +31,14 @@ import {
   type ImageToneRecipe,
   type ImageToneStatistics,
 } from "./imageTone";
+import {
+  isNeutralColor,
+  MAX_BROWSER_COLOR_PIXELS,
+  type ImageColorRecipe,
+  type ImageColorStatistics,
+} from "./imageColor";
 
-export type ImageEditorTool = "enhance" | "adjust" | "geometry";
+export type ImageEditorTool = "enhance" | "adjust" | "color" | "geometry";
 
 function strengthLabel(strength: number) {
   if (strength === 0) return "Neutral";
@@ -53,6 +60,9 @@ export function ImageEditorToolRail({
     </button>
     <button type="button" aria-current={activeTool === "adjust" ? "page" : undefined} onClick={() => onChange("adjust")}>
       <SunMedium aria-hidden="true" /><span>Adjust</span>
+    </button>
+    <button type="button" aria-current={activeTool === "color" ? "page" : undefined} onClick={() => onChange("color")}>
+      <Palette aria-hidden="true" /><span>Colour</span>
     </button>
     <button type="button" aria-current={activeTool === "geometry" ? "page" : undefined} onClick={() => onChange("geometry")}>
       <Crop aria-hidden="true" /><span>Crop</span>
@@ -98,8 +108,8 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
   const neutral = isNeutralTone(props.recipe);
   return <aside className="quality-tool-panel quality-controls" aria-label="Light and tone controls">
     <div className="quality-panel-heading"><SunMedium aria-hidden="true" /><div><h2>Light &amp; tone</h2><p>Deterministic correction from the latest verified base.</p></div></div>
-    <div className="quality-tone-controls">
-      {toneControls.map((control) => <label className="quality-tone-control" key={control.key}>
+    <div className="quality-adjustment-controls">
+      {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>
         <input
           aria-label={control.label}
@@ -113,7 +123,7 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
         />
       </label>)}
     </div>
-    {props.statistics && <dl className="quality-tone-statistics">
+    {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>New shadow clipping</dt><dd>{props.statistics.newShadowClippedPixels.toLocaleString()}</dd></div>
       <div><dt>New highlight clipping</dt><dd>{props.statistics.newHighlightClippedPixels.toLocaleString()}</dd></div>
@@ -124,6 +134,60 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
       <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download adjusted image</Button>
     </div>
     <p className="quality-view-note">Every apply starts from the latest verified original, enhancement or geometry result—not a previous tone result. Alpha is preserved. Local work is limited to {MAX_BROWSER_TONE_PIXELS.toLocaleString()} pixels and larger requests fail visibly.</p>
+  </aside>;
+}
+
+interface ColorToolPanelProps {
+  recipe: ImageColorRecipe;
+  statistics: ImageColorStatistics | null;
+  busy: boolean;
+  canApply: boolean;
+  canDownload: boolean;
+  onRecipe: (recipe: ImageColorRecipe) => void;
+  onApply: () => void;
+  onReset: () => void;
+  onDownload: () => void;
+}
+
+const colorControls: Array<{
+  key: keyof ImageColorRecipe;
+  label: string;
+}> = [
+  { key: "temperature", label: "Temperature" },
+  { key: "tint", label: "Tint" },
+  { key: "saturation", label: "Saturation" },
+  { key: "vibrance", label: "Vibrance" },
+];
+
+export function ColorToolPanel(props: ColorToolPanelProps) {
+  const neutral = isNeutralColor(props.recipe);
+  return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
+    <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global colour correction after light and tone.</p></div></div>
+    <div className="quality-adjustment-controls">
+      {colorControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
+        <span><strong>{control.label}</strong><output>{props.recipe[control.key] > 0 ? "+" : ""}{props.recipe[control.key]}</output></span>
+        <input
+          aria-label={control.label}
+          type="range"
+          min="-100"
+          max="100"
+          step="1"
+          value={props.recipe[control.key]}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, [control.key]: Number(event.target.value) })}
+        />
+      </label>)}
+    </div>
+    {props.statistics && <dl className="quality-adjustment-statistics">
+      <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
+      <div><dt>Gamut-clipped pixels</dt><dd>{props.statistics.gamutClippedPixels.toLocaleString()}</dd></div>
+    </dl>}
+    <div className="quality-actions">
+      <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Palette aria-hidden="true" />{props.busy ? "Applying…" : "Apply colour"}</Button>
+      <Button disabled={neutral && !props.statistics} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset colour</Button>
+      <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download colour-adjusted image</Button>
+    </div>
+    <p className="quality-view-note">Every apply starts from the latest verified geometry or tone result—not a previous colour result. Alpha is preserved. Local work is limited to {MAX_BROWSER_COLOR_PIXELS.toLocaleString()} pixels and larger requests fail visibly.</p>
   </aside>;
 }
 
@@ -347,6 +411,7 @@ export function ImageEditorInspector({
   geometryIsDirty,
   geometryDisplayReady,
   toneStatus,
+  colorStatus,
 }: {
   dimensionsReady: boolean;
   sourceWidth: number;
@@ -356,6 +421,7 @@ export function ImageEditorInspector({
   geometryIsDirty: boolean;
   geometryDisplayReady: boolean;
   toneStatus: "Applied" | "Unapplied changes" | "None";
+  colorStatus: "Applied" | "Unapplied changes" | "None";
 }) {
   return <aside className="quality-inspector" aria-label="Image properties" tabIndex={0}>
     <div className="quality-panel-heading"><SlidersHorizontal aria-hidden="true" /><div><h2>Properties</h2><p>Current source and derivative.</p></div></div>
@@ -363,6 +429,7 @@ export function ImageEditorInspector({
       <div><dt>Original</dt><dd>{dimensionsReady ? `${sourceWidth} × ${sourceHeight} px` : "Reading dimensions…"}</dd></div>
       <div><dt>Output</dt><dd>{outputDimensions}</dd></div>
       <div><dt>Light &amp; tone</dt><dd>{toneStatus}</dd></div>
+      <div><dt>Colour</dt><dd>{colorStatus}</dd></div>
     </dl>
     {recipe && dimensionsReady && <dl className="quality-geometry-properties">
       <div><dt>Crop</dt><dd>{recipe.crop.width} × {recipe.crop.height} px</dd></div>
@@ -375,6 +442,6 @@ export function ImageEditorInspector({
       <div><dt>Resize</dt><dd>{recipe.resize ? `${recipe.resize.width} x ${recipe.resize.height} px` : "Natural size"}</dd></div>
       <div><dt>Recipe</dt><dd>{geometryIsDirty ? "Unapplied changes" : geometryDisplayReady ? "Applied" : "None"}</dd></div>
     </dl>}
-    <p className="quality-inspector-note">Original bytes are immutable. Enhancement, geometry and tone remain separate, traceable derivative stages.</p>
+    <p className="quality-inspector-note">Original bytes are immutable. Enhancement, geometry, tone and colour remain separate, traceable derivative stages.</p>
   </aside>;
 }
