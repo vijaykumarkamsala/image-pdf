@@ -101,6 +101,14 @@ const toneControls: Array<{
   { key: "blacks", label: "Blacks", minimum: -100, maximum: 100, step: 1 },
 ];
 
+const recoveryControls: Array<{
+  key: "shadowRecovery" | "highlightRecovery";
+  label: string;
+}> = [
+  { key: "shadowRecovery", label: "Shadow recovery" },
+  { key: "highlightRecovery", label: "Highlight recovery" },
+];
+
 function toneValue(control: typeof toneControls[number], value: number) {
   if (control.key === "exposure") return `${value > 0 ? "+" : ""}${value.toFixed(1)} EV`;
   return `${value > 0 ? "+" : ""}${value}`;
@@ -154,6 +162,23 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
       <p>Maps the selected input range to full black and white before the remaining tone controls. Black and white points cannot cross.</p>
     </fieldset>
     <ToneCurveControl recipe={props.recipe} disabled={props.busy} onChange={props.onRecipe} />
+    <fieldset className="quality-levels-control quality-protected-recovery">
+      <legend>Protected dynamic range</legend>
+      {recoveryControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
+        <span><strong>{control.label}</strong><output>{props.recipe[control.key]}%</output></span>
+        <input
+          aria-label={control.label}
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe[control.key]}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, [control.key]: Number(event.target.value) })}
+        />
+      </label>)}
+      <p>Redistributes recoverable dark and bright tones while preserving true black, true white and RGB headroom. It cannot recreate detail already clipped in the source.</p>
+    </fieldset>
     <div className="quality-adjustment-controls">
       {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>

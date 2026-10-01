@@ -5,6 +5,7 @@ import {
   applyToneToRgba,
   assertBrowserToneBudget,
   createNeutralToneRecipe,
+  evaluateProtectedRecovery,
   evaluateToneCurve,
   isNeutralTone,
   sameToneRecipe,
@@ -39,6 +40,8 @@ test("tone recipes are bounded, normalized and comparable", () => {
     curveMidtones: -1,
     curveHighlights: 200,
     curveWhite: 50,
+    shadowRecovery: 150,
+    highlightRecovery: -20,
     exposure: 4.17,
     brightness: -101,
     contrast: 10.7,
@@ -57,6 +60,8 @@ test("tone recipes are bounded, normalized and comparable", () => {
     curveMidtones: 20,
     curveHighlights: 100,
     curveWhite: 100,
+    shadowRecovery: 100,
+    highlightRecovery: 0,
     exposure: 3,
     brightness: -100,
     contrast: 11,
@@ -101,6 +106,63 @@ test("tone curve is anchor-exact, monotone and creates a bounded contrast curve"
   });
   assert.ok(contrast[0] < 64);
   assert.ok(contrast[4] > 192);
+});
+
+test("protected recovery is monotone, preserves endpoints and respects channel headroom", () => {
+  assert.equal(evaluateProtectedRecovery(0, 100, 100), 0);
+  assert.equal(evaluateProtectedRecovery(1, 100, 100), 1);
+  for (const shadowRecovery of [0, 50, 100]) {
+    for (const highlightRecovery of [0, 50, 100]) {
+      let previous = evaluateProtectedRecovery(0, shadowRecovery, highlightRecovery);
+      for (let index = 1; index <= 1000; index += 1) {
+        const current = evaluateProtectedRecovery(index / 1000, shadowRecovery, highlightRecovery);
+        assert.ok(current >= previous, "protected recovery must never invert tones");
+        previous = current;
+      }
+    }
+  }
+
+  const base = new Uint8ClampedArray([
+    0, 0, 0, 255,
+    32, 32, 32, 255,
+    128, 128, 128, 255,
+    220, 220, 220, 255,
+    255, 255, 255, 255,
+  ]);
+  const shadows = base.slice();
+  const shadowStatistics = applyToneToRgba(shadows, {
+    ...createNeutralToneRecipe(),
+    shadowRecovery: 100,
+  });
+  assert.equal(shadows[0], 0);
+  assert.equal(shadows[16], 255);
+  assert.ok(shadows[4] - base[4] > shadows[12] - base[12]);
+  assert.equal(shadowStatistics.newHighlightClippedPixels, 0);
+
+  const highlights = base.slice();
+  const highlightStatistics = applyToneToRgba(highlights, {
+    ...createNeutralToneRecipe(),
+    highlightRecovery: 100,
+  });
+  assert.equal(highlights[0], 0);
+  assert.equal(highlights[16], 255);
+  assert.ok(base[12] - highlights[12] > base[4] - highlights[4]);
+  assert.equal(highlightStatistics.newShadowClippedPixels, 0);
+
+  const noLiftHeadroom = new Uint8ClampedArray([255, 20, 20, 255]);
+  const protectedLift = noLiftHeadroom.slice();
+  applyToneToRgba(protectedLift, {
+    ...createNeutralToneRecipe(),
+    shadowRecovery: 100,
+  });
+  assert.deepEqual(protectedLift, noLiftHeadroom);
+  const noLowerHeadroom = new Uint8ClampedArray([20, 20, 0, 255]);
+  const protectedLowering = noLowerHeadroom.slice();
+  applyToneToRgba(protectedLowering, {
+    ...createNeutralToneRecipe(),
+    highlightRecovery: 100,
+  });
+  assert.deepEqual(protectedLowering, noLowerHeadroom, "recovery must not push a channel beyond available RGB headroom");
 });
 
 test("luminance levels map bounded endpoints and progressively control midtones", () => {
@@ -194,8 +256,8 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v3/);
-  assert.match(text, /"operation_order":\["levels_black","levels_white","levels_midtone","tone_curve","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
+  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v4/);
+  assert.match(text, /"operation_order":\["levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
   assert.match(text, /"base_kind":"geometry-enhanced"/);
   assert.match(text, /"exposure":0.5/);
   assert.match(text, /"levelBlack":0/);
@@ -206,6 +268,8 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   assert.match(text, /"curveMidtones":50/);
   assert.match(text, /"curveHighlights":75/);
   assert.match(text, /"curveWhite":100/);
+  assert.match(text, /"shadowRecovery":0/);
+  assert.match(text, /"highlightRecovery":0/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 

@@ -11,6 +11,10 @@ export interface ImageToneRecipe {
   curveMidtones: number;
   curveHighlights: number;
   curveWhite: number;
+  /** Positive-only, endpoint-protected lift for compressed dark tones. */
+  shadowRecovery: number;
+  /** Positive-only, endpoint-protected compression for bright tones. */
+  highlightRecovery: number;
   /** Exposure compensation in stops. */
   exposure: number;
   brightness: number;
@@ -47,6 +51,8 @@ export function createNeutralToneRecipe(): ImageToneRecipe {
     curveMidtones: 50,
     curveHighlights: 75,
     curveWhite: 100,
+    shadowRecovery: 0,
+    highlightRecovery: 0,
     exposure: 0,
     brightness: 0,
     contrast: 0,
@@ -75,6 +81,8 @@ export function sanitizeToneRecipe(recipe: ImageToneRecipe): ImageToneRecipe {
     curveMidtones,
     curveHighlights,
     curveWhite,
+    shadowRecovery: Math.round(bounded(recipe.shadowRecovery, 0, 100, 0)),
+    highlightRecovery: Math.round(bounded(recipe.highlightRecovery, 0, 100, 0)),
     exposure: Math.round(bounded(recipe.exposure, -3, 3, 0) * 10) / 10,
     brightness: Math.round(bounded(recipe.brightness, -100, 100, 0)),
     contrast: Math.round(bounded(recipe.contrast, -100, 100, 0)),
@@ -91,6 +99,7 @@ export function isNeutralTone(recipe: ImageToneRecipe): boolean {
   return safe.levelBlack === 0 && safe.levelWhite === 255 && safe.levelMidtone === 1
     && safe.curveBlack === 0 && safe.curveShadows === 25 && safe.curveMidtones === 50
     && safe.curveHighlights === 75 && safe.curveWhite === 100
+    && safe.shadowRecovery === 0 && safe.highlightRecovery === 0
     && safe.exposure === 0 && safe.brightness === 0 && safe.contrast === 0 && safe.gamma === 0
     && safe.highlights === 0 && safe.shadows === 0 && safe.whites === 0 && safe.blacks === 0;
 }
@@ -186,6 +195,35 @@ export function evaluateToneCurve(value: number, recipe: ImageToneRecipe): numbe
   return evaluatePreparedToneCurve(value, outputs, toneCurveSlopes(outputs));
 }
 
+function smoothstep(minimum: number, maximum: number, value: number) {
+  const position = clamp((value - minimum) / (maximum - minimum), 0, 1);
+  return position * position * (3 - 2 * position);
+}
+
+/**
+ * Redistributes recoverable endpoint tones without moving exact black/white.
+ * This is deterministic tonal compression, not reconstruction of clipped detail.
+ */
+export function evaluateProtectedRecovery(
+  value: number,
+  shadowRecovery: number,
+  highlightRecovery: number,
+): number {
+  const input = clamp(Number.isFinite(value) ? value : 0, 0, 1);
+  const shadows = bounded(shadowRecovery, 0, 100, 0) / 100;
+  const highlights = bounded(highlightRecovery, 0, 100, 0) / 100;
+  const endpointProtection = 4 * input * (1 - input);
+  const shadowWindow = 1 - smoothstep(0.08, 0.58, input);
+  const highlightWindow = smoothstep(0.42, 0.92, input);
+  return clamp(
+    input
+      + shadows * 0.14 * shadowWindow * endpointProtection
+      - highlights * 0.14 * highlightWindow * endpointProtection,
+    0,
+    1,
+  );
+}
+
 /**
  * Applies one deterministic, global tone curve to straight-alpha sRGB bytes.
  * Alpha and fully transparent hidden RGB are preserved exactly.
@@ -213,6 +251,7 @@ export function applyToneToRgba(pixels: Uint8ClampedArray, recipe: ImageToneReci
   const curveIsNeutral = isNeutralToneCurve(safe);
   const curveOutputs = toneCurveOutputs(safe);
   const curveSlopes = toneCurveSlopes(curveOutputs);
+  const recoveryIsNeutral = safe.shadowRecovery === 0 && safe.highlightRecovery === 0;
   const levelBlack = srgbToLinear(safe.levelBlack);
   const levelWhite = srgbToLinear(safe.levelWhite);
   const levelRange = levelWhite - levelBlack;
@@ -244,6 +283,25 @@ export function applyToneToRgba(pixels: Uint8ClampedArray, recipe: ImageToneReci
       red += curveDelta;
       green += curveDelta;
       blue += curveDelta;
+    }
+    if (!recoveryIsNeutral) {
+      const sourceLuminance = clamp(0.2126 * red + 0.7152 * green + 0.0722 * blue, 0, 1);
+      const encodedLuminance = linearToSrgbNormalized(sourceLuminance);
+      const recoveredLuminance = srgbNormalizedToLinear(evaluateProtectedRecovery(
+        encodedLuminance,
+        safe.shadowRecovery,
+        safe.highlightRecovery,
+      ));
+      let recoveryDelta = recoveredLuminance - sourceLuminance;
+      if (recoveryDelta > 0) {
+        recoveryDelta = Math.min(recoveryDelta, Math.max(0, 1 - Math.max(red, green, blue)));
+      }
+      if (recoveryDelta < 0) {
+        recoveryDelta = Math.max(recoveryDelta, -Math.max(0, Math.min(red, green, blue)));
+      }
+      red += recoveryDelta;
+      green += recoveryDelta;
+      blue += recoveryDelta;
     }
     red *= exposure;
     green *= exposure;

@@ -79,8 +79,12 @@ implemented with constrained black/white points and a bounded midtone control;
 they execute before the existing tone operations and are recorded in v2 tone
 provenance. A five-anchor luminance tone curve is also implemented with smooth
 monotone interpolation, non-crossing points, a neutral reset and v3 tone
-provenance; it executes after Levels and cannot invert tones. Local/clarity
-controls and automatic tonal correction remain separate future increments.
+provenance; it executes after Levels and cannot invert tones. Positive-only
+shadow and highlight recovery is implemented as a distinct protected stage in
+v4 provenance: exact black/white remain fixed, RGB headroom prevents new
+channel clipping, and the UI explains that clipped detail cannot be recreated.
+Local contrast/clarity controls and automatic tonal correction remain separate
+future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

@@ -1027,11 +1027,16 @@ test("light and tone applies from the verified base and preview matches download
   await page.getByLabel("Curve shadows", { exact: true }).fill("18");
   await page.getByLabel("Curve highlights", { exact: true }).fill("82");
   await page.getByLabel("Curve white", { exact: true }).fill("95");
+  await page.getByLabel("Shadow recovery", { exact: true }).fill("65");
+  await page.getByLabel("Highlight recovery", { exact: true }).fill("45");
   await page.getByLabel("Exposure", { exact: true }).fill("0.5");
   await page.getByLabel("Shadows", { exact: true }).fill("30");
   await page.getByLabel("Highlights", { exact: true }).fill("-20");
   await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeEnabled();
-  const accessibility = await new AxeBuilder({ page }).include(".quality-tone-curve").analyze();
+  const accessibility = await new AxeBuilder({ page })
+    .include(".quality-tone-curve")
+    .include(".quality-protected-recovery")
+    .analyze();
   expect(accessibility.violations).toEqual([]);
 
   await page.getByRole("button", { name: "Apply adjustments" }).click();
@@ -1088,7 +1093,7 @@ test("light and tone applies from the verified base and preview matches download
   expect(downloaded.readUInt32BE(16)).toBe(64);
   expect(downloaded.readUInt32BE(20)).toBe(48);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v3");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v4");
   expect(downloaded.toString("utf8")).toContain('"base_kind":"original"');
   expect(downloaded.toString("utf8")).toContain(createHash("sha256").update(sourceBytes).digest("hex"));
   expect(downloaded.toString("utf8")).toContain('"exposure":0.5');
@@ -1100,6 +1105,8 @@ test("light and tone applies from the verified base and preview matches download
   expect(downloaded.toString("utf8")).toContain('"curveMidtones":50');
   expect(downloaded.toString("utf8")).toContain('"curveHighlights":82');
   expect(downloaded.toString("utf8")).toContain('"curveWhite":95');
+  expect(downloaded.toString("utf8")).toContain('"shadowRecovery":65');
+  expect(downloaded.toString("utf8")).toContain('"highlightRecovery":45');
   expect(downloaded.toString("utf8")).toContain('"shadows":30');
   expect(downloaded.toString("utf8")).toContain('"highlights":-20');
 
