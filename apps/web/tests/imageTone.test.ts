@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyClarityToRgba,
   applyLocalContrastToRgba,
+  applyNeighbourhoodToneToRgba,
   applyToneToRgba,
   assertBrowserToneBudget,
+  clarityRadii,
   createNeutralToneRecipe,
   evaluateProtectedRecovery,
   evaluateToneCurve,
@@ -63,6 +66,7 @@ test("tone recipes are bounded, normalized and comparable", () => {
     shadowRecovery: 150,
     highlightRecovery: -20,
     localContrast: 150,
+    clarity: -150,
     exposure: 4.17,
     brightness: -101,
     contrast: 10.7,
@@ -84,6 +88,7 @@ test("tone recipes are bounded, normalized and comparable", () => {
     shadowRecovery: 100,
     highlightRecovery: 0,
     localContrast: 100,
+    clarity: -100,
     exposure: 3,
     brightness: -100,
     contrast: 11,
@@ -97,6 +102,40 @@ test("tone recipes are bounded, normalized and comparable", () => {
   assert.equal(sameToneRecipe(safe, { ...safe, exposure: 2.9 }), false);
   assert.equal(assertBrowserToneBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserToneBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
+});
+
+test("clarity separates medium-scale edges without amplifying isolated pixel noise", () => {
+  assert.deepEqual(clarityRadii(64, 48), { inner: 1, outer: 4 });
+  assert.deepEqual(clarityRadii(4096, 2048), { inner: 4, outer: 13 });
+  assert.throws(() => clarityRadii(64, 0), /positive integer image dimensions/);
+
+  const width = 21;
+  const height = 9;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = x < 10 ? 80 : 176;
+      source.set([value, value, value, 255], (y * width + x) * 4);
+    }
+  }
+  const radii = { inner: 1, outer: 4 };
+  const clear = applyClarityToRgba(source, width, height, 0, height, 100, radii);
+  const clearAgain = applyClarityToRgba(source, width, height, 0, height, 100, radii);
+  const softened = applyClarityToRgba(source, width, height, 0, height, -100, radii);
+  const darkEdge = (4 * width + 9) * 4;
+  const brightEdge = (4 * width + 10) * 4;
+  assert.deepEqual(clear, clearAgain);
+  assert.ok(clear[darkEdge] < source[darkEdge] && clear[brightEdge] > source[brightEdge]);
+  assert.ok(softened[darkEdge] > source[darkEdge] && softened[brightEdge] < source[brightEdge]);
+
+  const noise = new Uint8ClampedArray(9 * 9 * 4);
+  for (let offset = 0; offset < noise.length; offset += 4) noise.set([128, 128, 128, 255], offset);
+  noise.set([130, 130, 130, 255], (4 * 9 + 4) * 4);
+  assert.deepEqual(
+    applyClarityToRgba(noise, 9, 9, 0, 9, 100, radii),
+    noise,
+    "medium-scale clarity must not promote one low-amplitude pixel into visible grain",
+  );
 });
 
 test("local contrast is deterministic, progressive and protects endpoints and transparent pixels", () => {
@@ -129,7 +168,7 @@ test("local contrast is deterministic, progressive and protects endpoints and tr
   assert.deepEqual(Array.from(protectedResult.subarray(12, 16)), [31, 47, 89, 0]);
 });
 
-test("halo-aware local-contrast tiles exactly match one full immutable-source pass", () => {
+test("halo-aware neighbourhood-tone tiles exactly match one full immutable-source pass", () => {
   const width = 17;
   const height = 13;
   const radius = 4;
@@ -146,13 +185,24 @@ test("halo-aware local-contrast tiles exactly match one full immutable-source pa
   }
   const transparentOffset = (6 * width + 8) * 4;
   source.set([19, 37, 83, 0], transparentOffset);
-  const full = applyLocalContrastToRgba(source, width, height, 0, height, 75, radius);
+  const clarityRadius = { inner: 1, outer: 4 };
+  const full = applyNeighbourhoodToneToRgba(source, width, height, 0, height, 75, radius, 60, clarityRadius);
   const stitched = new Uint8ClampedArray(source.length);
   for (const [coreY, coreHeight] of [[0, 5], [5, 4], [9, 4]] as const) {
     const tileTop = Math.max(0, coreY - radius);
     const tileBottom = Math.min(height, coreY + coreHeight + radius);
     const tile = source.slice(tileTop * width * 4, tileBottom * width * 4);
-    const core = applyLocalContrastToRgba(tile, width, tileBottom - tileTop, coreY - tileTop, coreHeight, 75, radius);
+    const core = applyNeighbourhoodToneToRgba(
+      tile,
+      width,
+      tileBottom - tileTop,
+      coreY - tileTop,
+      coreHeight,
+      75,
+      radius,
+      60,
+      clarityRadius,
+    );
     stitched.set(core, coreY * width * 4);
   }
   assert.deepEqual(stitched, full, "tile boundaries must not alter any output byte");
@@ -381,8 +431,8 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v5/);
-  assert.match(text, /"operation_order":\["local_contrast","levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
+  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v6/);
+  assert.match(text, /"operation_order":\["source_neighbourhood_local_contrast_and_clarity","levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
   assert.match(text, /"base_kind":"geometry-enhanced"/);
   assert.match(text, /"exposure":0.5/);
   assert.match(text, /"levelBlack":0/);
@@ -396,6 +446,7 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   assert.match(text, /"shadowRecovery":0/);
   assert.match(text, /"highlightRecovery":0/);
   assert.match(text, /"localContrast":0/);
+  assert.match(text, /"clarity":0/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 

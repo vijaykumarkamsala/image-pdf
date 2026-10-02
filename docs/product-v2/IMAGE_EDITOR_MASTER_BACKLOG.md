@@ -93,8 +93,14 @@ worker tile from the immutable verified base with source halos, excludes fully
 transparent pixels from its neighbourhood statistics, and uses a noise floor,
 bounded detail gain, endpoint protection and RGB-headroom limits to prevent
 tile seams, grain amplification and new clipping. Its setting and operation
-order are recorded in v5 tone provenance. Clarity, texture and dehaze remain
-separate future increments.
+order are recorded in tone provenance. Signed deterministic clarity is also
+implemented as a distinct medium-scale signal within the shared
+source-neighbourhood stage. It derives a bounded
+difference-of-neighbourhoods signal from the same immutable source tiles,
+rather than sharpening individual pixels, and shares the transparency, noise,
+endpoint, colour-headroom and seam protections. Local contrast and clarity are
+recorded in v6 tone provenance before global tone operations. Texture and
+dehaze remain separate future increments.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

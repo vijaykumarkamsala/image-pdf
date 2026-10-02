@@ -288,6 +288,23 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
       </label>
       <p>Separates or softens neighbourhood tones without sharpening. Halo-aware source tiles, endpoint protection and a noise floor limit seams, clipping and grain amplification.</p>
     </fieldset>
+    <fieldset className="quality-levels-control quality-clarity">
+      <legend>Clarity</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Clarity</strong><output>{props.recipe.clarity > 0 ? "+" : ""}{props.recipe.clarity}</output></span>
+        <input
+          aria-label="Clarity"
+          type="range"
+          min="-100"
+          max="100"
+          step="1"
+          value={props.recipe.clarity}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, clarity: Number(event.target.value) })}
+        />
+      </label>
+      <p>Adds or softens medium-scale definition without pixel sharpening. Two source-neighbourhood averages suppress fine noise while endpoint and colour headroom protections limit halos and clipping.</p>
+    </fieldset>
     <div className="quality-adjustment-controls">
       {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>

@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
 
 import {
-  applyLocalContrastToRgba,
+  applyNeighbourhoodToneToRgba,
   applyToneToRgba,
   assertBrowserToneBudget,
+  clarityRadii,
   isNeutralTone,
   localContrastRadius,
   sanitizeToneRecipe,
@@ -117,7 +118,7 @@ async function render(
     newShadowClippedPixels: 0,
     newHighlightClippedPixels: 0,
   };
-  if (safe.localContrast === 0) {
+  if (safe.localContrast === 0 && safe.clarity === 0) {
     context.drawImage(bitmap, 0, 0);
     for (let y = 0; y < bitmap.height; y += rowsPerTile) {
       const height = Math.min(rowsPerTile, bitmap.height - y);
@@ -126,17 +127,22 @@ async function render(
       context.putImageData(imageData, 0, y);
     }
   } else {
-    const radius = localContrastRadius(bitmap.width, bitmap.height);
-    const globalRecipe = { ...safe, localContrast: 0 };
+    const localRadius = localContrastRadius(bitmap.width, bitmap.height);
+    const clarityRadius = clarityRadii(bitmap.width, bitmap.height);
+    const haloRadius = Math.max(
+      safe.localContrast === 0 ? 0 : localRadius,
+      safe.clarity === 0 ? 0 : clarityRadius.outer,
+    );
+    const globalRecipe = { ...safe, localContrast: 0, clarity: 0 };
     const globalToneIsNeutral = isNeutralTone(globalRecipe);
     for (let y = 0; y < bitmap.height; y += rowsPerTile) {
       const height = Math.min(rowsPerTile, bitmap.height - y);
-      const tileTop = Math.max(0, y - radius);
-      const tileBottom = Math.min(bitmap.height, y + height + radius);
+      const tileTop = Math.max(0, y - haloRadius);
+      const tileBottom = Math.min(bitmap.height, y + height + haloRadius);
       const tileHeight = tileBottom - tileTop;
       const tileCanvas = new OffscreenCanvas(bitmap.width, tileHeight);
       const tileContext = tileCanvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });
-      if (!tileContext) throw new Error("Your browser could not allocate the local-contrast tile renderer.");
+      if (!tileContext) throw new Error("Your browser could not allocate the neighbourhood-tone tile renderer.");
       tileContext.drawImage(
         bitmap,
         0,
@@ -150,14 +156,16 @@ async function render(
       );
       const sourceTile = tileContext.getImageData(0, 0, bitmap.width, tileHeight).data;
       const coreTop = y - tileTop;
-      const core = applyLocalContrastToRgba(
+      const core = applyNeighbourhoodToneToRgba(
         sourceTile,
         bitmap.width,
         tileHeight,
         coreTop,
         height,
         safe.localContrast,
-        radius,
+        localRadius,
+        safe.clarity,
+        clarityRadius,
       );
       if (!globalToneIsNeutral) applyToneToRgba(core, globalRecipe);
       addStatistics(statistics, compareCoreStatistics(sourceTile, bitmap.width, coreTop, core));
