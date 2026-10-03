@@ -62,6 +62,7 @@ import {
   sameColorRecipe,
   sanitizeColorRecipe,
   type ImageColorRecipe,
+  type ImagePointColorSample,
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import { WorkerImageColorEngine, type ImageColorResult } from "./WorkerImageColorEngine";
@@ -119,6 +120,13 @@ interface ColorDerivative extends ImageColorResult {
 }
 
 interface WhiteBalanceReview extends ImageWhiteBalanceSuggestion {
+  normalizedX: number;
+  normalizedY: number;
+  baseOutputSha256: string;
+  baseLabel: string;
+}
+
+interface PointColorReview extends ImagePointColorSample {
   normalizedX: number;
   normalizedY: number;
   baseOutputSha256: string;
@@ -190,6 +198,11 @@ interface ViewerProps {
     point: { x: number; y: number } | null;
     onSample: (normalizedX: number, normalizedY: number) => void;
   };
+  pointColorSampler?: {
+    active: boolean;
+    point: { x: number; y: number } | null;
+    onSample: (normalizedX: number, normalizedY: number) => void;
+  };
 }
 
 function ComparisonViewer({
@@ -205,10 +218,14 @@ function ComparisonViewer({
   enhanced = false,
   overlay,
   whiteBalanceSampler,
+  pointColorSampler,
 }: ViewerProps) {
   const { ref, size } = useFrameSize();
   const drag = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null);
   const transform = viewerTransform(size.width, size.height, width, height, zoom, pan);
+  const activeSampler = whiteBalanceSampler?.active ? whiteBalanceSampler
+    : pointColorSampler?.active ? pointColorSampler
+      : null;
   const normalizedPointAt = (clientX: number, clientY: number) => {
     const bounds = ref.current?.getBoundingClientRect();
     if (!bounds) return null;
@@ -221,9 +238,9 @@ function ComparisonViewer({
   };
   const startPan = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    if (whiteBalanceSampler?.active) {
+    if (activeSampler) {
       const point = normalizedPointAt(event.clientX, event.clientY);
-      if (point) whiteBalanceSampler.onSample(point.x, point.y);
+      if (point) activeSampler.onSample(point.x, point.y);
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -243,13 +260,13 @@ function ComparisonViewer({
     onPan(next.x, next.y);
   };
   const keyboardPan = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (whiteBalanceSampler?.active && (event.key === "Enter" || event.key === " ")) {
+    if (activeSampler && (event.key === "Enter" || event.key === " ")) {
       const bounds = ref.current?.getBoundingClientRect();
       if (!bounds) return;
       const point = normalizedPointAt(bounds.left + size.width / 2, bounds.top + size.height / 2);
       if (!point) return;
       event.preventDefault();
-      whiteBalanceSampler.onSample(point.x, point.y);
+      activeSampler.onSample(point.x, point.y);
       return;
     }
     const step = event.shiftKey ? 80 : 24;
@@ -265,12 +282,12 @@ function ComparisonViewer({
 
   return <div
     ref={ref}
-    className={`quality-viewer${overlay ? " quality-viewer-slider" : ""}${whiteBalanceSampler?.active ? " quality-viewer-sampling" : ""}`}
+    className={`quality-viewer${overlay ? " quality-viewer-slider" : ""}${activeSampler ? " quality-viewer-sampling" : ""}`}
     data-testid={overlay ? "comparison-slider-view" : `comparison-${enhanced ? "enhanced" : "original"}`}
     data-scale={transform.scale.toFixed(6)}
     tabIndex={0}
     role="group"
-    aria-label={`${label} image viewer. Use arrow keys to pan when zoomed.${whiteBalanceSampler?.active ? " Select a neutral point, or press Enter to sample the viewer centre." : ""}`}
+    aria-label={`${label} image viewer. Use arrow keys to pan when zoomed.${whiteBalanceSampler?.active ? " Select a neutral point, or press Enter to sample the viewer centre." : pointColorSampler?.active ? " Select a coloured point, or press Enter to sample the viewer centre." : ""}`}
     onPointerDown={startPan}
     onPointerMove={(event) => {
       const active = drag.current;
@@ -319,6 +336,15 @@ function ComparisonViewer({
         top: `calc(50% + ${pan.y + (whiteBalanceSampler.point.y - 0.5) * height * transform.scale}px)`,
       }}
     />}
+    {pointColorSampler?.point && <span
+      className="quality-white-balance-marker quality-point-color-marker"
+      data-testid="point-color-marker"
+      aria-hidden="true"
+      style={{
+        left: `calc(50% + ${pan.x + (pointColorSampler.point.x - 0.5) * width * transform.scale}px)`,
+        top: `calc(50% + ${pan.y + (pointColorSampler.point.y - 0.5) * height * transform.scale}px)`,
+      }}
+    />}
   </div>;
 }
 
@@ -355,6 +381,9 @@ export function ImageQualityEditorPage() {
   const [whiteBalancePicking, setWhiteBalancePicking] = useState(false);
   const [whiteBalanceAnalysing, setWhiteBalanceAnalysing] = useState(false);
   const [whiteBalanceSuggestionUsed, setWhiteBalanceSuggestionUsed] = useState(false);
+  const [pointColorReview, setPointColorReview] = useState<PointColorReview | null>(null);
+  const [pointColorPicking, setPointColorPicking] = useState(false);
+  const [pointColorAnalysing, setPointColorAnalysing] = useState(false);
   const engine = useRef<ImageQualityEngine | null>(null);
   const originalGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
   const enhancedGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
@@ -426,6 +455,12 @@ export function ImageQualityEditorPage() {
     setWhiteBalanceSuggestionUsed(false);
   };
 
+  const clearPointColorReview = () => {
+    setPointColorReview(null);
+    setPointColorPicking(false);
+    setPointColorAnalysing(false);
+  };
+
   const clearColorDerivative = () => {
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
     colorObjectUrl.current = null;
@@ -444,6 +479,7 @@ export function ImageQualityEditorPage() {
     setColorBusy(false);
     setColorError(null);
     clearWhiteBalanceReview();
+    clearPointColorReview();
     clearColorDerivative();
     setColorMessage(isNeutralColor(colorRecipe) ? null : message);
   };
@@ -515,6 +551,7 @@ export function ImageQualityEditorPage() {
     setColorError(null);
     setColorMessage(null);
     clearWhiteBalanceReview();
+    clearPointColorReview();
     clearColorDerivative();
     disposeColorEngine();
     clearToneDerivative();
@@ -950,6 +987,7 @@ export function ImageQualityEditorPage() {
     }
     setWhiteBalanceReview(null);
     setWhiteBalanceSuggestionUsed(false);
+    setPointColorPicking(false);
     setWhiteBalancePicking(true);
     setColorError(null);
     setColorMessage("White-balance picker ready. Select a known neutral point in the Result viewer.");
@@ -1031,6 +1069,85 @@ export function ImageQualityEditorPage() {
     setColorMessage(null);
   };
 
+  const togglePointColorPicker = () => {
+    if (pointColorPicking) {
+      setPointColorPicking(false);
+      setColorMessage(null);
+      return;
+    }
+    if (!resolveColorBase()) {
+      setColorError("The latest verified pre-colour image is unavailable. Apply or reset earlier-stage changes before sampling a colour.");
+      return;
+    }
+    setWhiteBalancePicking(false);
+    setPointColorPicking(true);
+    setColorError(null);
+    setColorMessage("Point-colour picker ready. Select a consistently coloured area in the Result viewer.");
+    dispatch({ type: "mode-changed", mode: "side-by-side" });
+  };
+
+  const samplePointColor = async (normalizedX: number, normalizedY: number) => {
+    if (!pointColorPicking || colorBusy) return;
+    const base = resolveColorBase();
+    if (!base) {
+      setPointColorPicking(false);
+      setColorError("The verified pre-colour image changed before sampling. Start the point-colour picker again.");
+      return;
+    }
+    const x = Math.min(base.width - 1, Math.max(0, Math.round(normalizedX * (base.width - 1))));
+    const y = Math.min(base.height - 1, Math.max(0, Math.round(normalizedY * (base.height - 1))));
+    const currentColorOperation = ++colorOperation.current;
+    disposeColorEngine();
+    const next = new WorkerImageColorEngine();
+    colorEngine.current = next;
+    setColorBusy(true);
+    setPointColorAnalysing(true);
+    setPointColorPicking(false);
+    setColorError(null);
+    setColorMessage("Measuring the selected colour patch from the verified pre-colour image.");
+    try {
+      const loaded = await next.load(base.blob);
+      if (loaded.width !== base.width || loaded.height !== base.height) {
+        throw new Error(`The point-colour decoder returned ${loaded.width} × ${loaded.height} px instead of ${base.width} × ${base.height} px.`);
+      }
+      const sample = await next.samplePointColor(x, y);
+      if (colorOperation.current !== currentColorOperation) return;
+      setPointColorReview({
+        ...sample,
+        normalizedX,
+        normalizedY,
+        baseOutputSha256: base.outputSha256,
+        baseLabel: base.label,
+      });
+      setColorRecipe((current) => sanitizeColorRecipe({
+        ...current,
+        pointColor: { ...current.pointColor, enabled: true, targetHue: sample.hue },
+      }));
+      clearColorDerivative();
+      setColorMessage("Point-colour sample ready. Adjust its bounded controls, then apply colour.");
+    } catch (error) {
+      if (colorOperation.current !== currentColorOperation) return;
+      setColorError(error instanceof Error ? error.message : "Point-colour sampling did not complete.");
+      setColorMessage(null);
+    } finally {
+      if (colorOperation.current === currentColorOperation) {
+        setColorBusy(false);
+        setPointColorAnalysing(false);
+        next.dispose();
+        if (colorEngine.current === next) colorEngine.current = null;
+      }
+    }
+  };
+
+  const dismissPointColor = () => {
+    const neutral = createNeutralColorRecipe().pointColor;
+    setColorRecipe((current) => sanitizeColorRecipe({ ...current, pointColor: neutral }));
+    clearPointColorReview();
+    clearColorDerivative();
+    setColorError(null);
+    setColorMessage(null);
+  };
+
   const applyColor = async () => {
     const source = state.source;
     const safe = sanitizeColorRecipe(colorRecipe);
@@ -1071,6 +1188,28 @@ export function ImageQualityEditorPage() {
           atLimit: whiteBalanceReview.atLimit,
         }
       : null;
+    const pointAdjustmentActive = safe.pointColor.enabled
+      && (safe.pointColor.hue !== 0 || safe.pointColor.saturation !== 0 || safe.pointColor.lightness !== 0);
+    const pointColorSample: ImagePointColorSample | null = safe.pointColor.enabled && pointColorReview
+      && pointColorReview.baseOutputSha256 === base.outputSha256
+      && pointColorReview.hue === safe.pointColor.targetHue
+      ? {
+          sourceX: pointColorReview.sourceX,
+          sourceY: pointColorReview.sourceY,
+          radius: pointColorReview.radius,
+          visiblePixels: pointColorReview.visiblePixels,
+          red: pointColorReview.red,
+          green: pointColorReview.green,
+          blue: pointColorReview.blue,
+          hue: pointColorReview.hue,
+          saturation: pointColorReview.saturation,
+          lightness: pointColorReview.lightness,
+        }
+      : null;
+    if (pointAdjustmentActive && !pointColorSample) {
+      setColorError("The sampled point colour is unavailable for this verified base. Sample it again before applying colour.");
+      return;
+    }
     const baseBlob = base.blob;
     const baseOutputSha256 = base.outputSha256;
     const baseKind = base.kind;
@@ -1100,6 +1239,7 @@ export function ImageQualityEditorPage() {
         baseStrength,
         baseScale,
         whiteBalanceSample,
+        pointColorSample,
         outputWidth: width,
         outputHeight: height,
       });
@@ -1134,6 +1274,7 @@ export function ImageQualityEditorPage() {
     setColorMessage(null);
     setColorRecipe(createNeutralColorRecipe());
     clearWhiteBalanceReview();
+    clearPointColorReview();
     clearColorDerivative();
     dispatch({ type: "zoom-changed", zoom: "fit" });
   };
@@ -1297,8 +1438,12 @@ export function ImageQualityEditorPage() {
   );
   const colorIsDirty = colorHasChanges && !colorDisplayReady;
   const displayOriginalUrl = baseOriginalUrl;
-  const whiteBalanceShowingBase = activeTool === "color" && (whiteBalancePicking || whiteBalanceAnalysing);
-  const enhancedUrl = colorDisplayReady && !whiteBalanceShowingBase
+  const colorSamplingBase = activeTool === "color"
+    && (whiteBalancePicking || whiteBalanceAnalysing || pointColorPicking || pointColorAnalysing);
+  const colorSamplingBaseLabel = whiteBalancePicking || whiteBalanceAnalysing
+    ? "White-balance sampling base"
+    : "Point-colour sampling base";
+  const enhancedUrl = colorDisplayReady && !colorSamplingBase
     ? colorResult!.url
     : toneDisplayReady ? toneResult!.url : baseResultUrl;
   const histogramGeometryDerivative = geometryDisplayReady
@@ -1412,7 +1557,11 @@ export function ImageQualityEditorPage() {
   );
   const colorCanApply = Boolean(
     dimensionsReady && colorHasChanges && !colorBusy && !toneBusy && !processing && !processorRestarting && !geometryBusy
-    && !resultIsStale && !geometryIsDirty && !toneIsDirty && !colorDisplayReady,
+    && !resultIsStale && !geometryIsDirty && !toneIsDirty && !colorDisplayReady
+    && (!(colorRecipe.pointColor.enabled
+      && (colorRecipe.pointColor.hue !== 0 || colorRecipe.pointColor.saturation !== 0 || colorRecipe.pointColor.lightness !== 0))
+      || (pointColorReview?.baseOutputSha256 === preColorOutputSha256
+        && pointColorReview.hue === colorRecipe.pointColor.targetHue)),
   );
   const colorBaseAvailable = Boolean(
     dimensionsReady && !resultIsStale && !geometryIsDirty && !toneIsDirty
@@ -1426,6 +1575,16 @@ export function ImageQualityEditorPage() {
         active: whiteBalancePicking,
         point: whiteBalancePoint,
         onSample: (x: number, y: number) => void sampleWhiteBalance(x, y),
+      }
+    : undefined;
+  const pointColorPoint = pointColorReview?.baseOutputSha256 === preColorOutputSha256
+    ? { x: pointColorReview.normalizedX, y: pointColorReview.normalizedY }
+    : null;
+  const pointColorSampler = activeTool === "color"
+    ? {
+        active: pointColorPicking,
+        point: pointColorPoint,
+        onSample: (x: number, y: number) => void samplePointColor(x, y),
       }
     : undefined;
   const geometryCanApply = Boolean(
@@ -1530,8 +1689,13 @@ export function ImageQualityEditorPage() {
                 whiteBalanceSuggestionUsed={whiteBalanceSuggestionUsed}
                 whiteBalancePicking={whiteBalancePicking}
                 whiteBalanceAnalysing={whiteBalanceAnalysing}
+                pointColorSample={pointColorReview}
+                pointColorBaseLabel={pointColorReview?.baseLabel ?? null}
+                pointColorPicking={pointColorPicking}
+                pointColorAnalysing={pointColorAnalysing}
                 busy={colorBusy}
                 canSampleWhiteBalance={colorBaseAvailable && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canSamplePointColor={colorBaseAvailable && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canApply={colorCanApply}
                 canDownload={colorDisplayReady}
                 onRecipe={(recipe) => {
@@ -1542,12 +1706,17 @@ export function ImageQualityEditorPage() {
                     || safe.tint !== whiteBalanceReview.tint) {
                     setWhiteBalanceSuggestionUsed(false);
                   }
+                  if (!safe.pointColor.enabled || safe.pointColor.targetHue !== pointColorReview?.hue) {
+                    clearPointColorReview();
+                  }
                   setColorError(null);
                   setColorMessage(null);
                 }}
                 onToggleWhiteBalancePicker={toggleWhiteBalancePicker}
                 onUseWhiteBalanceSuggestion={useWhiteBalanceSuggestion}
                 onDismissWhiteBalanceSuggestion={dismissWhiteBalanceSuggestion}
+                onTogglePointColorPicker={togglePointColorPicker}
+                onDismissPointColor={dismissPointColor}
                 onApply={() => void applyColor()}
                 onReset={resetColor}
                 onDownload={download}
@@ -1644,8 +1813,8 @@ export function ImageQualityEditorPage() {
                   zoom={state.zoom}
                   pan={state.pan}
                   onPan={(x, y) => dispatch({ type: "pan-changed", x, y })}
-                  label={whiteBalanceShowingBase
-                    ? "White-balance sampling base"
+                  label={colorSamplingBase
+                    ? colorSamplingBaseLabel
                     : colorDisplayReady
                     ? state.result ? `Colour-adjusted enhanced · ${state.result.strength}%` : "Colour-adjusted original"
                     : toneDisplayReady
@@ -1653,6 +1822,7 @@ export function ImageQualityEditorPage() {
                     : state.result ? `Enhanced · ${state.result.strength}%${geometryDisplayReady ? " · geometry applied" : ""}${resultIsStale ? " · previous result" : ""}` : geometryDisplayReady ? "Edited original" : "Enhanced · awaiting processing"}
                   enhanced
                   whiteBalanceSampler={whiteBalanceSampler}
+                  pointColorSampler={pointColorSampler}
                 />
               </div> : <>
                 <ComparisonViewer
@@ -1667,6 +1837,7 @@ export function ImageQualityEditorPage() {
                   label="Original · Result"
                   overlay={{ slider: state.slider }}
                   whiteBalanceSampler={whiteBalanceSampler}
+                  pointColorSampler={pointColorSampler}
                 />
                 <label className="quality-slider-control"><span>Comparison position</span><input type="range" min="0" max="100" value={state.slider} onChange={(event) => dispatch({ type: "slider-changed", slider: Number(event.target.value) })} /></label>
               </>}

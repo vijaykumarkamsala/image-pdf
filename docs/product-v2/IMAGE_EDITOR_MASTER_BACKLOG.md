@@ -120,7 +120,7 @@ neighbourhood settings are recorded in v8 tone provenance.
 
 ## IE-04 — Colour
 
-Local implementation status (2026-10-03): the React image editor now provides
+Local implementation status (2026-10-04): the React image editor now provides
 deterministic global temperature, tint, saturation and vibrance controls as a
 separate stage after geometry and light/tone. Each apply starts from the latest
 verified derivative rather than a previous colour result. Worker processing is
@@ -151,8 +151,14 @@ in v5 colour provenance. Deterministic duotone mapping is also implemented with
 separate bounded Shadow and Highlight Hue/Saturation controls plus an adjustable
 balance point. It runs after the optional channel mixer, preserves luminance,
 exact black/white, transparency and alpha, prevents new gamut clipping, and is
-recorded in v6 colour provenance. Point-colour selection, LUTs, colour matching
-and protected brand/product/skin colour remain future increments.
+recorded in v6 colour provenance. Source-bound point-colour selection is also
+implemented against the exact verified pre-colour derivative. A visible,
+chromatic patch supplies one reviewed target hue; bounded tolerance, feather,
+hue, saturation and lightness controls affect only that circular hue interval.
+Neutral or conflicting patches fail visibly, sampling alone changes no pixels,
+and the measured patch plus ordered recipe are recorded in v7 colour provenance.
+LUTs, colour matching and protected brand/product/skin colour remain future
+increments.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

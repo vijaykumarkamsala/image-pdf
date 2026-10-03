@@ -140,6 +140,30 @@ function neutralCastPng(width: number, height: number): Buffer {
   ]);
 }
 
+function pointColorPng(width: number, height: number): Buffer {
+  const scanlines = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (width * 4 + 1);
+    for (let x = 0; x < width; x += 1) {
+      const offset = row + 1 + x * 4;
+      scanlines[offset] = 16;
+      scanlines[offset + 1] = 112;
+      scanlines[offset + 2] = 228;
+      scanlines[offset + 3] = 255;
+    }
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 function clippingHistogramPng(width: number, height: number): Buffer {
   const scanlines = Buffer.alloc((width * 4 + 1) * height);
   for (let y = 0; y < height; y += 1) {
@@ -1252,7 +1276,7 @@ test("neutral-point white balance samples the verified base and requires explici
   const downloaded = Buffer.concat(chunks);
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v6");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v7");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":{"sourceX"');
   expect(downloaded.toString("utf8")).toContain('"red":180,"green":170,"blue":160');
   expect(downloaded.toString("utf8")).toContain('"temperature":-54,"tint":0');
@@ -1261,6 +1285,78 @@ test("neutral-point white balance samples the verified base and requires explici
   await expect(page.getByText("White-balance sampling base", { exact: true })).toBeVisible();
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
   await page.getByRole("button", { name: "Cancel neutral sampling" }).click();
+});
+
+test("point colour samples the verified base and applies one bounded source-bound hue target", async ({ page }) => {
+  const sourceBytes = pointColorPng(48, 40);
+  await page.setViewportSize({ width: 1760, height: 900 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "point-colour.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  await expect(page.getByLabel("Point-colour hue", { exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Pick colour from image" }).click();
+  await expect(page.getByText(/Select a coloured point in the Result viewer/)).toBeVisible();
+  const resultViewer = page.getByTestId("comparison-enhanced");
+  await resultViewer.focus();
+  await resultViewer.press("Enter");
+
+  const sample = page.getByTestId("point-color-sample");
+  await expect(sample).toContainText("Sampled colour ready");
+  await expect(sample).toContainText("Measured RGB16, 112, 228");
+  await expect(sample).toContainText("Target hue213 degrees");
+  await expect(page.getByTestId("point-color-marker")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
+
+  await page.getByLabel("Point-colour target tolerance", { exact: true }).fill("16");
+  await page.getByLabel("Point-colour edge feather", { exact: true }).fill("20");
+  await page.getByLabel("Point-colour hue", { exact: true }).fill("45");
+  await page.getByLabel("Point-colour saturation", { exact: true }).fill("30");
+  await page.getByLabel("Point-colour lightness", { exact: true }).fill("-8");
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-point-color").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+  const previewDigest = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const bytes = await (await fetch((node as HTMLImageElement).src)).arrayBuffer();
+    return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+  });
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("point-colour-colour-adjusted-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  if (!stream.closed) {
+    const closed = new Promise<void>((resolve, reject) => {
+      stream.once("close", resolve);
+      stream.once("error", reject);
+    });
+    stream.destroy();
+    await closed;
+  }
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewDigest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v7");
+  expect(downloaded.toString("utf8")).toContain('"point_color_sample":{"sourceX":24,"sourceY":20');
+  expect(downloaded.toString("utf8")).toContain('"red":16,"green":112,"blue":228,"hue":213');
+  expect(downloaded.toString("utf8")).toContain('"pointColor":{"enabled":true,"targetHue":213,"tolerance":16,"feather":20,"hue":45,"saturation":30,"lightness":-8}');
+
+  await page.getByRole("button", { name: "Clear sampled colour" }).click();
+  await expect(page.getByTestId("point-color-sample")).toHaveCount(0);
+  await expect(page.getByLabel("Point-colour hue", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
 });
 
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
@@ -1382,8 +1478,9 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v6");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v7");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":null');
+  expect(downloaded.toString("utf8")).toContain('"point_color_sample":null');
   expect(downloaded.toString("utf8")).toContain('"base_kind":"tone"');
   expect(downloaded.toString("utf8")).toContain(toneEvidence.digest);
   expect(downloaded.toString("utf8")).toContain('"temperature":35');

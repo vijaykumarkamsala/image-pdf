@@ -50,6 +50,16 @@ export interface ImageDuotoneRecipe {
   balance: number;
 }
 
+export interface ImagePointColorRecipe extends ImageSelectiveHslAdjustment {
+  enabled: boolean;
+  /** Sampled source hue in degrees. */
+  targetHue: number;
+  /** Full-strength circular hue distance in degrees. */
+  tolerance: number;
+  /** Additional smooth transition width in degrees. */
+  feather: number;
+}
+
 interface PreparedColorGrade extends ImageColorGrade {
   tintRed: number;
   tintGreen: number;
@@ -77,6 +87,8 @@ export interface ImageColorRecipe {
   vibrance: number;
   /** Smoothly blended, source-hue selective corrections. */
   selectiveHsl: ImageSelectiveHslRecipe;
+  /** One source-sampled hue target with a bounded feathered selection. */
+  pointColor: ImagePointColorRecipe;
   /** Smoothly blended colour and luminance corrections by tonal range. */
   colorGrading: ImageColorGradingRecipe;
   /** Opt-in normalized linear-light channel mixer. */
@@ -104,6 +116,19 @@ export interface ImageWhiteBalanceSuggestion {
   atLimit: boolean;
 }
 
+export interface ImagePointColorSample {
+  sourceX: number;
+  sourceY: number;
+  radius: number;
+  visiblePixels: number;
+  red: number;
+  green: number;
+  blue: number;
+  hue: number;
+  saturation: number;
+  lightness: number;
+}
+
 export const MAX_BROWSER_COLOR_PIXELS = 67_108_864;
 
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
@@ -113,6 +138,7 @@ const bounded = (value: number, minimum: number, maximum: number, fallback: numb
 
 const GLOBAL_COLOR_KEYS = ["temperature", "tint", "saturation", "vibrance"] as const;
 const SELECTIVE_HSL_KEYS = ["hue", "saturation", "lightness"] as const;
+const POINT_COLOR_KEYS = ["targetHue", "tolerance", "feather", "hue", "saturation", "lightness"] as const;
 const COLOR_GRADING_KEYS = ["hue", "saturation", "luminance"] as const;
 const BLACK_AND_WHITE_KEYS = ["red", "green", "blue"] as const;
 const DUOTONE_KEYS = ["shadowHue", "shadowSaturation", "highlightHue", "highlightSaturation", "balance"] as const;
@@ -148,6 +174,15 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
     saturation: 0,
     vibrance: 0,
     selectiveHsl: createNeutralSelectiveHsl(),
+    pointColor: {
+      enabled: false,
+      targetHue: 0,
+      tolerance: 18,
+      feather: 18,
+      hue: 0,
+      saturation: 0,
+      lightness: 0,
+    },
     colorGrading: createNeutralColorGrading(),
     blackAndWhite: { enabled: false, red: 40, green: 40, blue: 20 },
     duotone: {
@@ -186,6 +221,15 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
     saturation: Math.round(bounded(recipe.saturation, -100, 100, 0)),
     vibrance: Math.round(bounded(recipe.vibrance, -100, 100, 0)),
     selectiveHsl,
+    pointColor: {
+      enabled: recipe.pointColor?.enabled === true,
+      targetHue: Math.round(bounded(recipe.pointColor?.targetHue, 0, 359, 0)),
+      tolerance: Math.round(bounded(recipe.pointColor?.tolerance, 5, 60, 18)),
+      feather: Math.round(bounded(recipe.pointColor?.feather, 1, 60, 18)),
+      hue: Math.round(bounded(recipe.pointColor?.hue, -100, 100, 0)),
+      saturation: Math.round(bounded(recipe.pointColor?.saturation, -100, 100, 0)),
+      lightness: Math.round(bounded(recipe.pointColor?.lightness, -100, 100, 0)),
+    },
     colorGrading,
     blackAndWhite: {
       enabled: recipe.blackAndWhite?.enabled === true,
@@ -210,6 +254,7 @@ export function isNeutralColor(recipe: ImageColorRecipe): boolean {
     && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => (
       SELECTIVE_HSL_KEYS.every((key) => safe.selectiveHsl[range][key] === 0)
     ))
+    && (!safe.pointColor.enabled || SELECTIVE_HSL_KEYS.every((key) => safe.pointColor[key] === 0))
     && IMAGE_COLOR_GRADING_RANGES.every((range) => (
       safe.colorGrading[range].saturation === 0 && safe.colorGrading[range].luminance === 0
     ))
@@ -225,6 +270,8 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
     && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => (
       SELECTIVE_HSL_KEYS.every((key) => safeLeft.selectiveHsl[range][key] === safeRight.selectiveHsl[range][key])
     ))
+    && safeLeft.pointColor.enabled === safeRight.pointColor.enabled
+    && POINT_COLOR_KEYS.every((key) => safeLeft.pointColor[key] === safeRight.pointColor[key])
     && IMAGE_COLOR_GRADING_RANGES.every((range) => (
       COLOR_GRADING_KEYS.every((key) => safeLeft.colorGrading[range][key] === safeRight.colorGrading[range][key])
     ))
@@ -241,6 +288,8 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
       const adjustment = recipe.selectiveHsl?.[range];
       return Boolean(adjustment) && SELECTIVE_HSL_KEYS.every((key) => adjustment[key] === safe.selectiveHsl[range][key]);
     })
+    && recipe.pointColor?.enabled === safe.pointColor.enabled
+    && POINT_COLOR_KEYS.every((key) => recipe.pointColor?.[key] === safe.pointColor[key])
     && IMAGE_COLOR_GRADING_RANGES.every((range) => {
       const grade = recipe.colorGrading?.[range];
       return Boolean(grade) && COLOR_GRADING_KEYS.every((key) => grade[key] === safe.colorGrading[range][key]);
@@ -352,6 +401,40 @@ function applySelectiveHsl(
     ? hsl.saturation + (1 - hsl.saturation) * saturationAmount
     : hsl.saturation * (1 + saturationAmount), 0, 1);
   const lightnessAmount = lightnessControl / 100 * hueConfidence * 0.45;
+  const lightness = clamp(lightnessAmount >= 0
+    ? hsl.lightness + (1 - hsl.lightness) * lightnessAmount
+    : hsl.lightness * (1 + lightnessAmount), 0, 1);
+  return hslToRgb(hue, saturation, lightness);
+}
+
+function circularHueDistance(left: number, right: number) {
+  const distance = Math.abs(left - right) % 360;
+  return Math.min(distance, 360 - distance);
+}
+
+function pointColorSelectionWeight(red: number, green: number, blue: number, recipe: ImagePointColorRecipe) {
+  const hsl = rgbToHsl(red, green, blue);
+  const hueConfidence = clamp((hsl.saturation - 0.02) / 0.08, 0, 1);
+  if (hueConfidence === 0) return 0;
+  const distance = circularHueDistance(hsl.hue, recipe.targetHue);
+  return hueConfidence * (1 - smoothstep(recipe.tolerance, recipe.tolerance + recipe.feather, distance));
+}
+
+function applyPointColorHsl(
+  red: number,
+  green: number,
+  blue: number,
+  recipe: ImagePointColorRecipe,
+  weight: number,
+) {
+  if (weight === 0) return { red, green, blue };
+  const hsl = rgbToHsl(red, green, blue);
+  const hue = (hsl.hue + recipe.hue * 0.3 * weight + 360) % 360;
+  const saturationAmount = recipe.saturation / 100 * weight;
+  const saturation = clamp(saturationAmount >= 0
+    ? hsl.saturation + (1 - hsl.saturation) * saturationAmount
+    : hsl.saturation * (1 + saturationAmount), 0, 1);
+  const lightnessAmount = recipe.lightness / 100 * weight * 0.45;
   const lightness = clamp(lightnessAmount >= 0
     ? hsl.lightness + (1 - hsl.lightness) * lightnessAmount
     : hsl.lightness * (1 + lightnessAmount), 0, 1);
@@ -517,6 +600,75 @@ export function whiteBalanceSampleRadius(width: number, height: number): number 
   return Math.min(8, Math.max(1, Math.round(Math.min(width, height) / 512)));
 }
 
+export const pointColorSampleRadius = whiteBalanceSampleRadius;
+
+/** Measures a small visible source patch and returns its chroma-weighted circular mean hue. */
+export function samplePointColorFromRgba(
+  pixels: Uint8ClampedArray,
+  sourceX: number,
+  sourceY: number,
+  radius: number,
+): ImagePointColorSample {
+  if (pixels.byteLength % 4 !== 0 || pixels.byteLength === 0) {
+    throw new Error("Point-colour sampling requires complete RGBA pixels.");
+  }
+  if (!Number.isSafeInteger(sourceX) || sourceX < 0 || !Number.isSafeInteger(sourceY) || sourceY < 0
+    || !Number.isSafeInteger(radius) || radius < 1 || radius > 8) {
+    throw new Error("Point-colour sampling requires a valid source point and bounded radius.");
+  }
+  let visiblePixels = 0;
+  let visibleWeight = 0;
+  let chromaticWeight = 0;
+  let encodedRed = 0;
+  let encodedGreen = 0;
+  let encodedBlue = 0;
+  let hueX = 0;
+  let hueY = 0;
+  let saturationTotal = 0;
+  let lightnessTotal = 0;
+  for (let offset = 0; offset < pixels.byteLength; offset += 4) {
+    const alpha = pixels[offset + 3];
+    if (alpha === 0) continue;
+    const weight = alpha / 255;
+    visiblePixels += 1;
+    visibleWeight += weight;
+    encodedRed += pixels[offset] * weight;
+    encodedGreen += pixels[offset + 1] * weight;
+    encodedBlue += pixels[offset + 2] * weight;
+    const hsl = rgbToHsl(pixels[offset] / 255, pixels[offset + 1] / 255, pixels[offset + 2] / 255);
+    const colourConfidence = smoothstep(0.04, 0.16, hsl.saturation)
+      * smoothstep(0.02, 0.12, hsl.lightness)
+      * (1 - smoothstep(0.9, 0.99, hsl.lightness));
+    const colourWeight = weight * colourConfidence;
+    if (colourWeight === 0) continue;
+    const radians = hsl.hue * Math.PI / 180;
+    chromaticWeight += colourWeight;
+    hueX += Math.cos(radians) * colourWeight;
+    hueY += Math.sin(radians) * colourWeight;
+    saturationTotal += hsl.saturation * colourWeight;
+    lightnessTotal += hsl.lightness * colourWeight;
+  }
+  if (visibleWeight < 1) {
+    throw new Error("The selected point-colour patch does not contain enough visible pixels. Choose an opaque coloured area.");
+  }
+  if (chromaticWeight / visibleWeight < 0.08 || Math.hypot(hueX, hueY) / chromaticWeight < 0.25) {
+    throw new Error("The selected point-colour patch is too neutral or contains conflicting hues. Choose a more consistently coloured area.");
+  }
+  const hue = Math.round(((Math.atan2(hueY, hueX) * 180 / Math.PI) + 360) % 360) % 360;
+  return {
+    sourceX,
+    sourceY,
+    radius,
+    visiblePixels,
+    red: Math.round(encodedRed / visibleWeight),
+    green: Math.round(encodedGreen / visibleWeight),
+    blue: Math.round(encodedBlue / visibleWeight),
+    hue,
+    saturation: Math.round(clamp(saturationTotal / chromaticWeight * 100, 0, 100)),
+    lightness: Math.round(clamp(lightnessTotal / chromaticWeight * 100, 0, 100)),
+  };
+}
+
 /**
  * Measures a small user-selected, known-neutral patch and proposes the inverse
  * of its blue/yellow and green/magenta cast. The proposal uses the same linear
@@ -610,6 +762,8 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
   const selectiveActive = IMAGE_SELECTIVE_COLOR_RANGES.some((range) => (
     SELECTIVE_HSL_KEYS.some((key) => safe.selectiveHsl[range][key] !== 0)
   ));
+  const pointColorActive = safe.pointColor.enabled
+    && SELECTIVE_HSL_KEYS.some((key) => safe.pointColor[key] !== 0);
   const gradingActive = IMAGE_COLOR_GRADING_RANGES.some((range) => (
     safe.colorGrading[range].saturation !== 0 || safe.colorGrading[range].luminance !== 0
   ));
@@ -631,6 +785,9 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
     const beforeRed = pixels[offset];
     const beforeGreen = pixels[offset + 1];
     const beforeBlue = pixels[offset + 2];
+    const pointColorWeight = pointColorActive
+      ? pointColorSelectionWeight(beforeRed / 255, beforeGreen / 255, beforeBlue / 255, safe.pointColor)
+      : 0;
     let red = srgbToLinear(beforeRed) * redGain;
     let green = srgbToLinear(beforeGreen) * greenGain;
     let blue = srgbToLinear(beforeBlue) * blueGain;
@@ -661,6 +818,18 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
       outputRed = Math.round(clamp(selective.red * 255, 0, 255));
       outputGreen = Math.round(clamp(selective.green * 255, 0, 255));
       outputBlue = Math.round(clamp(selective.blue * 255, 0, 255));
+    }
+    if (pointColorActive) {
+      const pointColor = applyPointColorHsl(
+        outputRed / 255,
+        outputGreen / 255,
+        outputBlue / 255,
+        safe.pointColor,
+        pointColorWeight,
+      );
+      outputRed = Math.round(clamp(pointColor.red * 255, 0, 255));
+      outputGreen = Math.round(clamp(pointColor.green * 255, 0, 255));
+      outputBlue = Math.round(clamp(pointColor.blue * 255, 0, 255));
     }
     if (preparedColorGrading) {
       const graded = applyColorGrading(

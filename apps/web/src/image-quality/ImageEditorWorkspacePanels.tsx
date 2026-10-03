@@ -47,6 +47,7 @@ import {
   type ImageColorRecipe,
   type ImageColorStatistics,
   type ImageDuotoneRecipe,
+  type ImagePointColorSample,
   type ImageSelectiveColorRange,
   type ImageSelectiveHslAdjustment,
   type ImageWhiteBalanceSuggestion,
@@ -386,14 +387,21 @@ interface ColorToolPanelProps {
   whiteBalanceSuggestionUsed: boolean;
   whiteBalancePicking: boolean;
   whiteBalanceAnalysing: boolean;
+  pointColorSample: ImagePointColorSample | null;
+  pointColorBaseLabel: string | null;
+  pointColorPicking: boolean;
+  pointColorAnalysing: boolean;
   busy: boolean;
   canSampleWhiteBalance: boolean;
+  canSamplePointColor: boolean;
   canApply: boolean;
   canDownload: boolean;
   onRecipe: (recipe: ImageColorRecipe) => void;
   onToggleWhiteBalancePicker: () => void;
   onUseWhiteBalanceSuggestion: () => void;
   onDismissWhiteBalanceSuggestion: () => void;
+  onTogglePointColorPicker: () => void;
+  onDismissPointColor: () => void;
   onApply: () => void;
   onReset: () => void;
   onDownload: () => void;
@@ -576,6 +584,93 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         },
       })}><RotateCcw aria-hidden="true" />Reset {selectiveColorLabels[selectedRange]}</Button>
       <p>Adjusts the selected hue family with smooth transitions into neighbouring ranges. Hue rotates by at most 30 degrees. Near-neutral colours, transparency and alpha are protected.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-point-color">
+      <legend>Point colour</legend>
+      <Button
+        size="compact"
+        disabled={props.busy || !props.canSamplePointColor}
+        onClick={props.onTogglePointColorPicker}
+      ><Pipette aria-hidden="true" />{props.pointColorPicking ? "Cancel colour sampling" : "Pick colour from image"}</Button>
+      <p>Sample one visible coloured area from the exact pre-colour base. Its hue becomes a source-bound target; no pixels change until you adjust the controls and apply colour.</p>
+      {props.pointColorPicking && <p role="status">Select a coloured point in the Result viewer. Keyboard users can zoom and pan, then press Enter or Space to sample the viewer centre.</p>}
+      {props.pointColorAnalysing && <p role="status">Measuring the selected colour patch.</p>}
+      {props.pointColorSample && <div className="quality-auto-tone-result" data-testid="point-color-sample">
+        <div className="quality-point-color-heading">
+          <span
+            className="quality-point-color-swatch"
+            aria-hidden="true"
+            style={{ backgroundColor: `rgb(${props.pointColorSample.red} ${props.pointColorSample.green} ${props.pointColorSample.blue})` }}
+          />
+          <div><strong role="status">Sampled colour ready</strong><p>Sampled from {props.pointColorBaseLabel ?? "the verified pre-colour image"}.</p></div>
+        </div>
+        <dl>
+          <div><dt>Source point</dt><dd>{props.pointColorSample.sourceX}, {props.pointColorSample.sourceY}</dd></div>
+          <div><dt>Measured RGB</dt><dd>{props.pointColorSample.red}, {props.pointColorSample.green}, {props.pointColorSample.blue}</dd></div>
+          <div><dt>Target hue</dt><dd>{props.pointColorSample.hue} degrees</dd></div>
+          <div><dt>Measured S/L</dt><dd>{props.pointColorSample.saturation}% / {props.pointColorSample.lightness}%</dd></div>
+        </dl>
+      </div>}
+      <div className="quality-adjustment-controls">
+        <label className="quality-adjustment-control">
+          <span><strong>Target tolerance</strong><output>{props.recipe.pointColor.tolerance} degrees</output></span>
+          <input
+            aria-label="Point-colour target tolerance"
+            type="range"
+            min="5"
+            max="60"
+            step="1"
+            value={props.recipe.pointColor.tolerance}
+            disabled={props.busy || !props.recipe.pointColor.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              pointColor: { ...props.recipe.pointColor, tolerance: Number(event.target.value) },
+            })}
+          />
+        </label>
+        <label className="quality-adjustment-control">
+          <span><strong>Edge feather</strong><output>{props.recipe.pointColor.feather} degrees</output></span>
+          <input
+            aria-label="Point-colour edge feather"
+            type="range"
+            min="1"
+            max="60"
+            step="1"
+            value={props.recipe.pointColor.feather}
+            disabled={props.busy || !props.recipe.pointColor.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              pointColor: { ...props.recipe.pointColor, feather: Number(event.target.value) },
+            })}
+          />
+        </label>
+        {selectiveHslControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
+          <span><strong>Point {control.label.toLowerCase()}</strong><output>{props.recipe.pointColor[control.key] > 0 ? "+" : ""}{props.recipe.pointColor[control.key]}</output></span>
+          <input
+            aria-label={`Point-colour ${control.label.toLowerCase()}`}
+            type="range"
+            min="-100"
+            max="100"
+            step="1"
+            value={props.recipe.pointColor[control.key]}
+            disabled={props.busy || !props.recipe.pointColor.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              pointColor: { ...props.recipe.pointColor, [control.key]: Number(event.target.value) },
+            })}
+          />
+        </label>)}
+      </div>
+      <div className="quality-control-group">
+        <Button size="compact" disabled={props.busy || !props.recipe.pointColor.enabled
+          || (props.recipe.pointColor.hue === 0 && props.recipe.pointColor.saturation === 0 && props.recipe.pointColor.lightness === 0
+            && props.recipe.pointColor.tolerance === 18 && props.recipe.pointColor.feather === 18)} onClick={() => props.onRecipe({
+          ...props.recipe,
+          pointColor: { ...props.recipe.pointColor, tolerance: 18, feather: 18, hue: 0, saturation: 0, lightness: 0 },
+        })}><RotateCcw aria-hidden="true" />Reset point adjustments</Button>
+        <Button size="compact" disabled={props.busy || !props.recipe.pointColor.enabled} onClick={props.onDismissPointColor}><X aria-hidden="true" />Clear sampled colour</Button>
+      </div>
+      <p>Pixels inside the tolerance receive the full adjustment; feathering creates a smooth circular hue transition. Near-neutral colours, transparency and alpha remain protected.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-color-grading">
       <legend>Tonal colour grading</legend>

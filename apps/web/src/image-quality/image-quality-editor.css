@@ -427,6 +427,16 @@
   width: 2px;
 }
 
+.quality-point-color-marker {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(12 18 28 / 78%);
+}
+
+.quality-point-color-marker::before,
+.quality-point-color-marker::after {
+  background: var(--color-brand);
+}
+
 .quality-slider-control {
   position: absolute;
   z-index: 5;
@@ -878,6 +888,35 @@
 .quality-selective-hsl > .ds-button {
   justify-content: center;
   width: 100%;
+}
+
+.quality-point-color > .ds-button {
+  justify-content: center;
+  width: 100%;
+}
+
+.quality-point-color-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quality-point-color-heading p {
+  margin: 2px 0 0;
+}
+
+.quality-point-color-swatch {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--color-border-strong);
+}
+
+.quality-point-color .quality-control-group {
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
 .quality-grading-ranges {

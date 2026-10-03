@@ -7,6 +7,7 @@ import {
   sanitizeColorRecipe,
   type ImageColorRecipe,
   type ImageColorStatistics,
+  type ImagePointColorSample,
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor.ts";
 
@@ -68,6 +69,7 @@ export interface PngColorMetadata {
   baseStrength: number | null;
   baseScale: number;
   whiteBalanceSample: ImageWhiteBalanceSuggestion | null;
+  pointColorSample: ImagePointColorSample | null;
   recipe: ImageColorRecipe;
   statistics: ImageColorStatistics;
   outputWidth: number;
@@ -232,7 +234,7 @@ function toneProvenance(metadata: PngToneMetadata) {
 
 function colorProvenance(metadata: PngColorMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.color.provenance.v6",
+    schema: "ipw.image-edit.color.provenance.v7",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
@@ -240,7 +242,8 @@ function colorProvenance(metadata: PngColorMetadata) {
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
     white_balance_sample: metadata.whiteBalanceSample,
-    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl", "tonal_color_grading", "black_and_white_channel_mixer", "duotone_mapping"],
+    point_color_sample: metadata.pointColorSample,
+    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl", "sampled_point_color", "tonal_color_grading", "black_and_white_channel_mixer", "duotone_mapping"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,
@@ -473,10 +476,26 @@ export function tagColorPng(bytes: Uint8Array, metadata: PngColorMetadata): Uint
     && typeof sample.atLimit === "boolean"
     && sample.temperature === safeRecipe.temperature && sample.tint === safeRecipe.tint
   );
+  const pointSample = metadata.pointColorSample;
+  const pointAdjustmentActive = safeRecipe.pointColor.enabled
+    && (safeRecipe.pointColor.hue !== 0 || safeRecipe.pointColor.saturation !== 0 || safeRecipe.pointColor.lightness !== 0);
+  const pointSampleIsSafe = pointSample === null ? !pointAdjustmentActive : (
+    safeRecipe.pointColor.enabled
+    && Number.isSafeInteger(pointSample.sourceX) && pointSample.sourceX >= 0 && pointSample.sourceX < metadata.outputWidth
+    && Number.isSafeInteger(pointSample.sourceY) && pointSample.sourceY >= 0 && pointSample.sourceY < metadata.outputHeight
+    && Number.isSafeInteger(pointSample.radius) && pointSample.radius >= 1 && pointSample.radius <= 8
+    && Number.isSafeInteger(pointSample.visiblePixels) && pointSample.visiblePixels >= 1
+    && pointSample.visiblePixels <= (pointSample.radius * 2 + 1) ** 2
+    && [pointSample.red, pointSample.green, pointSample.blue].every((value) => Number.isSafeInteger(value) && value >= 0 && value <= 255)
+    && Number.isSafeInteger(pointSample.hue) && pointSample.hue >= 0 && pointSample.hue <= 359
+    && Number.isSafeInteger(pointSample.saturation) && pointSample.saturation >= 0 && pointSample.saturation <= 100
+    && Number.isSafeInteger(pointSample.lightness) && pointSample.lightness >= 0 && pointSample.lightness <= 100
+    && pointSample.hue === safeRecipe.pointColor.targetHue
+  );
   if (!hash.test(metadata.sourceSha256) || !hash.test(metadata.baseOutputSha256)
     || !baseKinds.includes(metadata.baseKind) || !metadata.baseRoute.trim()
     || (metadata.baseStrength !== null && (!Number.isFinite(metadata.baseStrength) || metadata.baseStrength < 0 || metadata.baseStrength > 100))
-    || !recipeIsSafe || !sampleIsSafe || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
+    || !recipeIsSafe || !sampleIsSafe || !pointSampleIsSafe || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
     || !statistics.every(Number.isSafeInteger) || statistics.some((value) => value < 0 || value > pixelCount)
     || metadata.statistics.changedPixels > metadata.statistics.processedPixels
     || metadata.statistics.gamutClippedPixels > metadata.statistics.processedPixels) {

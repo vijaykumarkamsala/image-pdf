@@ -7,7 +7,9 @@ import {
   createNeutralColorRecipe,
   isSanitizedColorRecipe,
   isNeutralColor,
+  pointColorSampleRadius,
   recommendWhiteBalanceFromRgba,
+  samplePointColorFromRgba,
   sameColorRecipe,
   sanitizeColorRecipe,
   whiteBalanceSampleRadius,
@@ -42,6 +44,15 @@ test("colour recipes are bounded, normalized and comparable", () => {
       ...neutral.selectiveHsl,
       red: { hue: 101, saturation: -101, lightness: 23.6 },
     },
+    pointColor: {
+      enabled: true,
+      targetHue: 999,
+      tolerance: -1,
+      feather: 999,
+      hue: 101,
+      saturation: -101,
+      lightness: 23.6,
+    },
     colorGrading: {
       ...neutral.colorGrading,
       shadows: { hue: 999, saturation: 101, luminance: -101 },
@@ -66,6 +77,15 @@ test("colour recipes are bounded, normalized and comparable", () => {
       ...neutral.selectiveHsl,
       red: { hue: 100, saturation: -100, lightness: 24 },
     },
+    pointColor: {
+      enabled: true,
+      targetHue: 359,
+      tolerance: 5,
+      feather: 60,
+      hue: 100,
+      saturation: -100,
+      lightness: 24,
+    },
     colorGrading: {
       ...neutral.colorGrading,
       shadows: { hue: 359, saturation: 100, luminance: -100 },
@@ -89,6 +109,10 @@ test("colour recipes are bounded, normalized and comparable", () => {
   }), false);
   assert.equal(sameColorRecipe(safe, {
     ...safe,
+    pointColor: { ...safe.pointColor, targetHue: 358 },
+  }), false);
+  assert.equal(sameColorRecipe(safe, {
+    ...safe,
     colorGrading: { ...safe.colorGrading, shadows: { ...safe.colorGrading.shadows, hue: 358 } },
   }), false);
   assert.equal(sameColorRecipe(safe, {
@@ -102,6 +126,10 @@ test("colour recipes are bounded, normalized and comparable", () => {
   assert.equal(isSanitizedColorRecipe({
     ...safe,
     duotone: { ...safe.duotone, highlightSaturation: 101 },
+  }), false);
+  assert.equal(isSanitizedColorRecipe({
+    ...safe,
+    pointColor: { ...safe.pointColor, tolerance: 61 },
   }), false);
   assert.equal(assertBrowserColorBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserColorBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
@@ -177,6 +205,73 @@ test("selective HSL is deterministic, progressive and protects unrelated, neutra
   applyColorToRgba(red, desaturateRed);
   assert.equal(red[0], red[1]);
   assert.equal(red[1], red[2]);
+});
+
+test("sampled point colour targets a bounded hue interval and protects unrelated, neutral and transparent pixels", () => {
+  assert.equal(pointColorSampleRadius(48, 40), 1);
+  const bluePatch = new Uint8ClampedArray([
+    16, 112, 228, 255, 16, 112, 228, 255, 16, 112, 228, 255,
+    16, 112, 228, 255, 16, 112, 228, 255, 16, 112, 228, 255,
+    16, 112, 228, 255, 16, 112, 228, 255, 90, 30, 20, 0,
+  ]);
+  const sample = samplePointColorFromRgba(bluePatch, 24, 20, 1);
+  assert.deepEqual(sample, samplePointColorFromRgba(bluePatch, 24, 20, 1));
+  assert.deepEqual(
+    (({ sourceX, sourceY, radius, visiblePixels, red, green, blue }) => (
+      { sourceX, sourceY, radius, visiblePixels, red, green, blue }
+    ))(sample),
+    { sourceX: 24, sourceY: 20, radius: 1, visiblePixels: 8, red: 16, green: 112, blue: 228 },
+  );
+  assert.ok(sample.hue >= 210 && sample.hue <= 215);
+  assert.ok(sample.saturation >= 80);
+
+  const original = new Uint8ClampedArray([
+    20, 110, 225, 255,
+    30, 145, 210, 128,
+    220, 45, 40, 255,
+    128, 128, 128, 255,
+    22, 105, 220, 0,
+  ]);
+  const recipe = createNeutralColorRecipe();
+  recipe.pointColor = {
+    enabled: true,
+    targetHue: sample.hue,
+    tolerance: 15,
+    feather: 15,
+    hue: 60,
+    saturation: 45,
+    lightness: -20,
+  };
+  const adjusted = original.slice();
+  const repeated = original.slice();
+  const statistics = applyColorToRgba(adjusted, recipe);
+  assert.deepEqual(applyColorToRgba(repeated, recipe), statistics);
+  assert.deepEqual(repeated, adjusted);
+  assert.notDeepEqual(Array.from(adjusted.subarray(0, 3)), Array.from(original.subarray(0, 3)));
+  assert.notDeepEqual(Array.from(adjusted.subarray(4, 7)), Array.from(original.subarray(4, 7)));
+  assert.deepEqual(Array.from(adjusted.subarray(8, 12)), Array.from(original.subarray(8, 12)), "red must remain outside the sampled blue interval");
+  assert.deepEqual(Array.from(adjusted.subarray(12, 16)), Array.from(original.subarray(12, 16)), "neutral pixels have no trustworthy hue");
+  assert.deepEqual(Array.from(adjusted.subarray(16, 20)), Array.from(original.subarray(16, 20)), "transparent hidden RGB is immutable");
+  assert.equal(adjusted[7], 128);
+
+  const globalOnly = original.slice();
+  const sourceBound = original.slice();
+  applyColorToRgba(globalOnly, { ...createNeutralColorRecipe(), temperature: 100 });
+  applyColorToRgba(sourceBound, { ...recipe, temperature: 100 });
+  assert.notDeepEqual(Array.from(sourceBound.subarray(0, 3)), Array.from(globalOnly.subarray(0, 3)), "the sampled source hue stays targeted after an earlier global shift");
+  assert.deepEqual(Array.from(sourceBound.subarray(8, 12)), Array.from(globalOnly.subarray(8, 12)), "the unrelated source hue stays outside the target after an earlier global shift");
+
+  const selectedButNeutral = createNeutralColorRecipe();
+  selectedButNeutral.pointColor = { ...selectedButNeutral.pointColor, enabled: true, targetHue: sample.hue };
+  assert.equal(isNeutralColor(selectedButNeutral), true, "sampling alone does not create a pixel operation");
+  assert.throws(
+    () => samplePointColorFromRgba(new Uint8ClampedArray([128, 128, 128, 255]), 0, 0, 1),
+    /too neutral/,
+  );
+  assert.throws(
+    () => samplePointColorFromRgba(new Uint8ClampedArray([20, 110, 225, 0]), 0, 0, 1),
+    /enough visible pixels/,
+  );
 });
 
 test("temperature, tint, saturation and vibrance follow their disclosed axes", () => {
@@ -449,6 +544,15 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     vibrance: 30,
   };
   recipe.selectiveHsl.orange = { hue: 18, saturation: 30, lightness: -12 };
+  recipe.pointColor = {
+    enabled: true,
+    targetHue: 212,
+    tolerance: 16,
+    feather: 20,
+    hue: 25,
+    saturation: 30,
+    lightness: -8,
+  };
   recipe.colorGrading.shadows = { hue: 220, saturation: 24, luminance: 8 };
   recipe.blackAndWhite = { enabled: true, red: 45, green: 40, blue: 15 };
   recipe.duotone = {
@@ -458,6 +562,18 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     highlightHue: 38,
     highlightSaturation: 24,
     balance: 12,
+  };
+  const pointColorSample = {
+    sourceX: 30,
+    sourceY: 24,
+    radius: 2,
+    visiblePixels: 25,
+    red: 16,
+    green: 112,
+    blue: 228,
+    hue: 212,
+    saturation: 88,
+    lightness: 48,
   };
   const tagged = tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,
@@ -478,6 +594,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
       tint: -10,
       atLimit: false,
     },
+    pointColorSample,
     recipe,
     statistics: { processedPixels: 3072, changedPixels: 3000, gamutClippedPixels: 12 },
     outputWidth: 64,
@@ -485,12 +602,14 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v6/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v7/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
+  assert.match(text, /"point_color_sample":\{"sourceX":30,"sourceY":24/);
   assert.match(text, /"base_kind":"tone"/);
   assert.match(text, /"temperature":20/);
   assert.match(text, /"orange":\{"hue":18,"saturation":30,"lightness":-12\}/);
+  assert.match(text, /"pointColor":\{"enabled":true,"targetHue":212,"tolerance":16,"feather":20,"hue":25,"saturation":30,"lightness":-8\}/);
   assert.match(text, /"shadows":\{"hue":220,"saturation":24,"luminance":8\}/);
   assert.match(text, /"blackAndWhite":\{"enabled":true,"red":45,"green":40,"blue":15\}/);
   assert.match(text, /"duotone":\{"enabled":true,"shadowHue":225,"shadowSaturation":42,"highlightHue":38,"highlightSaturation":24,"balance":12\}/);
@@ -505,6 +624,22 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseStrength: null,
     baseScale: 1,
     whiteBalanceSample: null,
+    pointColorSample: null,
+    recipe,
+    statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    pointColorSample,
     recipe: {
       ...recipe,
       selectiveHsl: {
@@ -525,6 +660,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseStrength: null,
     baseScale: 1,
     whiteBalanceSample: null,
+    pointColorSample,
     recipe: {
       ...recipe,
       duotone: { ...recipe.duotone, shadowHue: 360 },
@@ -542,6 +678,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseStrength: null,
     baseScale: 1,
     whiteBalanceSample: null,
+    pointColorSample,
     recipe: {
       ...recipe,
       blackAndWhite: { enabled: true, red: 0, green: 0, blue: 0 },
@@ -559,6 +696,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseStrength: null,
     baseScale: 1,
     whiteBalanceSample: null,
+    pointColorSample,
     recipe: {
       ...recipe,
       blackAndWhite: { enabled: true, red: 101, green: 40, blue: 20 },
@@ -576,6 +714,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseStrength: null,
     baseScale: 1,
     whiteBalanceSample: null,
+    pointColorSample,
     recipe: {
       ...recipe,
       colorGrading: {
@@ -596,6 +735,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseStrength: null,
     baseScale: 1,
     whiteBalanceSample: null,
+    pointColorSample,
     recipe,
     statistics: { processedPixels: 3072, changedPixels: 3073, gamutClippedPixels: 0 },
     outputWidth: 64,

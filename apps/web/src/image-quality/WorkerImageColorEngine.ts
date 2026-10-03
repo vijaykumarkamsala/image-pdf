@@ -1,6 +1,7 @@
 import type {
   ImageColorRecipe,
   ImageColorStatistics,
+  ImagePointColorSample,
   ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import type { PngColorMetadata } from "./pngMetadata";
@@ -18,6 +19,7 @@ export interface ImageColorResult {
 type WorkerSuccess =
   | { id: number; ok: true; type: "loaded"; width: number; height: number }
   | ({ id: number; ok: true; type: "white-balance-sampled" } & ImageWhiteBalanceSuggestion)
+  | ({ id: number; ok: true; type: "point-color-sampled" } & ImagePointColorSample)
   | ({ id: number; ok: true; type: "rendered" } & ImageColorResult);
 type WorkerResponse = WorkerSuccess | { id: number; ok: false; message: string };
 
@@ -81,6 +83,25 @@ export class WorkerImageColorEngine {
     };
   }
 
+  async samplePointColor(x: number, y: number): Promise<ImagePointColorSample> {
+    const result = await this.request({ type: "sample-point-color", x, y });
+    if (result.type !== "point-color-sampled") {
+      throw new Error("The colour-adjustment renderer returned an unexpected point-colour response.");
+    }
+    return {
+      sourceX: result.sourceX,
+      sourceY: result.sourceY,
+      radius: result.radius,
+      visiblePixels: result.visiblePixels,
+      red: result.red,
+      green: result.green,
+      blue: result.blue,
+      hue: result.hue,
+      saturation: result.saturation,
+      lightness: result.lightness,
+    };
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
@@ -91,6 +112,7 @@ export class WorkerImageColorEngine {
   private request(
     message: { type: "load"; source: Blob }
       | { type: "sample-white-balance"; x: number; y: number }
+      | { type: "sample-point-color"; x: number; y: number }
       | { type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics"> },
   ): Promise<WorkerSuccess> {
     if (this.disposed) return Promise.reject(new Error("The colour-adjustment renderer is unavailable."));
