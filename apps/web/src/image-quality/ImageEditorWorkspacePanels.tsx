@@ -4,6 +4,7 @@ import {
   FlipHorizontal2,
   FlipVertical2,
   Palette,
+  Pipette,
   RotateCcw,
   RotateCw,
   SlidersHorizontal,
@@ -40,6 +41,7 @@ import {
   MAX_BROWSER_COLOR_PIXELS,
   type ImageColorRecipe,
   type ImageColorStatistics,
+  type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
@@ -371,10 +373,19 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
 interface ColorToolPanelProps {
   recipe: ImageColorRecipe;
   statistics: ImageColorStatistics | null;
+  whiteBalanceSuggestion: ImageWhiteBalanceSuggestion | null;
+  whiteBalanceBaseLabel: string | null;
+  whiteBalanceSuggestionUsed: boolean;
+  whiteBalancePicking: boolean;
+  whiteBalanceAnalysing: boolean;
   busy: boolean;
+  canSampleWhiteBalance: boolean;
   canApply: boolean;
   canDownload: boolean;
   onRecipe: (recipe: ImageColorRecipe) => void;
+  onToggleWhiteBalancePicker: () => void;
+  onUseWhiteBalanceSuggestion: () => void;
+  onDismissWhiteBalanceSuggestion: () => void;
   onApply: () => void;
   onReset: () => void;
   onDownload: () => void;
@@ -392,8 +403,38 @@ const colorControls: Array<{
 
 export function ColorToolPanel(props: ColorToolPanelProps) {
   const neutral = isNeutralColor(props.recipe);
+  const suggestionLoaded = props.whiteBalanceSuggestionUsed;
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global colour correction after light and tone.</p></div></div>
+    <fieldset className="quality-auto-tone quality-white-balance">
+      <legend>Neutral-point white balance</legend>
+      <Button
+        size="compact"
+        disabled={props.busy || !props.canSampleWhiteBalance}
+        onClick={props.onToggleWhiteBalancePicker}
+      ><Pipette aria-hidden="true" />{props.whiteBalancePicking ? "Cancel neutral sampling" : "Pick neutral point"}</Button>
+      <p>Choose a surface that should be neutral grey or white. The worker measures a small visible patch from the exact pre-colour base and proposes Temperature and Tint; nothing changes until you use and apply it.</p>
+      {props.whiteBalancePicking && <p role="status">Select a point in the Result viewer. Keyboard users can zoom and pan, then press Enter or Space to sample the viewer centre.</p>}
+      {props.whiteBalanceAnalysing && <p role="status">Measuring the selected neutral patch.</p>}
+      {props.whiteBalanceSuggestion && <div className="quality-auto-tone-result" data-testid="white-balance-suggestion">
+        <strong role="status">{props.whiteBalanceSuggestion.temperature === 0 && props.whiteBalanceSuggestion.tint === 0
+          ? "The sampled patch is already neutral"
+          : "Review white-balance suggestion"}</strong>
+        <p>Sampled from {props.whiteBalanceBaseLabel ?? "the verified pre-colour image"}.</p>
+        <dl>
+          <div><dt>Source point</dt><dd>{props.whiteBalanceSuggestion.sourceX}, {props.whiteBalanceSuggestion.sourceY}</dd></div>
+          <div><dt>Measured RGB</dt><dd>{props.whiteBalanceSuggestion.red}, {props.whiteBalanceSuggestion.green}, {props.whiteBalanceSuggestion.blue}</dd></div>
+          <div><dt>Proposed Temperature</dt><dd>{props.whiteBalanceSuggestion.temperature > 0 ? "+" : ""}{props.whiteBalanceSuggestion.temperature}</dd></div>
+          <div><dt>Proposed Tint</dt><dd>{props.whiteBalanceSuggestion.tint > 0 ? "+" : ""}{props.whiteBalanceSuggestion.tint}</dd></div>
+        </dl>
+        {props.whiteBalanceSuggestion.atLimit && <p>The measured cast reaches a safe correction limit. Confirm that the sampled surface is truly neutral before applying.</p>}
+        <div className="quality-control-group">
+          <Button size="compact" disabled={props.busy || suggestionLoaded} onClick={props.onUseWhiteBalanceSuggestion}>Use suggestion</Button>
+          <Button size="compact" disabled={props.busy} onClick={props.onDismissWhiteBalanceSuggestion}>Dismiss</Button>
+        </div>
+        {suggestionLoaded && <p>Suggested values are loaded into Temperature and Tint. Review them, then choose Apply colour.</p>}
+      </div>}
+    </fieldset>
     <div className="quality-adjustment-controls">
       {colorControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{props.recipe[control.key] > 0 ? "+" : ""}{props.recipe[control.key]}</output></span>
@@ -414,7 +455,7 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
       <div><dt>Gamut-clipped pixels</dt><dd>{props.statistics.gamutClippedPixels.toLocaleString()}</dd></div>
     </dl>}
     <div className="quality-actions">
-      <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Palette aria-hidden="true" />{props.busy ? "Applying…" : "Apply colour"}</Button>
+      <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Palette aria-hidden="true" />{props.busy && !props.whiteBalanceAnalysing ? "Applying…" : "Apply colour"}</Button>
       <Button disabled={neutral && !props.statistics} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset colour</Button>
       <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download colour-adjusted image</Button>
     </div>

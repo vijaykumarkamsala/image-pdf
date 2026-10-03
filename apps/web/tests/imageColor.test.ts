@@ -6,8 +6,10 @@ import {
   assertBrowserColorBudget,
   createNeutralColorRecipe,
   isNeutralColor,
+  recommendWhiteBalanceFromRgba,
   sameColorRecipe,
   sanitizeColorRecipe,
+  whiteBalanceSampleRadius,
 } from "../src/image-quality/imageColor.ts";
 import { inspectPngDimensions, tagColorPng } from "../src/image-quality/pngMetadata.ts";
 
@@ -100,6 +102,56 @@ test("temperature, tint, saturation and vibrance follow their disclosed axes", (
   assert.ok(mutedGain > vividGain, "vibrance must favor less-saturated pixels");
 });
 
+test("neutral-point white balance is deterministic, inverse-modelled and rejects unusable patches", () => {
+  assert.equal(whiteBalanceSampleRadius(48, 40), 1);
+  assert.equal(whiteBalanceSampleRadius(4096, 2048), 4);
+  assert.equal(whiteBalanceSampleRadius(20_000, 20_000), 8);
+  assert.throws(() => whiteBalanceSampleRadius(0, 40), /positive integer image dimensions/);
+
+  const warmPatch = new Uint8ClampedArray([
+    180, 170, 160, 255, 180, 170, 160, 255, 180, 170, 160, 255,
+    180, 170, 160, 255, 180, 170, 160, 255, 180, 170, 160, 255,
+    180, 170, 160, 255, 180, 170, 160, 255, 4, 250, 22, 0,
+  ]);
+  const suggestion = recommendWhiteBalanceFromRgba(warmPatch, 24, 20, 1);
+  assert.deepEqual(suggestion, {
+    sourceX: 24,
+    sourceY: 20,
+    radius: 1,
+    visiblePixels: 8,
+    red: 180,
+    green: 170,
+    blue: 160,
+    temperature: -54,
+    tint: 0,
+    atLimit: false,
+  });
+  assert.deepEqual(suggestion, recommendWhiteBalanceFromRgba(warmPatch, 24, 20, 1));
+  const corrected = new Uint8ClampedArray([180, 170, 160, 255]);
+  applyColorToRgba(corrected, { ...createNeutralColorRecipe(), temperature: suggestion.temperature, tint: suggestion.tint });
+  assert.ok(Math.max(...corrected.subarray(0, 3)) - Math.min(...corrected.subarray(0, 3)) < 20);
+
+  const greenPatch = new Uint8ClampedArray([160, 175, 160, 255, 160, 175, 160, 255]);
+  assert.ok(recommendWhiteBalanceFromRgba(greenPatch, 2, 3, 1).tint > 0);
+  const neutralPatch = new Uint8ClampedArray([128, 128, 128, 255, 128, 128, 128, 255]);
+  assert.deepEqual(
+    (({ temperature, tint }) => ({ temperature, tint }))(recommendWhiteBalanceFromRgba(neutralPatch, 1, 1, 1)),
+    { temperature: 0, tint: 0 },
+  );
+  assert.throws(
+    () => recommendWhiteBalanceFromRgba(new Uint8ClampedArray([0, 0, 0, 255]), 0, 0, 1),
+    /too dark/,
+  );
+  assert.throws(
+    () => recommendWhiteBalanceFromRgba(new Uint8ClampedArray([255, 255, 255, 255]), 0, 0, 1),
+    /clipped near white/,
+  );
+  assert.throws(
+    () => recommendWhiteBalanceFromRgba(new Uint8ClampedArray([20, 30, 40, 0]), 0, 0, 1),
+    /enough visible pixels/,
+  );
+});
+
 test("colour PNG tagging preserves exact dimensions and binds the verified tone base", () => {
   const sourceHash = "a".repeat(64);
   const baseHash = "b".repeat(64);
@@ -111,6 +163,18 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseRoute: "tone:geometry-enhanced",
     baseStrength: 50,
     baseScale: 2,
+    whiteBalanceSample: {
+      sourceX: 20,
+      sourceY: 18,
+      radius: 2,
+      visiblePixels: 25,
+      red: 170,
+      green: 180,
+      blue: 175,
+      temperature: 20,
+      tint: -10,
+      atLimit: false,
+    },
     recipe,
     statistics: { processedPixels: 3072, changedPixels: 3000, gamutClippedPixels: 12 },
     outputWidth: 64,
@@ -118,8 +182,9 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v1/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v2/);
   assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance"\]/);
+  assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"base_kind":"tone"/);
   assert.match(text, /"temperature":20/);
   assert.match(text, new RegExp(sourceHash));
@@ -132,6 +197,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     baseRoute: "immutable-original",
     baseStrength: null,
     baseScale: 1,
+    whiteBalanceSample: null,
     recipe,
     statistics: { processedPixels: 3072, changedPixels: 3073, gamutClippedPixels: 0 },
     outputWidth: 64,

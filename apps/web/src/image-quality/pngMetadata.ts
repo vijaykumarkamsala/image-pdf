@@ -2,7 +2,12 @@ import { sha256Bytes } from "./sha256.ts";
 import type { FaceRecreateEvidence } from "./faceDetailRestoration.ts";
 import { sanitizePerspectiveQuad, type ImagePerspectiveQuad } from "./imageGeometry.ts";
 import { sanitizeToneRecipe, type ImageToneRecipe, type ImageToneStatistics } from "./imageTone.ts";
-import { sanitizeColorRecipe, type ImageColorRecipe, type ImageColorStatistics } from "./imageColor.ts";
+import {
+  sanitizeColorRecipe,
+  type ImageColorRecipe,
+  type ImageColorStatistics,
+  type ImageWhiteBalanceSuggestion,
+} from "./imageColor.ts";
 
 export interface PngOutputMetadata {
   sourceSha256: string;
@@ -61,6 +66,7 @@ export interface PngColorMetadata {
   baseRoute: string;
   baseStrength: number | null;
   baseScale: number;
+  whiteBalanceSample: ImageWhiteBalanceSuggestion | null;
   recipe: ImageColorRecipe;
   statistics: ImageColorStatistics;
   outputWidth: number;
@@ -225,13 +231,14 @@ function toneProvenance(metadata: PngToneMetadata) {
 
 function colorProvenance(metadata: PngColorMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.color.provenance.v1",
+    schema: "ipw.image-edit.color.provenance.v2",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
+    white_balance_sample: metadata.whiteBalanceSample,
     operation_order: ["temperature", "tint", "saturation", "vibrance"],
     recipe: metadata.recipe,
     statistics: {
@@ -453,10 +460,23 @@ export function tagColorPng(bytes: Uint8Array, metadata: PngColorMetadata): Uint
     metadata.statistics.gamutClippedPixels,
   ];
   const baseKinds: PngColorMetadata["baseKind"][] = ["original", "enhanced", "geometry-original", "geometry-enhanced", "tone"];
+  const sample = metadata.whiteBalanceSample;
+  const sampleIsSafe = sample === null || (
+    Number.isSafeInteger(sample.sourceX) && sample.sourceX >= 0 && sample.sourceX < metadata.outputWidth
+    && Number.isSafeInteger(sample.sourceY) && sample.sourceY >= 0 && sample.sourceY < metadata.outputHeight
+    && Number.isSafeInteger(sample.radius) && sample.radius >= 1 && sample.radius <= 8
+    && Number.isSafeInteger(sample.visiblePixels) && sample.visiblePixels >= 1
+    && sample.visiblePixels <= (sample.radius * 2 + 1) ** 2
+    && [sample.red, sample.green, sample.blue].every((value) => Number.isSafeInteger(value) && value >= 0 && value <= 255)
+    && Number.isSafeInteger(sample.temperature) && sample.temperature >= -100 && sample.temperature <= 100
+    && Number.isSafeInteger(sample.tint) && sample.tint >= -100 && sample.tint <= 100
+    && typeof sample.atLimit === "boolean"
+    && sample.temperature === safeRecipe.temperature && sample.tint === safeRecipe.tint
+  );
   if (!hash.test(metadata.sourceSha256) || !hash.test(metadata.baseOutputSha256)
     || !baseKinds.includes(metadata.baseKind) || !metadata.baseRoute.trim()
     || (metadata.baseStrength !== null && (!Number.isFinite(metadata.baseStrength) || metadata.baseStrength < 0 || metadata.baseStrength > 100))
-    || !recipeIsSafe || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
+    || !recipeIsSafe || !sampleIsSafe || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
     || !statistics.every(Number.isSafeInteger) || statistics.some((value) => value < 0 || value > pixelCount)
     || metadata.statistics.changedPixels > metadata.statistics.processedPixels
     || metadata.statistics.gamutClippedPixels > metadata.statistics.processedPixels) {

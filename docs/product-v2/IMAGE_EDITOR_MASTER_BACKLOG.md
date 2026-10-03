@@ -127,9 +127,15 @@ verified derivative rather than a previous colour result. Worker processing is
 pixel-budgeted, preserves alpha and exact dimensions, records source/base hashes,
 the ordered recipe and gamut-clipping statistics in PNG provenance, and exposes
 identical bytes to preview and download. Earlier-stage changes invalidate colour
-output and pending colour changes cannot download stale bytes. White-balance
-sampling, HSL/selective colour, colour grading, LUTs, colour matching and
-protected brand/product/skin colour remain future increments.
+output and pending colour changes cannot download stale bytes. Deterministic
+neutral-point white-balance sampling is also implemented against the exact
+verified pre-colour derivative. The customer explicitly selects a known-neutral
+point in the Result viewer, reviews the measured visible-patch RGB and proposed
+Temperature/Tint correction, then separately chooses Use suggestion and Apply
+colour. Transparent samples and unusably dark or clipped patches fail visibly;
+accepted sample coordinates, measurements and bounded correction are recorded
+in v2 colour provenance. HSL/selective colour, colour grading, LUTs, colour
+matching and protected brand/product/skin colour remain future increments.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

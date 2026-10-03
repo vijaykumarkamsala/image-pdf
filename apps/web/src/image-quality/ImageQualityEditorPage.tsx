@@ -62,6 +62,7 @@ import {
   sameColorRecipe,
   sanitizeColorRecipe,
   type ImageColorRecipe,
+  type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import { WorkerImageColorEngine, type ImageColorResult } from "./WorkerImageColorEngine";
 import type { ImageHistogramInput } from "./ImageHistogramPanel";
@@ -117,6 +118,25 @@ interface ColorDerivative extends ImageColorResult {
   baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced" | "tone";
 }
 
+interface WhiteBalanceReview extends ImageWhiteBalanceSuggestion {
+  normalizedX: number;
+  normalizedY: number;
+  baseOutputSha256: string;
+  baseLabel: string;
+}
+
+interface ColorBaseInput {
+  blob: Blob;
+  outputSha256: string;
+  kind: ColorDerivative["baseKind"];
+  route: string;
+  strength: number | null;
+  scale: number;
+  width: number;
+  height: number;
+  label: string;
+}
+
 function useFrameSize() {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
@@ -165,6 +185,11 @@ interface ViewerProps {
   label: string;
   enhanced?: boolean;
   overlay?: { slider: number };
+  whiteBalanceSampler?: {
+    active: boolean;
+    point: { x: number; y: number } | null;
+    onSample: (normalizedX: number, normalizedY: number) => void;
+  };
 }
 
 function ComparisonViewer({
@@ -179,12 +204,28 @@ function ComparisonViewer({
   label,
   enhanced = false,
   overlay,
+  whiteBalanceSampler,
 }: ViewerProps) {
   const { ref, size } = useFrameSize();
   const drag = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null);
   const transform = viewerTransform(size.width, size.height, width, height, zoom, pan);
+  const normalizedPointAt = (clientX: number, clientY: number) => {
+    const bounds = ref.current?.getBoundingClientRect();
+    if (!bounds) return null;
+    const imageLeft = bounds.left + size.width / 2 + pan.x - width * transform.scale / 2;
+    const imageTop = bounds.top + size.height / 2 + pan.y - height * transform.scale / 2;
+    const normalizedX = (clientX - imageLeft) / (width * transform.scale);
+    const normalizedY = (clientY - imageTop) / (height * transform.scale);
+    if (normalizedX < 0 || normalizedX > 1 || normalizedY < 0 || normalizedY > 1) return null;
+    return { x: normalizedX, y: normalizedY };
+  };
   const startPan = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
+    if (whiteBalanceSampler?.active) {
+      const point = normalizedPointAt(event.clientX, event.clientY);
+      if (point) whiteBalanceSampler.onSample(point.x, point.y);
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
   };
@@ -202,6 +243,15 @@ function ComparisonViewer({
     onPan(next.x, next.y);
   };
   const keyboardPan = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (whiteBalanceSampler?.active && (event.key === "Enter" || event.key === " ")) {
+      const bounds = ref.current?.getBoundingClientRect();
+      if (!bounds) return;
+      const point = normalizedPointAt(bounds.left + size.width / 2, bounds.top + size.height / 2);
+      if (!point) return;
+      event.preventDefault();
+      whiteBalanceSampler.onSample(point.x, point.y);
+      return;
+    }
     const step = event.shiftKey ? 80 : 24;
     const delta = event.key === "ArrowLeft" ? { x: step, y: 0 }
       : event.key === "ArrowRight" ? { x: -step, y: 0 }
@@ -215,12 +265,12 @@ function ComparisonViewer({
 
   return <div
     ref={ref}
-    className={`quality-viewer${overlay ? " quality-viewer-slider" : ""}`}
+    className={`quality-viewer${overlay ? " quality-viewer-slider" : ""}${whiteBalanceSampler?.active ? " quality-viewer-sampling" : ""}`}
     data-testid={overlay ? "comparison-slider-view" : `comparison-${enhanced ? "enhanced" : "original"}`}
     data-scale={transform.scale.toFixed(6)}
     tabIndex={0}
     role="group"
-    aria-label={`${label} image viewer. Use arrow keys to pan when zoomed.`}
+    aria-label={`${label} image viewer. Use arrow keys to pan when zoomed.${whiteBalanceSampler?.active ? " Select a neutral point, or press Enter to sample the viewer centre." : ""}`}
     onPointerDown={startPan}
     onPointerMove={(event) => {
       const active = drag.current;
@@ -260,6 +310,15 @@ function ComparisonViewer({
       draggable={false}
       style={transform.style}
     />}
+    {whiteBalanceSampler?.point && <span
+      className="quality-white-balance-marker"
+      data-testid="white-balance-marker"
+      aria-hidden="true"
+      style={{
+        left: `calc(50% + ${pan.x + (whiteBalanceSampler.point.x - 0.5) * width * transform.scale}px)`,
+        top: `calc(50% + ${pan.y + (whiteBalanceSampler.point.y - 0.5) * height * transform.scale}px)`,
+      }}
+    />}
   </div>;
 }
 
@@ -292,6 +351,10 @@ export function ImageQualityEditorPage() {
   const [colorBusy, setColorBusy] = useState(false);
   const [colorError, setColorError] = useState<string | null>(null);
   const [colorMessage, setColorMessage] = useState<string | null>(null);
+  const [whiteBalanceReview, setWhiteBalanceReview] = useState<WhiteBalanceReview | null>(null);
+  const [whiteBalancePicking, setWhiteBalancePicking] = useState(false);
+  const [whiteBalanceAnalysing, setWhiteBalanceAnalysing] = useState(false);
+  const [whiteBalanceSuggestionUsed, setWhiteBalanceSuggestionUsed] = useState(false);
   const engine = useRef<ImageQualityEngine | null>(null);
   const originalGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
   const enhancedGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
@@ -356,6 +419,13 @@ export function ImageQualityEditorPage() {
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
   }, []);
 
+  const clearWhiteBalanceReview = () => {
+    setWhiteBalanceReview(null);
+    setWhiteBalancePicking(false);
+    setWhiteBalanceAnalysing(false);
+    setWhiteBalanceSuggestionUsed(false);
+  };
+
   const clearColorDerivative = () => {
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
     colorObjectUrl.current = null;
@@ -373,6 +443,7 @@ export function ImageQualityEditorPage() {
     disposeColorEngine();
     setColorBusy(false);
     setColorError(null);
+    clearWhiteBalanceReview();
     clearColorDerivative();
     setColorMessage(isNeutralColor(colorRecipe) ? null : message);
   };
@@ -443,6 +514,7 @@ export function ImageQualityEditorPage() {
     setColorBusy(false);
     setColorError(null);
     setColorMessage(null);
+    clearWhiteBalanceReview();
     clearColorDerivative();
     disposeColorEngine();
     clearToneDerivative();
@@ -809,6 +881,156 @@ export function ImageQualityEditorPage() {
 
   const resetTone = () => resetToneState(true);
 
+  const resolveColorBase = (): ColorBaseInput | null => {
+    const source = state.source;
+    if (!source?.facts || !source.width || !source.height || resultIsStale || geometryIsDirty || toneIsDirty) return null;
+    if (toneDisplayReady && toneResult) {
+      return {
+        blob: new Blob([toneResult.bytes], { type: "image/png" }),
+        outputSha256: toneResult.outputSha256,
+        kind: "tone",
+        route: `tone:${toneResult.baseKind}`,
+        strength: state.result?.strength ?? null,
+        scale: state.result?.scale ?? 1,
+        width: toneResult.width,
+        height: toneResult.height,
+        label: "verified light-and-tone derivative",
+      };
+    }
+    if (geometryDisplayReady) {
+      const derivative = state.result ? geometryEdited! : geometryOriginal!;
+      return {
+        blob: new Blob([derivative.bytes], { type: "image/png" }),
+        outputSha256: derivative.outputSha256,
+        kind: state.result ? "geometry-enhanced" : "geometry-original",
+        route: state.result ? `geometry:${state.result.route}` : "geometry:immutable-original",
+        strength: state.result?.strength ?? null,
+        scale: state.result?.scale ?? 1,
+        width: derivative.width,
+        height: derivative.height,
+        label: state.result ? "verified geometry-adjusted enhancement" : "verified geometry-adjusted original",
+      };
+    }
+    if (state.result) {
+      if (!resultBlob.current) return null;
+      return {
+        blob: resultBlob.current,
+        outputSha256: state.result.outputSha256,
+        kind: "enhanced",
+        route: state.result.route,
+        strength: state.result.strength,
+        scale: state.result.scale,
+        width: state.result.width,
+        height: state.result.height,
+        label: "verified enhancement",
+      };
+    }
+    return {
+      blob: source.file,
+      outputSha256: source.facts.sourceSha256,
+      kind: "original",
+      route: "immutable-original",
+      strength: null,
+      scale: 1,
+      width: source.width,
+      height: source.height,
+      label: "immutable original",
+    };
+  };
+
+  const toggleWhiteBalancePicker = () => {
+    if (whiteBalancePicking) {
+      setWhiteBalancePicking(false);
+      setColorMessage(null);
+      return;
+    }
+    if (!resolveColorBase()) {
+      setColorError("The latest verified pre-colour image is unavailable. Apply or reset earlier-stage changes before sampling white balance.");
+      return;
+    }
+    setWhiteBalanceReview(null);
+    setWhiteBalanceSuggestionUsed(false);
+    setWhiteBalancePicking(true);
+    setColorError(null);
+    setColorMessage("White-balance picker ready. Select a known neutral point in the Result viewer.");
+    dispatch({ type: "mode-changed", mode: "side-by-side" });
+  };
+
+  const sampleWhiteBalance = async (normalizedX: number, normalizedY: number) => {
+    if (!whiteBalancePicking || colorBusy) return;
+    const base = resolveColorBase();
+    if (!base) {
+      setWhiteBalancePicking(false);
+      setColorError("The verified pre-colour image changed before sampling. Start the white-balance picker again.");
+      return;
+    }
+    const x = Math.min(base.width - 1, Math.max(0, Math.round(normalizedX * (base.width - 1))));
+    const y = Math.min(base.height - 1, Math.max(0, Math.round(normalizedY * (base.height - 1))));
+    const currentColorOperation = ++colorOperation.current;
+    disposeColorEngine();
+    const next = new WorkerImageColorEngine();
+    colorEngine.current = next;
+    setColorBusy(true);
+    setWhiteBalanceAnalysing(true);
+    setWhiteBalancePicking(false);
+    setColorError(null);
+    setColorMessage("Measuring the selected neutral patch from the verified pre-colour image.");
+    try {
+      const loaded = await next.load(base.blob);
+      if (loaded.width !== base.width || loaded.height !== base.height) {
+        throw new Error(`The white-balance decoder returned ${loaded.width} × ${loaded.height} px instead of ${base.width} × ${base.height} px.`);
+      }
+      const suggestion = await next.sampleWhiteBalance(x, y);
+      if (colorOperation.current !== currentColorOperation) return;
+      setWhiteBalanceReview({
+        ...suggestion,
+        normalizedX,
+        normalizedY,
+        baseOutputSha256: base.outputSha256,
+        baseLabel: base.label,
+      });
+      setWhiteBalanceSuggestionUsed(false);
+      setColorMessage("White-balance sample ready. Review the measured values before using the suggestion.");
+    } catch (error) {
+      if (colorOperation.current !== currentColorOperation) return;
+      setWhiteBalanceReview(null);
+      setColorError(error instanceof Error ? error.message : "White-balance sampling did not complete.");
+      setColorMessage(null);
+    } finally {
+      if (colorOperation.current === currentColorOperation) {
+        setColorBusy(false);
+        setWhiteBalanceAnalysing(false);
+        next.dispose();
+        if (colorEngine.current === next) colorEngine.current = null;
+      }
+    }
+  };
+
+  const useWhiteBalanceSuggestion = () => {
+    const base = resolveColorBase();
+    if (!whiteBalanceReview || !base || whiteBalanceReview.baseOutputSha256 !== base.outputSha256) {
+      clearWhiteBalanceReview();
+      setColorError("The verified pre-colour image changed. Take a new white-balance sample before using a suggestion.");
+      return;
+    }
+    setColorRecipe(sanitizeColorRecipe({
+      ...colorRecipe,
+      temperature: whiteBalanceReview.temperature,
+      tint: whiteBalanceReview.tint,
+    }));
+    clearColorDerivative();
+    setWhiteBalanceSuggestionUsed(true);
+    setColorError(null);
+    setColorMessage("White-balance suggestion loaded. Review the controls, then apply colour.");
+  };
+
+  const dismissWhiteBalanceSuggestion = () => {
+    setWhiteBalanceReview(null);
+    setWhiteBalancePicking(false);
+    setWhiteBalanceSuggestionUsed(false);
+    setColorMessage(null);
+  };
+
   const applyColor = async () => {
     const source = state.source;
     const safe = sanitizeColorRecipe(colorRecipe);
@@ -827,60 +1049,36 @@ export function ImageQualityEditorPage() {
       return;
     }
 
-    const geometryCurrent = Boolean(
-      geometryRecipe && sameGeometry(appliedGeometry, geometryRecipe)
-      && geometryOriginal && (!state.result || geometryEdited),
-    );
-    let baseBlob: Blob;
-    let baseOutputSha256: string;
-    let baseKind: ColorDerivative["baseKind"];
-    let baseRoute: string;
-    let baseStrength: number | null;
-    let baseScale: number;
-    let width: number;
-    let height: number;
-    if (toneDisplayReady && toneResult) {
-      baseBlob = new Blob([toneResult.bytes], { type: "image/png" });
-      baseOutputSha256 = toneResult.outputSha256;
-      baseKind = "tone";
-      baseRoute = `tone:${toneResult.baseKind}`;
-      baseStrength = state.result?.strength ?? null;
-      baseScale = state.result?.scale ?? 1;
-      width = toneResult.width;
-      height = toneResult.height;
-    } else if (geometryCurrent) {
-      const derivative = state.result ? geometryEdited! : geometryOriginal!;
-      baseBlob = new Blob([derivative.bytes], { type: "image/png" });
-      baseOutputSha256 = derivative.outputSha256;
-      baseKind = state.result ? "geometry-enhanced" : "geometry-original";
-      baseRoute = state.result ? `geometry:${state.result.route}` : "geometry:immutable-original";
-      baseStrength = state.result?.strength ?? null;
-      baseScale = state.result?.scale ?? 1;
-      width = derivative.width;
-      height = derivative.height;
-    } else if (state.result) {
-      if (!resultBlob.current) {
-        setColorError("This remote enhancement needs the future cloud colour route. The original remains unchanged; no partial derivative was created.");
-        return;
-      }
-      baseBlob = resultBlob.current;
-      baseOutputSha256 = state.result.outputSha256;
-      baseKind = "enhanced";
-      baseRoute = state.result.route;
-      baseStrength = state.result.strength;
-      baseScale = state.result.scale;
-      width = state.result.width;
-      height = state.result.height;
-    } else {
-      baseBlob = source.file;
-      baseOutputSha256 = source.facts.sourceSha256;
-      baseKind = "original";
-      baseRoute = "immutable-original";
-      baseStrength = null;
-      baseScale = 1;
-      width = source.width;
-      height = source.height;
+    const base = resolveColorBase();
+    if (!base) {
+      setColorError("The latest verified pre-colour image is unavailable. Apply or reset earlier-stage changes before applying colour.");
+      return;
     }
+    const whiteBalanceSample: ImageWhiteBalanceSuggestion | null = whiteBalanceSuggestionUsed && whiteBalanceReview
+      && whiteBalanceReview.baseOutputSha256 === base.outputSha256
+      && whiteBalanceReview.temperature === safe.temperature
+      && whiteBalanceReview.tint === safe.tint
+      ? {
+          sourceX: whiteBalanceReview.sourceX,
+          sourceY: whiteBalanceReview.sourceY,
+          radius: whiteBalanceReview.radius,
+          visiblePixels: whiteBalanceReview.visiblePixels,
+          red: whiteBalanceReview.red,
+          green: whiteBalanceReview.green,
+          blue: whiteBalanceReview.blue,
+          temperature: whiteBalanceReview.temperature,
+          tint: whiteBalanceReview.tint,
+          atLimit: whiteBalanceReview.atLimit,
+        }
+      : null;
+    const baseBlob = base.blob;
+    const baseOutputSha256 = base.outputSha256;
+    const baseKind = base.kind;
+    const baseRoute = base.route;
+    const baseStrength = base.strength;
+    const baseScale = base.scale;
+    const width = base.width;
+    const height = base.height;
 
     const currentColorOperation = ++colorOperation.current;
     disposeColorEngine();
@@ -901,6 +1099,7 @@ export function ImageQualityEditorPage() {
         baseRoute,
         baseStrength,
         baseScale,
+        whiteBalanceSample,
         outputWidth: width,
         outputHeight: height,
       });
@@ -911,7 +1110,7 @@ export function ImageQualityEditorPage() {
       colorObjectUrl.current = url;
       setColorRecipe(safe);
       setAppliedColor(safe);
-      setColorResult({ ...result, url, baseOutputSha256, baseKind });
+      setColorResult({ ...result, url, baseOutputSha256: base.outputSha256, baseKind: base.kind });
       setColorMessage("Colour derivative ready. Preview and download use the same verified PNG bytes.");
       dispatch({ type: "zoom-changed", zoom: "fit" });
     } catch (error) {
@@ -934,6 +1133,7 @@ export function ImageQualityEditorPage() {
     setColorError(null);
     setColorMessage(null);
     setColorRecipe(createNeutralColorRecipe());
+    clearWhiteBalanceReview();
     clearColorDerivative();
     dispatch({ type: "zoom-changed", zoom: "fit" });
   };
@@ -1097,7 +1297,8 @@ export function ImageQualityEditorPage() {
   );
   const colorIsDirty = colorHasChanges && !colorDisplayReady;
   const displayOriginalUrl = baseOriginalUrl;
-  const enhancedUrl = colorDisplayReady
+  const whiteBalanceShowingBase = activeTool === "color" && (whiteBalancePicking || whiteBalanceAnalysing);
+  const enhancedUrl = colorDisplayReady && !whiteBalanceShowingBase
     ? colorResult!.url
     : toneDisplayReady ? toneResult!.url : baseResultUrl;
   const histogramGeometryDerivative = geometryDisplayReady
@@ -1213,6 +1414,20 @@ export function ImageQualityEditorPage() {
     dimensionsReady && colorHasChanges && !colorBusy && !toneBusy && !processing && !processorRestarting && !geometryBusy
     && !resultIsStale && !geometryIsDirty && !toneIsDirty && !colorDisplayReady,
   );
+  const colorBaseAvailable = Boolean(
+    dimensionsReady && !resultIsStale && !geometryIsDirty && !toneIsDirty
+    && (toneDisplayReady || geometryDisplayReady || !state.result || resultBlob.current),
+  );
+  const whiteBalancePoint = whiteBalanceReview?.baseOutputSha256 === preColorOutputSha256
+    ? { x: whiteBalanceReview.normalizedX, y: whiteBalanceReview.normalizedY }
+    : null;
+  const whiteBalanceSampler = activeTool === "color"
+    ? {
+        active: whiteBalancePicking,
+        point: whiteBalancePoint,
+        onSample: (x: number, y: number) => void sampleWhiteBalance(x, y),
+      }
+    : undefined;
   const geometryCanApply = Boolean(
     dimensionsReady && geometryRecipe && !isIdentityGeometry(geometryRecipe, state.source.width!, state.source.height!)
     && !geometryBusy && !toneBusy && !colorBusy && !processing && !processorRestarting && !resultIsStale
@@ -1268,6 +1483,7 @@ export function ImageQualityEditorPage() {
     <section className="quality-workspace">
       <ImageEditorToolRail activeTool={activeTool} onChange={(tool) => {
         setActiveTool(tool);
+        if (tool !== "color") setWhiteBalancePicking(false);
         if (tool === "geometry") setGeometrySelectionOpen(true);
       }} />
       {activeTool === "enhance"
@@ -1309,14 +1525,29 @@ export function ImageQualityEditorPage() {
             ? <ColorToolPanel
                 recipe={colorRecipe}
                 statistics={colorDisplayReady ? colorResult!.statistics : null}
+                whiteBalanceSuggestion={whiteBalanceReview}
+                whiteBalanceBaseLabel={whiteBalanceReview?.baseLabel ?? null}
+                whiteBalanceSuggestionUsed={whiteBalanceSuggestionUsed}
+                whiteBalancePicking={whiteBalancePicking}
+                whiteBalanceAnalysing={whiteBalanceAnalysing}
                 busy={colorBusy}
+                canSampleWhiteBalance={colorBaseAvailable && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canApply={colorCanApply}
                 canDownload={colorDisplayReady}
                 onRecipe={(recipe) => {
-                  setColorRecipe(sanitizeColorRecipe(recipe));
+                  const safe = sanitizeColorRecipe(recipe);
+                  setColorRecipe(safe);
+                  if (!whiteBalanceReview
+                    || safe.temperature !== whiteBalanceReview.temperature
+                    || safe.tint !== whiteBalanceReview.tint) {
+                    setWhiteBalanceSuggestionUsed(false);
+                  }
                   setColorError(null);
                   setColorMessage(null);
                 }}
+                onToggleWhiteBalancePicker={toggleWhiteBalancePicker}
+                onUseWhiteBalanceSuggestion={useWhiteBalanceSuggestion}
+                onDismissWhiteBalanceSuggestion={dismissWhiteBalanceSuggestion}
                 onApply={() => void applyColor()}
                 onReset={resetColor}
                 onDownload={download}
@@ -1413,12 +1644,15 @@ export function ImageQualityEditorPage() {
                   zoom={state.zoom}
                   pan={state.pan}
                   onPan={(x, y) => dispatch({ type: "pan-changed", x, y })}
-                  label={colorDisplayReady
+                  label={whiteBalanceShowingBase
+                    ? "White-balance sampling base"
+                    : colorDisplayReady
                     ? state.result ? `Colour-adjusted enhanced · ${state.result.strength}%` : "Colour-adjusted original"
                     : toneDisplayReady
                     ? state.result ? `Adjusted enhanced · ${state.result.strength}%` : "Adjusted original"
                     : state.result ? `Enhanced · ${state.result.strength}%${geometryDisplayReady ? " · geometry applied" : ""}${resultIsStale ? " · previous result" : ""}` : geometryDisplayReady ? "Edited original" : "Enhanced · awaiting processing"}
                   enhanced
+                  whiteBalanceSampler={whiteBalanceSampler}
                 />
               </div> : <>
                 <ComparisonViewer
@@ -1432,6 +1666,7 @@ export function ImageQualityEditorPage() {
                   onPan={(x, y) => dispatch({ type: "pan-changed", x, y })}
                   label="Original · Result"
                   overlay={{ slider: state.slider }}
+                  whiteBalanceSampler={whiteBalanceSampler}
                 />
                 <label className="quality-slider-control"><span>Comparison position</span><input type="range" min="0" max="100" value={state.slider} onChange={(event) => dispatch({ type: "slider-changed", slider: Number(event.target.value) })} /></label>
               </>}

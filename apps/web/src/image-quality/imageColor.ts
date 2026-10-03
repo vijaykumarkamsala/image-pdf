@@ -14,6 +14,19 @@ export interface ImageColorStatistics {
   gamutClippedPixels: number;
 }
 
+export interface ImageWhiteBalanceSuggestion {
+  sourceX: number;
+  sourceY: number;
+  radius: number;
+  visiblePixels: number;
+  red: number;
+  green: number;
+  blue: number;
+  temperature: number;
+  tint: number;
+  atLimit: boolean;
+}
+
 export const MAX_BROWSER_COLOR_PIXELS = 67_108_864;
 
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
@@ -67,6 +80,88 @@ function linearToSrgb(value: number) {
   const safe = clamp(value, 0, 1);
   const encoded = safe <= 0.0031308 ? safe * 12.92 : 1.055 * safe ** (1 / 2.4) - 0.055;
   return Math.round(clamp(encoded * 255, 0, 255));
+}
+
+export function whiteBalanceSampleRadius(width: number, height: number): number {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
+    throw new Error("White-balance sampling requires positive integer image dimensions.");
+  }
+  return Math.min(8, Math.max(1, Math.round(Math.min(width, height) / 512)));
+}
+
+/**
+ * Measures a small user-selected, known-neutral patch and proposes the inverse
+ * of its blue/yellow and green/magenta cast. The proposal uses the same linear
+ * RGB gain model as applyColorToRgba so it remains deterministic and reviewable.
+ */
+export function recommendWhiteBalanceFromRgba(
+  pixels: Uint8ClampedArray,
+  sourceX: number,
+  sourceY: number,
+  radius: number,
+): ImageWhiteBalanceSuggestion {
+  if (pixels.byteLength % 4 !== 0 || pixels.byteLength === 0) {
+    throw new Error("White-balance sampling requires complete RGBA pixels.");
+  }
+  if (!Number.isSafeInteger(sourceX) || sourceX < 0 || !Number.isSafeInteger(sourceY) || sourceY < 0
+    || !Number.isSafeInteger(radius) || radius < 1 || radius > 8) {
+    throw new Error("White-balance sampling requires a valid source point and bounded radius.");
+  }
+  let visiblePixels = 0;
+  let totalWeight = 0;
+  let encodedRed = 0;
+  let encodedGreen = 0;
+  let encodedBlue = 0;
+  let linearRed = 0;
+  let linearGreen = 0;
+  let linearBlue = 0;
+  for (let offset = 0; offset < pixels.byteLength; offset += 4) {
+    const alpha = pixels[offset + 3];
+    if (alpha === 0) continue;
+    const weight = alpha / 255;
+    visiblePixels += 1;
+    totalWeight += weight;
+    encodedRed += pixels[offset] * weight;
+    encodedGreen += pixels[offset + 1] * weight;
+    encodedBlue += pixels[offset + 2] * weight;
+    linearRed += srgbToLinear(pixels[offset]) * weight;
+    linearGreen += srgbToLinear(pixels[offset + 1]) * weight;
+    linearBlue += srgbToLinear(pixels[offset + 2]) * weight;
+  }
+  if (totalWeight < 1) {
+    throw new Error("The selected white-balance patch does not contain enough visible pixels. Choose an opaque neutral area.");
+  }
+  const red = Math.round(encodedRed / totalWeight);
+  const green = Math.round(encodedGreen / totalWeight);
+  const blue = Math.round(encodedBlue / totalWeight);
+  if (Math.max(red, green, blue) <= 12) {
+    throw new Error("The selected white-balance patch is too dark to measure reliably. Choose a visible neutral grey or white area.");
+  }
+  if (Math.min(red, green, blue) >= 250) {
+    throw new Error("The selected white-balance patch is clipped near white and has too little colour information. Choose a darker neutral area.");
+  }
+
+  const safeRed = Math.max(linearRed / totalWeight, 1 / 65_535);
+  const safeGreen = Math.max(linearGreen / totalWeight, 1 / 65_535);
+  const safeBlue = Math.max(linearBlue / totalWeight, 1 / 65_535);
+  const rawTemperature = (Math.log2(safeBlue) - Math.log2(safeRed)) / 0.7 * 100;
+  const rawTint = -(
+    Math.log2(safeRed) - Math.log2(safeGreen) + 0.35 * rawTemperature / 100
+  ) / 0.36 * 100;
+  const roundedTemperature = Math.round(clamp(rawTemperature, -100, 100));
+  const roundedTint = Math.round(clamp(rawTint, -100, 100));
+  return {
+    sourceX,
+    sourceY,
+    radius,
+    visiblePixels,
+    red,
+    green,
+    blue,
+    temperature: Math.abs(roundedTemperature) <= 1 ? 0 : roundedTemperature,
+    tint: Math.abs(roundedTint) <= 1 ? 0 : roundedTint,
+    atLimit: Math.abs(rawTemperature) > 100 || Math.abs(rawTint) > 100,
+  };
 }
 
 /** Applies a deterministic global colour transform while preserving alpha exactly. */
