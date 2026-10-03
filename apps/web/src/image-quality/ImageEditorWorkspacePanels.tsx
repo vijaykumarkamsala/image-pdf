@@ -322,6 +322,23 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
       </label>
       <p>Strengthens or softens fine repeated tonal detail without sharpening strong outlines. Local-variance, noise, endpoint and colour-headroom gates limit grain, halos and clipping.</p>
     </fieldset>
+    <fieldset className="quality-levels-control quality-dehaze">
+      <legend>Dehaze</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Dehaze</strong><output>{props.recipe.dehaze > 0 ? "+" : ""}{props.recipe.dehaze}</output></span>
+        <input
+          aria-label="Dehaze"
+          type="range"
+          min="-100"
+          max="100"
+          step="1"
+          value={props.recipe.dehaze}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({ ...props.recipe, dehaze: Number(event.target.value) })}
+        />
+      </label>
+      <p>Positive values conservatively reduce a measured neutral veil; negative values add a bounded veil. Broad-structure and endpoint protection limit halos and clipping. It cannot recover detail obscured in the source.</p>
+    </fieldset>
     <div className="quality-adjustment-controls">
       {toneControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
         <span><strong>{control.label}</strong><output>{toneValue(control, props.recipe[control.key])}</output></span>

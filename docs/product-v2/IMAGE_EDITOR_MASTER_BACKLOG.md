@@ -104,7 +104,13 @@ implemented inside that shared source-neighbourhood stage. It uses fine-scale
 detail plus exact local variance to act on repeated tonal texture, suppresses
 low-amplitude isolated variation, and rejects strong outline transitions so it
 does not silently become edge sharpening. The three neighbourhood settings are
-recorded in v7 tone provenance. Dehaze remains a separate future increment.
+recorded in tone provenance. Signed deterministic Dehaze is also implemented
+inside the source-neighbourhood stage. Positive values conservatively remove a
+bounded neutral veil only where an elevated dark floor and low broad-scale
+variance are measured; negative values add a bounded veil. Endpoint,
+colour-headroom, transparency, structure and seam protections remain active,
+and the UI states that obscured detail cannot be recovered. All four
+neighbourhood settings are recorded in v8 tone provenance.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

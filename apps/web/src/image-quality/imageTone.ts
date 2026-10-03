@@ -23,6 +23,8 @@ export interface ImageToneRecipe {
   clarity: number;
   /** Noise- and edge-protected fine tonal detail. Positive adds texture; negative softens it. */
   texture: number;
+  /** Conservative atmospheric-veil reduction or addition. */
+  dehaze: number;
   /** Exposure compensation in stops. */
   exposure: number;
   brightness: number;
@@ -74,6 +76,7 @@ export function createNeutralToneRecipe(): ImageToneRecipe {
     localContrast: 0,
     clarity: 0,
     texture: 0,
+    dehaze: 0,
     exposure: 0,
     brightness: 0,
     contrast: 0,
@@ -107,6 +110,7 @@ export function sanitizeToneRecipe(recipe: ImageToneRecipe): ImageToneRecipe {
     localContrast: Math.round(bounded(recipe.localContrast, -100, 100, 0)),
     clarity: Math.round(bounded(recipe.clarity, -100, 100, 0)),
     texture: Math.round(bounded(recipe.texture, -100, 100, 0)),
+    dehaze: Math.round(bounded(recipe.dehaze, -100, 100, 0)),
     exposure: Math.round(bounded(recipe.exposure, -3, 3, 0) * 10) / 10,
     brightness: Math.round(bounded(recipe.brightness, -100, 100, 0)),
     contrast: Math.round(bounded(recipe.contrast, -100, 100, 0)),
@@ -124,7 +128,7 @@ export function isNeutralTone(recipe: ImageToneRecipe): boolean {
     && safe.curveBlack === 0 && safe.curveShadows === 25 && safe.curveMidtones === 50
     && safe.curveHighlights === 75 && safe.curveWhite === 100
     && safe.shadowRecovery === 0 && safe.highlightRecovery === 0
-    && safe.localContrast === 0 && safe.clarity === 0 && safe.texture === 0
+    && safe.localContrast === 0 && safe.clarity === 0 && safe.texture === 0 && safe.dehaze === 0
     && safe.exposure === 0 && safe.brightness === 0 && safe.contrast === 0 && safe.gamma === 0
     && safe.highlights === 0 && safe.shadows === 0 && safe.whites === 0 && safe.blacks === 0;
 }
@@ -241,6 +245,13 @@ export function textureRadius(width: number, height: number): number {
   return Math.min(4, Math.max(1, Math.round(Math.min(width, height) / 512)));
 }
 
+export function dehazeRadius(width: number, height: number): number {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
+    throw new Error("Dehaze requires positive integer image dimensions.");
+  }
+  return Math.min(32, Math.max(6, Math.round(Math.min(width, height) / 96)));
+}
+
 export interface ImageNeighbourhoodToneSettings {
   localContrast: number;
   localRadius: number;
@@ -248,10 +259,12 @@ export interface ImageNeighbourhoodToneSettings {
   clarityRadius: ImageClarityRadii;
   texture: number;
   textureRadius: number;
+  dehaze: number;
+  dehazeRadius: number;
 }
 
 /**
- * Applies broad contrast, medium clarity and protected fine texture to core rows of an RGBA tile.
+ * Applies broad contrast, medium clarity, fine texture and conservative dehaze to RGBA core rows.
  * Callers provide halo rows around the core so independently rendered tiles match exactly.
  */
 export function applyNeighbourhoodToneToRgba(
@@ -273,24 +286,29 @@ export function applyNeighbourhoodToneToRgba(
     || !Number.isSafeInteger(clarityRadius.inner) || clarityRadius.inner < 1
     || !Number.isSafeInteger(clarityRadius.outer) || clarityRadius.outer < clarityRadius.inner
     || clarityRadius.outer > 64
-    || !Number.isSafeInteger(settings.textureRadius) || settings.textureRadius < 1 || settings.textureRadius > 16) {
+    || !Number.isSafeInteger(settings.textureRadius) || settings.textureRadius < 1 || settings.textureRadius > 16
+    || !Number.isSafeInteger(settings.dehazeRadius) || settings.dehazeRadius < 1 || settings.dehazeRadius > 64) {
     throw new Error("Neighbourhood tone requires a bounded core and halo radii.");
   }
   const safeLocalContrast = Math.round(bounded(settings.localContrast, -100, 100, 0));
   const safeClarity = Math.round(bounded(settings.clarity, -100, 100, 0));
   const safeTexture = Math.round(bounded(settings.texture, -100, 100, 0));
+  const safeDehaze = Math.round(bounded(settings.dehaze, -100, 100, 0));
   const output = new Uint8ClampedArray(width * coreHeight * 4);
   const stride = width + 1;
   const entries = stride * (height + 1);
   const luminanceIntegral = new Float64Array(entries);
   const visibleIntegral = new Uint32Array(entries);
-  const textureLuminanceIntegral = safeTexture === 0 ? null : new Float64Array(entries);
-  const textureSquareIntegral = safeTexture === 0 ? null : new Float64Array(entries);
+  const needsLocalVariance = safeTexture !== 0 || safeDehaze !== 0;
+  const detailLuminanceIntegral = needsLocalVariance ? new Float64Array(entries) : null;
+  const detailSquareIntegral = needsLocalVariance ? new Float64Array(entries) : null;
+  const darkChannelIntegral = safeDehaze === 0 ? null : new Float64Array(entries);
   for (let y = 0; y < height; y += 1) {
     let rowLuminance = 0;
     let rowVisible = 0;
     let rowTextureLuminance = 0;
     let rowTextureSquare = 0;
+    let rowDarkChannel = 0;
     for (let x = 0; x < width; x += 1) {
       const sourceOffset = (y * width + x) * 4;
       if (pixels[sourceOffset + 3] !== 0) {
@@ -299,20 +317,30 @@ export function applyNeighbourhoodToneToRgba(
           + 722 * pixels[sourceOffset + 2];
         rowLuminance += weightedLuminance;
         rowVisible += 1;
-        if (textureLuminanceIntegral && textureSquareIntegral) {
+        if (detailLuminanceIntegral && detailSquareIntegral) {
           const luminanceByte = Math.round(weightedLuminance / 10_000);
           rowTextureLuminance += luminanceByte;
           rowTextureSquare += luminanceByte * luminanceByte;
+        }
+        if (darkChannelIntegral) {
+          rowDarkChannel += Math.min(
+            pixels[sourceOffset],
+            pixels[sourceOffset + 1],
+            pixels[sourceOffset + 2],
+          );
         }
       }
       const integralOffset = (y + 1) * stride + x + 1;
       luminanceIntegral[integralOffset] = luminanceIntegral[integralOffset - stride] + rowLuminance;
       visibleIntegral[integralOffset] = visibleIntegral[integralOffset - stride] + rowVisible;
-      if (textureLuminanceIntegral && textureSquareIntegral) {
-        textureLuminanceIntegral[integralOffset] = textureLuminanceIntegral[integralOffset - stride]
+      if (detailLuminanceIntegral && detailSquareIntegral) {
+        detailLuminanceIntegral[integralOffset] = detailLuminanceIntegral[integralOffset - stride]
           + rowTextureLuminance;
-        textureSquareIntegral[integralOffset] = textureSquareIntegral[integralOffset - stride]
+        detailSquareIntegral[integralOffset] = detailSquareIntegral[integralOffset - stride]
           + rowTextureSquare;
+      }
+      if (darkChannelIntegral) {
+        darkChannelIntegral[integralOffset] = darkChannelIntegral[integralOffset - stride] + rowDarkChannel;
       }
     }
   }
@@ -341,9 +369,8 @@ export function applyNeighbourhoodToneToRgba(
     const visible = area(visibleIntegral, left, top, right, bottom);
     return visible < 2 ? null : area(luminanceIntegral, left, top, right, bottom) / visible / 2_550_000;
   };
-  const textureSample = (x: number, y: number) => {
-    if (!textureLuminanceIntegral || !textureSquareIntegral) return null;
-    const radius = settings.textureRadius;
+  const regionSample = (x: number, y: number, radius: number) => {
+    if (!detailLuminanceIntegral || !detailSquareIntegral) return null;
     const left = Math.max(0, x - radius);
     const right = Math.min(width - 1, x + radius);
     const top = Math.max(0, y - radius);
@@ -351,11 +378,14 @@ export function applyNeighbourhoodToneToRgba(
     const visible = area(visibleIntegral, left, top, right, bottom);
     if (visible < 3) return null;
     const meanLuminance = area(luminanceIntegral, left, top, right, bottom) / visible / 2_550_000;
-    const meanByte = area(textureLuminanceIntegral, left, top, right, bottom) / visible;
-    const meanSquare = area(textureSquareIntegral, left, top, right, bottom) / visible;
+    const meanByte = area(detailLuminanceIntegral, left, top, right, bottom) / visible;
+    const meanSquare = area(detailSquareIntegral, left, top, right, bottom) / visible;
     return {
       meanLuminance,
       standardDeviation: Math.sqrt(Math.max(0, meanSquare - meanByte * meanByte)) / 255,
+      darkMean: darkChannelIntegral
+        ? area(darkChannelIntegral, left, top, right, bottom) / visible / 255
+        : null,
     };
   };
   for (let outputY = 0; outputY < coreHeight; outputY += 1) {
@@ -367,7 +397,7 @@ export function applyNeighbourhoodToneToRgba(
       output[outputOffset + 1] = pixels[sourceOffset + 1];
       output[outputOffset + 2] = pixels[sourceOffset + 2];
       output[outputOffset + 3] = pixels[sourceOffset + 3];
-      if ((safeLocalContrast === 0 && safeClarity === 0 && safeTexture === 0)
+      if ((safeLocalContrast === 0 && safeClarity === 0 && safeTexture === 0 && safeDehaze === 0)
         || pixels[sourceOffset + 3] === 0) continue;
       const red = pixels[sourceOffset] / 255;
       const green = pixels[sourceOffset + 1] / 255;
@@ -396,7 +426,7 @@ export function applyNeighbourhoodToneToRgba(
         }
       }
       if (safeTexture !== 0) {
-        const sample = textureSample(x, sourceY);
+        const sample = regionSample(x, sourceY, settings.textureRadius);
         if (sample) {
           const fineDetail = luminance - sample.meanLuminance;
           const magnitude = Math.abs(fineDetail);
@@ -407,6 +437,24 @@ export function applyNeighbourhoodToneToRgba(
             * activityProtection
             * edgeProtection;
           weightedDetail += protectedDetail * textureGain;
+        }
+      }
+      if (safeDehaze !== 0) {
+        const sample = regionSample(x, sourceY, settings.dehazeRadius);
+        if (sample) {
+          if (safeDehaze > 0 && sample.darkMean !== null) {
+            const structureProtection = 1 - smoothstep(0.055, 0.16, sample.standardDeviation);
+            const sourceVeil = Math.min(0.12, Math.max(0, sample.darkMean - 0.18) * 0.35);
+            const veil = sourceVeil * safeDehaze / 100 * structureProtection;
+            if (veil > 0) {
+              const recoveredLuminance = clamp((luminance - veil) / (1 - veil), 0, 1);
+              weightedDetail += recoveredLuminance - luminance;
+            }
+          } else if (safeDehaze < 0) {
+            const structureProtection = 1 - smoothstep(0.08, 0.22, sample.standardDeviation);
+            const hazeStrength = -safeDehaze / 100 * (0.35 + 0.65 * structureProtection);
+            weightedDetail += (1 - luminance) * 0.1 * hazeStrength;
+          }
         }
       }
       let delta = weightedDetail * 4 * luminance * (1 - luminance);
@@ -442,6 +490,8 @@ export function applyLocalContrastToRgba(
       clarityRadius: { inner: 1, outer: 1 },
       texture: 0,
       textureRadius: 1,
+      dehaze: 0,
+      dehazeRadius: 1,
     },
   );
 }
@@ -468,6 +518,8 @@ export function applyClarityToRgba(
       clarityRadius: radii,
       texture: 0,
       textureRadius: 1,
+      dehaze: 0,
+      dehazeRadius: 1,
     },
   );
 }
@@ -494,6 +546,36 @@ export function applyTextureToRgba(
       clarityRadius: { inner: 1, outer: 1 },
       texture: amount,
       textureRadius: radius,
+      dehaze: 0,
+      dehazeRadius: 1,
+    },
+  );
+}
+
+export function applyDehazeToRgba(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  coreTop: number,
+  coreHeight: number,
+  amount: number,
+  radius: number,
+): Uint8ClampedArray {
+  return applyNeighbourhoodToneToRgba(
+    pixels,
+    width,
+    height,
+    coreTop,
+    coreHeight,
+    {
+      localContrast: 0,
+      localRadius: 1,
+      clarity: 0,
+      clarityRadius: { inner: 1, outer: 1 },
+      texture: 0,
+      textureRadius: 1,
+      dehaze: amount,
+      dehazeRadius: radius,
     },
   );
 }

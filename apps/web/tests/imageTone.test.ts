@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   applyClarityToRgba,
+  applyDehazeToRgba,
   applyLocalContrastToRgba,
   applyNeighbourhoodToneToRgba,
   applyTextureToRgba,
@@ -10,6 +11,7 @@ import {
   assertBrowserToneBudget,
   clarityRadii,
   createNeutralToneRecipe,
+  dehazeRadius,
   evaluateProtectedRecovery,
   evaluateToneCurve,
   isNeutralTone,
@@ -70,6 +72,7 @@ test("tone recipes are bounded, normalized and comparable", () => {
     localContrast: 150,
     clarity: -150,
     texture: 175,
+    dehaze: -175,
     exposure: 4.17,
     brightness: -101,
     contrast: 10.7,
@@ -93,6 +96,7 @@ test("tone recipes are bounded, normalized and comparable", () => {
     localContrast: 100,
     clarity: -100,
     texture: 100,
+    dehaze: -100,
     exposure: 3,
     brightness: -100,
     contrast: 11,
@@ -197,6 +201,64 @@ test("texture progressively adjusts repeated fine detail without sharpening nois
   assert.deepEqual(Array.from(protectedResult.subarray(12, 16)), [29, 43, 71, 0]);
 });
 
+test("dehaze progressively adjusts measured veil while protecting clear shadows and strong structure", () => {
+  assert.equal(dehazeRadius(64, 48), 6);
+  assert.equal(dehazeRadius(4096, 2048), 21);
+  assert.throws(() => dehazeRadius(64, Number.NaN), /positive integer image dimensions/);
+
+  const width = 21;
+  const height = 9;
+  const hazy = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = x < 10 ? 130 : 180;
+      hazy.set([value, value, value, 255], (y * width + x) * 4);
+    }
+  }
+  const recovered = applyDehazeToRgba(hazy, width, height, 0, height, 100, 3);
+  const recoveredAgain = applyDehazeToRgba(hazy, width, height, 0, height, 100, 3);
+  const veiled = applyDehazeToRgba(hazy, width, height, 0, height, -100, 3);
+  const dark = (4 * width + 4) * 4;
+  const light = (4 * width + 16) * 4;
+  assert.deepEqual(recovered, recoveredAgain);
+  assert.ok(recovered[dark] < hazy[dark] && recovered[light] < hazy[light]);
+  assert.ok(recovered[light] - recovered[dark] > hazy[light] - hazy[dark]);
+  assert.ok(veiled[dark] > hazy[dark] && veiled[light] > hazy[light]);
+  assert.ok(veiled[light] - veiled[dark] < hazy[light] - hazy[dark]);
+
+  const clearShadow = new Uint8ClampedArray(7 * 7 * 4);
+  for (let offset = 0; offset < clearShadow.length; offset += 4) {
+    clearShadow.set([30, 30, 30, 255], offset);
+  }
+  assert.deepEqual(applyDehazeToRgba(clearShadow, 7, 7, 0, 7, 100, 3), clearShadow);
+
+  const hardStructure = new Uint8ClampedArray(9 * 9 * 4);
+  for (let y = 0; y < 9; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const value = (x + y) % 2 === 0 ? 50 : 220;
+      hardStructure.set([value, value, value, 255], (y * 9 + x) * 4);
+    }
+  }
+  assert.deepEqual(
+    applyDehazeToRgba(hardStructure, 9, 9, 0, 9, 100, 3),
+    hardStructure,
+    "dehaze must not create halos in strong broad structure",
+  );
+
+  const protectedSource = new Uint8ClampedArray([
+    0, 0, 0, 255,
+    150, 160, 170, 255,
+    255, 255, 255, 255,
+    23, 41, 67, 0,
+  ]);
+  const protectedResult = applyDehazeToRgba(protectedSource, 4, 1, 0, 1, 100, 1);
+  assert.deepEqual(Array.from(protectedResult.subarray(0, 4)), [0, 0, 0, 255]);
+  assert.deepEqual(Array.from(protectedResult.subarray(8, 12)), [255, 255, 255, 255]);
+  assert.deepEqual(Array.from(protectedResult.subarray(12, 16)), [23, 41, 67, 0]);
+  assert.equal(protectedResult[5] - protectedResult[4], 10);
+  assert.equal(protectedResult[6] - protectedResult[5], 10);
+});
+
 test("local contrast is deterministic, progressive and protects endpoints and transparent pixels", () => {
   assert.equal(localContrastRadius(64, 48), 4);
   assert.equal(localContrastRadius(4096, 2048), 26);
@@ -252,6 +314,8 @@ test("halo-aware neighbourhood-tone tiles exactly match one full immutable-sourc
     clarityRadius,
     texture: 55,
     textureRadius: 1,
+    dehaze: 50,
+    dehazeRadius: 4,
   };
   const full = applyNeighbourhoodToneToRgba(source, width, height, 0, height, settings);
   const stitched = new Uint8ClampedArray(source.length);
@@ -495,8 +559,8 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v7/);
-  assert.match(text, /"operation_order":\["source_neighbourhood_local_contrast_clarity_and_texture","levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
+  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v8/);
+  assert.match(text, /"operation_order":\["source_neighbourhood_local_contrast_clarity_texture_and_dehaze","levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
   assert.match(text, /"base_kind":"geometry-enhanced"/);
   assert.match(text, /"exposure":0.5/);
   assert.match(text, /"levelBlack":0/);
@@ -512,6 +576,7 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   assert.match(text, /"localContrast":0/);
   assert.match(text, /"clarity":0/);
   assert.match(text, /"texture":0/);
+  assert.match(text, /"dehaze":0/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 
