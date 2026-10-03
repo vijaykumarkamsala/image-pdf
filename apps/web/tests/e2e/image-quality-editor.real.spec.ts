@@ -1070,6 +1070,7 @@ test("light and tone applies from the verified base and preview matches download
   await page.getByLabel("Highlight recovery", { exact: true }).fill("45");
   await page.getByLabel("Local contrast", { exact: true }).fill("35");
   await page.getByLabel("Clarity", { exact: true }).fill("40");
+  await page.getByLabel("Texture", { exact: true }).fill("45");
   await page.getByLabel("Exposure", { exact: true }).fill("0.5");
   await page.getByLabel("Shadows", { exact: true }).fill("30");
   await page.getByLabel("Highlights", { exact: true }).fill("-20");
@@ -1079,6 +1080,7 @@ test("light and tone applies from the verified base and preview matches download
     .include(".quality-protected-recovery")
     .include(".quality-local-contrast")
     .include(".quality-clarity")
+    .include(".quality-texture")
     .analyze();
   expect(accessibility.violations).toEqual([]);
 
@@ -1136,7 +1138,7 @@ test("light and tone applies from the verified base and preview matches download
   expect(downloaded.readUInt32BE(16)).toBe(64);
   expect(downloaded.readUInt32BE(20)).toBe(48);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v6");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v7");
   expect(downloaded.toString("utf8")).toContain('"base_kind":"original"');
   expect(downloaded.toString("utf8")).toContain(createHash("sha256").update(sourceBytes).digest("hex"));
   expect(downloaded.toString("utf8")).toContain('"exposure":0.5');
@@ -1152,6 +1154,7 @@ test("light and tone applies from the verified base and preview matches download
   expect(downloaded.toString("utf8")).toContain('"highlightRecovery":45');
   expect(downloaded.toString("utf8")).toContain('"localContrast":35');
   expect(downloaded.toString("utf8")).toContain('"clarity":40');
+  expect(downloaded.toString("utf8")).toContain('"texture":45');
   expect(downloaded.toString("utf8")).toContain('"shadows":30');
   expect(downloaded.toString("utf8")).toContain('"highlights":-20');
 

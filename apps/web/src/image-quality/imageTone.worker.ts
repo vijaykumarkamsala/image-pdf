@@ -8,6 +8,7 @@ import {
   isNeutralTone,
   localContrastRadius,
   sanitizeToneRecipe,
+  textureRadius,
   type ImageToneRecipe,
   type ImageToneStatistics,
 } from "./imageTone";
@@ -118,7 +119,7 @@ async function render(
     newShadowClippedPixels: 0,
     newHighlightClippedPixels: 0,
   };
-  if (safe.localContrast === 0 && safe.clarity === 0) {
+  if (safe.localContrast === 0 && safe.clarity === 0 && safe.texture === 0) {
     context.drawImage(bitmap, 0, 0);
     for (let y = 0; y < bitmap.height; y += rowsPerTile) {
       const height = Math.min(rowsPerTile, bitmap.height - y);
@@ -129,11 +130,13 @@ async function render(
   } else {
     const localRadius = localContrastRadius(bitmap.width, bitmap.height);
     const clarityRadius = clarityRadii(bitmap.width, bitmap.height);
+    const fineRadius = textureRadius(bitmap.width, bitmap.height);
     const haloRadius = Math.max(
       safe.localContrast === 0 ? 0 : localRadius,
       safe.clarity === 0 ? 0 : clarityRadius.outer,
+      safe.texture === 0 ? 0 : fineRadius,
     );
-    const globalRecipe = { ...safe, localContrast: 0, clarity: 0 };
+    const globalRecipe = { ...safe, localContrast: 0, clarity: 0, texture: 0 };
     const globalToneIsNeutral = isNeutralTone(globalRecipe);
     for (let y = 0; y < bitmap.height; y += rowsPerTile) {
       const height = Math.min(rowsPerTile, bitmap.height - y);
@@ -162,10 +165,14 @@ async function render(
         tileHeight,
         coreTop,
         height,
-        safe.localContrast,
-        localRadius,
-        safe.clarity,
-        clarityRadius,
+        {
+          localContrast: safe.localContrast,
+          localRadius,
+          clarity: safe.clarity,
+          clarityRadius,
+          texture: safe.texture,
+          textureRadius: fineRadius,
+        },
       );
       if (!globalToneIsNeutral) applyToneToRgba(core, globalRecipe);
       addStatistics(statistics, compareCoreStatistics(sourceTile, bitmap.width, coreTop, core));

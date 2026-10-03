@@ -99,8 +99,12 @@ source-neighbourhood stage. It derives a bounded
 difference-of-neighbourhoods signal from the same immutable source tiles,
 rather than sharpening individual pixels, and shares the transparency, noise,
 endpoint, colour-headroom and seam protections. Local contrast and clarity are
-recorded in v6 tone provenance before global tone operations. Texture and
-dehaze remain separate future increments.
+recorded before global tone operations. Signed deterministic Texture is also
+implemented inside that shared source-neighbourhood stage. It uses fine-scale
+detail plus exact local variance to act on repeated tonal texture, suppresses
+low-amplitude isolated variation, and rejects strong outline transitions so it
+does not silently become edge sharpening. The three neighbourhood settings are
+recorded in v7 tone provenance. Dehaze remains a separate future increment.
 
 - Exposure, brightness, contrast, gamma, highlights, shadows, whites and blacks.
 - Levels, tone curve, histogram and clipping warnings.

@@ -5,6 +5,7 @@ import {
   applyClarityToRgba,
   applyLocalContrastToRgba,
   applyNeighbourhoodToneToRgba,
+  applyTextureToRgba,
   applyToneToRgba,
   assertBrowserToneBudget,
   clarityRadii,
@@ -16,6 +17,7 @@ import {
   recommendToneCorrection,
   sameToneRecipe,
   sanitizeToneRecipe,
+  textureRadius,
 } from "../src/image-quality/imageTone.ts";
 import { inspectPngDimensions, tagTonePng } from "../src/image-quality/pngMetadata.ts";
 
@@ -67,6 +69,7 @@ test("tone recipes are bounded, normalized and comparable", () => {
     highlightRecovery: -20,
     localContrast: 150,
     clarity: -150,
+    texture: 175,
     exposure: 4.17,
     brightness: -101,
     contrast: 10.7,
@@ -89,6 +92,7 @@ test("tone recipes are bounded, normalized and comparable", () => {
     highlightRecovery: 0,
     localContrast: 100,
     clarity: -100,
+    texture: 100,
     exposure: 3,
     brightness: -100,
     contrast: 11,
@@ -136,6 +140,61 @@ test("clarity separates medium-scale edges without amplifying isolated pixel noi
     noise,
     "medium-scale clarity must not promote one low-amplitude pixel into visible grain",
   );
+});
+
+test("texture progressively adjusts repeated fine detail without sharpening noise or hard outlines", () => {
+  assert.equal(textureRadius(64, 48), 1);
+  assert.equal(textureRadius(4096, 2048), 4);
+  assert.throws(() => textureRadius(-1, 64), /positive integer image dimensions/);
+
+  const width = 11;
+  const height = 11;
+  const pattern = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = (x + y) % 2 === 0 ? 118 : 138;
+      pattern.set([value, value, value, 255], (y * width + x) * 4);
+    }
+  }
+  const strengthened = applyTextureToRgba(pattern, width, height, 0, height, 100, 1);
+  const strengthenedAgain = applyTextureToRgba(pattern, width, height, 0, height, 100, 1);
+  const softened = applyTextureToRgba(pattern, width, height, 0, height, -100, 1);
+  const dark = (5 * width + 5) * 4;
+  const light = (5 * width + 4) * 4;
+  assert.deepEqual(strengthened, strengthenedAgain);
+  assert.ok(strengthened[dark] < pattern[dark] && strengthened[light] > pattern[light]);
+  assert.ok(softened[dark] > pattern[dark] && softened[light] < pattern[light]);
+
+  const isolatedNoise = new Uint8ClampedArray(9 * 9 * 4);
+  for (let offset = 0; offset < isolatedNoise.length; offset += 4) {
+    isolatedNoise.set([128, 128, 128, 255], offset);
+  }
+  isolatedNoise.set([130, 130, 130, 255], (4 * 9 + 4) * 4);
+  assert.deepEqual(applyTextureToRgba(isolatedNoise, 9, 9, 0, 9, 100, 1), isolatedNoise);
+
+  const hardEdge = new Uint8ClampedArray(9 * 5 * 4);
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const value = x < 4 ? 64 : 192;
+      hardEdge.set([value, value, value, 255], (y * 9 + x) * 4);
+    }
+  }
+  assert.deepEqual(
+    applyTextureToRgba(hardEdge, 9, 5, 0, 5, 100, 1),
+    hardEdge,
+    "texture must not turn a primary hard outline into a sharpened halo",
+  );
+
+  const protectedSource = new Uint8ClampedArray([
+    0, 0, 0, 255,
+    128, 128, 128, 255,
+    255, 255, 255, 255,
+    29, 43, 71, 0,
+  ]);
+  const protectedResult = applyTextureToRgba(protectedSource, 4, 1, 0, 1, 100, 1);
+  assert.deepEqual(Array.from(protectedResult.subarray(0, 4)), [0, 0, 0, 255]);
+  assert.deepEqual(Array.from(protectedResult.subarray(8, 12)), [255, 255, 255, 255]);
+  assert.deepEqual(Array.from(protectedResult.subarray(12, 16)), [29, 43, 71, 0]);
 });
 
 test("local contrast is deterministic, progressive and protects endpoints and transparent pixels", () => {
@@ -186,7 +245,15 @@ test("halo-aware neighbourhood-tone tiles exactly match one full immutable-sourc
   const transparentOffset = (6 * width + 8) * 4;
   source.set([19, 37, 83, 0], transparentOffset);
   const clarityRadius = { inner: 1, outer: 4 };
-  const full = applyNeighbourhoodToneToRgba(source, width, height, 0, height, 75, radius, 60, clarityRadius);
+  const settings = {
+    localContrast: 75,
+    localRadius: radius,
+    clarity: 60,
+    clarityRadius,
+    texture: 55,
+    textureRadius: 1,
+  };
+  const full = applyNeighbourhoodToneToRgba(source, width, height, 0, height, settings);
   const stitched = new Uint8ClampedArray(source.length);
   for (const [coreY, coreHeight] of [[0, 5], [5, 4], [9, 4]] as const) {
     const tileTop = Math.max(0, coreY - radius);
@@ -198,10 +265,7 @@ test("halo-aware neighbourhood-tone tiles exactly match one full immutable-sourc
       tileBottom - tileTop,
       coreY - tileTop,
       coreHeight,
-      75,
-      radius,
-      60,
-      clarityRadius,
+      settings,
     );
     stitched.set(core, coreY * width * 4);
   }
@@ -431,8 +495,8 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v6/);
-  assert.match(text, /"operation_order":\["source_neighbourhood_local_contrast_and_clarity","levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
+  assert.match(text, /ipw\.image-edit\.tone\.provenance\.v7/);
+  assert.match(text, /"operation_order":\["source_neighbourhood_local_contrast_clarity_and_texture","levels_black","levels_white","levels_midtone","tone_curve","shadow_recovery","highlight_recovery","exposure","brightness","shadows","highlights","blacks","whites","contrast","gamma"\]/);
   assert.match(text, /"base_kind":"geometry-enhanced"/);
   assert.match(text, /"exposure":0.5/);
   assert.match(text, /"levelBlack":0/);
@@ -447,6 +511,7 @@ test("tone PNG tagging preserves exact dimensions and records verified base prov
   assert.match(text, /"highlightRecovery":0/);
   assert.match(text, /"localContrast":0/);
   assert.match(text, /"clarity":0/);
+  assert.match(text, /"texture":0/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 
