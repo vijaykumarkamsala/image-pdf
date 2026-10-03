@@ -20,6 +20,27 @@ export interface ImageSelectiveHslAdjustment {
 
 export type ImageSelectiveHslRecipe = Record<ImageSelectiveColorRange, ImageSelectiveHslAdjustment>;
 
+export const IMAGE_COLOR_GRADING_RANGES = ["shadows", "midtones", "highlights"] as const;
+
+export type ImageColorGradingRange = typeof IMAGE_COLOR_GRADING_RANGES[number];
+
+export interface ImageColorGrade {
+  /** Tint hue in degrees. It has no effect while saturation is zero. */
+  hue: number;
+  saturation: number;
+  luminance: number;
+}
+
+export type ImageColorGradingRecipe = Record<ImageColorGradingRange, ImageColorGrade>;
+
+interface PreparedColorGrade extends ImageColorGrade {
+  tintRed: number;
+  tintGreen: number;
+  tintBlue: number;
+}
+
+type PreparedColorGradingRecipe = Record<ImageColorGradingRange, PreparedColorGrade>;
+
 export interface ImageColorRecipe {
   /** Blue/yellow white-balance axis. Positive values warm the image. */
   temperature: number;
@@ -30,6 +51,8 @@ export interface ImageColorRecipe {
   vibrance: number;
   /** Smoothly blended, source-hue selective corrections. */
   selectiveHsl: ImageSelectiveHslRecipe;
+  /** Smoothly blended colour and luminance corrections by tonal range. */
+  colorGrading: ImageColorGradingRecipe;
 }
 
 export interface ImageColorStatistics {
@@ -60,6 +83,7 @@ const bounded = (value: number, minimum: number, maximum: number, fallback: numb
 
 const GLOBAL_COLOR_KEYS = ["temperature", "tint", "saturation", "vibrance"] as const;
 const SELECTIVE_HSL_KEYS = ["hue", "saturation", "lightness"] as const;
+const COLOR_GRADING_KEYS = ["hue", "saturation", "luminance"] as const;
 const SELECTIVE_HUE_CENTRES: Record<ImageSelectiveColorRange, number> = {
   red: 0,
   orange: 30,
@@ -78,6 +102,13 @@ function createNeutralSelectiveHsl(): ImageSelectiveHslRecipe {
   ])) as ImageSelectiveHslRecipe;
 }
 
+function createNeutralColorGrading(): ImageColorGradingRecipe {
+  return Object.fromEntries(IMAGE_COLOR_GRADING_RANGES.map((range) => [
+    range,
+    { hue: 0, saturation: 0, luminance: 0 },
+  ])) as ImageColorGradingRecipe;
+}
+
 export function createNeutralColorRecipe(): ImageColorRecipe {
   return {
     temperature: 0,
@@ -85,11 +116,13 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
     saturation: 0,
     vibrance: 0,
     selectiveHsl: createNeutralSelectiveHsl(),
+    colorGrading: createNeutralColorGrading(),
   };
 }
 
 export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe {
   const selectiveHsl = createNeutralSelectiveHsl();
+  const colorGrading = createNeutralColorGrading();
   for (const range of IMAGE_SELECTIVE_COLOR_RANGES) {
     const adjustment = recipe.selectiveHsl?.[range];
     selectiveHsl[range] = {
@@ -98,12 +131,21 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
       lightness: Math.round(bounded(adjustment?.lightness, -100, 100, 0)),
     };
   }
+  for (const range of IMAGE_COLOR_GRADING_RANGES) {
+    const grade = recipe.colorGrading?.[range];
+    colorGrading[range] = {
+      hue: Math.round(bounded(grade?.hue, 0, 359, 0)),
+      saturation: Math.round(bounded(grade?.saturation, 0, 100, 0)),
+      luminance: Math.round(bounded(grade?.luminance, -100, 100, 0)),
+    };
+  }
   return {
     temperature: Math.round(bounded(recipe.temperature, -100, 100, 0)),
     tint: Math.round(bounded(recipe.tint, -100, 100, 0)),
     saturation: Math.round(bounded(recipe.saturation, -100, 100, 0)),
     vibrance: Math.round(bounded(recipe.vibrance, -100, 100, 0)),
     selectiveHsl,
+    colorGrading,
   };
 }
 
@@ -112,6 +154,9 @@ export function isNeutralColor(recipe: ImageColorRecipe): boolean {
   return GLOBAL_COLOR_KEYS.every((key) => safe[key] === 0)
     && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => (
       SELECTIVE_HSL_KEYS.every((key) => safe.selectiveHsl[range][key] === 0)
+    ))
+    && IMAGE_COLOR_GRADING_RANGES.every((range) => (
+      safe.colorGrading[range].saturation === 0 && safe.colorGrading[range].luminance === 0
     ));
 }
 
@@ -122,6 +167,9 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
   return GLOBAL_COLOR_KEYS.every((key) => safeLeft[key] === safeRight[key])
     && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => (
       SELECTIVE_HSL_KEYS.every((key) => safeLeft.selectiveHsl[range][key] === safeRight.selectiveHsl[range][key])
+    ))
+    && IMAGE_COLOR_GRADING_RANGES.every((range) => (
+      COLOR_GRADING_KEYS.every((key) => safeLeft.colorGrading[range][key] === safeRight.colorGrading[range][key])
     ));
 }
 
@@ -131,6 +179,10 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
     && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => {
       const adjustment = recipe.selectiveHsl?.[range];
       return Boolean(adjustment) && SELECTIVE_HSL_KEYS.every((key) => adjustment[key] === safe.selectiveHsl[range][key]);
+    })
+    && IMAGE_COLOR_GRADING_RANGES.every((range) => {
+      const grade = recipe.colorGrading?.[range];
+      return Boolean(grade) && COLOR_GRADING_KEYS.every((key) => grade[key] === safe.colorGrading[range][key]);
     });
 }
 
@@ -156,6 +208,11 @@ function linearToSrgb(value: number) {
   const safe = clamp(value, 0, 1);
   const encoded = safe <= 0.0031308 ? safe * 12.92 : 1.055 * safe ** (1 / 2.4) - 0.055;
   return Math.round(clamp(encoded * 255, 0, 255));
+}
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const position = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return position * position * (3 - 2 * position);
 }
 
 function rgbToHsl(red: number, green: number, blue: number) {
@@ -232,6 +289,96 @@ function applySelectiveHsl(
     ? hsl.lightness + (1 - hsl.lightness) * lightnessAmount
     : hsl.lightness * (1 + lightnessAmount), 0, 1);
   return hslToRgb(hue, saturation, lightness);
+}
+
+function colorGradingWeights(luminance: number): Record<ImageColorGradingRange, number> {
+  const weights = {
+    shadows: 1 - smoothstep(0.12, 0.5, luminance),
+    midtones: smoothstep(0.08, 0.42, luminance) * (1 - smoothstep(0.58, 0.92, luminance)),
+    highlights: smoothstep(0.5, 0.88, luminance),
+  };
+  const total = weights.shadows + weights.midtones + weights.highlights;
+  if (total <= 1) return weights;
+  return {
+    shadows: weights.shadows / total,
+    midtones: weights.midtones / total,
+    highlights: weights.highlights / total,
+  };
+}
+
+function prepareColorGrading(recipe: ImageColorGradingRecipe): PreparedColorGradingRecipe {
+  return Object.fromEntries(IMAGE_COLOR_GRADING_RANGES.map((range) => {
+    const grade = recipe[range];
+    const target = hslToRgb(grade.hue, 1, 0.5);
+    const targetRed = srgbToLinear(target.red * 255);
+    const targetGreen = srgbToLinear(target.green * 255);
+    const targetBlue = srgbToLinear(target.blue * 255);
+    const targetLuminance = 0.2126 * targetRed + 0.7152 * targetGreen + 0.0722 * targetBlue;
+    return [range, {
+      ...grade,
+      tintRed: targetRed - targetLuminance,
+      tintGreen: targetGreen - targetLuminance,
+      tintBlue: targetBlue - targetLuminance,
+    }];
+  })) as PreparedColorGradingRecipe;
+}
+
+function applyColorGrading(
+  encodedRed: number,
+  encodedGreen: number,
+  encodedBlue: number,
+  recipe: PreparedColorGradingRecipe,
+) {
+  let red = srgbToLinear(encodedRed * 255);
+  let green = srgbToLinear(encodedGreen * 255);
+  let blue = srgbToLinear(encodedBlue * 255);
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  const endpointGate = Math.min(smoothstep(0, 0.025, luminance), 1 - smoothstep(0.975, 1, luminance));
+  if (endpointGate <= 0) return { red: encodedRed, green: encodedGreen, blue: encodedBlue };
+
+  const weights = colorGradingWeights(luminance);
+  let tintRed = 0;
+  let tintGreen = 0;
+  let tintBlue = 0;
+  let luminanceControl = 0;
+  for (const range of IMAGE_COLOR_GRADING_RANGES) {
+    const grade = recipe[range];
+    const weight = weights[range];
+    luminanceControl += weight * grade.luminance / 100;
+    if (grade.saturation === 0 || weight === 0) continue;
+    const amount = weight * grade.saturation / 100;
+    tintRed += grade.tintRed * amount;
+    tintGreen += grade.tintGreen * amount;
+    tintBlue += grade.tintBlue * amount;
+  }
+
+  const tintStrength = 0.2 * endpointGate;
+  const delta = [tintRed * tintStrength, tintGreen * tintStrength, tintBlue * tintStrength];
+  const channels = [red, green, blue];
+  let headroomScale = 1;
+  for (let index = 0; index < channels.length; index += 1) {
+    if (delta[index] > 0) headroomScale = Math.min(headroomScale, (1 - channels[index]) / delta[index]);
+    if (delta[index] < 0) headroomScale = Math.min(headroomScale, channels[index] / -delta[index]);
+  }
+  red += delta[0] * Math.max(0, headroomScale);
+  green += delta[1] * Math.max(0, headroomScale);
+  blue += delta[2] * Math.max(0, headroomScale);
+
+  const luminanceAmount = clamp(luminanceControl * 0.18 * endpointGate, -0.18, 0.18);
+  if (luminanceAmount >= 0) {
+    red += (1 - red) * luminanceAmount;
+    green += (1 - green) * luminanceAmount;
+    blue += (1 - blue) * luminanceAmount;
+  } else {
+    red *= 1 + luminanceAmount;
+    green *= 1 + luminanceAmount;
+    blue *= 1 + luminanceAmount;
+  }
+  return {
+    red: linearToSrgb(red) / 255,
+    green: linearToSrgb(green) / 255,
+    blue: linearToSrgb(blue) / 255,
+  };
 }
 
 export function whiteBalanceSampleRadius(width: number, height: number): number {
@@ -334,6 +481,10 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
   const selectiveActive = IMAGE_SELECTIVE_COLOR_RANGES.some((range) => (
     SELECTIVE_HSL_KEYS.some((key) => safe.selectiveHsl[range][key] !== 0)
   ));
+  const gradingActive = IMAGE_COLOR_GRADING_RANGES.some((range) => (
+    safe.colorGrading[range].saturation !== 0 || safe.colorGrading[range].luminance !== 0
+  ));
+  const preparedColorGrading = gradingActive ? prepareColorGrading(safe.colorGrading) : null;
 
   for (let offset = 0; offset < pixels.byteLength; offset += 4) {
     if (pixels[offset + 3] === 0) continue;
@@ -371,6 +522,17 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
       outputRed = Math.round(clamp(selective.red * 255, 0, 255));
       outputGreen = Math.round(clamp(selective.green * 255, 0, 255));
       outputBlue = Math.round(clamp(selective.blue * 255, 0, 255));
+    }
+    if (preparedColorGrading) {
+      const graded = applyColorGrading(
+        outputRed / 255,
+        outputGreen / 255,
+        outputBlue / 255,
+        preparedColorGrading,
+      );
+      outputRed = Math.round(clamp(graded.red * 255, 0, 255));
+      outputGreen = Math.round(clamp(graded.green * 255, 0, 255));
+      outputBlue = Math.round(clamp(graded.blue * 255, 0, 255));
     }
     pixels[offset] = outputRed;
     pixels[offset + 1] = outputGreen;

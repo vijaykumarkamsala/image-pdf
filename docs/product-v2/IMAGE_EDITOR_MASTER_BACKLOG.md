@@ -138,9 +138,13 @@ in v2 colour provenance. Eight-range selective HSL is also implemented for Red,
 Orange, Yellow, Green, Aqua, Blue, Purple and Magenta. Each range exposes bounded
 Hue, Saturation and Lightness controls with smooth transitions into neighbouring
 ranges; neutral colours and transparent pixels remain protected. The ordered
-selective recipe is recorded in v3 colour provenance. Point-colour selection,
-colour grading, LUTs, colour matching and protected brand/product/skin colour
-remain future increments.
+selective recipe is recorded in v3 colour provenance. Deterministic tonal colour
+grading is also implemented for Shadows, Midtones and Highlights. Each range
+provides Hue, Saturation and Luminance controls through smooth, overlapping
+luminance masks; exact black, exact white, transparency and alpha are protected,
+and tint strength is bounded to available gamut. The ordered grading recipe is
+recorded in v4 colour provenance. Point-colour selection, LUTs, colour matching
+and protected brand/product/skin colour remain future increments.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

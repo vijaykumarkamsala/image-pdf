@@ -37,9 +37,12 @@ import {
   type ImageToneStatistics,
 } from "./imageTone";
 import {
+  IMAGE_COLOR_GRADING_RANGES,
   IMAGE_SELECTIVE_COLOR_RANGES,
   isNeutralColor,
   MAX_BROWSER_COLOR_PIXELS,
+  type ImageColorGrade,
+  type ImageColorGradingRange,
   type ImageColorRecipe,
   type ImageColorStatistics,
   type ImageSelectiveColorRange,
@@ -424,12 +427,32 @@ const selectiveHslControls: Array<{
   { key: "lightness", label: "Lightness" },
 ];
 
+const colorGradingLabels: Record<ImageColorGradingRange, string> = {
+  shadows: "Shadows",
+  midtones: "Midtones",
+  highlights: "Highlights",
+};
+
+const colorGradingControls: Array<{
+  key: keyof ImageColorGrade;
+  label: string;
+  minimum: number;
+  maximum: number;
+}> = [
+  { key: "hue", label: "Hue", minimum: 0, maximum: 359 },
+  { key: "saturation", label: "Saturation", minimum: 0, maximum: 100 },
+  { key: "luminance", label: "Luminance", minimum: -100, maximum: 100 },
+];
+
 export function ColorToolPanel(props: ColorToolPanelProps) {
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
+  const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
   const neutral = isNeutralColor(props.recipe);
   const suggestionLoaded = props.whiteBalanceSuggestionUsed;
   const selectedAdjustment = props.recipe.selectiveHsl[selectedRange];
   const selectedRangeNeutral = Object.values(selectedAdjustment).every((value) => value === 0);
+  const selectedGradeAdjustment = props.recipe.colorGrading[selectedGrade];
+  const selectedGradeNeutral = selectedGradeAdjustment.saturation === 0 && selectedGradeAdjustment.luminance === 0;
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
     <fieldset className="quality-auto-tone quality-white-balance">
@@ -525,6 +548,61 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         },
       })}><RotateCcw aria-hidden="true" />Reset {selectiveColorLabels[selectedRange]}</Button>
       <p>Adjusts the selected hue family with smooth transitions into neighbouring ranges. Hue rotates by at most 30 degrees. Near-neutral colours, transparency and alpha are protected.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-color-grading">
+      <legend>Tonal colour grading</legend>
+      <div className="quality-grading-ranges" role="group" aria-label="Tonal grading range">
+        {IMAGE_COLOR_GRADING_RANGES.map((range) => {
+          const grade = props.recipe.colorGrading[range];
+          const adjusted = grade.saturation !== 0 || grade.luminance !== 0;
+          return <button
+            type="button"
+            key={range}
+            data-adjusted={adjusted}
+            aria-label={`${colorGradingLabels[range]} grade, ${adjusted ? "adjusted" : "neutral"}`}
+            aria-pressed={selectedGrade === range}
+            disabled={props.busy}
+            onClick={() => setSelectedGrade(range)}
+          >{colorGradingLabels[range]}</button>;
+        })}
+      </div>
+      <div className="quality-grade-preview" aria-hidden="true">
+        <span style={{ backgroundColor: `hsl(${selectedGradeAdjustment.hue} 100% 50%)` }} />
+        <strong>{colorGradingLabels[selectedGrade]}</strong>
+      </div>
+      <div className="quality-adjustment-controls">
+        {colorGradingControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
+          <span><strong>{colorGradingLabels[selectedGrade]} {control.label.toLowerCase()}</strong><output>{control.key !== "hue" && selectedGradeAdjustment[control.key] > 0 ? "+" : ""}{selectedGradeAdjustment[control.key]}{control.key === "hue" ? " degrees" : ""}</output></span>
+          <input
+            className={control.key === "hue" ? "quality-grade-hue" : undefined}
+            aria-label={`${colorGradingLabels[selectedGrade]} ${control.label.toLowerCase()}`}
+            type="range"
+            min={control.minimum}
+            max={control.maximum}
+            step="1"
+            value={selectedGradeAdjustment[control.key]}
+            disabled={props.busy}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              colorGrading: {
+                ...props.recipe.colorGrading,
+                [selectedGrade]: {
+                  ...selectedGradeAdjustment,
+                  [control.key]: Number(event.target.value),
+                },
+              },
+            })}
+          />
+        </label>)}
+      </div>
+      <Button size="compact" disabled={props.busy || selectedGradeNeutral} onClick={() => props.onRecipe({
+        ...props.recipe,
+        colorGrading: {
+          ...props.recipe.colorGrading,
+          [selectedGrade]: { hue: 0, saturation: 0, luminance: 0 },
+        },
+      })}><RotateCcw aria-hidden="true" />Reset {colorGradingLabels[selectedGrade]}</Button>
+      <p>Uses smooth, overlapping luminance masks so edits transition naturally between tonal ranges. Exact black, exact white, transparency and alpha are protected. Tinting is bounded to available gamut and does not generate detail.</p>
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>

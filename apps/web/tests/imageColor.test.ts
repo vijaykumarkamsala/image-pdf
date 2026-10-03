@@ -42,6 +42,10 @@ test("colour recipes are bounded, normalized and comparable", () => {
       ...neutral.selectiveHsl,
       red: { hue: 101, saturation: -101, lightness: 23.6 },
     },
+    colorGrading: {
+      ...neutral.colorGrading,
+      shadows: { hue: 999, saturation: 101, luminance: -101 },
+    },
   });
   assert.deepEqual(safe, {
     ...neutral,
@@ -53,6 +57,10 @@ test("colour recipes are bounded, normalized and comparable", () => {
       ...neutral.selectiveHsl,
       red: { hue: 100, saturation: -100, lightness: 24 },
     },
+    colorGrading: {
+      ...neutral.colorGrading,
+      shadows: { hue: 359, saturation: 100, luminance: -100 },
+    },
   });
   assert.equal(isSanitizedColorRecipe(safe), true);
   assert.equal(sameColorRecipe(safe, { ...safe }), true);
@@ -60,6 +68,10 @@ test("colour recipes are bounded, normalized and comparable", () => {
   assert.equal(sameColorRecipe(safe, {
     ...safe,
     selectiveHsl: { ...safe.selectiveHsl, red: { ...safe.selectiveHsl.red, hue: 99 } },
+  }), false);
+  assert.equal(sameColorRecipe(safe, {
+    ...safe,
+    colorGrading: { ...safe.colorGrading, shadows: { ...safe.colorGrading.shadows, hue: 358 } },
   }), false);
   assert.equal(assertBrowserColorBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserColorBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
@@ -167,6 +179,66 @@ test("temperature, tint, saturation and vibrance follow their disclosed axes", (
   assert.ok(mutedGain > vividGain, "vibrance must favor less-saturated pixels");
 });
 
+test("tonal colour grading is deterministic, progressive and protects endpoints, alpha and hidden RGB", () => {
+  const original = new Uint8ClampedArray([
+    0, 0, 0, 255,
+    50, 50, 50, 255,
+    128, 128, 128, 128,
+    220, 220, 220, 255,
+    255, 255, 255, 255,
+    71, 83, 97, 0,
+  ]);
+  const recipe = createNeutralColorRecipe();
+  recipe.colorGrading.shadows = { hue: 220, saturation: 100, luminance: 20 };
+  const adjusted = original.slice();
+  const repeated = original.slice();
+  const statistics = applyColorToRgba(adjusted, recipe);
+  assert.deepEqual(applyColorToRgba(repeated, recipe), statistics);
+  assert.deepEqual(repeated, adjusted);
+  assert.deepEqual(Array.from(adjusted.subarray(0, 4)), Array.from(original.subarray(0, 4)), "exact black is protected");
+  assert.deepEqual(Array.from(adjusted.subarray(16, 20)), Array.from(original.subarray(16, 20)), "exact white is protected");
+  assert.deepEqual(Array.from(adjusted.subarray(20, 24)), Array.from(original.subarray(20, 24)), "transparent hidden RGB is immutable");
+  assert.equal(adjusted[11], 128, "alpha is preserved");
+
+  const pixelDistance = (offset: number) => Math.abs(adjusted[offset] - original[offset])
+    + Math.abs(adjusted[offset + 1] - original[offset + 1])
+    + Math.abs(adjusted[offset + 2] - original[offset + 2]);
+  assert.ok(pixelDistance(4) > pixelDistance(8), "a shadow grade must affect dark pixels more than midtones");
+  assert.ok(pixelDistance(4) > pixelDistance(12), "a shadow grade must affect dark pixels more than highlights");
+
+  const gentleRecipe = createNeutralColorRecipe();
+  gentleRecipe.colorGrading.shadows = { hue: 220, saturation: 25, luminance: 0 };
+  const strongRecipe = createNeutralColorRecipe();
+  strongRecipe.colorGrading.shadows = { hue: 220, saturation: 100, luminance: 0 };
+  const gentle = new Uint8ClampedArray([50, 50, 50, 255]);
+  const strong = gentle.slice();
+  applyColorToRgba(gentle, gentleRecipe);
+  applyColorToRgba(strong, strongRecipe);
+  const neutralDistance = (pixels: Uint8ClampedArray) => Math.abs(pixels[0] - 50)
+    + Math.abs(pixels[1] - 50) + Math.abs(pixels[2] - 50);
+  assert.ok(neutralDistance(gentle) > 0);
+  assert.ok(neutralDistance(strong) > neutralDistance(gentle));
+
+  const highlightRecipe = createNeutralColorRecipe();
+  highlightRecipe.colorGrading.highlights.luminance = 100;
+  const luminancePixels = new Uint8ClampedArray([40, 40, 40, 255, 220, 220, 220, 255]);
+  applyColorToRgba(luminancePixels, highlightRecipe);
+  assert.equal(luminancePixels[0], 40, "highlight luminance must not alter deep shadows");
+  assert.ok(luminancePixels[4] > 220, "highlight luminance must lift highlights");
+
+  const midtoneRecipe = createNeutralColorRecipe();
+  midtoneRecipe.colorGrading.midtones.luminance = -100;
+  const midtonePixels = new Uint8ClampedArray([40, 40, 40, 255, 160, 160, 160, 255, 220, 220, 220, 255]);
+  applyColorToRgba(midtonePixels, midtoneRecipe);
+  const midtoneDarkening = (offset: number, source: number) => source - midtonePixels[offset];
+  assert.ok(midtoneDarkening(4, 160) > midtoneDarkening(0, 40), "midtone luminance must favor midtones over shadows");
+  assert.ok(midtoneDarkening(4, 160) > midtoneDarkening(8, 220), "midtone luminance must favor midtones over highlights");
+
+  const hueOnly = createNeutralColorRecipe();
+  hueOnly.colorGrading.midtones.hue = 180;
+  assert.equal(isNeutralColor(hueOnly), true, "a grade hue without saturation or luminance is neutral");
+});
+
 test("neutral-point white balance is deterministic, inverse-modelled and rejects unusable patches", () => {
   assert.equal(whiteBalanceSampleRadius(48, 40), 1);
   assert.equal(whiteBalanceSampleRadius(4096, 2048), 4);
@@ -228,6 +300,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     vibrance: 30,
   };
   recipe.selectiveHsl.orange = { hue: 18, saturation: 30, lightness: -12 };
+  recipe.colorGrading.shadows = { hue: 220, saturation: 24, luminance: 8 };
   const tagged = tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,
     baseOutputSha256: baseHash,
@@ -254,12 +327,13 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v3/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v4/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","tonal_color_grading"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"base_kind":"tone"/);
   assert.match(text, /"temperature":20/);
   assert.match(text, /"orange":\{"hue":18,"saturation":30,"lightness":-12\}/);
+  assert.match(text, /"shadows":\{"hue":220,"saturation":24,"luminance":8\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 
@@ -276,6 +350,26 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
       selectiveHsl: {
         ...recipe.selectiveHsl,
         red: { hue: 101, saturation: 0, lightness: 0 },
+      },
+    },
+    statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    recipe: {
+      ...recipe,
+      colorGrading: {
+        ...recipe.colorGrading,
+        highlights: { hue: 360, saturation: 0, luminance: 0 },
       },
     },
     statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },

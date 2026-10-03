@@ -1252,7 +1252,7 @@ test("neutral-point white balance samples the verified base and requires explici
   const downloaded = Buffer.concat(chunks);
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v3");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v4");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":{"sourceX"');
   expect(downloaded.toString("utf8")).toContain('"red":180,"green":170,"blue":160');
   expect(downloaded.toString("utf8")).toContain('"temperature":-54,"tint":0');
@@ -1300,6 +1300,15 @@ test("colour applies after tone and binds preview and download to the exact veri
   await expect(page.getByLabel("Blue hue", { exact: true })).toHaveValue("0");
   await page.getByRole("button", { name: "Red range, adjusted", exact: true }).click();
   await expect(page.getByLabel("Red hue", { exact: true })).toHaveValue("35");
+  await expect(page.getByRole("button", { name: "Shadows grade, neutral", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByLabel("Shadows hue", { exact: true }).fill("220");
+  await page.getByLabel("Shadows saturation", { exact: true }).fill("35");
+  await page.getByLabel("Shadows luminance", { exact: true }).fill("10");
+  await expect(page.getByRole("button", { name: "Shadows grade, adjusted", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Highlights grade, neutral", exact: true }).click();
+  await expect(page.getByLabel("Highlights saturation", { exact: true })).toHaveValue("0");
+  await page.getByRole("button", { name: "Shadows grade, adjusted", exact: true }).click();
+  await expect(page.getByLabel("Shadows hue", { exact: true })).toHaveValue("220");
   await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
   const accessibility = await new AxeBuilder({ page }).include(".quality-workspace").analyze();
   expect(accessibility.violations).toEqual([]);
@@ -1362,7 +1371,7 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v3");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v4");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":null');
   expect(downloaded.toString("utf8")).toContain('"base_kind":"tone"');
   expect(downloaded.toString("utf8")).toContain(toneEvidence.digest);
@@ -1371,6 +1380,7 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.toString("utf8")).toContain('"saturation":20');
   expect(downloaded.toString("utf8")).toContain('"vibrance":30');
   expect(downloaded.toString("utf8")).toContain('"red":{"hue":35,"saturation":25,"lightness":-10}');
+  expect(downloaded.toString("utf8")).toContain('"shadows":{"hue":220,"saturation":35,"luminance":10}');
 
   await page.getByLabel("Saturation", { exact: true }).fill("25");
   await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
