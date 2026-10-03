@@ -40,6 +40,16 @@ export interface ImageBlackAndWhiteRecipe {
   blue: number;
 }
 
+export interface ImageDuotoneRecipe {
+  enabled: boolean;
+  shadowHue: number;
+  shadowSaturation: number;
+  highlightHue: number;
+  highlightSaturation: number;
+  /** Negative values favor the highlight tint; positive values favor the shadow tint. */
+  balance: number;
+}
+
 interface PreparedColorGrade extends ImageColorGrade {
   tintRed: number;
   tintGreen: number;
@@ -47,6 +57,15 @@ interface PreparedColorGrade extends ImageColorGrade {
 }
 
 type PreparedColorGradingRecipe = Record<ImageColorGradingRange, PreparedColorGrade>;
+
+interface PreparedDuotoneRecipe extends ImageDuotoneRecipe {
+  shadowTintRed: number;
+  shadowTintGreen: number;
+  shadowTintBlue: number;
+  highlightTintRed: number;
+  highlightTintGreen: number;
+  highlightTintBlue: number;
+}
 
 export interface ImageColorRecipe {
   /** Blue/yellow white-balance axis. Positive values warm the image. */
@@ -62,6 +81,8 @@ export interface ImageColorRecipe {
   colorGrading: ImageColorGradingRecipe;
   /** Opt-in normalized linear-light channel mixer. */
   blackAndWhite: ImageBlackAndWhiteRecipe;
+  /** Opt-in luminance-preserving two-colour toning. */
+  duotone: ImageDuotoneRecipe;
 }
 
 export interface ImageColorStatistics {
@@ -94,6 +115,7 @@ const GLOBAL_COLOR_KEYS = ["temperature", "tint", "saturation", "vibrance"] as c
 const SELECTIVE_HSL_KEYS = ["hue", "saturation", "lightness"] as const;
 const COLOR_GRADING_KEYS = ["hue", "saturation", "luminance"] as const;
 const BLACK_AND_WHITE_KEYS = ["red", "green", "blue"] as const;
+const DUOTONE_KEYS = ["shadowHue", "shadowSaturation", "highlightHue", "highlightSaturation", "balance"] as const;
 const SELECTIVE_HUE_CENTRES: Record<ImageSelectiveColorRange, number> = {
   red: 0,
   orange: 30,
@@ -128,6 +150,14 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
     selectiveHsl: createNeutralSelectiveHsl(),
     colorGrading: createNeutralColorGrading(),
     blackAndWhite: { enabled: false, red: 40, green: 40, blue: 20 },
+    duotone: {
+      enabled: false,
+      shadowHue: 220,
+      shadowSaturation: 35,
+      highlightHue: 40,
+      highlightSaturation: 25,
+      balance: 0,
+    },
   };
 }
 
@@ -163,6 +193,14 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
       green: Math.round(bounded(recipe.blackAndWhite?.green, 0, 100, 40)),
       blue: Math.round(bounded(recipe.blackAndWhite?.blue, 0, 100, 20)),
     },
+    duotone: {
+      enabled: recipe.duotone?.enabled === true,
+      shadowHue: Math.round(bounded(recipe.duotone?.shadowHue, 0, 359, 220)),
+      shadowSaturation: Math.round(bounded(recipe.duotone?.shadowSaturation, 0, 100, 35)),
+      highlightHue: Math.round(bounded(recipe.duotone?.highlightHue, 0, 359, 40)),
+      highlightSaturation: Math.round(bounded(recipe.duotone?.highlightSaturation, 0, 100, 25)),
+      balance: Math.round(bounded(recipe.duotone?.balance, -100, 100, 0)),
+    },
   };
 }
 
@@ -175,7 +213,8 @@ export function isNeutralColor(recipe: ImageColorRecipe): boolean {
     && IMAGE_COLOR_GRADING_RANGES.every((range) => (
       safe.colorGrading[range].saturation === 0 && safe.colorGrading[range].luminance === 0
     ))
-    && !safe.blackAndWhite.enabled;
+    && !safe.blackAndWhite.enabled
+    && !safe.duotone.enabled;
 }
 
 export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColorRecipe | null): boolean {
@@ -190,7 +229,9 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
       COLOR_GRADING_KEYS.every((key) => safeLeft.colorGrading[range][key] === safeRight.colorGrading[range][key])
     ))
     && safeLeft.blackAndWhite.enabled === safeRight.blackAndWhite.enabled
-    && BLACK_AND_WHITE_KEYS.every((key) => safeLeft.blackAndWhite[key] === safeRight.blackAndWhite[key]);
+    && BLACK_AND_WHITE_KEYS.every((key) => safeLeft.blackAndWhite[key] === safeRight.blackAndWhite[key])
+    && safeLeft.duotone.enabled === safeRight.duotone.enabled
+    && DUOTONE_KEYS.every((key) => safeLeft.duotone[key] === safeRight.duotone[key]);
 }
 
 export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
@@ -207,7 +248,9 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
     && recipe.blackAndWhite?.enabled === safe.blackAndWhite.enabled
     && BLACK_AND_WHITE_KEYS.every((key) => recipe.blackAndWhite?.[key] === safe.blackAndWhite[key])
     && (!safe.blackAndWhite.enabled
-      || safe.blackAndWhite.red + safe.blackAndWhite.green + safe.blackAndWhite.blue > 0);
+      || safe.blackAndWhite.red + safe.blackAndWhite.green + safe.blackAndWhite.blue > 0)
+    && recipe.duotone?.enabled === safe.duotone.enabled
+    && DUOTONE_KEYS.every((key) => recipe.duotone?.[key] === safe.duotone[key]);
 }
 
 export function assertBrowserColorBudget(width: number, height: number): number {
@@ -405,6 +448,68 @@ function applyColorGrading(
   };
 }
 
+function prepareDuotone(recipe: ImageDuotoneRecipe): PreparedDuotoneRecipe {
+  const tintVector = (hue: number) => {
+    const target = hslToRgb(hue, 1, 0.5);
+    const red = srgbToLinear(target.red * 255);
+    const green = srgbToLinear(target.green * 255);
+    const blue = srgbToLinear(target.blue * 255);
+    const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    return { red: red - luminance, green: green - luminance, blue: blue - luminance };
+  };
+  const shadow = tintVector(recipe.shadowHue);
+  const highlight = tintVector(recipe.highlightHue);
+  return {
+    ...recipe,
+    shadowTintRed: shadow.red,
+    shadowTintGreen: shadow.green,
+    shadowTintBlue: shadow.blue,
+    highlightTintRed: highlight.red,
+    highlightTintGreen: highlight.green,
+    highlightTintBlue: highlight.blue,
+  };
+}
+
+function applyDuotone(
+  encodedRed: number,
+  encodedGreen: number,
+  encodedBlue: number,
+  recipe: PreparedDuotoneRecipe,
+) {
+  const red = srgbToLinear(encodedRed);
+  const green = srgbToLinear(encodedGreen);
+  const blue = srgbToLinear(encodedBlue);
+  const luminance = clamp(0.2126 * red + 0.7152 * green + 0.0722 * blue, 0, 1);
+  const endpointGate = Math.min(smoothstep(0, 0.025, luminance), 1 - smoothstep(0.975, 1, luminance));
+  if (endpointGate <= 0) return { red: encodedRed, green: encodedGreen, blue: encodedBlue };
+
+  const midpoint = 0.5 + recipe.balance * 0.004;
+  const balanced = luminance <= midpoint
+    ? 0.5 * luminance / midpoint
+    : 0.5 + 0.5 * (luminance - midpoint) / (1 - midpoint);
+  const highlightWeight = smoothstep(0, 1, balanced);
+  const shadowWeight = 1 - highlightWeight;
+  const shadowAmount = shadowWeight * recipe.shadowSaturation / 100;
+  const highlightAmount = highlightWeight * recipe.highlightSaturation / 100;
+  const tintStrength = 0.34 * endpointGate;
+  const delta = [
+    (recipe.shadowTintRed * shadowAmount + recipe.highlightTintRed * highlightAmount) * tintStrength,
+    (recipe.shadowTintGreen * shadowAmount + recipe.highlightTintGreen * highlightAmount) * tintStrength,
+    (recipe.shadowTintBlue * shadowAmount + recipe.highlightTintBlue * highlightAmount) * tintStrength,
+  ];
+  let headroomScale = 1;
+  for (const change of delta) {
+    if (change > 0) headroomScale = Math.min(headroomScale, (1 - luminance) / change);
+    if (change < 0) headroomScale = Math.min(headroomScale, luminance / -change);
+  }
+  const scale = Math.max(0, headroomScale);
+  return {
+    red: linearToSrgb(luminance + delta[0] * scale),
+    green: linearToSrgb(luminance + delta[1] * scale),
+    blue: linearToSrgb(luminance + delta[2] * scale),
+  };
+}
+
 export function whiteBalanceSampleRadius(width: number, height: number): number {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
     throw new Error("White-balance sampling requires positive integer image dimensions.");
@@ -518,6 +623,7 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
     green: safe.blackAndWhite.green / blackAndWhiteTotal,
     blue: safe.blackAndWhite.blue / blackAndWhiteTotal,
   } : null;
+  const preparedDuotone = safe.duotone.enabled ? prepareDuotone(safe.duotone) : null;
 
   for (let offset = 0; offset < pixels.byteLength; offset += 4) {
     if (pixels[offset + 3] === 0) continue;
@@ -574,6 +680,12 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
       outputRed = linearToSrgb(monochrome);
       outputGreen = outputRed;
       outputBlue = outputRed;
+    }
+    if (preparedDuotone) {
+      const duotone = applyDuotone(outputRed, outputGreen, outputBlue, preparedDuotone);
+      outputRed = duotone.red;
+      outputGreen = duotone.green;
+      outputBlue = duotone.blue;
     }
     pixels[offset] = outputRed;
     pixels[offset + 1] = outputGreen;

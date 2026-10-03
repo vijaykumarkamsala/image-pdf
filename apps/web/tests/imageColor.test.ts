@@ -47,6 +47,14 @@ test("colour recipes are bounded, normalized and comparable", () => {
       shadows: { hue: 999, saturation: 101, luminance: -101 },
     },
     blackAndWhite: { enabled: true, red: 101, green: -1, blue: Number.NaN },
+    duotone: {
+      enabled: true,
+      shadowHue: -1,
+      shadowSaturation: 101,
+      highlightHue: 999,
+      highlightSaturation: -1,
+      balance: 101,
+    },
   });
   assert.deepEqual(safe, {
     ...neutral,
@@ -63,6 +71,14 @@ test("colour recipes are bounded, normalized and comparable", () => {
       shadows: { hue: 359, saturation: 100, luminance: -100 },
     },
     blackAndWhite: { enabled: true, red: 100, green: 0, blue: 20 },
+    duotone: {
+      enabled: true,
+      shadowHue: 0,
+      shadowSaturation: 100,
+      highlightHue: 359,
+      highlightSaturation: 0,
+      balance: 100,
+    },
   });
   assert.equal(isSanitizedColorRecipe(safe), true);
   assert.equal(sameColorRecipe(safe, { ...safe }), true);
@@ -78,6 +94,14 @@ test("colour recipes are bounded, normalized and comparable", () => {
   assert.equal(sameColorRecipe(safe, {
     ...safe,
     blackAndWhite: { ...safe.blackAndWhite, blue: 19 },
+  }), false);
+  assert.equal(sameColorRecipe(safe, {
+    ...safe,
+    duotone: { ...safe.duotone, balance: 99 },
+  }), false);
+  assert.equal(isSanitizedColorRecipe({
+    ...safe,
+    duotone: { ...safe.duotone, highlightSaturation: 101 },
   }), false);
   assert.equal(assertBrowserColorBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserColorBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
@@ -291,6 +315,79 @@ test("black-and-white channel mixing is deterministic, normalized and preserves 
   assert.throws(() => applyColorToRgba(new Uint8ClampedArray([40, 80, 120, 255]), invalid), /at least one non-zero colour channel/);
 });
 
+test("duotone mapping is deterministic, balance-selective and preserves luminance endpoints, alpha and hidden RGB", () => {
+  const original = new Uint8ClampedArray([
+    0, 0, 0, 255,
+    60, 60, 60, 255,
+    160, 160, 160, 128,
+    225, 225, 225, 255,
+    255, 255, 255, 255,
+    71, 83, 97, 0,
+  ]);
+  const recipe = createNeutralColorRecipe();
+  recipe.duotone.enabled = true;
+  const adjusted = original.slice();
+  const repeated = original.slice();
+  const statistics = applyColorToRgba(adjusted, recipe);
+  assert.deepEqual(applyColorToRgba(repeated, recipe), statistics);
+  assert.deepEqual(repeated, adjusted);
+  assert.deepEqual(Array.from(adjusted.subarray(0, 4)), Array.from(original.subarray(0, 4)), "exact black is preserved");
+  assert.deepEqual(Array.from(adjusted.subarray(16, 20)), Array.from(original.subarray(16, 20)), "exact white is preserved");
+  assert.deepEqual(Array.from(adjusted.subarray(20, 24)), Array.from(original.subarray(20, 24)), "transparent hidden RGB is immutable");
+  assert.equal(adjusted[11], 128, "alpha is preserved");
+  assert.notEqual(adjusted[4], adjusted[6], "default shadow tint must colour dark tones");
+  assert.notEqual(adjusted[12], adjusted[14], "default highlight tint must colour bright tones");
+  const linear = (value: number) => {
+    const normalized = value / 255;
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (pixels: Uint8ClampedArray, offset: number) => (
+    0.2126 * linear(pixels[offset]) + 0.7152 * linear(pixels[offset + 1]) + 0.0722 * linear(pixels[offset + 2])
+  );
+  for (const offset of [4, 8, 12]) {
+    assert.ok(
+      Math.abs(luminance(adjusted, offset) - luminance(original, offset)) <= 0.005,
+      "duotone must preserve linear-light luminance within 8-bit quantization tolerance",
+    );
+  }
+
+  const shadowFavored = createNeutralColorRecipe();
+  shadowFavored.duotone = {
+    enabled: true,
+    shadowHue: 240,
+    shadowSaturation: 100,
+    highlightHue: 0,
+    highlightSaturation: 100,
+    balance: 100,
+  };
+  const highlightFavored = createNeutralColorRecipe();
+  highlightFavored.duotone = { ...shadowFavored.duotone, balance: -100 };
+  const shadowPixel = new Uint8ClampedArray([160, 160, 160, 255]);
+  const highlightPixel = shadowPixel.slice();
+  applyColorToRgba(shadowPixel, shadowFavored);
+  applyColorToRgba(highlightPixel, highlightFavored);
+  assert.ok(shadowPixel[2] > shadowPixel[0], "positive balance must favor the blue shadow tint");
+  assert.ok(highlightPixel[0] > highlightPixel[2], "negative balance must favor the red highlight tint");
+
+  const neutralTint = createNeutralColorRecipe();
+  neutralTint.duotone = {
+    enabled: true,
+    shadowHue: 10,
+    shadowSaturation: 0,
+    highlightHue: 200,
+    highlightSaturation: 0,
+    balance: 0,
+  };
+  const grayscale = new Uint8ClampedArray([180, 90, 30, 255]);
+  applyColorToRgba(grayscale, neutralTint);
+  assert.equal(grayscale[0], grayscale[1]);
+  assert.equal(grayscale[1], grayscale[2]);
+
+  const disabled = createNeutralColorRecipe();
+  disabled.duotone = { ...disabled.duotone, enabled: false, balance: 80 };
+  assert.equal(isNeutralColor(disabled), true, "disabled duotone settings do not alter pixels");
+});
+
 test("neutral-point white balance is deterministic, inverse-modelled and rejects unusable patches", () => {
   assert.equal(whiteBalanceSampleRadius(48, 40), 1);
   assert.equal(whiteBalanceSampleRadius(4096, 2048), 4);
@@ -354,6 +451,14 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   recipe.selectiveHsl.orange = { hue: 18, saturation: 30, lightness: -12 };
   recipe.colorGrading.shadows = { hue: 220, saturation: 24, luminance: 8 };
   recipe.blackAndWhite = { enabled: true, red: 45, green: 40, blue: 15 };
+  recipe.duotone = {
+    enabled: true,
+    shadowHue: 225,
+    shadowSaturation: 42,
+    highlightHue: 38,
+    highlightSaturation: 24,
+    balance: 12,
+  };
   const tagged = tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,
     baseOutputSha256: baseHash,
@@ -380,14 +485,15 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v5/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","tonal_color_grading","black_and_white_channel_mixer"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v6/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"base_kind":"tone"/);
   assert.match(text, /"temperature":20/);
   assert.match(text, /"orange":\{"hue":18,"saturation":30,"lightness":-12\}/);
   assert.match(text, /"shadows":\{"hue":220,"saturation":24,"luminance":8\}/);
   assert.match(text, /"blackAndWhite":\{"enabled":true,"red":45,"green":40,"blue":15\}/);
+  assert.match(text, /"duotone":\{"enabled":true,"shadowHue":225,"shadowSaturation":42,"highlightHue":38,"highlightSaturation":24,"balance":12\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 
@@ -405,6 +511,23 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
         ...recipe.selectiveHsl,
         red: { hue: 101, saturation: 0, lightness: 0 },
       },
+    },
+    statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    recipe: {
+      ...recipe,
+      duotone: { ...recipe.duotone, shadowHue: 360 },
     },
     statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
     outputWidth: 64,

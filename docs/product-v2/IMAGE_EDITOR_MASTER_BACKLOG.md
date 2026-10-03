@@ -147,7 +147,11 @@ recorded in v4 colour provenance. An opt-in deterministic black-and-white
 channel mixer is also implemented in linear light with bounded Red, Green and
 Blue weights. The weights are normalized, an all-zero mix fails visibly, exact
 black/white and alpha remain protected, and the ordered mixer recipe is recorded
-in v5 colour provenance. Point-colour selection, LUTs, colour matching, duotone
+in v5 colour provenance. Deterministic duotone mapping is also implemented with
+separate bounded Shadow and Highlight Hue/Saturation controls plus an adjustable
+balance point. It runs after the optional channel mixer, preserves luminance,
+exact black/white, transparency and alpha, prevents new gamut clipping, and is
+recorded in v6 colour provenance. Point-colour selection, LUTs, colour matching
 and protected brand/product/skin colour remain future increments.
 
 - White balance, temperature, tint, saturation and vibrance.

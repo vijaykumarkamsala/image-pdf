@@ -46,6 +46,7 @@ import {
   type ImageColorGradingRange,
   type ImageColorRecipe,
   type ImageColorStatistics,
+  type ImageDuotoneRecipe,
   type ImageSelectiveColorRange,
   type ImageSelectiveHslAdjustment,
   type ImageWhiteBalanceSuggestion,
@@ -454,6 +455,15 @@ const blackAndWhiteControls: Array<{
   { key: "blue", label: "Blue" },
 ];
 
+const duotoneToneControls: Array<{
+  label: string;
+  hueKey: keyof Pick<ImageDuotoneRecipe, "shadowHue" | "highlightHue">;
+  saturationKey: keyof Pick<ImageDuotoneRecipe, "shadowSaturation" | "highlightSaturation">;
+}> = [
+  { label: "Shadow", hueKey: "shadowHue", saturationKey: "shadowSaturation" },
+  { label: "Highlight", hueKey: "highlightHue", saturationKey: "highlightSaturation" },
+];
+
 export function ColorToolPanel(props: ColorToolPanelProps) {
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
@@ -467,6 +477,10 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
     + props.recipe.blackAndWhite.green
     + props.recipe.blackAndWhite.blue;
   const blackAndWhiteInvalid = props.recipe.blackAndWhite.enabled && blackAndWhiteTotal === 0;
+  const duotoneIsDefault = !props.recipe.duotone.enabled
+    && props.recipe.duotone.shadowHue === 220 && props.recipe.duotone.shadowSaturation === 35
+    && props.recipe.duotone.highlightHue === 40 && props.recipe.duotone.highlightSaturation === 25
+    && props.recipe.duotone.balance === 0;
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
     <fieldset className="quality-auto-tone quality-white-balance">
@@ -665,6 +679,90 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         blackAndWhite: { enabled: false, red: 40, green: 40, blue: 20 },
       })}><RotateCcw aria-hidden="true" />Reset black and white</Button>
       <p>The mixer runs last in linear light. It creates no detail, preserves exact black and white, and leaves transparency and alpha unchanged.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-duotone">
+      <legend>Duotone</legend>
+      <label className="quality-toggle-control">
+        <input
+          type="checkbox"
+          checked={props.recipe.duotone.enabled}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            duotone: { ...props.recipe.duotone, enabled: event.target.checked },
+          })}
+        />
+        <span><strong>Enable duotone</strong><small>Map luminance between separately controlled shadow and highlight tints.</small></span>
+      </label>
+      <div className="quality-duotone-tones">
+        {duotoneToneControls.map((tone) => <section key={tone.label} aria-label={`${tone.label} duotone colour`}>
+          <div className="quality-grade-preview" aria-hidden="true">
+            <span style={{ backgroundColor: `hsl(${props.recipe.duotone[tone.hueKey]} ${props.recipe.duotone[tone.saturationKey]}% 50%)` }} />
+            <strong>{tone.label}</strong>
+          </div>
+          <label className="quality-adjustment-control">
+            <span><strong>{tone.label} hue</strong><output>{props.recipe.duotone[tone.hueKey]} degrees</output></span>
+            <input
+              className="quality-grade-hue"
+              aria-label={`Duotone ${tone.label.toLowerCase()} hue`}
+              type="range"
+              min="0"
+              max="359"
+              step="1"
+              value={props.recipe.duotone[tone.hueKey]}
+              disabled={props.busy || !props.recipe.duotone.enabled}
+              onChange={(event) => props.onRecipe({
+                ...props.recipe,
+                duotone: { ...props.recipe.duotone, [tone.hueKey]: Number(event.target.value) },
+              })}
+            />
+          </label>
+          <label className="quality-adjustment-control">
+            <span><strong>{tone.label} saturation</strong><output>{props.recipe.duotone[tone.saturationKey]}%</output></span>
+            <input
+              aria-label={`Duotone ${tone.label.toLowerCase()} saturation`}
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={props.recipe.duotone[tone.saturationKey]}
+              disabled={props.busy || !props.recipe.duotone.enabled}
+              onChange={(event) => props.onRecipe({
+                ...props.recipe,
+                duotone: { ...props.recipe.duotone, [tone.saturationKey]: Number(event.target.value) },
+              })}
+            />
+          </label>
+        </section>)}
+      </div>
+      <label className="quality-adjustment-control">
+        <span><strong>Duotone balance</strong><output>{props.recipe.duotone.balance > 0 ? "+" : ""}{props.recipe.duotone.balance}</output></span>
+        <input
+          aria-label="Duotone balance"
+          type="range"
+          min="-100"
+          max="100"
+          step="1"
+          value={props.recipe.duotone.balance}
+          disabled={props.busy || !props.recipe.duotone.enabled}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            duotone: { ...props.recipe.duotone, balance: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <Button size="compact" disabled={props.busy || duotoneIsDefault} onClick={() => props.onRecipe({
+        ...props.recipe,
+        duotone: {
+          enabled: false,
+          shadowHue: 220,
+          shadowSaturation: 35,
+          highlightHue: 40,
+          highlightSaturation: 25,
+          balance: 0,
+        },
+      })}><RotateCcw aria-hidden="true" />Reset duotone</Button>
+      <p>Duotone runs after the optional channel mixer. Balance shifts the tint crossover: negative favors highlights and positive favors shadows. Luminance, exact black/white, transparency and alpha remain protected.</p>
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>

@@ -1252,7 +1252,7 @@ test("neutral-point white balance samples the verified base and requires explici
   const downloaded = Buffer.concat(chunks);
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v5");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v6");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":{"sourceX"');
   expect(downloaded.toString("utf8")).toContain('"red":180,"green":170,"blue":160');
   expect(downloaded.toString("utf8")).toContain('"temperature":-54,"tint":0');
@@ -1314,6 +1314,12 @@ test("colour applies after tone and binds preview and download to the exact veri
   await page.getByLabel("Black-and-white green mix", { exact: true }).fill("35");
   await page.getByLabel("Black-and-white blue mix", { exact: true }).fill("15");
   await expect(page.getByText("Channel total: 100%.", { exact: false })).toBeVisible();
+  await page.getByLabel("Enable duotone", { exact: false }).check();
+  await page.getByLabel("Duotone shadow hue", { exact: true }).fill("225");
+  await page.getByLabel("Duotone shadow saturation", { exact: true }).fill("42");
+  await page.getByLabel("Duotone highlight hue", { exact: true }).fill("38");
+  await page.getByLabel("Duotone highlight saturation", { exact: true }).fill("24");
+  await page.getByLabel("Duotone balance", { exact: true }).fill("12");
   await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
   const accessibility = await new AxeBuilder({ page }).include(".quality-workspace").analyze();
   expect(accessibility.violations).toEqual([]);
@@ -1376,7 +1382,7 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v5");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v6");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":null');
   expect(downloaded.toString("utf8")).toContain('"base_kind":"tone"');
   expect(downloaded.toString("utf8")).toContain(toneEvidence.digest);
@@ -1387,6 +1393,7 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.toString("utf8")).toContain('"red":{"hue":35,"saturation":25,"lightness":-10}');
   expect(downloaded.toString("utf8")).toContain('"shadows":{"hue":220,"saturation":35,"luminance":10}');
   expect(downloaded.toString("utf8")).toContain('"blackAndWhite":{"enabled":true,"red":50,"green":35,"blue":15}');
+  expect(downloaded.toString("utf8")).toContain('"duotone":{"enabled":true,"shadowHue":225,"shadowSaturation":42,"highlightHue":38,"highlightSaturation":24,"balance":12}');
 
   await page.getByLabel("Saturation", { exact: true }).fill("25");
   await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
