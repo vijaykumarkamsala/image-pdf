@@ -41,6 +41,7 @@ import {
   IMAGE_SELECTIVE_COLOR_RANGES,
   isNeutralColor,
   MAX_BROWSER_COLOR_PIXELS,
+  type ImageBlackAndWhiteRecipe,
   type ImageColorGrade,
   type ImageColorGradingRange,
   type ImageColorRecipe,
@@ -444,6 +445,15 @@ const colorGradingControls: Array<{
   { key: "luminance", label: "Luminance", minimum: -100, maximum: 100 },
 ];
 
+const blackAndWhiteControls: Array<{
+  key: keyof Pick<ImageBlackAndWhiteRecipe, "red" | "green" | "blue">;
+  label: string;
+}> = [
+  { key: "red", label: "Red" },
+  { key: "green", label: "Green" },
+  { key: "blue", label: "Blue" },
+];
+
 export function ColorToolPanel(props: ColorToolPanelProps) {
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
@@ -453,6 +463,10 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
   const selectedRangeNeutral = Object.values(selectedAdjustment).every((value) => value === 0);
   const selectedGradeAdjustment = props.recipe.colorGrading[selectedGrade];
   const selectedGradeNeutral = selectedGradeAdjustment.saturation === 0 && selectedGradeAdjustment.luminance === 0;
+  const blackAndWhiteTotal = props.recipe.blackAndWhite.red
+    + props.recipe.blackAndWhite.green
+    + props.recipe.blackAndWhite.blue;
+  const blackAndWhiteInvalid = props.recipe.blackAndWhite.enabled && blackAndWhiteTotal === 0;
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
     <fieldset className="quality-auto-tone quality-white-balance">
@@ -604,12 +618,60 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
       })}><RotateCcw aria-hidden="true" />Reset {colorGradingLabels[selectedGrade]}</Button>
       <p>Uses smooth, overlapping luminance masks so edits transition naturally between tonal ranges. Exact black, exact white, transparency and alpha are protected. Tinting is bounded to available gamut and does not generate detail.</p>
     </fieldset>
+    <fieldset className="quality-levels-control quality-black-and-white">
+      <legend>Black-and-white mixer</legend>
+      <label className="quality-toggle-control">
+        <input
+          type="checkbox"
+          checked={props.recipe.blackAndWhite.enabled}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            blackAndWhite: { ...props.recipe.blackAndWhite, enabled: event.target.checked },
+          })}
+        />
+        <span><strong>Enable black-and-white mixer</strong><small>Convert the final colour result using weighted source channels.</small></span>
+      </label>
+      <div className="quality-adjustment-controls">
+        {blackAndWhiteControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
+          <span><strong>{control.label} mix</strong><output>{props.recipe.blackAndWhite[control.key]}%</output></span>
+          <input
+            aria-label={`Black-and-white ${control.label.toLowerCase()} mix`}
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={props.recipe.blackAndWhite[control.key]}
+            disabled={props.busy || !props.recipe.blackAndWhite.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              blackAndWhite: {
+                ...props.recipe.blackAndWhite,
+                [control.key]: Number(event.target.value),
+              },
+            })}
+          />
+        </label>)}
+      </div>
+      <p className={blackAndWhiteInvalid ? "quality-control-error" : undefined} role={blackAndWhiteInvalid ? "alert" : "status"}>
+        {blackAndWhiteInvalid
+          ? "Set at least one colour channel above zero before applying."
+          : `Channel total: ${blackAndWhiteTotal}%. The worker normalizes these weights, so their relative balance controls the monochrome result.`}
+      </p>
+      <Button size="compact" disabled={props.busy || (!props.recipe.blackAndWhite.enabled
+        && props.recipe.blackAndWhite.red === 40 && props.recipe.blackAndWhite.green === 40
+        && props.recipe.blackAndWhite.blue === 20)} onClick={() => props.onRecipe({
+        ...props.recipe,
+        blackAndWhite: { enabled: false, red: 40, green: 40, blue: 20 },
+      })}><RotateCcw aria-hidden="true" />Reset black and white</Button>
+      <p>The mixer runs last in linear light. It creates no detail, preserves exact black and white, and leaves transparency and alpha unchanged.</p>
+    </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>Gamut-clipped pixels</dt><dd>{props.statistics.gamutClippedPixels.toLocaleString()}</dd></div>
     </dl>}
     <div className="quality-actions">
-      <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Palette aria-hidden="true" />{props.busy && !props.whiteBalanceAnalysing ? "Applying…" : "Apply colour"}</Button>
+      <Button tone="primary" disabled={!props.canApply || blackAndWhiteInvalid} onClick={props.onApply}><Palette aria-hidden="true" />{props.busy && !props.whiteBalanceAnalysing ? "Applying…" : "Apply colour"}</Button>
       <Button disabled={neutral && !props.statistics} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset colour</Button>
       <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download colour-adjusted image</Button>
     </div>

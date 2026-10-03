@@ -33,6 +33,13 @@ export interface ImageColorGrade {
 
 export type ImageColorGradingRecipe = Record<ImageColorGradingRange, ImageColorGrade>;
 
+export interface ImageBlackAndWhiteRecipe {
+  enabled: boolean;
+  red: number;
+  green: number;
+  blue: number;
+}
+
 interface PreparedColorGrade extends ImageColorGrade {
   tintRed: number;
   tintGreen: number;
@@ -53,6 +60,8 @@ export interface ImageColorRecipe {
   selectiveHsl: ImageSelectiveHslRecipe;
   /** Smoothly blended colour and luminance corrections by tonal range. */
   colorGrading: ImageColorGradingRecipe;
+  /** Opt-in normalized linear-light channel mixer. */
+  blackAndWhite: ImageBlackAndWhiteRecipe;
 }
 
 export interface ImageColorStatistics {
@@ -84,6 +93,7 @@ const bounded = (value: number, minimum: number, maximum: number, fallback: numb
 const GLOBAL_COLOR_KEYS = ["temperature", "tint", "saturation", "vibrance"] as const;
 const SELECTIVE_HSL_KEYS = ["hue", "saturation", "lightness"] as const;
 const COLOR_GRADING_KEYS = ["hue", "saturation", "luminance"] as const;
+const BLACK_AND_WHITE_KEYS = ["red", "green", "blue"] as const;
 const SELECTIVE_HUE_CENTRES: Record<ImageSelectiveColorRange, number> = {
   red: 0,
   orange: 30,
@@ -117,6 +127,7 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
     vibrance: 0,
     selectiveHsl: createNeutralSelectiveHsl(),
     colorGrading: createNeutralColorGrading(),
+    blackAndWhite: { enabled: false, red: 40, green: 40, blue: 20 },
   };
 }
 
@@ -146,6 +157,12 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
     vibrance: Math.round(bounded(recipe.vibrance, -100, 100, 0)),
     selectiveHsl,
     colorGrading,
+    blackAndWhite: {
+      enabled: recipe.blackAndWhite?.enabled === true,
+      red: Math.round(bounded(recipe.blackAndWhite?.red, 0, 100, 40)),
+      green: Math.round(bounded(recipe.blackAndWhite?.green, 0, 100, 40)),
+      blue: Math.round(bounded(recipe.blackAndWhite?.blue, 0, 100, 20)),
+    },
   };
 }
 
@@ -157,7 +174,8 @@ export function isNeutralColor(recipe: ImageColorRecipe): boolean {
     ))
     && IMAGE_COLOR_GRADING_RANGES.every((range) => (
       safe.colorGrading[range].saturation === 0 && safe.colorGrading[range].luminance === 0
-    ));
+    ))
+    && !safe.blackAndWhite.enabled;
 }
 
 export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColorRecipe | null): boolean {
@@ -170,7 +188,9 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
     ))
     && IMAGE_COLOR_GRADING_RANGES.every((range) => (
       COLOR_GRADING_KEYS.every((key) => safeLeft.colorGrading[range][key] === safeRight.colorGrading[range][key])
-    ));
+    ))
+    && safeLeft.blackAndWhite.enabled === safeRight.blackAndWhite.enabled
+    && BLACK_AND_WHITE_KEYS.every((key) => safeLeft.blackAndWhite[key] === safeRight.blackAndWhite[key]);
 }
 
 export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
@@ -183,7 +203,11 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
     && IMAGE_COLOR_GRADING_RANGES.every((range) => {
       const grade = recipe.colorGrading?.[range];
       return Boolean(grade) && COLOR_GRADING_KEYS.every((key) => grade[key] === safe.colorGrading[range][key]);
-    });
+    })
+    && recipe.blackAndWhite?.enabled === safe.blackAndWhite.enabled
+    && BLACK_AND_WHITE_KEYS.every((key) => recipe.blackAndWhite?.[key] === safe.blackAndWhite[key])
+    && (!safe.blackAndWhite.enabled
+      || safe.blackAndWhite.red + safe.blackAndWhite.green + safe.blackAndWhite.blue > 0);
 }
 
 export function assertBrowserColorBudget(width: number, height: number): number {
@@ -485,6 +509,15 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
     safe.colorGrading[range].saturation !== 0 || safe.colorGrading[range].luminance !== 0
   ));
   const preparedColorGrading = gradingActive ? prepareColorGrading(safe.colorGrading) : null;
+  const blackAndWhiteTotal = safe.blackAndWhite.red + safe.blackAndWhite.green + safe.blackAndWhite.blue;
+  if (safe.blackAndWhite.enabled && blackAndWhiteTotal === 0) {
+    throw new Error("Black-and-white mixing requires at least one non-zero colour channel.");
+  }
+  const blackAndWhiteWeights = safe.blackAndWhite.enabled ? {
+    red: safe.blackAndWhite.red / blackAndWhiteTotal,
+    green: safe.blackAndWhite.green / blackAndWhiteTotal,
+    blue: safe.blackAndWhite.blue / blackAndWhiteTotal,
+  } : null;
 
   for (let offset = 0; offset < pixels.byteLength; offset += 4) {
     if (pixels[offset + 3] === 0) continue;
@@ -533,6 +566,14 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
       outputRed = Math.round(clamp(graded.red * 255, 0, 255));
       outputGreen = Math.round(clamp(graded.green * 255, 0, 255));
       outputBlue = Math.round(clamp(graded.blue * 255, 0, 255));
+    }
+    if (blackAndWhiteWeights) {
+      const monochrome = srgbToLinear(outputRed) * blackAndWhiteWeights.red
+        + srgbToLinear(outputGreen) * blackAndWhiteWeights.green
+        + srgbToLinear(outputBlue) * blackAndWhiteWeights.blue;
+      outputRed = linearToSrgb(monochrome);
+      outputGreen = outputRed;
+      outputBlue = outputRed;
     }
     pixels[offset] = outputRed;
     pixels[offset + 1] = outputGreen;

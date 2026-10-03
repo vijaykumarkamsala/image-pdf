@@ -143,7 +143,11 @@ grading is also implemented for Shadows, Midtones and Highlights. Each range
 provides Hue, Saturation and Luminance controls through smooth, overlapping
 luminance masks; exact black, exact white, transparency and alpha are protected,
 and tint strength is bounded to available gamut. The ordered grading recipe is
-recorded in v4 colour provenance. Point-colour selection, LUTs, colour matching
+recorded in v4 colour provenance. An opt-in deterministic black-and-white
+channel mixer is also implemented in linear light with bounded Red, Green and
+Blue weights. The weights are normalized, an all-zero mix fails visibly, exact
+black/white and alpha remain protected, and the ordered mixer recipe is recorded
+in v5 colour provenance. Point-colour selection, LUTs, colour matching, duotone
 and protected brand/product/skin colour remain future increments.
 
 - White balance, temperature, tint, saturation and vibrance.

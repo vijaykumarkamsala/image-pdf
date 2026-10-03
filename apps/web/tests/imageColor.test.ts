@@ -46,6 +46,7 @@ test("colour recipes are bounded, normalized and comparable", () => {
       ...neutral.colorGrading,
       shadows: { hue: 999, saturation: 101, luminance: -101 },
     },
+    blackAndWhite: { enabled: true, red: 101, green: -1, blue: Number.NaN },
   });
   assert.deepEqual(safe, {
     ...neutral,
@@ -61,6 +62,7 @@ test("colour recipes are bounded, normalized and comparable", () => {
       ...neutral.colorGrading,
       shadows: { hue: 359, saturation: 100, luminance: -100 },
     },
+    blackAndWhite: { enabled: true, red: 100, green: 0, blue: 20 },
   });
   assert.equal(isSanitizedColorRecipe(safe), true);
   assert.equal(sameColorRecipe(safe, { ...safe }), true);
@@ -72,6 +74,10 @@ test("colour recipes are bounded, normalized and comparable", () => {
   assert.equal(sameColorRecipe(safe, {
     ...safe,
     colorGrading: { ...safe.colorGrading, shadows: { ...safe.colorGrading.shadows, hue: 358 } },
+  }), false);
+  assert.equal(sameColorRecipe(safe, {
+    ...safe,
+    blackAndWhite: { ...safe.blackAndWhite, blue: 19 },
   }), false);
   assert.equal(assertBrowserColorBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserColorBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
@@ -239,6 +245,52 @@ test("tonal colour grading is deterministic, progressive and protects endpoints,
   assert.equal(isNeutralColor(hueOnly), true, "a grade hue without saturation or luminance is neutral");
 });
 
+test("black-and-white channel mixing is deterministic, normalized and preserves endpoints, alpha and hidden RGB", () => {
+  const original = new Uint8ClampedArray([
+    255, 0, 0, 255,
+    0, 255, 0, 255,
+    0, 0, 255, 255,
+    128, 128, 128, 128,
+    0, 0, 0, 255,
+    255, 255, 255, 255,
+    71, 83, 97, 0,
+  ]);
+  const redOnlyRecipe = createNeutralColorRecipe();
+  redOnlyRecipe.blackAndWhite = { enabled: true, red: 100, green: 0, blue: 0 };
+  const adjusted = original.slice();
+  const repeated = original.slice();
+  const statistics = applyColorToRgba(adjusted, redOnlyRecipe);
+  assert.deepEqual(applyColorToRgba(repeated, redOnlyRecipe), statistics);
+  assert.deepEqual(repeated, adjusted);
+  assert.deepEqual(Array.from(adjusted.subarray(0, 3)), [255, 255, 255], "red-only mixing must retain a pure red signal");
+  assert.deepEqual(Array.from(adjusted.subarray(4, 7)), [0, 0, 0], "red-only mixing must reject a pure green signal");
+  assert.deepEqual(Array.from(adjusted.subarray(8, 11)), [0, 0, 0], "red-only mixing must reject a pure blue signal");
+  assert.deepEqual(Array.from(adjusted.subarray(12, 16)), [128, 128, 128, 128], "neutral pixels and alpha are preserved");
+  assert.deepEqual(Array.from(adjusted.subarray(16, 20)), Array.from(original.subarray(16, 20)), "exact black is preserved");
+  assert.deepEqual(Array.from(adjusted.subarray(20, 24)), Array.from(original.subarray(20, 24)), "exact white is preserved");
+  assert.deepEqual(Array.from(adjusted.subarray(24, 28)), Array.from(original.subarray(24, 28)), "transparent hidden RGB is immutable");
+
+  const defaultRecipe = createNeutralColorRecipe();
+  defaultRecipe.blackAndWhite.enabled = true;
+  const scaledRecipe = createNeutralColorRecipe();
+  scaledRecipe.blackAndWhite = { enabled: true, red: 80, green: 80, blue: 40 };
+  const balanced = new Uint8ClampedArray([180, 90, 30, 255]);
+  const scaled = balanced.slice();
+  applyColorToRgba(balanced, defaultRecipe);
+  applyColorToRgba(scaled, scaledRecipe);
+  assert.deepEqual(scaled, balanced, "proportional channel mixes must normalize to the same output");
+  assert.equal(balanced[0], balanced[1]);
+  assert.equal(balanced[1], balanced[2]);
+
+  const disabled = createNeutralColorRecipe();
+  disabled.blackAndWhite = { enabled: false, red: 100, green: 0, blue: 0 };
+  assert.equal(isNeutralColor(disabled), true, "disabled mixer weights do not alter pixels");
+  const invalid = createNeutralColorRecipe();
+  invalid.blackAndWhite = { enabled: true, red: 0, green: 0, blue: 0 };
+  assert.equal(isSanitizedColorRecipe(invalid), false, "an enabled all-zero mix is not safe provenance");
+  assert.throws(() => applyColorToRgba(new Uint8ClampedArray([40, 80, 120, 255]), invalid), /at least one non-zero colour channel/);
+});
+
 test("neutral-point white balance is deterministic, inverse-modelled and rejects unusable patches", () => {
   assert.equal(whiteBalanceSampleRadius(48, 40), 1);
   assert.equal(whiteBalanceSampleRadius(4096, 2048), 4);
@@ -301,6 +353,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   };
   recipe.selectiveHsl.orange = { hue: 18, saturation: 30, lightness: -12 };
   recipe.colorGrading.shadows = { hue: 220, saturation: 24, luminance: 8 };
+  recipe.blackAndWhite = { enabled: true, red: 45, green: 40, blue: 15 };
   const tagged = tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,
     baseOutputSha256: baseHash,
@@ -327,13 +380,14 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v4/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","tonal_color_grading"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v5/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","tonal_color_grading","black_and_white_channel_mixer"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"base_kind":"tone"/);
   assert.match(text, /"temperature":20/);
   assert.match(text, /"orange":\{"hue":18,"saturation":30,"lightness":-12\}/);
   assert.match(text, /"shadows":\{"hue":220,"saturation":24,"luminance":8\}/);
+  assert.match(text, /"blackAndWhite":\{"enabled":true,"red":45,"green":40,"blue":15\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 
@@ -351,6 +405,40 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
         ...recipe.selectiveHsl,
         red: { hue: 101, saturation: 0, lightness: 0 },
       },
+    },
+    statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    recipe: {
+      ...recipe,
+      blackAndWhite: { enabled: true, red: 0, green: 0, blue: 0 },
+    },
+    statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    recipe: {
+      ...recipe,
+      blackAndWhite: { enabled: true, red: 101, green: 40, blue: 20 },
     },
     statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
     outputWidth: 64,
