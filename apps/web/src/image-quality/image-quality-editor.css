@@ -805,6 +805,81 @@
   line-height: 1.45;
 }
 
+.quality-selective-ranges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.quality-selective-ranges button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.quality-selective-ranges button:hover,
+.quality-selective-ranges button[aria-pressed="true"] {
+  color: var(--color-text);
+  border-color: var(--color-brand);
+  background: var(--color-brand-subtle);
+}
+
+.quality-selective-ranges button:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.quality-selective-ranges button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.quality-selective-ranges button > span {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgb(12 18 28 / 25%);
+  border-radius: 50%;
+  background: var(--selective-range-color);
+}
+
+.quality-selective-ranges button::after {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  content: "";
+}
+
+.quality-selective-ranges button[data-adjusted="true"]::after {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+}
+
+.quality-selective-ranges button[data-range="red"] { --selective-range-color: #e53935; }
+.quality-selective-ranges button[data-range="orange"] { --selective-range-color: #fb8c00; }
+.quality-selective-ranges button[data-range="yellow"] { --selective-range-color: #fdd835; }
+.quality-selective-ranges button[data-range="green"] { --selective-range-color: #43a047; }
+.quality-selective-ranges button[data-range="aqua"] { --selective-range-color: #00acc1; }
+.quality-selective-ranges button[data-range="blue"] { --selective-range-color: #1e88e5; }
+.quality-selective-ranges button[data-range="purple"] { --selective-range-color: #8e24aa; }
+.quality-selective-ranges button[data-range="magenta"] { --selective-range-color: #d81b60; }
+
+.quality-selective-hsl > .ds-button {
+  justify-content: center;
+  width: 100%;
+}
+
 .quality-tone-curve {
   display: grid;
   gap: var(--space-3);

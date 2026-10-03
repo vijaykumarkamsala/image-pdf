@@ -37,10 +37,13 @@ import {
   type ImageToneStatistics,
 } from "./imageTone";
 import {
+  IMAGE_SELECTIVE_COLOR_RANGES,
   isNeutralColor,
   MAX_BROWSER_COLOR_PIXELS,
   type ImageColorRecipe,
   type ImageColorStatistics,
+  type ImageSelectiveColorRange,
+  type ImageSelectiveHslAdjustment,
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
@@ -392,7 +395,7 @@ interface ColorToolPanelProps {
 }
 
 const colorControls: Array<{
-  key: keyof ImageColorRecipe;
+  key: "temperature" | "tint" | "saturation" | "vibrance";
   label: string;
 }> = [
   { key: "temperature", label: "Temperature" },
@@ -401,11 +404,34 @@ const colorControls: Array<{
   { key: "vibrance", label: "Vibrance" },
 ];
 
+const selectiveColorLabels: Record<ImageSelectiveColorRange, string> = {
+  red: "Red",
+  orange: "Orange",
+  yellow: "Yellow",
+  green: "Green",
+  aqua: "Aqua",
+  blue: "Blue",
+  purple: "Purple",
+  magenta: "Magenta",
+};
+
+const selectiveHslControls: Array<{
+  key: keyof ImageSelectiveHslAdjustment;
+  label: string;
+}> = [
+  { key: "hue", label: "Hue" },
+  { key: "saturation", label: "Saturation" },
+  { key: "lightness", label: "Lightness" },
+];
+
 export function ColorToolPanel(props: ColorToolPanelProps) {
+  const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const neutral = isNeutralColor(props.recipe);
   const suggestionLoaded = props.whiteBalanceSuggestionUsed;
+  const selectedAdjustment = props.recipe.selectiveHsl[selectedRange];
+  const selectedRangeNeutral = Object.values(selectedAdjustment).every((value) => value === 0);
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
-    <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global colour correction after light and tone.</p></div></div>
+    <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
     <fieldset className="quality-auto-tone quality-white-balance">
       <legend>Neutral-point white balance</legend>
       <Button
@@ -450,6 +476,56 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         />
       </label>)}
     </div>
+    <fieldset className="quality-levels-control quality-selective-hsl">
+      <legend>Selective HSL</legend>
+      <div className="quality-selective-ranges" role="group" aria-label="Selective colour range">
+        {IMAGE_SELECTIVE_COLOR_RANGES.map((range) => {
+          const adjusted = Object.values(props.recipe.selectiveHsl[range]).some((value) => value !== 0);
+          return <button
+            type="button"
+            key={range}
+            data-range={range}
+            data-adjusted={adjusted}
+            aria-label={`${selectiveColorLabels[range]} range, ${adjusted ? "adjusted" : "neutral"}`}
+            aria-pressed={selectedRange === range}
+            disabled={props.busy}
+            onClick={() => setSelectedRange(range)}
+          ><span aria-hidden="true" />{selectiveColorLabels[range]}</button>;
+        })}
+      </div>
+      <div className="quality-adjustment-controls">
+        {selectiveHslControls.map((control) => <label className="quality-adjustment-control" key={control.key}>
+          <span><strong>{selectiveColorLabels[selectedRange]} {control.label.toLowerCase()}</strong><output>{selectedAdjustment[control.key] > 0 ? "+" : ""}{selectedAdjustment[control.key]}</output></span>
+          <input
+            aria-label={`${selectiveColorLabels[selectedRange]} ${control.label.toLowerCase()}`}
+            type="range"
+            min="-100"
+            max="100"
+            step="1"
+            value={selectedAdjustment[control.key]}
+            disabled={props.busy}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              selectiveHsl: {
+                ...props.recipe.selectiveHsl,
+                [selectedRange]: {
+                  ...selectedAdjustment,
+                  [control.key]: Number(event.target.value),
+                },
+              },
+            })}
+          />
+        </label>)}
+      </div>
+      <Button size="compact" disabled={props.busy || selectedRangeNeutral} onClick={() => props.onRecipe({
+        ...props.recipe,
+        selectiveHsl: {
+          ...props.recipe.selectiveHsl,
+          [selectedRange]: { hue: 0, saturation: 0, lightness: 0 },
+        },
+      })}><RotateCcw aria-hidden="true" />Reset {selectiveColorLabels[selectedRange]}</Button>
+      <p>Adjusts the selected hue family with smooth transitions into neighbouring ranges. Hue rotates by at most 30 degrees. Near-neutral colours, transparency and alpha are protected.</p>
+    </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>Gamut-clipped pixels</dt><dd>{props.statistics.gamutClippedPixels.toLocaleString()}</dd></div>

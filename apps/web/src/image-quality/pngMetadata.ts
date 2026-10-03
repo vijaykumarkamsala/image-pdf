@@ -3,6 +3,7 @@ import type { FaceRecreateEvidence } from "./faceDetailRestoration.ts";
 import { sanitizePerspectiveQuad, type ImagePerspectiveQuad } from "./imageGeometry.ts";
 import { sanitizeToneRecipe, type ImageToneRecipe, type ImageToneStatistics } from "./imageTone.ts";
 import {
+  isSanitizedColorRecipe,
   sanitizeColorRecipe,
   type ImageColorRecipe,
   type ImageColorStatistics,
@@ -231,7 +232,7 @@ function toneProvenance(metadata: PngToneMetadata) {
 
 function colorProvenance(metadata: PngColorMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.color.provenance.v2",
+    schema: "ipw.image-edit.color.provenance.v3",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
@@ -239,7 +240,7 @@ function colorProvenance(metadata: PngColorMetadata) {
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
     white_balance_sample: metadata.whiteBalanceSample,
-    operation_order: ["temperature", "tint", "saturation", "vibrance"],
+    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,
@@ -451,8 +452,7 @@ export function tagColorPng(bytes: Uint8Array, metadata: PngColorMetadata): Uint
   assertPngDimensions(bytes, metadata.outputWidth, metadata.outputHeight);
   const hash = /^[a-f0-9]{64}$/;
   const safeRecipe = sanitizeColorRecipe(metadata.recipe);
-  const recipeIsSafe = (Object.keys(safeRecipe) as Array<keyof ImageColorRecipe>)
-    .every((key) => metadata.recipe[key] === safeRecipe[key]);
+  const recipeIsSafe = isSanitizedColorRecipe(metadata.recipe);
   const pixelCount = metadata.outputWidth * metadata.outputHeight;
   const statistics = [
     metadata.statistics.processedPixels,

@@ -1,3 +1,25 @@
+export const IMAGE_SELECTIVE_COLOR_RANGES = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "aqua",
+  "blue",
+  "purple",
+  "magenta",
+] as const;
+
+export type ImageSelectiveColorRange = typeof IMAGE_SELECTIVE_COLOR_RANGES[number];
+
+export interface ImageSelectiveHslAdjustment {
+  /** Bounded hue rotation. A value of 100 maps to 30 degrees. */
+  hue: number;
+  saturation: number;
+  lightness: number;
+}
+
+export type ImageSelectiveHslRecipe = Record<ImageSelectiveColorRange, ImageSelectiveHslAdjustment>;
+
 export interface ImageColorRecipe {
   /** Blue/yellow white-balance axis. Positive values warm the image. */
   temperature: number;
@@ -6,6 +28,8 @@ export interface ImageColorRecipe {
   saturation: number;
   /** Saturation weighted toward less-saturated pixels. */
   vibrance: number;
+  /** Smoothly blended, source-hue selective corrections. */
+  selectiveHsl: ImageSelectiveHslRecipe;
 }
 
 export interface ImageColorStatistics {
@@ -34,28 +58,80 @@ const bounded = (value: number, minimum: number, maximum: number, fallback: numb
   clamp(Number.isFinite(value) ? value : fallback, minimum, maximum)
 );
 
+const GLOBAL_COLOR_KEYS = ["temperature", "tint", "saturation", "vibrance"] as const;
+const SELECTIVE_HSL_KEYS = ["hue", "saturation", "lightness"] as const;
+const SELECTIVE_HUE_CENTRES: Record<ImageSelectiveColorRange, number> = {
+  red: 0,
+  orange: 30,
+  yellow: 60,
+  green: 120,
+  aqua: 180,
+  blue: 240,
+  purple: 280,
+  magenta: 320,
+};
+
+function createNeutralSelectiveHsl(): ImageSelectiveHslRecipe {
+  return Object.fromEntries(IMAGE_SELECTIVE_COLOR_RANGES.map((range) => [
+    range,
+    { hue: 0, saturation: 0, lightness: 0 },
+  ])) as ImageSelectiveHslRecipe;
+}
+
 export function createNeutralColorRecipe(): ImageColorRecipe {
-  return { temperature: 0, tint: 0, saturation: 0, vibrance: 0 };
+  return {
+    temperature: 0,
+    tint: 0,
+    saturation: 0,
+    vibrance: 0,
+    selectiveHsl: createNeutralSelectiveHsl(),
+  };
 }
 
 export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe {
+  const selectiveHsl = createNeutralSelectiveHsl();
+  for (const range of IMAGE_SELECTIVE_COLOR_RANGES) {
+    const adjustment = recipe.selectiveHsl?.[range];
+    selectiveHsl[range] = {
+      hue: Math.round(bounded(adjustment?.hue, -100, 100, 0)),
+      saturation: Math.round(bounded(adjustment?.saturation, -100, 100, 0)),
+      lightness: Math.round(bounded(adjustment?.lightness, -100, 100, 0)),
+    };
+  }
   return {
     temperature: Math.round(bounded(recipe.temperature, -100, 100, 0)),
     tint: Math.round(bounded(recipe.tint, -100, 100, 0)),
     saturation: Math.round(bounded(recipe.saturation, -100, 100, 0)),
     vibrance: Math.round(bounded(recipe.vibrance, -100, 100, 0)),
+    selectiveHsl,
   };
 }
 
 export function isNeutralColor(recipe: ImageColorRecipe): boolean {
-  return Object.values(sanitizeColorRecipe(recipe)).every((value) => value === 0);
+  const safe = sanitizeColorRecipe(recipe);
+  return GLOBAL_COLOR_KEYS.every((key) => safe[key] === 0)
+    && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => (
+      SELECTIVE_HSL_KEYS.every((key) => safe.selectiveHsl[range][key] === 0)
+    ));
 }
 
 export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColorRecipe | null): boolean {
   if (!left || !right) return left === right;
   const safeLeft = sanitizeColorRecipe(left);
   const safeRight = sanitizeColorRecipe(right);
-  return (Object.keys(safeLeft) as Array<keyof ImageColorRecipe>).every((key) => safeLeft[key] === safeRight[key]);
+  return GLOBAL_COLOR_KEYS.every((key) => safeLeft[key] === safeRight[key])
+    && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => (
+      SELECTIVE_HSL_KEYS.every((key) => safeLeft.selectiveHsl[range][key] === safeRight.selectiveHsl[range][key])
+    ));
+}
+
+export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
+  const safe = sanitizeColorRecipe(recipe);
+  return GLOBAL_COLOR_KEYS.every((key) => recipe[key] === safe[key])
+    && IMAGE_SELECTIVE_COLOR_RANGES.every((range) => {
+      const adjustment = recipe.selectiveHsl?.[range];
+      return Boolean(adjustment) && SELECTIVE_HSL_KEYS.every((key) => adjustment[key] === safe.selectiveHsl[range][key]);
+    });
 }
 
 export function assertBrowserColorBudget(width: number, height: number): number {
@@ -80,6 +156,82 @@ function linearToSrgb(value: number) {
   const safe = clamp(value, 0, 1);
   const encoded = safe <= 0.0031308 ? safe * 12.92 : 1.055 * safe ** (1 / 2.4) - 0.055;
   return Math.round(clamp(encoded * 255, 0, 255));
+}
+
+function rgbToHsl(red: number, green: number, blue: number) {
+  const maximum = Math.max(red, green, blue);
+  const minimum = Math.min(red, green, blue);
+  const chroma = maximum - minimum;
+  const lightness = (maximum + minimum) / 2;
+  if (chroma === 0) return { hue: 0, saturation: 0, lightness };
+  const saturation = chroma / (1 - Math.abs(2 * lightness - 1));
+  const segment = maximum === red
+    ? ((green - blue) / chroma) % 6
+    : maximum === green
+      ? (blue - red) / chroma + 2
+      : (red - green) / chroma + 4;
+  return { hue: (segment * 60 + 360) % 360, saturation, lightness };
+}
+
+function hslToRgb(hue: number, saturation: number, lightness: number) {
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const segment = ((hue % 360) + 360) % 360 / 60;
+  const intermediate = chroma * (1 - Math.abs(segment % 2 - 1));
+  const [red, green, blue] = segment < 1 ? [chroma, intermediate, 0]
+    : segment < 2 ? [intermediate, chroma, 0]
+      : segment < 3 ? [0, chroma, intermediate]
+        : segment < 4 ? [0, intermediate, chroma]
+          : segment < 5 ? [intermediate, 0, chroma]
+            : [chroma, 0, intermediate];
+  const match = lightness - chroma / 2;
+  return { red: red + match, green: green + match, blue: blue + match };
+}
+
+function selectiveHueWeights(hue: number): Array<[ImageSelectiveColorRange, number]> {
+  for (let index = 0; index < IMAGE_SELECTIVE_COLOR_RANGES.length; index += 1) {
+    const current = IMAGE_SELECTIVE_COLOR_RANGES[index];
+    const next = IMAGE_SELECTIVE_COLOR_RANGES[(index + 1) % IMAGE_SELECTIVE_COLOR_RANGES.length];
+    const start = SELECTIVE_HUE_CENTRES[current];
+    const end = index === IMAGE_SELECTIVE_COLOR_RANGES.length - 1 ? 360 : SELECTIVE_HUE_CENTRES[next];
+    const adjustedHue = hue < start && index === IMAGE_SELECTIVE_COLOR_RANGES.length - 1 ? hue + 360 : hue;
+    if (adjustedHue >= start && adjustedHue <= end) {
+      const nextWeight = end === start ? 0 : (adjustedHue - start) / (end - start);
+      return [[current, 1 - nextWeight], [next, nextWeight]];
+    }
+  }
+  return [["red", 1]];
+}
+
+function applySelectiveHsl(
+  red: number,
+  green: number,
+  blue: number,
+  recipe: ImageSelectiveHslRecipe,
+) {
+  const hsl = rgbToHsl(red, green, blue);
+  // Exact and near-neutral pixels have no trustworthy hue and therefore stay protected.
+  const hueConfidence = clamp((hsl.saturation - 0.02) / 0.08, 0, 1);
+  if (hueConfidence === 0) return { red, green, blue };
+  let hueControl = 0;
+  let saturationControl = 0;
+  let lightnessControl = 0;
+  for (const [range, weight] of selectiveHueWeights(hsl.hue)) {
+    hueControl += recipe[range].hue * weight;
+    saturationControl += recipe[range].saturation * weight;
+    lightnessControl += recipe[range].lightness * weight;
+  }
+  if (hueControl === 0 && saturationControl === 0 && lightnessControl === 0) return { red, green, blue };
+
+  const hue = (hsl.hue + hueControl * 0.3 * hueConfidence + 360) % 360;
+  const saturationAmount = saturationControl / 100 * hueConfidence;
+  const saturation = clamp(saturationAmount >= 0
+    ? hsl.saturation + (1 - hsl.saturation) * saturationAmount
+    : hsl.saturation * (1 + saturationAmount), 0, 1);
+  const lightnessAmount = lightnessControl / 100 * hueConfidence * 0.45;
+  const lightness = clamp(lightnessAmount >= 0
+    ? hsl.lightness + (1 - hsl.lightness) * lightnessAmount
+    : hsl.lightness * (1 + lightnessAmount), 0, 1);
+  return hslToRgb(hue, saturation, lightness);
 }
 
 export function whiteBalanceSampleRadius(width: number, height: number): number {
@@ -179,6 +331,9 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
   const greenGain = 2 ** (-tint * 0.24);
   const blueGain = 2 ** (-temperature * 0.35 + tint * 0.12);
   const saturationFactor = saturation < 0 ? 1 + saturation : 1 + saturation * 1.5;
+  const selectiveActive = IMAGE_SELECTIVE_COLOR_RANGES.some((range) => (
+    SELECTIVE_HSL_KEYS.some((key) => safe.selectiveHsl[range][key] !== 0)
+  ));
 
   for (let offset = 0; offset < pixels.byteLength; offset += 4) {
     if (pixels[offset + 3] === 0) continue;
@@ -203,9 +358,20 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
     if (red < 0 || red > 1 || green < 0 || green > 1 || blue < 0 || blue > 1) {
       statistics.gamutClippedPixels += 1;
     }
-    const outputRed = linearToSrgb(red);
-    const outputGreen = linearToSrgb(green);
-    const outputBlue = linearToSrgb(blue);
+    let outputRed = linearToSrgb(red);
+    let outputGreen = linearToSrgb(green);
+    let outputBlue = linearToSrgb(blue);
+    if (selectiveActive) {
+      const selective = applySelectiveHsl(
+        outputRed / 255,
+        outputGreen / 255,
+        outputBlue / 255,
+        safe.selectiveHsl,
+      );
+      outputRed = Math.round(clamp(selective.red * 255, 0, 255));
+      outputGreen = Math.round(clamp(selective.green * 255, 0, 255));
+      outputBlue = Math.round(clamp(selective.blue * 255, 0, 255));
+    }
     pixels[offset] = outputRed;
     pixels[offset + 1] = outputGreen;
     pixels[offset + 2] = outputBlue;

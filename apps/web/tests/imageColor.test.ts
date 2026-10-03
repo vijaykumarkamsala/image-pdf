@@ -5,6 +5,7 @@ import {
   applyColorToRgba,
   assertBrowserColorBudget,
   createNeutralColorRecipe,
+  isSanitizedColorRecipe,
   isNeutralColor,
   recommendWhiteBalanceFromRgba,
   sameColorRecipe,
@@ -32,14 +33,34 @@ test("colour recipes are bounded, normalized and comparable", () => {
   const neutral = createNeutralColorRecipe();
   assert.equal(isNeutralColor(neutral), true);
   const safe = sanitizeColorRecipe({
+    ...neutral,
     temperature: 101,
     tint: -101,
     saturation: 42.6,
     vibrance: Number.NaN,
+    selectiveHsl: {
+      ...neutral.selectiveHsl,
+      red: { hue: 101, saturation: -101, lightness: 23.6 },
+    },
   });
-  assert.deepEqual(safe, { temperature: 100, tint: -100, saturation: 43, vibrance: 0 });
+  assert.deepEqual(safe, {
+    ...neutral,
+    temperature: 100,
+    tint: -100,
+    saturation: 43,
+    vibrance: 0,
+    selectiveHsl: {
+      ...neutral.selectiveHsl,
+      red: { hue: 100, saturation: -100, lightness: 24 },
+    },
+  });
+  assert.equal(isSanitizedColorRecipe(safe), true);
   assert.equal(sameColorRecipe(safe, { ...safe }), true);
   assert.equal(sameColorRecipe(safe, { ...safe, vibrance: 1 }), false);
+  assert.equal(sameColorRecipe(safe, {
+    ...safe,
+    selectiveHsl: { ...safe.selectiveHsl, red: { ...safe.selectiveHsl.red, hue: 99 } },
+  }), false);
   assert.equal(assertBrowserColorBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserColorBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
 });
@@ -61,6 +82,7 @@ test("neutral colour is exact and adjusted colour preserves alpha and transparen
 
   const adjusted = original.slice();
   const statistics = applyColorToRgba(adjusted, {
+    ...createNeutralColorRecipe(),
     temperature: 35,
     tint: -15,
     saturation: 20,
@@ -70,6 +92,49 @@ test("neutral colour is exact and adjusted colour preserves alpha and transparen
   assert.equal(statistics.changedPixels, 3);
   assert.deepEqual([adjusted[3], adjusted[7], adjusted[11], adjusted[15]], [0, 64, 128, 255]);
   assert.deepEqual(Array.from(adjusted.subarray(0, 4)), [31, 47, 89, 0]);
+});
+
+test("selective HSL is deterministic, progressive and protects unrelated, neutral and transparent pixels", () => {
+  const original = new Uint8ClampedArray([
+    220, 40, 40, 255,
+    230, 120, 30, 255,
+    40, 200, 60, 255,
+    40, 80, 220, 255,
+    128, 128, 128, 255,
+    210, 30, 30, 0,
+  ]);
+  const recipe = createNeutralColorRecipe();
+  recipe.selectiveHsl.red = { hue: 50, saturation: 40, lightness: -20 };
+  const adjusted = original.slice();
+  const repeated = original.slice();
+  const statistics = applyColorToRgba(adjusted, recipe);
+  assert.deepEqual(applyColorToRgba(repeated, recipe), statistics);
+  assert.deepEqual(repeated, adjusted);
+  assert.notDeepEqual(Array.from(adjusted.subarray(0, 3)), Array.from(original.subarray(0, 3)));
+  assert.deepEqual(Array.from(adjusted.subarray(8, 12)), Array.from(original.subarray(8, 12)), "green must remain outside the red range");
+  assert.deepEqual(Array.from(adjusted.subarray(12, 16)), Array.from(original.subarray(12, 16)), "blue must remain outside the red range");
+  assert.deepEqual(Array.from(adjusted.subarray(16, 20)), Array.from(original.subarray(16, 20)), "neutral pixels have no trustworthy hue");
+  assert.deepEqual(Array.from(adjusted.subarray(20, 24)), Array.from(original.subarray(20, 24)), "transparent hidden RGB is immutable");
+
+  const moderateRecipe = createNeutralColorRecipe();
+  moderateRecipe.selectiveHsl.red.hue = 50;
+  const strongRecipe = createNeutralColorRecipe();
+  strongRecipe.selectiveHsl.red.hue = 100;
+  const moderate = new Uint8ClampedArray([220, 40, 40, 255]);
+  const strong = moderate.slice();
+  applyColorToRgba(moderate, moderateRecipe);
+  applyColorToRgba(strong, strongRecipe);
+  const distance = (pixels: Uint8ClampedArray) => Math.abs(pixels[0] - 220)
+    + Math.abs(pixels[1] - 40) + Math.abs(pixels[2] - 40);
+  assert.ok(distance(moderate) > 0);
+  assert.ok(distance(strong) > distance(moderate));
+
+  const desaturateRed = createNeutralColorRecipe();
+  desaturateRed.selectiveHsl.red.saturation = -100;
+  const red = new Uint8ClampedArray([220, 40, 40, 255]);
+  applyColorToRgba(red, desaturateRed);
+  assert.equal(red[0], red[1]);
+  assert.equal(red[1], red[2]);
 });
 
 test("temperature, tint, saturation and vibrance follow their disclosed axes", () => {
@@ -155,7 +220,14 @@ test("neutral-point white balance is deterministic, inverse-modelled and rejects
 test("colour PNG tagging preserves exact dimensions and binds the verified tone base", () => {
   const sourceHash = "a".repeat(64);
   const baseHash = "b".repeat(64);
-  const recipe = { temperature: 20, tint: -10, saturation: 25, vibrance: 30 };
+  const recipe = {
+    ...createNeutralColorRecipe(),
+    temperature: 20,
+    tint: -10,
+    saturation: 25,
+    vibrance: 30,
+  };
+  recipe.selectiveHsl.orange = { hue: 18, saturation: 30, lightness: -12 };
   const tagged = tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,
     baseOutputSha256: baseHash,
@@ -182,13 +254,34 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v2/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v3/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"base_kind":"tone"/);
   assert.match(text, /"temperature":20/);
+  assert.match(text, /"orange":\{"hue":18,"saturation":30,"lightness":-12\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    recipe: {
+      ...recipe,
+      selectiveHsl: {
+        ...recipe.selectiveHsl,
+        red: { hue: 101, saturation: 0, lightness: 0 },
+      },
+    },
+    statistics: { processedPixels: 3072, changedPixels: 2000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
 
   assert.throws(() => tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,

@@ -120,7 +120,7 @@ neighbourhood settings are recorded in v8 tone provenance.
 
 ## IE-04 — Colour
 
-Local implementation status (2026-10-01): the React image editor now provides
+Local implementation status (2026-10-03): the React image editor now provides
 deterministic global temperature, tint, saturation and vibrance controls as a
 separate stage after geometry and light/tone. Each apply starts from the latest
 verified derivative rather than a previous colour result. Worker processing is
@@ -134,8 +134,13 @@ point in the Result viewer, reviews the measured visible-patch RGB and proposed
 Temperature/Tint correction, then separately chooses Use suggestion and Apply
 colour. Transparent samples and unusably dark or clipped patches fail visibly;
 accepted sample coordinates, measurements and bounded correction are recorded
-in v2 colour provenance. HSL/selective colour, colour grading, LUTs, colour
-matching and protected brand/product/skin colour remain future increments.
+in v2 colour provenance. Eight-range selective HSL is also implemented for Red,
+Orange, Yellow, Green, Aqua, Blue, Purple and Magenta. Each range exposes bounded
+Hue, Saturation and Lightness controls with smooth transitions into neighbouring
+ranges; neutral colours and transparent pixels remain protected. The ordered
+selective recipe is recorded in v3 colour provenance. Point-colour selection,
+colour grading, LUTs, colour matching and protected brand/product/skin colour
+remain future increments.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.
