@@ -157,8 +157,8 @@ chromatic patch supplies one reviewed target hue; bounded tolerance, feather,
 hue, saturation and lightness controls affect only that circular hue interval.
 Neutral or conflicting patches fail visibly, sampling alone changes no pixels,
 and the measured patch plus ordered recipe are recorded in v7 colour provenance.
-Reviewed local 3D IRIDAS `.cube` LUTs are also implemented as the final colour
-operation. The strict UTF-8 parser accepts only complete 3D grids from 2³ through
+Reviewed local 3D IRIDAS `.cube` LUTs are also implemented as the final creative
+colour transform. The strict UTF-8 parser accepts only complete 3D grids from 2³ through
 65³ within a 16 MiB file budget, supports declared input domains and rejects 1D,
 shaper, malformed, incomplete and excess data instead of guessing. The customer
 reviews the file name, title, grid, domain, interpolation and exact SHA-256 before
@@ -176,7 +176,15 @@ neutral protection. Matching is bounded, preserves exact black/white,
 transparency, alpha and dimensions, and runs before the final optional 3D LUT.
 The source/base and reference hashes, sampled statistics and deterministic method
 are recorded in v9 provenance; raw reference bytes and the local file name are
-not exported. Protected brand/product/skin colour remains a future increment.
+not exported. Explicit protected brand/product/skin-critical colour anchors are
+also implemented against the exact verified pre-colour base. The customer samples
+and reviews up to three chromatic patches, assigns a bounded purpose category and
+controls hue tolerance, feather and protection strength. Sampling or protection
+alone is neutral. When another colour transform is requested, a final bounded
+blend-back protects source pixels similar in hue, saturation and lightness; multiple
+anchors use a maximum/union mask and cannot exceed 100%. The feature does not infer
+people, skin, brands, products or object boundaries. Source coordinates, measured
+colour, purpose, controls and exact base hash are recorded in v10 provenance.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

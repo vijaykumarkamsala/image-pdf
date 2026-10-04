@@ -192,6 +192,13 @@ async function render(
   if (metadata.outputWidth !== bitmap.width || metadata.outputHeight !== bitmap.height) {
     throw new Error("The requested colour-adjustment dimensions do not match the verified base image.");
   }
+  if (safe.protectedColors.some((anchor) => (
+    anchor.sourceBaseSha256 !== metadata.baseOutputSha256
+    || anchor.sourceX >= bitmap!.width
+    || anchor.sourceY >= bitmap!.height
+  ))) {
+    throw new Error("A reviewed protected colour does not belong to this verified pre-colour image.");
+  }
 
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const context = canvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });

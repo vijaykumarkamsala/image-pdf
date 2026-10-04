@@ -437,6 +437,16 @@
   background: var(--color-brand);
 }
 
+.quality-protected-color-marker {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(12 18 28 / 78%);
+}
+
+.quality-protected-color-marker::before,
+.quality-protected-color-marker::after {
+  background: #f59e0b;
+}
+
 .quality-slider-control {
   position: absolute;
   z-index: 5;
@@ -917,6 +927,48 @@
 .quality-point-color .quality-control-group {
   display: grid;
   grid-template-columns: 1fr;
+}
+
+.quality-protected-colors > .quality-control-group {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quality-protected-colors > .quality-control-group > span {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.quality-protected-color-anchor {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.quality-protected-color-anchor p {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.quality-protected-colors .quality-field {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.quality-protected-colors .quality-field select {
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .quality-grading-ranges {

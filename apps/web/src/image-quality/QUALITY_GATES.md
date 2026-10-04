@@ -57,14 +57,34 @@ fail visibly. The exact file bytes are SHA-256 bound to the reviewed title, grid
 domain and tetrahedral interpolation recipe; a missing or mismatched definition
 cannot process.
 
-The LUT is the final display-referred sRGB colour operation. Intensity is explicit
-and bounded, dimensions and alpha are invariant, fully transparent hidden RGB is
-not rewritten, and clipped output is counted in colour statistics. A changed LUT
-or intensity invalidates the prior derivative. The v8 PNG provenance records the
-ordered operation and reviewed LUT identity, and the browser journey requires the
-preview blob and downloaded PNG to be byte-identical. This local feature does not
-claim camera-log input interpretation, HDR/wide-gamut colour management, LUT
-licence approval, colour matching or protected brand/product/skin colour.
+The LUT is the final creative display-referred sRGB colour transform. Intensity is
+explicit and bounded, dimensions and alpha are invariant, fully transparent hidden
+RGB is not rewritten, and clipped output is counted in colour statistics. A changed
+LUT or intensity invalidates the prior derivative. The v8 PNG provenance records
+the ordered operation and reviewed LUT identity, and the browser journey requires
+the preview blob and downloaded PNG to be byte-identical. A reviewed protected-
+colour blend-back may follow the LUT as a safety constraint. This local feature
+does not claim camera-log input interpretation, HDR/wide-gamut colour management,
+or LUT licence approval.
+
+## Protected-colour evidence
+
+Protected colours are explicit source samples, not semantic recognition. The
+customer reviews up to three chromatic patches from the exact verified pre-colour
+base and classifies each only as brand, product or skin-critical. Neutral,
+transparent or conflicting patches fail visibly. Every anchor is bound to the
+base SHA-256 and records bounded source coordinates, measured RGB/HSL, tolerance,
+feather and strength; an earlier-stage change clears the anchors.
+
+Protection alone is a neutral recipe. With another requested colour transform,
+the final v10 operation blends similar source pixels back toward their exact
+pre-colour values. Similarity includes hue, saturation and lightness; overlapping
+anchors use max/union rather than additive strength. Dimensions, alpha and fully
+transparent hidden RGB remain invariant. Focused unit and browser evidence must
+prove deterministic output, proposal-first sampling, bounded progressive strength,
+source binding, unrelated-colour change, preview/download byte identity, stale-
+download invalidation and accessibility. Precise object or region protection is
+not claimed and remains gated on Select/Mask work.
 
 ## Explicit face-detail follow-up (not released)
 

@@ -58,6 +58,11 @@ import {
   analysisMatchesColorMatchRecipe,
   type ImageColorMatchAnalysis,
 } from "./imageColorMatch";
+import {
+  IMAGE_PROTECTED_COLOR_KINDS,
+  MAX_PROTECTED_COLOR_ANCHORS,
+  type ImageProtectedColorKind,
+} from "./imageProtectedColor";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
 import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
@@ -397,6 +402,9 @@ interface ColorToolPanelProps {
   pointColorBaseLabel: string | null;
   pointColorPicking: boolean;
   pointColorAnalysing: boolean;
+  protectedColorReview: (ImagePointColorSample & { baseLabel: string }) | null;
+  protectedColorPicking: boolean;
+  protectedColorAnalysing: boolean;
   colorMatchReview: (ImageColorMatchAnalysis & {
     fileName: string;
     baseOutputSha256: string;
@@ -408,6 +416,7 @@ interface ColorToolPanelProps {
   busy: boolean;
   canSampleWhiteBalance: boolean;
   canSamplePointColor: boolean;
+  canSampleProtectedColor: boolean;
   canAnalyzeColorMatch: boolean;
   canApply: boolean;
   canDownload: boolean;
@@ -417,6 +426,9 @@ interface ColorToolPanelProps {
   onDismissWhiteBalanceSuggestion: () => void;
   onTogglePointColorPicker: () => void;
   onDismissPointColor: () => void;
+  onToggleProtectedColorPicker: () => void;
+  onAddProtectedColor: (kind: ImageProtectedColorKind) => void;
+  onDismissProtectedColorReview: () => void;
   onAnalyzeColorMatch: (file: File) => void;
   onUseColorMatch: () => void;
   onDismissColorMatchReview: () => void;
@@ -493,11 +505,18 @@ const duotoneToneControls: Array<{
   { label: "Highlight", hueKey: "highlightHue", saturationKey: "highlightSaturation" },
 ];
 
+const protectedColorKindLabels: Record<ImageProtectedColorKind, string> = {
+  brand: "Brand colour",
+  product: "Product colour",
+  "skin-critical": "Skin-critical colour",
+};
+
 export function ColorToolPanel(props: ColorToolPanelProps) {
   const colorMatchInput = useRef<HTMLInputElement>(null);
   const cubeLutInput = useRef<HTMLInputElement>(null);
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
+  const [protectedColorKind, setProtectedColorKind] = useState<ImageProtectedColorKind>("brand");
   const neutral = isNeutralColor(props.recipe);
   const suggestionLoaded = props.whiteBalanceSuggestionUsed;
   const selectedAdjustment = props.recipe.selectiveHsl[selectedRange];
@@ -700,6 +719,105 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         <Button size="compact" disabled={props.busy || !props.recipe.pointColor.enabled} onClick={props.onDismissPointColor}><X aria-hidden="true" />Clear sampled colour</Button>
       </div>
       <p>Pixels inside the tolerance receive the full adjustment; feathering creates a smooth circular hue transition. Near-neutral colours, transparency and alpha remain protected.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-protected-colors">
+      <legend>Protected colours</legend>
+      <div className="quality-control-group">
+        <Button
+          size="compact"
+          disabled={props.busy || !props.canSampleProtectedColor}
+          onClick={props.onToggleProtectedColorPicker}
+        ><Pipette aria-hidden="true" />{props.protectedColorPicking ? "Cancel protection sampling" : "Pick colour to protect"}</Button>
+        <span>{props.recipe.protectedColors.length} / {MAX_PROTECTED_COLOR_ANCHORS} anchors</span>
+      </div>
+      <p>Sample an exact colour from the verified pre-colour base, review its purpose, then add it. Sampling alone never changes pixels.</p>
+      {props.protectedColorPicking && <p role="status">Select the colour to protect in the Result viewer. Keyboard users can press Enter or Space to sample the viewer centre.</p>}
+      {props.protectedColorAnalysing && <p role="status">Measuring the protected colour patch.</p>}
+      {props.protectedColorReview && <div className="quality-auto-tone-result" data-testid="protected-color-review">
+        <div className="quality-point-color-heading">
+          <span
+            className="quality-point-color-swatch"
+            aria-hidden="true"
+            style={{ backgroundColor: `rgb(${props.protectedColorReview.red} ${props.protectedColorReview.green} ${props.protectedColorReview.blue})` }}
+          />
+          <div><strong role="status">Protected-colour sample ready for review</strong><p>Sampled from {props.protectedColorReview.baseLabel}.</p></div>
+        </div>
+        <dl>
+          <div><dt>Source point</dt><dd>{props.protectedColorReview.sourceX}, {props.protectedColorReview.sourceY}</dd></div>
+          <div><dt>Measured RGB</dt><dd>{props.protectedColorReview.red}, {props.protectedColorReview.green}, {props.protectedColorReview.blue}</dd></div>
+          <div><dt>Measured H/S/L</dt><dd>{props.protectedColorReview.hue}° / {props.protectedColorReview.saturation}% / {props.protectedColorReview.lightness}%</dd></div>
+        </dl>
+        <label className="quality-field">
+          <span>Protection purpose</span>
+          <select
+            aria-label="Protected-colour purpose"
+            value={protectedColorKind}
+            disabled={props.busy}
+            onChange={(event) => setProtectedColorKind(event.target.value as ImageProtectedColorKind)}
+          >
+            {IMAGE_PROTECTED_COLOR_KINDS.map((kind) => <option key={kind} value={kind}>{protectedColorKindLabels[kind]}</option>)}
+          </select>
+        </label>
+        <div className="quality-control-group">
+          <Button size="compact" disabled={props.busy} onClick={() => props.onAddProtectedColor(protectedColorKind)}>
+            <Palette aria-hidden="true" />Add protected colour
+          </Button>
+          <Button size="compact" disabled={props.busy} onClick={props.onDismissProtectedColorReview}>
+            <X aria-hidden="true" />Dismiss sample
+          </Button>
+        </div>
+      </div>}
+      {props.recipe.protectedColors.map((anchor, index) => <section
+        className="quality-protected-color-anchor"
+        data-testid="protected-color-anchor"
+        key={`${anchor.sourceBaseSha256}-${anchor.sourceX}-${anchor.sourceY}-${index}`}
+      >
+        <div className="quality-point-color-heading">
+          <span className="quality-point-color-swatch" aria-hidden="true" style={{ backgroundColor: `rgb(${anchor.red} ${anchor.green} ${anchor.blue})` }} />
+          <div><strong>{protectedColorKindLabels[anchor.kind]}</strong><p>RGB {anchor.red}, {anchor.green}, {anchor.blue} · source {anchor.sourceX}, {anchor.sourceY}</p></div>
+        </div>
+        <label className="quality-toggle-control">
+          <input
+            type="checkbox"
+            checked={anchor.enabled}
+            disabled={props.busy}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              protectedColors: props.recipe.protectedColors.map((item, itemIndex) => (
+                itemIndex === index ? { ...item, enabled: event.target.checked } : item
+              )),
+            })}
+          />
+          <span><strong>Enable protection</strong><small>Keep this reviewed anchor while temporarily disabling its blend-back.</small></span>
+        </label>
+        {([
+          { key: "tolerance", label: "Hue tolerance", minimum: 5, maximum: 60, suffix: "°" },
+          { key: "feather", label: "Hue feather", minimum: 1, maximum: 60, suffix: "°" },
+          { key: "strength", label: "Protection strength", minimum: 0, maximum: 100, suffix: "%" },
+        ] as const).map((control) => <label className="quality-adjustment-control" key={control.key}>
+          <span><strong>{control.label}</strong><output>{anchor[control.key]}{control.suffix}</output></span>
+          <input
+            aria-label={`${protectedColorKindLabels[anchor.kind]} ${control.label.toLowerCase()}`}
+            type="range"
+            min={control.minimum}
+            max={control.maximum}
+            step="1"
+            value={anchor[control.key]}
+            disabled={props.busy || !anchor.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              protectedColors: props.recipe.protectedColors.map((item, itemIndex) => (
+                itemIndex === index ? { ...item, [control.key]: Number(event.target.value) } : item
+              )),
+            })}
+          />
+        </label>)}
+        <Button size="compact" disabled={props.busy} onClick={() => props.onRecipe({
+          ...props.recipe,
+          protectedColors: props.recipe.protectedColors.filter((_, itemIndex) => itemIndex !== index),
+        })}><X aria-hidden="true" />Remove protected colour</Button>
+      </section>)}
+      <p>This protects only pixels similar in hue, saturation and lightness to each reviewed sample. It does not identify people, skin, brands, products or object boundaries. Precise region isolation belongs in a future Select/Mask tool.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-color-grading">
       <legend>Tonal colour grading</legend>
@@ -1048,7 +1166,7 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
           />
         </label>
       </div>}
-      <p>This bounded local path accepts reviewed 3D IRIDAS .cube files up to a 65³ grid and applies them last in display-referred sRGB. One-dimensional, shaper and malformed LUTs fail visibly rather than being guessed. Out-of-gamut output is clipped and counted.</p>
+      <p>This bounded local path accepts reviewed 3D IRIDAS .cube files up to a 65³ grid and applies them after creative colour transforms in display-referred sRGB. Reviewed protected-colour blend-back is the final safety constraint. One-dimensional, shaper and malformed LUTs fail visibly rather than being guessed. Out-of-gamut output is clipped and counted.</p>
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>

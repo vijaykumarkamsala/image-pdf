@@ -15,6 +15,13 @@ import {
   sanitizeColorMatchRecipe,
   type ImageColorMatchRecipe,
 } from "./imageColorMatch.ts";
+import {
+  areProtectedColorsSanitized,
+  protectedColorWeight,
+  sameProtectedColors,
+  sanitizeProtectedColors,
+  type ImageProtectedColorAnchor,
+} from "./imageProtectedColor.ts";
 
 export const IMAGE_SELECTIVE_COLOR_RANGES = [
   "red",
@@ -117,6 +124,8 @@ export interface ImageColorRecipe {
   colorMatch: ImageColorMatchRecipe | null;
   /** Optional reviewed 3D LUT metadata. Sample values remain outside provenance. */
   cubeLut: ImageCubeLutRecipe | null;
+  /** Explicit source-sampled colours blended back after all creative colour transforms. */
+  protectedColors: ImageProtectedColorAnchor[];
 }
 
 export interface ImageColorStatistics {
@@ -217,6 +226,7 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
     },
     colorMatch: null,
     cubeLut: null,
+    protectedColors: [],
   };
 }
 
@@ -271,6 +281,7 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
     },
     colorMatch: sanitizeColorMatchRecipe(recipe.colorMatch),
     cubeLut: sanitizeCubeLutRecipe(recipe.cubeLut),
+    protectedColors: sanitizeProtectedColors(recipe.protectedColors),
   };
 }
 
@@ -309,7 +320,8 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
     && safeLeft.duotone.enabled === safeRight.duotone.enabled
     && DUOTONE_KEYS.every((key) => safeLeft.duotone[key] === safeRight.duotone[key])
     && sameColorMatchRecipe(safeLeft.colorMatch, safeRight.colorMatch)
-    && sameCubeLutRecipe(safeLeft.cubeLut, safeRight.cubeLut);
+    && sameCubeLutRecipe(safeLeft.cubeLut, safeRight.cubeLut)
+    && sameProtectedColors(safeLeft.protectedColors, safeRight.protectedColors);
 }
 
 export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
@@ -334,7 +346,9 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
     && isSanitizedColorMatchRecipe(recipe.colorMatch)
     && sameColorMatchRecipe(recipe.colorMatch, safe.colorMatch)
     && isSanitizedCubeLutRecipe(recipe.cubeLut)
-    && sameCubeLutRecipe(recipe.cubeLut, safe.cubeLut);
+    && sameCubeLutRecipe(recipe.cubeLut, safe.cubeLut)
+    && areProtectedColorsSanitized(recipe.protectedColors)
+    && sameProtectedColors(recipe.protectedColors, safe.protectedColors);
 }
 
 export function assertBrowserColorBudget(width: number, height: number): number {
@@ -835,6 +849,7 @@ export function applyColorToRgba(
     const pointColorWeight = pointColorActive
       ? pointColorSelectionWeight(beforeRed / 255, beforeGreen / 255, beforeBlue / 255, safe.pointColor)
       : 0;
+    const protectionWeight = protectedColorWeight(beforeRed, beforeGreen, beforeBlue, safe.protectedColors);
     let red = srgbToLinear(beforeRed) * redGain;
     let green = srgbToLinear(beforeGreen) * greenGain;
     let blue = srgbToLinear(beforeBlue) * blueGain;
@@ -933,6 +948,11 @@ export function applyColorToRgba(
       outputRed = Math.round(clamp(mixedRed * 255, 0, 255));
       outputGreen = Math.round(clamp(mixedGreen * 255, 0, 255));
       outputBlue = Math.round(clamp(mixedBlue * 255, 0, 255));
+    }
+    if (protectionWeight > 0) {
+      outputRed = Math.round(outputRed + (beforeRed - outputRed) * protectionWeight);
+      outputGreen = Math.round(outputGreen + (beforeGreen - outputGreen) * protectionWeight);
+      outputBlue = Math.round(outputBlue + (beforeBlue - outputBlue) * protectionWeight);
     }
     if (gamutClipped) statistics.gamutClippedPixels += 1;
     pixels[offset] = outputRed;

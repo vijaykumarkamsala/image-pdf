@@ -79,6 +79,11 @@ import {
   MAX_COLOR_MATCH_REFERENCE_BYTES,
   type ImageColorMatchAnalysis,
 } from "./imageColorMatch";
+import {
+  createProtectedColorAnchor,
+  MAX_PROTECTED_COLOR_ANCHORS,
+  type ImageProtectedColorKind,
+} from "./imageProtectedColor";
 import type { ImageHistogramInput } from "./ImageHistogramPanel";
 import {
   imageQualitySessionReducer,
@@ -140,6 +145,13 @@ interface WhiteBalanceReview extends ImageWhiteBalanceSuggestion {
 }
 
 interface PointColorReview extends ImagePointColorSample {
+  normalizedX: number;
+  normalizedY: number;
+  baseOutputSha256: string;
+  baseLabel: string;
+}
+
+interface ProtectedColorReview extends ImagePointColorSample {
   normalizedX: number;
   normalizedY: number;
   baseOutputSha256: string;
@@ -222,6 +234,11 @@ interface ViewerProps {
     point: { x: number; y: number } | null;
     onSample: (normalizedX: number, normalizedY: number) => void;
   };
+  protectedColorSampler?: {
+    active: boolean;
+    point: { x: number; y: number } | null;
+    onSample: (normalizedX: number, normalizedY: number) => void;
+  };
 }
 
 function ComparisonViewer({
@@ -238,13 +255,15 @@ function ComparisonViewer({
   overlay,
   whiteBalanceSampler,
   pointColorSampler,
+  protectedColorSampler,
 }: ViewerProps) {
   const { ref, size } = useFrameSize();
   const drag = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null);
   const transform = viewerTransform(size.width, size.height, width, height, zoom, pan);
   const activeSampler = whiteBalanceSampler?.active ? whiteBalanceSampler
     : pointColorSampler?.active ? pointColorSampler
-      : null;
+      : protectedColorSampler?.active ? protectedColorSampler
+        : null;
   const normalizedPointAt = (clientX: number, clientY: number) => {
     const bounds = ref.current?.getBoundingClientRect();
     if (!bounds) return null;
@@ -306,7 +325,7 @@ function ComparisonViewer({
     data-scale={transform.scale.toFixed(6)}
     tabIndex={0}
     role="group"
-    aria-label={`${label} image viewer. Use arrow keys to pan when zoomed.${whiteBalanceSampler?.active ? " Select a neutral point, or press Enter to sample the viewer centre." : pointColorSampler?.active ? " Select a coloured point, or press Enter to sample the viewer centre." : ""}`}
+    aria-label={`${label} image viewer. Use arrow keys to pan when zoomed.${whiteBalanceSampler?.active ? " Select a neutral point, or press Enter to sample the viewer centre." : pointColorSampler?.active ? " Select a coloured point, or press Enter to sample the viewer centre." : protectedColorSampler?.active ? " Select a colour to protect, or press Enter to sample the viewer centre." : ""}`}
     onPointerDown={startPan}
     onPointerMove={(event) => {
       const active = drag.current;
@@ -364,6 +383,15 @@ function ComparisonViewer({
         top: `calc(50% + ${pan.y + (pointColorSampler.point.y - 0.5) * height * transform.scale}px)`,
       }}
     />}
+    {protectedColorSampler?.point && <span
+      className="quality-white-balance-marker quality-protected-color-marker"
+      data-testid="protected-color-marker"
+      aria-hidden="true"
+      style={{
+        left: `calc(50% + ${pan.x + (protectedColorSampler.point.x - 0.5) * width * transform.scale}px)`,
+        top: `calc(50% + ${pan.y + (protectedColorSampler.point.y - 0.5) * height * transform.scale}px)`,
+      }}
+    />}
   </div>;
 }
 
@@ -403,6 +431,9 @@ export function ImageQualityEditorPage() {
   const [pointColorReview, setPointColorReview] = useState<PointColorReview | null>(null);
   const [pointColorPicking, setPointColorPicking] = useState(false);
   const [pointColorAnalysing, setPointColorAnalysing] = useState(false);
+  const [protectedColorReview, setProtectedColorReview] = useState<ProtectedColorReview | null>(null);
+  const [protectedColorPicking, setProtectedColorPicking] = useState(false);
+  const [protectedColorAnalysing, setProtectedColorAnalysing] = useState(false);
   const [colorMatchReview, setColorMatchReview] = useState<ColorMatchReview | null>(null);
   const [colorMatchAnalysing, setColorMatchAnalysing] = useState(false);
   const [cubeLut, setCubeLut] = useState<ImportedImageCubeLut | null>(null);
@@ -484,6 +515,12 @@ export function ImageQualityEditorPage() {
     setPointColorAnalysing(false);
   };
 
+  const clearProtectedColorReview = () => {
+    setProtectedColorReview(null);
+    setProtectedColorPicking(false);
+    setProtectedColorAnalysing(false);
+  };
+
   const clearColorMatchReview = () => {
     setColorMatchReview(null);
     setColorMatchAnalysing(false);
@@ -508,13 +545,19 @@ export function ImageQualityEditorPage() {
     setColorError(null);
     clearWhiteBalanceReview();
     clearPointColorReview();
+    clearProtectedColorReview();
     clearColorMatchReview();
-    const remainingRecipe = sanitizeColorRecipe({ ...colorRecipe, colorMatch: null });
+    const sourceBoundColorCleared = Boolean(colorRecipe.colorMatch || colorRecipe.protectedColors.length);
+    const remainingRecipe = sanitizeColorRecipe({ ...colorRecipe, colorMatch: null, protectedColors: [] });
     setColorRecipe(remainingRecipe);
     clearColorDerivative();
     setColorMessage(isNeutralColor(remainingRecipe)
-      ? colorRecipe.colorMatch ? "The verified pre-colour image changed, so its source-bound reference match was cleared. Analyse the reference again if it is still needed." : null
-      : message);
+      ? sourceBoundColorCleared
+        ? "The verified pre-colour image changed, so its source-bound reference match and protected colours were cleared. Sample them again if still needed."
+        : null
+      : sourceBoundColorCleared
+        ? `${message} Its source-bound reference match and protected colours were cleared; sample them again if still needed.`
+        : message);
   };
 
   const clearToneDerivative = () => {
@@ -587,6 +630,7 @@ export function ImageQualityEditorPage() {
     setCubeLutImporting(false);
     clearWhiteBalanceReview();
     clearPointColorReview();
+    clearProtectedColorReview();
     clearColorMatchReview();
     clearColorDerivative();
     disposeColorEngine();
@@ -1024,6 +1068,7 @@ export function ImageQualityEditorPage() {
     setWhiteBalanceReview(null);
     setWhiteBalanceSuggestionUsed(false);
     setPointColorPicking(false);
+    setProtectedColorPicking(false);
     setWhiteBalancePicking(true);
     setColorError(null);
     setColorMessage("White-balance picker ready. Select a known neutral point in the Result viewer.");
@@ -1116,6 +1161,7 @@ export function ImageQualityEditorPage() {
       return;
     }
     setWhiteBalancePicking(false);
+    setProtectedColorPicking(false);
     setPointColorPicking(true);
     setColorError(null);
     setColorMessage("Point-colour picker ready. Select a consistently coloured area in the Result viewer.");
@@ -1184,6 +1230,105 @@ export function ImageQualityEditorPage() {
     setColorMessage(null);
   };
 
+  const toggleProtectedColorPicker = () => {
+    if (protectedColorPicking) {
+      setProtectedColorPicking(false);
+      setColorMessage(null);
+      return;
+    }
+    if (colorRecipe.protectedColors.length >= MAX_PROTECTED_COLOR_ANCHORS) {
+      setColorError(`Remove a protected colour before adding another. Up to ${MAX_PROTECTED_COLOR_ANCHORS} reviewed anchors are supported.`);
+      return;
+    }
+    if (!resolveColorBase()) {
+      setColorError("The latest verified pre-colour image is unavailable. Apply or reset earlier-stage changes before sampling a protected colour.");
+      return;
+    }
+    setWhiteBalancePicking(false);
+    setPointColorPicking(false);
+    setProtectedColorPicking(true);
+    setColorError(null);
+    setColorMessage("Protected-colour picker ready. Select the exact colour area that must resist colour changes.");
+    dispatch({ type: "mode-changed", mode: "side-by-side" });
+  };
+
+  const sampleProtectedColor = async (normalizedX: number, normalizedY: number) => {
+    if (!protectedColorPicking || colorBusy) return;
+    const base = resolveColorBase();
+    if (!base) {
+      setProtectedColorPicking(false);
+      setColorError("The verified pre-colour image changed before sampling. Start the protected-colour picker again.");
+      return;
+    }
+    const x = Math.min(base.width - 1, Math.max(0, Math.round(normalizedX * (base.width - 1))));
+    const y = Math.min(base.height - 1, Math.max(0, Math.round(normalizedY * (base.height - 1))));
+    const currentColorOperation = ++colorOperation.current;
+    disposeColorEngine();
+    const next = new WorkerImageColorEngine();
+    colorEngine.current = next;
+    setColorBusy(true);
+    setProtectedColorAnalysing(true);
+    setProtectedColorPicking(false);
+    setColorError(null);
+    setColorMessage("Measuring the protected colour from the verified pre-colour image.");
+    try {
+      const loaded = await next.load(base.blob);
+      if (loaded.width !== base.width || loaded.height !== base.height) {
+        throw new Error(`The protected-colour decoder returned ${loaded.width} × ${loaded.height} px instead of ${base.width} × ${base.height} px.`);
+      }
+      const sample = await next.samplePointColor(x, y);
+      if (colorOperation.current !== currentColorOperation) return;
+      setProtectedColorReview({
+        ...sample,
+        normalizedX,
+        normalizedY,
+        baseOutputSha256: base.outputSha256,
+        baseLabel: base.label,
+      });
+      setColorMessage("Protected-colour sample ready. Review its category before adding it to the recipe.");
+    } catch (error) {
+      if (colorOperation.current !== currentColorOperation) return;
+      setProtectedColorReview(null);
+      setColorError(error instanceof Error ? error.message : "Protected-colour sampling did not complete.");
+      setColorMessage(null);
+    } finally {
+      if (colorOperation.current === currentColorOperation) {
+        setColorBusy(false);
+        setProtectedColorAnalysing(false);
+        next.dispose();
+        if (colorEngine.current === next) colorEngine.current = null;
+      }
+    }
+  };
+
+  const addProtectedColor = (kind: ImageProtectedColorKind) => {
+    const base = resolveColorBase();
+    if (!protectedColorReview || !base || protectedColorReview.baseOutputSha256 !== base.outputSha256) {
+      clearProtectedColorReview();
+      setColorError("The protected-colour sample no longer matches the verified pre-colour image. Sample it again.");
+      return;
+    }
+    if (colorRecipe.protectedColors.length >= MAX_PROTECTED_COLOR_ANCHORS) {
+      setColorError(`Remove a protected colour before adding another. Up to ${MAX_PROTECTED_COLOR_ANCHORS} reviewed anchors are supported.`);
+      return;
+    }
+    const anchor = createProtectedColorAnchor(protectedColorReview, kind, base.outputSha256);
+    setColorRecipe((current) => sanitizeColorRecipe({
+      ...current,
+      protectedColors: [...current.protectedColors, anchor],
+    }));
+    clearProtectedColorReview();
+    clearColorDerivative();
+    setColorError(null);
+    setColorMessage("Reviewed protected colour added. It will constrain other colour changes when you apply colour.");
+  };
+
+  const dismissProtectedColorReview = () => {
+    clearProtectedColorReview();
+    setColorError(null);
+    setColorMessage(null);
+  };
+
   const analyzeColorMatch = async (file: File) => {
     const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
     const supportedType = IMAGE_QUALITY_INPUT_TYPES.includes(file.type as typeof IMAGE_QUALITY_INPUT_TYPES[number]);
@@ -1214,6 +1359,7 @@ export function ImageQualityEditorPage() {
     setColorMatchAnalysing(true);
     setWhiteBalancePicking(false);
     setPointColorPicking(false);
+    setProtectedColorPicking(false);
     setColorError(null);
     setColorMessage("Analysing source and reference colour distributions locallyâ€¦");
     try {
@@ -1397,6 +1543,10 @@ export function ImageQualityEditorPage() {
       setColorError("The reviewed 3D LUT data is unavailable or no longer matches its SHA-256 metadata. Import it again before applying colour.");
       return;
     }
+    if (safe.protectedColors.some((anchor) => anchor.sourceBaseSha256 !== base.outputSha256)) {
+      setColorError("A protected colour belongs to a different verified base. Remove it and sample the current image before applying colour.");
+      return;
+    }
     const baseBlob = base.blob;
     const baseOutputSha256 = base.outputSha256;
     const baseKind = base.kind;
@@ -1464,6 +1614,7 @@ export function ImageQualityEditorPage() {
     setCubeLutImporting(false);
     clearWhiteBalanceReview();
     clearPointColorReview();
+    clearProtectedColorReview();
     clearColorMatchReview();
     clearColorDerivative();
     dispatch({ type: "zoom-changed", zoom: "fit" });
@@ -1629,10 +1780,13 @@ export function ImageQualityEditorPage() {
   const colorIsDirty = colorHasChanges && !colorDisplayReady;
   const displayOriginalUrl = baseOriginalUrl;
   const colorSamplingBase = activeTool === "color"
-    && (whiteBalancePicking || whiteBalanceAnalysing || pointColorPicking || pointColorAnalysing);
+    && (whiteBalancePicking || whiteBalanceAnalysing || pointColorPicking || pointColorAnalysing
+      || protectedColorPicking || protectedColorAnalysing);
   const colorSamplingBaseLabel = whiteBalancePicking || whiteBalanceAnalysing
     ? "White-balance sampling base"
-    : "Point-colour sampling base";
+    : protectedColorPicking || protectedColorAnalysing
+      ? "Protected-colour sampling base"
+      : "Point-colour sampling base";
   const enhancedUrl = colorDisplayReady && !colorSamplingBase
     ? colorResult!.url
     : toneDisplayReady ? toneResult!.url : baseResultUrl;
@@ -1756,7 +1910,8 @@ export function ImageQualityEditorPage() {
       || definitionMatchesCubeLutRecipe(cubeLut?.definition, colorRecipe.cubeLut))
     && (!(colorRecipe.colorMatch?.enabled && colorRecipe.colorMatch.intensity > 0
       && (colorRecipe.colorMatch.luminance > 0 || colorRecipe.colorMatch.colorIntensity > 0))
-      || analysisMatchesColorMatchRecipe(colorMatchReview, colorRecipe.colorMatch, preColorOutputSha256)),
+      || analysisMatchesColorMatchRecipe(colorMatchReview, colorRecipe.colorMatch, preColorOutputSha256))
+    && colorRecipe.protectedColors.every((anchor) => anchor.sourceBaseSha256 === preColorOutputSha256),
   );
   const colorBaseAvailable = Boolean(
     dimensionsReady && !resultIsStale && !geometryIsDirty && !toneIsDirty
@@ -1780,6 +1935,16 @@ export function ImageQualityEditorPage() {
         active: pointColorPicking,
         point: pointColorPoint,
         onSample: (x: number, y: number) => void samplePointColor(x, y),
+      }
+    : undefined;
+  const protectedColorPoint = protectedColorReview?.baseOutputSha256 === preColorOutputSha256
+    ? { x: protectedColorReview.normalizedX, y: protectedColorReview.normalizedY }
+    : null;
+  const protectedColorSampler = activeTool === "color"
+    ? {
+        active: protectedColorPicking,
+        point: protectedColorPoint,
+        onSample: (x: number, y: number) => void sampleProtectedColor(x, y),
       }
     : undefined;
   const geometryCanApply = Boolean(
@@ -1838,6 +2003,8 @@ export function ImageQualityEditorPage() {
       <ImageEditorToolRail activeTool={activeTool} onChange={(tool) => {
         setActiveTool(tool);
         if (tool !== "color") setWhiteBalancePicking(false);
+        if (tool !== "color") setPointColorPicking(false);
+        if (tool !== "color") setProtectedColorPicking(false);
         if (tool === "geometry") setGeometrySelectionOpen(true);
       }} />
       {activeTool === "enhance"
@@ -1888,6 +2055,9 @@ export function ImageQualityEditorPage() {
                 pointColorBaseLabel={pointColorReview?.baseLabel ?? null}
                 pointColorPicking={pointColorPicking}
                 pointColorAnalysing={pointColorAnalysing}
+                protectedColorReview={protectedColorReview}
+                protectedColorPicking={protectedColorPicking}
+                protectedColorAnalysing={protectedColorAnalysing}
                 colorMatchReview={colorMatchReview}
                 colorMatchAnalysing={colorMatchAnalysing}
                 cubeLut={cubeLut}
@@ -1895,6 +2065,7 @@ export function ImageQualityEditorPage() {
                 busy={colorBusy}
                 canSampleWhiteBalance={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canSamplePointColor={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canSampleProtectedColor={colorBaseAvailable && colorRecipe.protectedColors.length < MAX_PROTECTED_COLOR_ANCHORS && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canAnalyzeColorMatch={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canApply={colorCanApply}
                 canDownload={colorDisplayReady}
@@ -1917,6 +2088,9 @@ export function ImageQualityEditorPage() {
                 onDismissWhiteBalanceSuggestion={dismissWhiteBalanceSuggestion}
                 onTogglePointColorPicker={togglePointColorPicker}
                 onDismissPointColor={dismissPointColor}
+                onToggleProtectedColorPicker={toggleProtectedColorPicker}
+                onAddProtectedColor={addProtectedColor}
+                onDismissProtectedColorReview={dismissProtectedColorReview}
                 onAnalyzeColorMatch={(file) => void analyzeColorMatch(file)}
                 onUseColorMatch={useColorMatch}
                 onDismissColorMatchReview={dismissColorMatchReview}
@@ -2029,6 +2203,7 @@ export function ImageQualityEditorPage() {
                   enhanced
                   whiteBalanceSampler={whiteBalanceSampler}
                   pointColorSampler={pointColorSampler}
+                  protectedColorSampler={protectedColorSampler}
                 />
               </div> : <>
                 <ComparisonViewer
@@ -2044,6 +2219,7 @@ export function ImageQualityEditorPage() {
                   overlay={{ slider: state.slider }}
                   whiteBalanceSampler={whiteBalanceSampler}
                   pointColorSampler={pointColorSampler}
+                  protectedColorSampler={protectedColorSampler}
                 />
                 <label className="quality-slider-control"><span>Comparison position</span><input type="range" min="0" max="100" value={state.slider} onChange={(event) => dispatch({ type: "slider-changed", slider: Number(event.target.value) })} /></label>
               </>}

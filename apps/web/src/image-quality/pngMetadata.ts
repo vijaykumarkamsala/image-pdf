@@ -234,7 +234,7 @@ function toneProvenance(metadata: PngToneMetadata) {
 
 function colorProvenance(metadata: PngColorMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.color.provenance.v9",
+    schema: "ipw.image-edit.color.provenance.v10",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
@@ -243,7 +243,7 @@ function colorProvenance(metadata: PngColorMetadata) {
     base_scale: metadata.baseScale,
     white_balance_sample: metadata.whiteBalanceSample,
     point_color_sample: metadata.pointColorSample,
-    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl", "sampled_point_color", "tonal_color_grading", "black_and_white_channel_mixer", "duotone_mapping", "reviewed_reference_colour_match", "reviewed_3d_lut_tetrahedral"],
+    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl", "sampled_point_color", "tonal_color_grading", "black_and_white_channel_mixer", "duotone_mapping", "reviewed_reference_colour_match", "reviewed_3d_lut_tetrahedral", "reviewed_protected_colour_blendback"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,
@@ -494,10 +494,15 @@ export function tagColorPng(bytes: Uint8Array, metadata: PngColorMetadata): Uint
   );
   const colorMatchIsSafe = safeRecipe.colorMatch === null
     || safeRecipe.colorMatch.sourceBaseSha256 === metadata.baseOutputSha256;
+  const protectedColorsAreSafe = safeRecipe.protectedColors.every((anchor) => (
+    anchor.sourceBaseSha256 === metadata.baseOutputSha256
+    && anchor.sourceX < metadata.outputWidth
+    && anchor.sourceY < metadata.outputHeight
+  ));
   if (!hash.test(metadata.sourceSha256) || !hash.test(metadata.baseOutputSha256)
     || !baseKinds.includes(metadata.baseKind) || !metadata.baseRoute.trim()
     || (metadata.baseStrength !== null && (!Number.isFinite(metadata.baseStrength) || metadata.baseStrength < 0 || metadata.baseStrength > 100))
-    || !recipeIsSafe || !sampleIsSafe || !pointSampleIsSafe || !colorMatchIsSafe
+    || !recipeIsSafe || !sampleIsSafe || !pointSampleIsSafe || !colorMatchIsSafe || !protectedColorsAreSafe
     || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
     || !statistics.every(Number.isSafeInteger) || statistics.some((value) => value < 0 || value > pixelCount)
     || metadata.statistics.changedPixels > metadata.statistics.processedPixels

@@ -15,6 +15,11 @@ import {
   whiteBalanceSampleRadius,
 } from "../src/image-quality/imageColor.ts";
 import { inspectPngDimensions, tagColorPng } from "../src/image-quality/pngMetadata.ts";
+import {
+  createProtectedColorAnchor,
+  protectedColorWeight,
+  sanitizeProtectedColors,
+} from "../src/image-quality/imageProtectedColor.ts";
 
 function framedPng(width: number, height: number) {
   const bytes = new Uint8Array(45);
@@ -272,6 +277,82 @@ test("sampled point colour targets a bounded hue interval and protects unrelated
     () => samplePointColorFromRgba(new Uint8ClampedArray([20, 110, 225, 0]), 0, 0, 1),
     /enough visible pixels/,
   );
+});
+
+test("reviewed protected colours are bounded, source-bound and apply a non-additive final blend-back", () => {
+  const baseHash = "b".repeat(64);
+  const redSample = {
+    sourceX: 8,
+    sourceY: 6,
+    radius: 1,
+    visiblePixels: 9,
+    red: 220,
+    green: 40,
+    blue: 40,
+    hue: 0,
+    saturation: 72,
+    lightness: 51,
+  };
+  const anchor = createProtectedColorAnchor(redSample, "brand", baseHash);
+  assert.deepEqual(anchor, {
+    enabled: true,
+    kind: "brand",
+    ...redSample,
+    tolerance: 12,
+    feather: 18,
+    strength: 100,
+    sourceBaseSha256: baseHash,
+  });
+  assert.equal(sanitizeProtectedColors([anchor, anchor, anchor, anchor]).length, 3);
+  assert.deepEqual(sanitizeProtectedColors([{ ...anchor, kind: "unknown", tolerance: -1, feather: 100, strength: 101 }]), [{
+    ...anchor,
+    kind: "brand",
+    tolerance: 5,
+    feather: 60,
+    strength: 100,
+  }]);
+  assert.deepEqual(sanitizeProtectedColors([{ ...anchor, sourceBaseSha256: "invalid" }]), []);
+
+  const original = new Uint8ClampedArray([
+    220, 40, 40, 255,
+    40, 80, 220, 255,
+    128, 128, 128, 255,
+    220, 40, 40, 0,
+  ]);
+  const unprotected = original.slice();
+  applyColorToRgba(unprotected, { ...createNeutralColorRecipe(), temperature: 100, saturation: 60 });
+  const recipe = { ...createNeutralColorRecipe(), temperature: 100, saturation: 60, protectedColors: [anchor] };
+  const protectedPixels = original.slice();
+  const repeated = original.slice();
+  const statistics = applyColorToRgba(protectedPixels, recipe);
+  assert.deepEqual(applyColorToRgba(repeated, recipe), statistics);
+  assert.deepEqual(repeated, protectedPixels, "protected rendering must be deterministic");
+  assert.deepEqual(Array.from(protectedPixels.subarray(0, 4)), Array.from(original.subarray(0, 4)), "the sampled source colour receives full blend-back");
+  assert.deepEqual(Array.from(protectedPixels.subarray(4, 8)), Array.from(unprotected.subarray(4, 8)), "an unrelated hue keeps the requested transform");
+  assert.deepEqual(Array.from(protectedPixels.subarray(8, 12)), Array.from(unprotected.subarray(8, 12)), "neutral pixels do not acquire a hue mask");
+  assert.deepEqual(Array.from(protectedPixels.subarray(12, 16)), Array.from(original.subarray(12, 16)), "transparent hidden RGB remains immutable");
+
+  const half = original.slice();
+  applyColorToRgba(half, { ...recipe, protectedColors: [{ ...anchor, strength: 50 }] });
+  const distance = (pixels: Uint8ClampedArray) => Math.abs(pixels[0] - original[0])
+    + Math.abs(pixels[1] - original[1]) + Math.abs(pixels[2] - original[2]);
+  assert.ok(distance(unprotected) > distance(half));
+  assert.ok(distance(half) > distance(protectedPixels));
+
+  const duplicateWeight = protectedColorWeight(220, 40, 40, [anchor, anchor]);
+  assert.equal(duplicateWeight, protectedColorWeight(220, 40, 40, [anchor]), "overlapping anchors use a bounded max/union mask");
+  assert.ok(protectedColorWeight(220, 40, 40, [{ ...anchor, hue: 359 }]) > 0.9, "hue selection wraps around zero degrees");
+
+  const anchorsOnly = createNeutralColorRecipe();
+  anchorsOnly.protectedColors = [anchor];
+  assert.equal(isNeutralColor(anchorsOnly), true, "protection without a requested transform is neutral");
+  const anchorsOnlyPixels = original.slice();
+  assert.deepEqual(applyColorToRgba(anchorsOnlyPixels, anchorsOnly), {
+    processedPixels: 0,
+    changedPixels: 0,
+    gamutClippedPixels: 0,
+  });
+  assert.deepEqual(anchorsOnlyPixels, original);
 });
 
 test("temperature, tint, saturation and vibrance follow their disclosed axes", () => {
@@ -588,6 +669,18 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     domainMax: [1, 1, 1],
     interpolation: "tetrahedral",
   };
+  recipe.protectedColors = [createProtectedColorAnchor({
+    sourceX: 12,
+    sourceY: 10,
+    radius: 1,
+    visiblePixels: 9,
+    red: 30,
+    green: 80,
+    blue: 210,
+    hue: 225,
+    saturation: 75,
+    lightness: 47,
+  }, "product", baseHash)];
   const pointColorSample = {
     sourceX: 30,
     sourceY: 24,
@@ -627,8 +720,8 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v9/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping","reviewed_reference_colour_match","reviewed_3d_lut_tetrahedral"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v10/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping","reviewed_reference_colour_match","reviewed_3d_lut_tetrahedral","reviewed_protected_colour_blendback"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"point_color_sample":\{"sourceX":30,"sourceY":24/);
   assert.match(text, /"base_kind":"tone"/);
@@ -641,8 +734,29 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   assert.match(text, /"colorMatch":\{"enabled":true,"intensity":65,"luminance":35,"colorIntensity":70,"protectNeutrals":true/);
   assert.match(text, /"referenceSha256":"d{64}"/);
   assert.match(text, /"cubeLut":\{"enabled":true,"intensity":72,"sha256":"c{64}","title":"Reviewed warm look","size":33,"domainMin":\[0,0,0\],"domainMax":\[1,1,1\],"interpolation":"tetrahedral"\}/);
+  assert.match(text, /"protectedColors":\[\{"enabled":true,"kind":"product","sourceX":12,"sourceY":10/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
+
+  const protectedMismatchRecipe = {
+    ...createNeutralColorRecipe(),
+    temperature: 20,
+    protectedColors: [{ ...recipe.protectedColors[0], sourceBaseSha256: "e".repeat(64) }],
+  };
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: baseHash,
+    baseKind: "original",
+    baseRoute: "immutable-original",
+    baseStrength: null,
+    baseScale: 1,
+    whiteBalanceSample: null,
+    pointColorSample: null,
+    recipe: protectedMismatchRecipe,
+    statistics: { processedPixels: 3072, changedPixels: 1000, gamutClippedPixels: 0 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
 
   assert.throws(() => tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,
