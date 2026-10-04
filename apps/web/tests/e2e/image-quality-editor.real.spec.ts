@@ -6,13 +6,32 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const fixture = resolve(
   fileURLToPath(new URL("../../../../", import.meta.url)),
   "data/fixtures/images/synthetic-noise-64.png",
 );
 const canonicalLinux = process.env["IPW_CANONICAL_LINUX"] === "1";
+
+async function retainObjectUrlBlobs(page: Page) {
+  await page.addInitScript(() => {
+    const registry = new Map<string, Blob>();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    testWindow.__ipwTestObjectUrlBlobs = registry;
+    const createObjectUrl = URL.createObjectURL.bind(URL);
+    const revokeObjectUrl = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (object: Blob | MediaSource) => {
+      const url = createObjectUrl(object);
+      if (object instanceof Blob) registry.set(url, object);
+      return url;
+    };
+    URL.revokeObjectURL = (url: string) => {
+      registry.delete(url);
+      revokeObjectUrl(url);
+    };
+  });
+}
 
 function pngChunk(type: string, data: Buffer): Buffer {
   const typeBytes = Buffer.from(type, "ascii");
@@ -1291,7 +1310,7 @@ test("neutral-point white balance samples the verified base and requires explici
   const downloaded = Buffer.concat(chunks);
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v9");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":{"sourceX"');
   expect(downloaded.toString("utf8")).toContain('"red":180,"green":170,"blue":160');
   expect(downloaded.toString("utf8")).toContain('"temperature":-54,"tint":0');
@@ -1304,6 +1323,7 @@ test("neutral-point white balance samples the verified base and requires explici
 
 test("point colour samples the verified base and applies one bounded source-bound hue target", async ({ page }) => {
   const sourceBytes = pointColorPng(48, 40);
+  await retainObjectUrlBlobs(page);
   await page.setViewportSize({ width: 1760, height: 900 });
   await page.goto("/image-quality?engine=deterministic");
   await page.locator('input[type="file"]').setInputFiles({
@@ -1341,7 +1361,11 @@ test("point colour samples the verified base and applies one bounded source-boun
   await page.getByRole("button", { name: "Apply colour" }).click();
   await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
   const previewDigest = await page.getByTestId("enhanced-image").evaluate(async (node) => {
-    const bytes = await (await fetch((node as HTMLImageElement).src)).arrayBuffer();
+    const resultUrl = (node as HTMLImageElement).src;
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(resultUrl);
+    if (!previewBlob) throw new Error("The exact point-colour preview Blob was not retained by the test harness");
+    const bytes = await previewBlob.arrayBuffer();
     return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
   });
   const downloadPromise = page.waitForEvent("download");
@@ -1363,7 +1387,7 @@ test("point colour samples the verified base and applies one bounded source-boun
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewDigest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v9");
   expect(downloaded.toString("utf8")).toContain('"point_color_sample":{"sourceX":24,"sourceY":20');
   expect(downloaded.toString("utf8")).toContain('"red":16,"green":112,"blue":228,"hue":213');
   expect(downloaded.toString("utf8")).toContain('"pointColor":{"enabled":true,"targetHue":213,"tolerance":16,"feather":20,"hue":45,"saturation":30,"lightness":-8}');
@@ -1372,6 +1396,119 @@ test("point colour samples the verified base and applies one bounded source-boun
   await expect(page.getByTestId("point-color-sample")).toHaveCount(0);
   await expect(page.getByLabel("Point-colour hue", { exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+});
+
+test("reviewed reference colour match is proposal-first, source-bound and preview-download identical", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  const referenceBytes = warmIllustrationPng(56);
+  const referenceSha256 = createHash("sha256").update(referenceBytes).digest("hex");
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.addInitScript(() => {
+    const registry = new Map<string, Blob>();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    testWindow.__ipwTestObjectUrlBlobs = registry;
+    const createObjectUrl = URL.createObjectURL.bind(URL);
+    const revokeObjectUrl = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (object: Blob | MediaSource) => {
+      const url = createObjectUrl(object);
+      if (object instanceof Blob) registry.set(url, object);
+      return url;
+    };
+    URL.revokeObjectURL = (url: string) => {
+      registry.delete(url);
+      revokeObjectUrl(url);
+    };
+  });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "colour-match-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  const beforeProposalUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+
+  await page.getByLabel("Choose colour-match reference image").setInputFiles({
+    name: "rights-cleared-warm-reference.png",
+    mimeType: "image/png",
+    buffer: referenceBytes,
+  });
+  const review = page.getByTestId("color-match-review");
+  await expect(review).toBeVisible();
+  await expect(review).toContainText("rights-cleared-warm-reference.png");
+  await expect(review).toContainText("56 Ã— 56 px");
+  await expect(review).toContainText(`${referenceSha256.slice(0, 12)}â€¦`);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", beforeProposalUrl!);
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeDisabled();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-color-match").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole("button", { name: "Use colour match" }).click();
+  await expect(page.getByLabel("Enable reference match", { exact: false })).toBeChecked();
+  await page.getByLabel("Match strength", { exact: true }).fill("50");
+  await page.getByLabel("Luminance match", { exact: true }).fill("55");
+  await page.getByLabel("Colour intensity", { exact: true }).fill("80");
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const resultUrl = image.src;
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(resultUrl);
+    if (!previewBlob) throw new Error("The exact colour-match preview Blob was not retained by the test harness");
+    const bytes = await previewBlob.arrayBuffer();
+    const sourceImage = new Image();
+    sourceImage.src = sourceUrl;
+    await sourceImage.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true })!;
+    context.drawImage(sourceImage, 0, 0);
+    const sourcePixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0);
+    const resultPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let changedPixels = 0;
+    for (let index = 0; index < sourcePixels.length; index += 4) {
+      if (sourcePixels[index] !== resultPixels[index]
+        || sourcePixels[index + 1] !== resultPixels[index + 1]
+        || sourcePixels[index + 2] !== resultPixels[index + 2]) changedPixels += 1;
+      if (sourcePixels[index + 3] !== resultPixels[index + 3]) throw new Error("Colour match changed alpha");
+    }
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { width: image.naturalWidth, height: image.naturalHeight, changedPixels, digest };
+  }, immutableSourceUrl!);
+  expect(previewEvidence).toMatchObject({ width: 48, height: 40 });
+  expect(previewEvidence.changedPixels).toBeGreaterThan(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("colour-match-source-colour-adjusted-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  const provenance = downloaded.toString("utf8");
+  expect(provenance).toContain("ipw.image-edit.color.provenance.v9");
+  expect(provenance).toContain('"reviewed_reference_colour_match"');
+  expect(provenance).toContain(`"referenceSha256":"${referenceSha256}"`);
+  expect(provenance).toContain('"method":"bounded-oklab-distribution-v1"');
+  expect(provenance).not.toContain("rights-cleared-warm-reference.png");
+
+  await page.getByLabel("Match strength", { exact: true }).fill("60");
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+  await page.getByRole("button", { name: "Remove active match" }).click();
+  await expect(page.getByTestId("color-match-review")).toHaveCount(0);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });
 
 test("reviewed 3D LUT applies last with tetrahedral interpolation and binds preview to download", async ({ page }) => {
@@ -1483,7 +1620,7 @@ test("reviewed 3D LUT applies last with tetrahedral interpolation and binds prev
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v9");
   expect(downloaded.toString("utf8")).toContain('"reviewed_3d_lut_tetrahedral"');
   expect(downloaded.toString("utf8")).toContain(`"cubeLut":{"enabled":true,"intensity":50,"sha256":"${lutSha256}","title":"Synthetic red blue swap","size":2,"domainMin":[0,0,0],"domainMax":[1,1,1],"interpolation":"tetrahedral"}`);
 
@@ -1497,6 +1634,7 @@ test("reviewed 3D LUT applies last with tetrahedral interpolation and binds prev
 
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
   await page.goto("/image-quality?engine=deterministic");
   await page.locator('input[type="file"]').setInputFiles({
     name: "colour-chain.png",
@@ -1512,7 +1650,10 @@ test("colour applies after tone and binds preview and download to the exact veri
   const toneEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
     const image = node as HTMLImageElement;
     await image.decode();
-    const bytes = await (await fetch(image.src)).arrayBuffer();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(image.src);
+    if (!previewBlob) throw new Error("The exact tone preview Blob was not retained by the test harness");
+    const bytes = await previewBlob.arrayBuffer();
     const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
     return { url: image.src, digest };
   });
@@ -1577,10 +1718,13 @@ test("colour applies after tone and binds preview and download to the exact veri
         pixels: context.getImageData(0, 0, canvas.width, canvas.height).data };
     };
     const resultUrl = (node as HTMLImageElement).src;
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(resultUrl);
+    if (!previewBlob) throw new Error("The exact colour preview Blob was not retained by the test harness");
     const [base, result, bytes] = await Promise.all([
       decode(baseUrl),
       decode(resultUrl),
-      (await fetch(resultUrl)).arrayBuffer(),
+      previewBlob.arrayBuffer(),
     ]);
     let changedPixels = 0;
     for (let index = 0; index < base.pixels.length; index += 4) {
@@ -1614,7 +1758,7 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v9");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":null');
   expect(downloaded.toString("utf8")).toContain('"point_color_sample":null');
   expect(downloaded.toString("utf8")).toContain('"base_kind":"tone"');

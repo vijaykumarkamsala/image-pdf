@@ -166,8 +166,17 @@ applying a bounded intensity. Red-fastest tetrahedral interpolation runs in
 display-referred sRGB; dimensions, alpha and fully transparent hidden RGB remain
 unchanged, while out-of-range output is clipped and counted. Preview and download
 use the same source-bound bytes, and the reviewed LUT identity plus ordered recipe
-are recorded in v8 colour provenance. Colour matching and protected brand/product/
-skin colour remain future increments.
+are recorded in v8 colour provenance. Proposal-first reference-image colour
+matching is also implemented for verified single-frame JPEG, PNG and WebP files.
+The browser worker hashes the exact reference bytes and analyses bounded Oklab
+distribution samples from both the reference and exact verified pre-colour base;
+importing alone never changes pixels. The customer explicitly activates the
+reviewed proposal, then controls match strength, luminance, colour intensity and
+neutral protection. Matching is bounded, preserves exact black/white,
+transparency, alpha and dimensions, and runs before the final optional 3D LUT.
+The source/base and reference hashes, sampled statistics and deterministic method
+are recorded in v9 provenance; raw reference bytes and the local file name are
+not exported. Protected brand/product/skin colour remains a future increment.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

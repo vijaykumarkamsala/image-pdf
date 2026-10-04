@@ -7,6 +7,14 @@ import {
   type ImageCubeLutDefinition,
   type ImageCubeLutRecipe,
 } from "./imageCubeLut.ts";
+import {
+  applyPreparedColorMatch,
+  isSanitizedColorMatchRecipe,
+  prepareColorMatch,
+  sameColorMatchRecipe,
+  sanitizeColorMatchRecipe,
+  type ImageColorMatchRecipe,
+} from "./imageColorMatch.ts";
 
 export const IMAGE_SELECTIVE_COLOR_RANGES = [
   "red",
@@ -105,6 +113,8 @@ export interface ImageColorRecipe {
   blackAndWhite: ImageBlackAndWhiteRecipe;
   /** Opt-in luminance-preserving two-colour toning. */
   duotone: ImageDuotoneRecipe;
+  /** Optional reviewed reference-image distribution, bound to the exact pre-colour base. */
+  colorMatch: ImageColorMatchRecipe | null;
   /** Optional reviewed 3D LUT metadata. Sample values remain outside provenance. */
   cubeLut: ImageCubeLutRecipe | null;
 }
@@ -205,6 +215,7 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
       highlightSaturation: 25,
       balance: 0,
     },
+    colorMatch: null,
     cubeLut: null,
   };
 }
@@ -258,6 +269,7 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
       highlightSaturation: Math.round(bounded(recipe.duotone?.highlightSaturation, 0, 100, 25)),
       balance: Math.round(bounded(recipe.duotone?.balance, -100, 100, 0)),
     },
+    colorMatch: sanitizeColorMatchRecipe(recipe.colorMatch),
     cubeLut: sanitizeCubeLutRecipe(recipe.cubeLut),
   };
 }
@@ -274,6 +286,8 @@ export function isNeutralColor(recipe: ImageColorRecipe): boolean {
     ))
     && !safe.blackAndWhite.enabled
     && !safe.duotone.enabled
+    && (!safe.colorMatch?.enabled || safe.colorMatch.intensity === 0
+      || (safe.colorMatch.luminance === 0 && safe.colorMatch.colorIntensity === 0))
     && (!safe.cubeLut?.enabled || safe.cubeLut.intensity === 0);
 }
 
@@ -294,6 +308,7 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
     && BLACK_AND_WHITE_KEYS.every((key) => safeLeft.blackAndWhite[key] === safeRight.blackAndWhite[key])
     && safeLeft.duotone.enabled === safeRight.duotone.enabled
     && DUOTONE_KEYS.every((key) => safeLeft.duotone[key] === safeRight.duotone[key])
+    && sameColorMatchRecipe(safeLeft.colorMatch, safeRight.colorMatch)
     && sameCubeLutRecipe(safeLeft.cubeLut, safeRight.cubeLut);
 }
 
@@ -316,6 +331,8 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
       || safe.blackAndWhite.red + safe.blackAndWhite.green + safe.blackAndWhite.blue > 0)
     && recipe.duotone?.enabled === safe.duotone.enabled
     && DUOTONE_KEYS.every((key) => recipe.duotone?.[key] === safe.duotone[key])
+    && isSanitizedColorMatchRecipe(recipe.colorMatch)
+    && sameColorMatchRecipe(recipe.colorMatch, safe.colorMatch)
     && isSanitizedCubeLutRecipe(recipe.cubeLut)
     && sameCubeLutRecipe(recipe.cubeLut, safe.cubeLut);
 }
@@ -800,6 +817,9 @@ export function applyColorToRgba(
     blue: safe.blackAndWhite.blue / blackAndWhiteTotal,
   } : null;
   const preparedDuotone = safe.duotone.enabled ? prepareDuotone(safe.duotone) : null;
+  const colorMatchActive = Boolean(safe.colorMatch?.enabled && safe.colorMatch.intensity > 0
+    && (safe.colorMatch.luminance > 0 || safe.colorMatch.colorIntensity > 0));
+  const preparedColorMatch = colorMatchActive && safe.colorMatch ? prepareColorMatch(safe.colorMatch) : null;
   const cubeLutActive = Boolean(safe.cubeLut?.enabled && safe.cubeLut.intensity > 0);
   if (cubeLutActive && !definitionMatchesCubeLutRecipe(cubeLut, safe.cubeLut)) {
     throw new Error("The selected 3D LUT data does not match its reviewed SHA-256 metadata.");
@@ -880,6 +900,18 @@ export function applyColorToRgba(
       outputRed = duotone.red;
       outputGreen = duotone.green;
       outputBlue = duotone.blue;
+    }
+    if (preparedColorMatch) {
+      const matched = applyPreparedColorMatch(
+        outputRed / 255,
+        outputGreen / 255,
+        outputBlue / 255,
+        preparedColorMatch,
+      );
+      gamutClipped = gamutClipped || matched.outOfGamut;
+      outputRed = Math.round(clamp(matched.red * 255, 0, 255));
+      outputGreen = Math.round(clamp(matched.green * 255, 0, 255));
+      outputBlue = Math.round(clamp(matched.blue * 255, 0, 255));
     }
     if (cubeLutActive && cubeLut && safe.cubeLut) {
       const sourceRed = outputRed / 255;

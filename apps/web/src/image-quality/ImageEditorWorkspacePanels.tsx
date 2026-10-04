@@ -54,6 +54,10 @@ import {
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import type { ImportedImageCubeLut } from "./imageCubeLut";
+import {
+  analysisMatchesColorMatchRecipe,
+  type ImageColorMatchAnalysis,
+} from "./imageColorMatch";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
 import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
@@ -393,11 +397,18 @@ interface ColorToolPanelProps {
   pointColorBaseLabel: string | null;
   pointColorPicking: boolean;
   pointColorAnalysing: boolean;
+  colorMatchReview: (ImageColorMatchAnalysis & {
+    fileName: string;
+    baseOutputSha256: string;
+    baseLabel: string;
+  }) | null;
+  colorMatchAnalysing: boolean;
   cubeLut: ImportedImageCubeLut | null;
   cubeLutImporting: boolean;
   busy: boolean;
   canSampleWhiteBalance: boolean;
   canSamplePointColor: boolean;
+  canAnalyzeColorMatch: boolean;
   canApply: boolean;
   canDownload: boolean;
   onRecipe: (recipe: ImageColorRecipe) => void;
@@ -406,6 +417,10 @@ interface ColorToolPanelProps {
   onDismissWhiteBalanceSuggestion: () => void;
   onTogglePointColorPicker: () => void;
   onDismissPointColor: () => void;
+  onAnalyzeColorMatch: (file: File) => void;
+  onUseColorMatch: () => void;
+  onDismissColorMatchReview: () => void;
+  onClearColorMatch: () => void;
   onImportCubeLut: (file: File) => void;
   onClearCubeLut: () => void;
   onApply: () => void;
@@ -479,6 +494,7 @@ const duotoneToneControls: Array<{
 ];
 
 export function ColorToolPanel(props: ColorToolPanelProps) {
+  const colorMatchInput = useRef<HTMLInputElement>(null);
   const cubeLutInput = useRef<HTMLInputElement>(null);
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
@@ -496,6 +512,12 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
     && props.recipe.duotone.shadowHue === 220 && props.recipe.duotone.shadowSaturation === 35
     && props.recipe.duotone.highlightHue === 40 && props.recipe.duotone.highlightSaturation === 25
     && props.recipe.duotone.balance === 0;
+  const colorMatchLoaded = Boolean(props.recipe.colorMatch && props.colorMatchReview
+    && analysisMatchesColorMatchRecipe(
+      props.colorMatchReview,
+      props.recipe.colorMatch,
+      props.colorMatchReview.baseOutputSha256,
+    ));
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
     <fieldset className="quality-auto-tone quality-white-balance">
@@ -865,6 +887,102 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         },
       })}><RotateCcw aria-hidden="true" />Reset duotone</Button>
       <p>Duotone runs after the optional channel mixer. Balance shifts the tint crossover: negative favors highlights and positive favors shadows. Luminance, exact black/white, transparency and alpha remain protected.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-color-match">
+      <legend>Match colour from reference</legend>
+      <input
+        ref={colorMatchInput}
+        className="sr-only"
+        aria-label="Choose colour-match reference image"
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+        disabled={props.busy || props.colorMatchAnalysing || !props.canAnalyzeColorMatch}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) props.onAnalyzeColorMatch(file);
+        }}
+      />
+      <div className="quality-control-group">
+        <Button
+          size="compact"
+          disabled={props.busy || props.colorMatchAnalysing || !props.canAnalyzeColorMatch}
+          onClick={() => colorMatchInput.current?.click()}
+        ><Upload aria-hidden="true" />{props.colorMatchAnalysing
+            ? "Analysing referenceâ€¦"
+            : props.colorMatchReview || props.recipe.colorMatch ? "Analyse another reference" : "Choose reference image"}</Button>
+        {props.colorMatchReview && !colorMatchLoaded && <Button
+          size="compact"
+          disabled={props.busy}
+          onClick={props.onDismissColorMatchReview}
+        ><X aria-hidden="true" />Dismiss proposal</Button>}
+        {props.recipe.colorMatch && <Button size="compact" disabled={props.busy} onClick={props.onClearColorMatch}>
+          <X aria-hidden="true" />Remove active match
+        </Button>}
+      </div>
+      {props.colorMatchReview && <div className="quality-auto-tone-result" data-testid="color-match-review">
+        <strong role="status">Reference analysis ready for review</strong>
+        <p>Compared locally with {props.colorMatchReview.baseLabel}.</p>
+        <dl>
+          <div><dt>File</dt><dd>{props.colorMatchReview.fileName}</dd></div>
+          <div><dt>Reference</dt><dd>{props.colorMatchReview.referenceWidth} Ã— {props.colorMatchReview.referenceHeight} px</dd></div>
+          <div><dt>Verified type</dt><dd>{props.colorMatchReview.referenceMediaType}</dd></div>
+          <div><dt>Reference SHA-256</dt><dd><code>{props.colorMatchReview.referenceSha256.slice(0, 12)}â€¦</code></dd></div>
+          <div><dt>Source sample</dt><dd>{props.colorMatchReview.source.visiblePixels.toLocaleString()} visible pixels</dd></div>
+          <div><dt>Reference sample</dt><dd>{props.colorMatchReview.reference.visiblePixels.toLocaleString()} visible pixels</dd></div>
+        </dl>
+        {!colorMatchLoaded && <Button size="compact" disabled={props.busy} onClick={props.onUseColorMatch}>
+          <Palette aria-hidden="true" />Use colour match
+        </Button>}
+        {colorMatchLoaded && <p>The reviewed distribution is loaded. Adjust the controls below, then apply colour.</p>}
+      </div>}
+      {props.recipe.colorMatch && <div className="quality-adjustment-controls">
+        <label className="quality-toggle-control">
+          <input
+            type="checkbox"
+            checked={props.recipe.colorMatch.enabled}
+            disabled={props.busy}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              colorMatch: { ...props.recipe.colorMatch!, enabled: event.target.checked },
+            })}
+          />
+          <span><strong>Enable reference match</strong><small>Keep the reviewed recipe while temporarily disabling its transform.</small></span>
+        </label>
+        {([
+          { key: "intensity", label: "Match strength" },
+          { key: "luminance", label: "Luminance match" },
+          { key: "colorIntensity", label: "Colour intensity" },
+        ] as const).map((control) => <label className="quality-adjustment-control" key={control.key}>
+          <span><strong>{control.label}</strong><output>{props.recipe.colorMatch![control.key]}%</output></span>
+          <input
+            aria-label={control.label}
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={props.recipe.colorMatch![control.key]}
+            disabled={props.busy || !props.recipe.colorMatch!.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              colorMatch: { ...props.recipe.colorMatch!, [control.key]: Number(event.target.value) },
+            })}
+          />
+        </label>)}
+        <label className="quality-toggle-control">
+          <input
+            type="checkbox"
+            checked={props.recipe.colorMatch.protectNeutrals}
+            disabled={props.busy || !props.recipe.colorMatch.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              colorMatch: { ...props.recipe.colorMatch!, protectNeutrals: event.target.checked },
+            })}
+          />
+          <span><strong>Protect neutral colours</strong><small>Reduce chroma transfer on low-saturation greys and whites.</small></span>
+        </label>
+      </div>}
+      <p>This deterministic local match transfers bounded display-referred sRGB colour-distribution statistics only. It does not copy structure or detail, infer semantic regions, retain reference bytes, or replace selective colour work. Exact black/white, transparency and alpha are protected.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-cube-lut">
       <legend>3D LUT</legend>

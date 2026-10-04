@@ -563,6 +563,21 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     highlightSaturation: 24,
     balance: 12,
   };
+  recipe.colorMatch = {
+    enabled: true,
+    intensity: 65,
+    luminance: 35,
+    colorIntensity: 70,
+    protectNeutrals: true,
+    sourceBaseSha256: baseHash,
+    referenceSha256: "d".repeat(64),
+    referenceWidth: 320,
+    referenceHeight: 240,
+    referenceMediaType: "image/png",
+    source: { mean: [0.5, 0.01, -0.02], deviation: [0.2, 0.08, 0.07], visiblePixels: 32, sampleWidth: 8, sampleHeight: 4 },
+    reference: { mean: [0.6, 0.04, 0.03], deviation: [0.18, 0.1, 0.09], visiblePixels: 32, sampleWidth: 8, sampleHeight: 4 },
+    method: "bounded-oklab-distribution-v1",
+  };
   recipe.cubeLut = {
     enabled: true,
     intensity: 72,
@@ -612,8 +627,8 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v8/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping","reviewed_3d_lut_tetrahedral"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v9/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping","reviewed_reference_colour_match","reviewed_3d_lut_tetrahedral"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"point_color_sample":\{"sourceX":30,"sourceY":24/);
   assert.match(text, /"base_kind":"tone"/);
@@ -623,9 +638,37 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   assert.match(text, /"shadows":\{"hue":220,"saturation":24,"luminance":8\}/);
   assert.match(text, /"blackAndWhite":\{"enabled":true,"red":45,"green":40,"blue":15\}/);
   assert.match(text, /"duotone":\{"enabled":true,"shadowHue":225,"shadowSaturation":42,"highlightHue":38,"highlightSaturation":24,"balance":12\}/);
+  assert.match(text, /"colorMatch":\{"enabled":true,"intensity":65,"luminance":35,"colorIntensity":70,"protectNeutrals":true/);
+  assert.match(text, /"referenceSha256":"d{64}"/);
   assert.match(text, /"cubeLut":\{"enabled":true,"intensity":72,"sha256":"c{64}","title":"Reviewed warm look","size":33,"domainMin":\[0,0,0\],"domainMax":\[1,1,1\],"interpolation":"tetrahedral"\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
+
+  assert.throws(() => tagColorPng(framedPng(64, 48), {
+    sourceSha256: sourceHash,
+    baseOutputSha256: "e".repeat(64),
+    baseKind: "tone",
+    baseRoute: "tone:geometry-enhanced",
+    baseStrength: 50,
+    baseScale: 2,
+    whiteBalanceSample: {
+      sourceX: 20,
+      sourceY: 18,
+      radius: 2,
+      visiblePixels: 25,
+      red: 170,
+      green: 180,
+      blue: 175,
+      temperature: 20,
+      tint: -10,
+      atLimit: false,
+    },
+    pointColorSample,
+    recipe,
+    statistics: { processedPixels: 3072, changedPixels: 3000, gamutClippedPixels: 12 },
+    outputWidth: 64,
+    outputHeight: 48,
+  }), /valid bounded source-derived recipe/);
 
   assert.throws(() => tagColorPng(framedPng(64, 48), {
     sourceSha256: sourceHash,

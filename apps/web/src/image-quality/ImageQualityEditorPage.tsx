@@ -73,6 +73,12 @@ import {
   parseCubeLut,
   type ImportedImageCubeLut,
 } from "./imageCubeLut";
+import {
+  analysisMatchesColorMatchRecipe,
+  createColorMatchRecipe,
+  MAX_COLOR_MATCH_REFERENCE_BYTES,
+  type ImageColorMatchAnalysis,
+} from "./imageColorMatch";
 import type { ImageHistogramInput } from "./ImageHistogramPanel";
 import {
   imageQualitySessionReducer,
@@ -136,6 +142,12 @@ interface WhiteBalanceReview extends ImageWhiteBalanceSuggestion {
 interface PointColorReview extends ImagePointColorSample {
   normalizedX: number;
   normalizedY: number;
+  baseOutputSha256: string;
+  baseLabel: string;
+}
+
+interface ColorMatchReview extends ImageColorMatchAnalysis {
+  fileName: string;
   baseOutputSha256: string;
   baseLabel: string;
 }
@@ -391,6 +403,8 @@ export function ImageQualityEditorPage() {
   const [pointColorReview, setPointColorReview] = useState<PointColorReview | null>(null);
   const [pointColorPicking, setPointColorPicking] = useState(false);
   const [pointColorAnalysing, setPointColorAnalysing] = useState(false);
+  const [colorMatchReview, setColorMatchReview] = useState<ColorMatchReview | null>(null);
+  const [colorMatchAnalysing, setColorMatchAnalysing] = useState(false);
   const [cubeLut, setCubeLut] = useState<ImportedImageCubeLut | null>(null);
   const [cubeLutImporting, setCubeLutImporting] = useState(false);
   const engine = useRef<ImageQualityEngine | null>(null);
@@ -470,6 +484,11 @@ export function ImageQualityEditorPage() {
     setPointColorAnalysing(false);
   };
 
+  const clearColorMatchReview = () => {
+    setColorMatchReview(null);
+    setColorMatchAnalysing(false);
+  };
+
   const clearColorDerivative = () => {
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
     colorObjectUrl.current = null;
@@ -489,8 +508,13 @@ export function ImageQualityEditorPage() {
     setColorError(null);
     clearWhiteBalanceReview();
     clearPointColorReview();
+    clearColorMatchReview();
+    const remainingRecipe = sanitizeColorRecipe({ ...colorRecipe, colorMatch: null });
+    setColorRecipe(remainingRecipe);
     clearColorDerivative();
-    setColorMessage(isNeutralColor(colorRecipe) ? null : message);
+    setColorMessage(isNeutralColor(remainingRecipe)
+      ? colorRecipe.colorMatch ? "The verified pre-colour image changed, so its source-bound reference match was cleared. Analyse the reference again if it is still needed." : null
+      : message);
   };
 
   const clearToneDerivative = () => {
@@ -563,6 +587,7 @@ export function ImageQualityEditorPage() {
     setCubeLutImporting(false);
     clearWhiteBalanceReview();
     clearPointColorReview();
+    clearColorMatchReview();
     clearColorDerivative();
     disposeColorEngine();
     clearToneDerivative();
@@ -1159,6 +1184,112 @@ export function ImageQualityEditorPage() {
     setColorMessage(null);
   };
 
+  const analyzeColorMatch = async (file: File) => {
+    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    const supportedType = IMAGE_QUALITY_INPUT_TYPES.includes(file.type as typeof IMAGE_QUALITY_INPUT_TYPES[number]);
+    if (!supportedType && !supportedExtension) {
+      setColorError("Choose a JPEG, PNG or WebP reference image.");
+      setColorMessage(null);
+      return;
+    }
+    if (file.size > MAX_COLOR_MATCH_REFERENCE_BYTES) {
+      setColorError(
+        `The reference image is ${file.size.toLocaleString("en-US")} bytes, beyond the `
+        + `${MAX_COLOR_MATCH_REFERENCE_BYTES.toLocaleString("en-US")}-byte browser-local colour-match limit.`,
+      );
+      setColorMessage(null);
+      return;
+    }
+    if (colorBusy) return;
+    const base = resolveColorBase();
+    if (!base) {
+      setColorError("The latest verified pre-colour image is unavailable. Apply or reset earlier-stage changes before matching colour.");
+      return;
+    }
+    const currentColorOperation = ++colorOperation.current;
+    disposeColorEngine();
+    const next = new WorkerImageColorEngine();
+    colorEngine.current = next;
+    setColorBusy(true);
+    setColorMatchAnalysing(true);
+    setWhiteBalancePicking(false);
+    setPointColorPicking(false);
+    setColorError(null);
+    setColorMessage("Analysing source and reference colour distributions locallyâ€¦");
+    try {
+      const loaded = await next.load(base.blob);
+      if (loaded.width !== base.width || loaded.height !== base.height) {
+        throw new Error(`The colour-match decoder returned ${loaded.width} Ã— ${loaded.height} px instead of ${base.width} Ã— ${base.height} px.`);
+      }
+      const analysis = await next.analyzeColorMatch(file);
+      if (colorOperation.current !== currentColorOperation) return;
+      setColorMatchReview({
+        ...analysis,
+        fileName: file.name,
+        baseOutputSha256: base.outputSha256,
+        baseLabel: base.label,
+      });
+      setColorMessage("Reference analysis ready. Review its identity, then explicitly use the proposed colour match.");
+    } catch (error) {
+      if (colorOperation.current !== currentColorOperation) return;
+      setColorError(error instanceof Error ? error.message : "The reference colour analysis did not complete.");
+      setColorMessage(null);
+    } finally {
+      if (colorOperation.current === currentColorOperation) {
+        setColorBusy(false);
+        setColorMatchAnalysing(false);
+        next.dispose();
+        if (colorEngine.current === next) colorEngine.current = null;
+      }
+    }
+  };
+
+  const useColorMatch = () => {
+    const base = resolveColorBase();
+    if (!colorMatchReview || !base || colorMatchReview.baseOutputSha256 !== base.outputSha256) {
+      setColorError("The reviewed reference no longer matches the verified pre-colour image. Analyse the reference again.");
+      return;
+    }
+    setColorRecipe((current) => sanitizeColorRecipe({
+      ...current,
+      colorMatch: createColorMatchRecipe(colorMatchReview, base.outputSha256),
+    }));
+    clearColorDerivative();
+    setColorError(null);
+    setColorMessage("Reviewed colour match loaded. Adjust its bounded controls, then apply colour.");
+  };
+
+  const dismissColorMatchReview = () => {
+    const base = resolveColorBase();
+    const active = sanitizeColorRecipe(colorRecipe).colorMatch;
+    if (active && base && active.sourceBaseSha256 === base.outputSha256) {
+      setColorMatchReview({
+        referenceSha256: active.referenceSha256,
+        referenceWidth: active.referenceWidth,
+        referenceHeight: active.referenceHeight,
+        referenceMediaType: active.referenceMediaType,
+        source: active.source,
+        reference: active.reference,
+        fileName: "Previously reviewed reference",
+        baseOutputSha256: base.outputSha256,
+        baseLabel: base.label,
+      });
+      setColorMessage("The new proposal was dismissed; the previously reviewed active match remains loaded.");
+    } else {
+      clearColorMatchReview();
+      setColorMessage(null);
+    }
+    setColorError(null);
+  };
+
+  const clearColorMatch = () => {
+    setColorRecipe((current) => sanitizeColorRecipe({ ...current, colorMatch: null }));
+    clearColorMatchReview();
+    clearColorDerivative();
+    setColorError(null);
+    setColorMessage(null);
+  };
+
   const importCubeLut = async (file: File) => {
     if (file.size > MAX_CUBE_LUT_BYTES) {
       setColorError(`The .cube file is ${file.size.toLocaleString("en-US")} bytes, beyond the ${MAX_CUBE_LUT_BYTES.toLocaleString("en-US")}-byte local safety limit.`);
@@ -1255,6 +1386,12 @@ export function ImageQualityEditorPage() {
       setColorError("The sampled point colour is unavailable for this verified base. Sample it again before applying colour.");
       return;
     }
+    const colorMatchActive = Boolean(safe.colorMatch?.enabled && safe.colorMatch.intensity > 0
+      && (safe.colorMatch.luminance > 0 || safe.colorMatch.colorIntensity > 0));
+    if (colorMatchActive && !analysisMatchesColorMatchRecipe(colorMatchReview, safe.colorMatch, base.outputSha256)) {
+      setColorError("The reviewed reference analysis is unavailable or belongs to a different verified base. Analyse it again before applying colour.");
+      return;
+    }
     if (safe.cubeLut?.enabled && safe.cubeLut.intensity > 0
       && !definitionMatchesCubeLutRecipe(cubeLut?.definition, safe.cubeLut)) {
       setColorError("The reviewed 3D LUT data is unavailable or no longer matches its SHA-256 metadata. Import it again before applying colour.");
@@ -1327,6 +1464,7 @@ export function ImageQualityEditorPage() {
     setCubeLutImporting(false);
     clearWhiteBalanceReview();
     clearPointColorReview();
+    clearColorMatchReview();
     clearColorDerivative();
     dispatch({ type: "zoom-changed", zoom: "fit" });
   };
@@ -1615,7 +1753,10 @@ export function ImageQualityEditorPage() {
       || (pointColorReview?.baseOutputSha256 === preColorOutputSha256
         && pointColorReview.hue === colorRecipe.pointColor.targetHue))
     && (!(colorRecipe.cubeLut?.enabled && colorRecipe.cubeLut.intensity > 0)
-      || definitionMatchesCubeLutRecipe(cubeLut?.definition, colorRecipe.cubeLut)),
+      || definitionMatchesCubeLutRecipe(cubeLut?.definition, colorRecipe.cubeLut))
+    && (!(colorRecipe.colorMatch?.enabled && colorRecipe.colorMatch.intensity > 0
+      && (colorRecipe.colorMatch.luminance > 0 || colorRecipe.colorMatch.colorIntensity > 0))
+      || analysisMatchesColorMatchRecipe(colorMatchReview, colorRecipe.colorMatch, preColorOutputSha256)),
   );
   const colorBaseAvailable = Boolean(
     dimensionsReady && !resultIsStale && !geometryIsDirty && !toneIsDirty
@@ -1747,11 +1888,14 @@ export function ImageQualityEditorPage() {
                 pointColorBaseLabel={pointColorReview?.baseLabel ?? null}
                 pointColorPicking={pointColorPicking}
                 pointColorAnalysing={pointColorAnalysing}
+                colorMatchReview={colorMatchReview}
+                colorMatchAnalysing={colorMatchAnalysing}
                 cubeLut={cubeLut}
                 cubeLutImporting={cubeLutImporting}
                 busy={colorBusy}
                 canSampleWhiteBalance={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canSamplePointColor={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canAnalyzeColorMatch={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canApply={colorCanApply}
                 canDownload={colorDisplayReady}
                 onRecipe={(recipe) => {
@@ -1773,6 +1917,10 @@ export function ImageQualityEditorPage() {
                 onDismissWhiteBalanceSuggestion={dismissWhiteBalanceSuggestion}
                 onTogglePointColorPicker={togglePointColorPicker}
                 onDismissPointColor={dismissPointColor}
+                onAnalyzeColorMatch={(file) => void analyzeColorMatch(file)}
+                onUseColorMatch={useColorMatch}
+                onDismissColorMatchReview={dismissColorMatchReview}
+                onClearColorMatch={clearColorMatch}
                 onImportCubeLut={(file) => void importCubeLut(file)}
                 onClearCubeLut={clearCubeLut}
                 onApply={() => void applyColor()}

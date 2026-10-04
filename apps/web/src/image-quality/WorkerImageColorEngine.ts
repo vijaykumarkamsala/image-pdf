@@ -5,6 +5,7 @@ import type {
   ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import type { ImageCubeLutDefinition } from "./imageCubeLut";
+import type { ImageColorMatchAnalysis } from "./imageColorMatch";
 import type { PngColorMetadata } from "./pngMetadata";
 
 interface LoadedColorSource { width: number; height: number }
@@ -21,6 +22,7 @@ type WorkerSuccess =
   | { id: number; ok: true; type: "loaded"; width: number; height: number }
   | ({ id: number; ok: true; type: "white-balance-sampled" } & ImageWhiteBalanceSuggestion)
   | ({ id: number; ok: true; type: "point-color-sampled" } & ImagePointColorSample)
+  | ({ id: number; ok: true; type: "color-match-analysed"; analysis: ImageColorMatchAnalysis })
   | ({ id: number; ok: true; type: "rendered" } & ImageColorResult);
 type WorkerResponse = WorkerSuccess | { id: number; ok: false; message: string };
 
@@ -104,6 +106,14 @@ export class WorkerImageColorEngine {
     };
   }
 
+  async analyzeColorMatch(reference: Blob): Promise<ImageColorMatchAnalysis> {
+    const result = await this.request({ type: "analyse-color-match", reference });
+    if (result.type !== "color-match-analysed") {
+      throw new Error("The colour-adjustment renderer returned an unexpected colour-match response.");
+    }
+    return result.analysis;
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
@@ -115,6 +125,7 @@ export class WorkerImageColorEngine {
     message: { type: "load"; source: Blob }
       | { type: "sample-white-balance"; x: number; y: number }
       | { type: "sample-point-color"; x: number; y: number }
+      | { type: "analyse-color-match"; reference: Blob }
       | { type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics">; cubeLut: ImageCubeLutDefinition | null },
   ): Promise<WorkerSuccess> {
     if (this.disposed) return Promise.reject(new Error("The colour-adjustment renderer is unavailable."));

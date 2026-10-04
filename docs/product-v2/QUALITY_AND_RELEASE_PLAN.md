@@ -36,6 +36,10 @@ External tester release is blocked by:
 - Recreate regions are recorded and customer-approved.
 - Claimed physical size/profile passes its preflight.
 - “No enhancement needed” is supported and tested.
+- Reference colour matching is proposal-first, bound to exact source/reference
+  hashes, deterministic at each setting, dimension/alpha preserving, and exposes
+  identical reviewed preview and downloaded bytes without embedding reference
+  bytes or local file names.
 
 ## 4. PDF acceptance
 

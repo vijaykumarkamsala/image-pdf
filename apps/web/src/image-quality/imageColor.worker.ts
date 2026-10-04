@@ -13,7 +13,15 @@ import {
   type ImageColorStatistics,
 } from "./imageColor";
 import type { ImageCubeLutDefinition } from "./imageCubeLut";
+import { inspectImageFile } from "./imageFileInspection";
+import {
+  analyzeColorDistribution,
+  MAX_COLOR_MATCH_ANALYSIS_PIXELS,
+  MAX_COLOR_MATCH_REFERENCE_BYTES,
+  MAX_COLOR_MATCH_REFERENCE_PIXELS,
+} from "./imageColorMatch";
 import { pngOutputSha256, tagColorPng, type PngColorMetadata } from "./pngMetadata";
+import { sha256Blob } from "./sha256";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -21,6 +29,7 @@ type Request =
   | { id: number; type: "load"; source: Blob }
   | { id: number; type: "sample-white-balance"; x: number; y: number }
   | { id: number; type: "sample-point-color"; x: number; y: number }
+  | { id: number; type: "analyse-color-match"; reference: Blob }
   | { id: number; type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics">; cubeLut: ImageCubeLutDefinition | null };
 
 let bitmap: ImageBitmap | null = null;
@@ -99,6 +108,72 @@ async function samplePointColor(id: number, x: number, y: number) {
   self.postMessage({ id, ok: true, type: "point-color-sampled", ...sample });
 }
 
+function colorDistributionSample(source: ImageBitmap) {
+  const scale = Math.min(1, Math.sqrt(MAX_COLOR_MATCH_ANALYSIS_PIXELS / (source.width * source.height)));
+  const width = Math.max(1, Math.floor(source.width * scale));
+  const height = Math.max(1, Math.floor(source.height * scale));
+  const canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });
+  if (!context) throw new Error("Your browser could not allocate the colour-match analyser.");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, 0, 0, width, height);
+  return analyzeColorDistribution(context.getImageData(0, 0, width, height).data, width, height);
+}
+
+async function analyzeColorMatch(id: number, reference: Blob) {
+  if (!bitmap) throw new Error("The verified base image must be prepared before matching colour.");
+  if (reference.size > MAX_COLOR_MATCH_REFERENCE_BYTES) {
+    throw new Error(
+      `The reference image is ${reference.size.toLocaleString("en-US")} bytes, beyond the `
+      + `${MAX_COLOR_MATCH_REFERENCE_BYTES.toLocaleString("en-US")}-byte browser-local colour-match limit.`,
+    );
+  }
+  const [inspection, referenceSha256] = await Promise.all([
+    inspectImageFile(reference),
+    sha256Blob(reference),
+  ]);
+  if (inspection.animated || inspection.frameCount !== 1) {
+    throw new Error("Animated reference images are not supported. Choose a single-frame JPEG, PNG or WebP image.");
+  }
+  if (inspection.width > MAX_CANVAS_EDGE || inspection.height > MAX_CANVAS_EDGE
+    || inspection.width * inspection.height > MAX_COLOR_MATCH_REFERENCE_PIXELS) {
+    throw new Error(
+      `The reference declares ${inspection.width} Ã— ${inspection.height} px, beyond the safe browser-local colour-match budget.`,
+    );
+  }
+  const referenceBitmap = await createImageBitmap(reference, {
+    colorSpaceConversion: "default",
+    imageOrientation: "from-image",
+    premultiplyAlpha: "premultiply",
+  });
+  try {
+    if (referenceBitmap.width > MAX_CANVAS_EDGE || referenceBitmap.height > MAX_CANVAS_EDGE
+      || referenceBitmap.width * referenceBitmap.height > MAX_COLOR_MATCH_REFERENCE_PIXELS) {
+      throw new Error(
+        `The decoded reference is ${referenceBitmap.width} Ã— ${referenceBitmap.height} px, beyond the safe browser-local colour-match budget.`,
+      );
+    }
+    const source = colorDistributionSample(bitmap);
+    const analysedReference = colorDistributionSample(referenceBitmap);
+    self.postMessage({
+      id,
+      ok: true,
+      type: "color-match-analysed",
+      analysis: {
+        referenceSha256,
+        referenceWidth: referenceBitmap.width,
+        referenceHeight: referenceBitmap.height,
+        referenceMediaType: inspection.mediaType,
+        source,
+        reference: analysedReference,
+      },
+    });
+  } finally {
+    referenceBitmap.close();
+  }
+}
+
 async function render(
   id: number,
   recipe: ImageColorRecipe,
@@ -157,7 +232,9 @@ self.onmessage = (event: MessageEvent<Request>) => {
       ? sampleWhiteBalance(message.id, message.x, message.y)
       : message.type === "sample-point-color"
         ? samplePointColor(message.id, message.x, message.y)
-        : render(message.id, message.recipe, message.metadata, message.cubeLut))
+        : message.type === "analyse-color-match"
+          ? analyzeColorMatch(message.id, message.reference)
+          : render(message.id, message.recipe, message.metadata, message.cubeLut))
     .catch((error) => fail(message.id, error));
 };
 
