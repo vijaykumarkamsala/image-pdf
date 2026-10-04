@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   SunMedium,
+  Upload,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -52,6 +53,7 @@ import {
   type ImageSelectiveHslAdjustment,
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
+import type { ImportedImageCubeLut } from "./imageCubeLut";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
 import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
@@ -391,6 +393,8 @@ interface ColorToolPanelProps {
   pointColorBaseLabel: string | null;
   pointColorPicking: boolean;
   pointColorAnalysing: boolean;
+  cubeLut: ImportedImageCubeLut | null;
+  cubeLutImporting: boolean;
   busy: boolean;
   canSampleWhiteBalance: boolean;
   canSamplePointColor: boolean;
@@ -402,6 +406,8 @@ interface ColorToolPanelProps {
   onDismissWhiteBalanceSuggestion: () => void;
   onTogglePointColorPicker: () => void;
   onDismissPointColor: () => void;
+  onImportCubeLut: (file: File) => void;
+  onClearCubeLut: () => void;
   onApply: () => void;
   onReset: () => void;
   onDownload: () => void;
@@ -473,6 +479,7 @@ const duotoneToneControls: Array<{
 ];
 
 export function ColorToolPanel(props: ColorToolPanelProps) {
+  const cubeLutInput = useRef<HTMLInputElement>(null);
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
   const neutral = isNeutralColor(props.recipe);
@@ -858,6 +865,72 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         },
       })}><RotateCcw aria-hidden="true" />Reset duotone</Button>
       <p>Duotone runs after the optional channel mixer. Balance shifts the tint crossover: negative favors highlights and positive favors shadows. Luminance, exact black/white, transparency and alpha remain protected.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-cube-lut">
+      <legend>3D LUT</legend>
+      <input
+        ref={cubeLutInput}
+        className="sr-only"
+        aria-label="Choose 3D LUT file"
+        type="file"
+        accept=".cube,text/plain"
+        disabled={props.busy || props.cubeLutImporting}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) props.onImportCubeLut(file);
+        }}
+      />
+      <div className="quality-control-group">
+        <Button
+          size="compact"
+          disabled={props.busy || props.cubeLutImporting}
+          onClick={() => cubeLutInput.current?.click()}
+        ><Upload aria-hidden="true" />{props.cubeLutImporting ? "Reading LUT…" : props.cubeLut ? "Replace LUT" : "Import .cube LUT"}</Button>
+        {props.cubeLut && <Button size="compact" disabled={props.busy || props.cubeLutImporting} onClick={props.onClearCubeLut}>
+          <X aria-hidden="true" />Remove LUT
+        </Button>}
+      </div>
+      {props.cubeLut && props.recipe.cubeLut && <div className="quality-auto-tone-result" data-testid="cube-lut-review">
+        <strong role="status">Reviewed 3D LUT ready</strong>
+        <dl>
+          <div><dt>File</dt><dd>{props.cubeLut.fileName}</dd></div>
+          <div><dt>Title</dt><dd>{props.cubeLut.definition.title ?? "Not declared"}</dd></div>
+          <div><dt>Grid</dt><dd>{props.cubeLut.definition.size} × {props.cubeLut.definition.size} × {props.cubeLut.definition.size}</dd></div>
+          <div><dt>Input domain</dt><dd>{props.cubeLut.definition.domainMin.join(", ")} to {props.cubeLut.definition.domainMax.join(", ")}</dd></div>
+          <div><dt>Interpolation</dt><dd>Tetrahedral</dd></div>
+          <div><dt>SHA-256</dt><dd><code>{props.cubeLut.definition.sha256.slice(0, 12)}…</code></dd></div>
+        </dl>
+        <label className="quality-toggle-control">
+          <input
+            type="checkbox"
+            checked={props.recipe.cubeLut.enabled}
+            disabled={props.busy}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              cubeLut: { ...props.recipe.cubeLut!, enabled: event.target.checked },
+            })}
+          />
+          <span><strong>Enable imported LUT</strong><small>Keep the reviewed file loaded while temporarily disabling its colour transform.</small></span>
+        </label>
+        <label className="quality-adjustment-control">
+          <span><strong>LUT intensity</strong><output>{props.recipe.cubeLut.intensity}%</output></span>
+          <input
+            aria-label="3D LUT intensity"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={props.recipe.cubeLut.intensity}
+            disabled={props.busy || !props.recipe.cubeLut.enabled}
+            onChange={(event) => props.onRecipe({
+              ...props.recipe,
+              cubeLut: { ...props.recipe.cubeLut!, intensity: Number(event.target.value) },
+            })}
+          />
+        </label>
+      </div>}
+      <p>This bounded local path accepts reviewed 3D IRIDAS .cube files up to a 65³ grid and applies them last in display-referred sRGB. One-dimensional, shaper and malformed LUTs fail visibly rather than being guessed. Out-of-gamut output is clipped and counted.</p>
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>

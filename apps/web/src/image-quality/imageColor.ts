@@ -1,3 +1,13 @@
+import {
+  definitionMatchesCubeLutRecipe,
+  interpolateCubeLut,
+  isSanitizedCubeLutRecipe,
+  sameCubeLutRecipe,
+  sanitizeCubeLutRecipe,
+  type ImageCubeLutDefinition,
+  type ImageCubeLutRecipe,
+} from "./imageCubeLut.ts";
+
 export const IMAGE_SELECTIVE_COLOR_RANGES = [
   "red",
   "orange",
@@ -95,6 +105,8 @@ export interface ImageColorRecipe {
   blackAndWhite: ImageBlackAndWhiteRecipe;
   /** Opt-in luminance-preserving two-colour toning. */
   duotone: ImageDuotoneRecipe;
+  /** Optional reviewed 3D LUT metadata. Sample values remain outside provenance. */
+  cubeLut: ImageCubeLutRecipe | null;
 }
 
 export interface ImageColorStatistics {
@@ -193,6 +205,7 @@ export function createNeutralColorRecipe(): ImageColorRecipe {
       highlightSaturation: 25,
       balance: 0,
     },
+    cubeLut: null,
   };
 }
 
@@ -245,6 +258,7 @@ export function sanitizeColorRecipe(recipe: ImageColorRecipe): ImageColorRecipe 
       highlightSaturation: Math.round(bounded(recipe.duotone?.highlightSaturation, 0, 100, 25)),
       balance: Math.round(bounded(recipe.duotone?.balance, -100, 100, 0)),
     },
+    cubeLut: sanitizeCubeLutRecipe(recipe.cubeLut),
   };
 }
 
@@ -259,7 +273,8 @@ export function isNeutralColor(recipe: ImageColorRecipe): boolean {
       safe.colorGrading[range].saturation === 0 && safe.colorGrading[range].luminance === 0
     ))
     && !safe.blackAndWhite.enabled
-    && !safe.duotone.enabled;
+    && !safe.duotone.enabled
+    && (!safe.cubeLut?.enabled || safe.cubeLut.intensity === 0);
 }
 
 export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColorRecipe | null): boolean {
@@ -278,7 +293,8 @@ export function sameColorRecipe(left: ImageColorRecipe | null, right: ImageColor
     && safeLeft.blackAndWhite.enabled === safeRight.blackAndWhite.enabled
     && BLACK_AND_WHITE_KEYS.every((key) => safeLeft.blackAndWhite[key] === safeRight.blackAndWhite[key])
     && safeLeft.duotone.enabled === safeRight.duotone.enabled
-    && DUOTONE_KEYS.every((key) => safeLeft.duotone[key] === safeRight.duotone[key]);
+    && DUOTONE_KEYS.every((key) => safeLeft.duotone[key] === safeRight.duotone[key])
+    && sameCubeLutRecipe(safeLeft.cubeLut, safeRight.cubeLut);
 }
 
 export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
@@ -299,7 +315,9 @@ export function isSanitizedColorRecipe(recipe: ImageColorRecipe): boolean {
     && (!safe.blackAndWhite.enabled
       || safe.blackAndWhite.red + safe.blackAndWhite.green + safe.blackAndWhite.blue > 0)
     && recipe.duotone?.enabled === safe.duotone.enabled
-    && DUOTONE_KEYS.every((key) => recipe.duotone?.[key] === safe.duotone[key]);
+    && DUOTONE_KEYS.every((key) => recipe.duotone?.[key] === safe.duotone[key])
+    && isSanitizedCubeLutRecipe(recipe.cubeLut)
+    && sameCubeLutRecipe(recipe.cubeLut, safe.cubeLut);
 }
 
 export function assertBrowserColorBudget(width: number, height: number): number {
@@ -745,7 +763,11 @@ export function recommendWhiteBalanceFromRgba(
 }
 
 /** Applies a deterministic global colour transform while preserving alpha exactly. */
-export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRecipe): ImageColorStatistics {
+export function applyColorToRgba(
+  pixels: Uint8ClampedArray,
+  recipe: ImageColorRecipe,
+  cubeLut?: ImageCubeLutDefinition | null,
+): ImageColorStatistics {
   if (pixels.byteLength % 4 !== 0) throw new Error("Colour adjustment requires complete RGBA pixels.");
   const safe = sanitizeColorRecipe(recipe);
   const statistics: ImageColorStatistics = { processedPixels: 0, changedPixels: 0, gamutClippedPixels: 0 };
@@ -778,6 +800,11 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
     blue: safe.blackAndWhite.blue / blackAndWhiteTotal,
   } : null;
   const preparedDuotone = safe.duotone.enabled ? prepareDuotone(safe.duotone) : null;
+  const cubeLutActive = Boolean(safe.cubeLut?.enabled && safe.cubeLut.intensity > 0);
+  if (cubeLutActive && !definitionMatchesCubeLutRecipe(cubeLut, safe.cubeLut)) {
+    throw new Error("The selected 3D LUT data does not match its reviewed SHA-256 metadata.");
+  }
+  const cubeLutIntensity = (safe.cubeLut?.intensity ?? 0) / 100;
 
   for (let offset = 0; offset < pixels.byteLength; offset += 4) {
     if (pixels[offset + 3] === 0) continue;
@@ -802,9 +829,7 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
     red = luminance + (red - luminance) * chromaFactor;
     green = luminance + (green - luminance) * chromaFactor;
     blue = luminance + (blue - luminance) * chromaFactor;
-    if (red < 0 || red > 1 || green < 0 || green > 1 || blue < 0 || blue > 1) {
-      statistics.gamutClippedPixels += 1;
-    }
+    let gamutClipped = red < 0 || red > 1 || green < 0 || green > 1 || blue < 0 || blue > 1;
     let outputRed = linearToSrgb(red);
     let outputGreen = linearToSrgb(green);
     let outputBlue = linearToSrgb(blue);
@@ -856,6 +881,28 @@ export function applyColorToRgba(pixels: Uint8ClampedArray, recipe: ImageColorRe
       outputGreen = duotone.green;
       outputBlue = duotone.blue;
     }
+    if (cubeLutActive && cubeLut && safe.cubeLut) {
+      const sourceRed = outputRed / 255;
+      const sourceGreen = outputGreen / 255;
+      const sourceBlue = outputBlue / 255;
+      const transformed = interpolateCubeLut(
+        cubeLut,
+        sourceRed,
+        sourceGreen,
+        sourceBlue,
+      );
+      const mixedRed = sourceRed + (transformed.red - sourceRed) * cubeLutIntensity;
+      const mixedGreen = sourceGreen + (transformed.green - sourceGreen) * cubeLutIntensity;
+      const mixedBlue = sourceBlue + (transformed.blue - sourceBlue) * cubeLutIntensity;
+      gamutClipped = gamutClipped
+        || mixedRed < 0 || mixedRed > 1
+        || mixedGreen < 0 || mixedGreen > 1
+        || mixedBlue < 0 || mixedBlue > 1;
+      outputRed = Math.round(clamp(mixedRed * 255, 0, 255));
+      outputGreen = Math.round(clamp(mixedGreen * 255, 0, 255));
+      outputBlue = Math.round(clamp(mixedBlue * 255, 0, 255));
+    }
+    if (gamutClipped) statistics.gamutClippedPixels += 1;
     pixels[offset] = outputRed;
     pixels[offset + 1] = outputGreen;
     pixels[offset + 2] = outputBlue;

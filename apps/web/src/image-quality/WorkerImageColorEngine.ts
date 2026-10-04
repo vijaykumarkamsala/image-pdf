@@ -4,6 +4,7 @@ import type {
   ImagePointColorSample,
   ImageWhiteBalanceSuggestion,
 } from "./imageColor";
+import type { ImageCubeLutDefinition } from "./imageCubeLut";
 import type { PngColorMetadata } from "./pngMetadata";
 
 interface LoadedColorSource { width: number; height: number }
@@ -52,8 +53,9 @@ export class WorkerImageColorEngine {
   async render(
     recipe: ImageColorRecipe,
     metadata: Omit<PngColorMetadata, "recipe" | "statistics">,
+    cubeLut: ImageCubeLutDefinition | null = null,
   ): Promise<ImageColorResult> {
-    const result = await this.request({ type: "render", recipe, metadata });
+    const result = await this.request({ type: "render", recipe, metadata, cubeLut });
     if (result.type !== "rendered") throw new Error("The colour-adjustment renderer returned an unexpected response.");
     return {
       bytes: result.bytes,
@@ -113,7 +115,7 @@ export class WorkerImageColorEngine {
     message: { type: "load"; source: Blob }
       | { type: "sample-white-balance"; x: number; y: number }
       | { type: "sample-point-color"; x: number; y: number }
-      | { type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics"> },
+      | { type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics">; cubeLut: ImageCubeLutDefinition | null },
   ): Promise<WorkerSuccess> {
     if (this.disposed) return Promise.reject(new Error("The colour-adjustment renderer is unavailable."));
     const id = ++this.sequence;

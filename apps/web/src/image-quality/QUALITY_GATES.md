@@ -47,6 +47,25 @@ download-byte identity, responsive layout and accessibility. Release evidence
 still requires physical Safari/iOS and representative low-memory device runs;
 Chromium emulation is not a substitute for those devices.
 
+## Local 3D LUT evidence
+
+The colour stage accepts reviewed 3D IRIDAS `.cube` files only. Parsing is local,
+strict UTF-8 and bounded to 16 MiB, a 2³–65³ grid, finite numeric tokens, one
+complete declared grid and a valid increasing input domain. One-dimensional,
+combined shaper, unsupported directive, malformed, incomplete and excess data
+fail visibly. The exact file bytes are SHA-256 bound to the reviewed title, grid,
+domain and tetrahedral interpolation recipe; a missing or mismatched definition
+cannot process.
+
+The LUT is the final display-referred sRGB colour operation. Intensity is explicit
+and bounded, dimensions and alpha are invariant, fully transparent hidden RGB is
+not rewritten, and clipped output is counted in colour statistics. A changed LUT
+or intensity invalidates the prior derivative. The v8 PNG provenance records the
+ordered operation and reviewed LUT identity, and the browser journey requires the
+preview blob and downloaded PNG to be byte-identical. This local feature does not
+claim camera-log input interpretation, HDR/wide-gamut colour management, LUT
+licence approval, colour matching or protected brand/product/skin colour.
+
 ## Explicit face-detail follow-up (not released)
 
 The owner approved a separate, opt-in face reconstruction workflow. It must not

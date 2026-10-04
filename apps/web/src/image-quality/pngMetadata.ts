@@ -234,7 +234,7 @@ function toneProvenance(metadata: PngToneMetadata) {
 
 function colorProvenance(metadata: PngColorMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.color.provenance.v7",
+    schema: "ipw.image-edit.color.provenance.v8",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
@@ -243,7 +243,7 @@ function colorProvenance(metadata: PngColorMetadata) {
     base_scale: metadata.baseScale,
     white_balance_sample: metadata.whiteBalanceSample,
     point_color_sample: metadata.pointColorSample,
-    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl", "sampled_point_color", "tonal_color_grading", "black_and_white_channel_mixer", "duotone_mapping"],
+    operation_order: ["temperature", "tint", "saturation", "vibrance", "selective_hsl", "sampled_point_color", "tonal_color_grading", "black_and_white_channel_mixer", "duotone_mapping", "reviewed_3d_lut_tetrahedral"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,

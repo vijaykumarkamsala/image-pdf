@@ -563,6 +563,16 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
     highlightSaturation: 24,
     balance: 12,
   };
+  recipe.cubeLut = {
+    enabled: true,
+    intensity: 72,
+    sha256: "c".repeat(64),
+    title: "Reviewed warm look",
+    size: 33,
+    domainMin: [0, 0, 0],
+    domainMax: [1, 1, 1],
+    interpolation: "tetrahedral",
+  };
   const pointColorSample = {
     sourceX: 30,
     sourceY: 24,
@@ -602,8 +612,8 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.color\.provenance\.v7/);
-  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping"\]/);
+  assert.match(text, /ipw\.image-edit\.color\.provenance\.v8/);
+  assert.match(text, /"operation_order":\["temperature","tint","saturation","vibrance","selective_hsl","sampled_point_color","tonal_color_grading","black_and_white_channel_mixer","duotone_mapping","reviewed_3d_lut_tetrahedral"\]/);
   assert.match(text, /"white_balance_sample":\{"sourceX":20,"sourceY":18/);
   assert.match(text, /"point_color_sample":\{"sourceX":30,"sourceY":24/);
   assert.match(text, /"base_kind":"tone"/);
@@ -613,6 +623,7 @@ test("colour PNG tagging preserves exact dimensions and binds the verified tone 
   assert.match(text, /"shadows":\{"hue":220,"saturation":24,"luminance":8\}/);
   assert.match(text, /"blackAndWhite":\{"enabled":true,"red":45,"green":40,"blue":15\}/);
   assert.match(text, /"duotone":\{"enabled":true,"shadowHue":225,"shadowSaturation":42,"highlightHue":38,"highlightSaturation":24,"balance":12\}/);
+  assert.match(text, /"cubeLut":\{"enabled":true,"intensity":72,"sha256":"c{64}","title":"Reviewed warm look","size":33,"domainMin":\[0,0,0\],"domainMax":\[1,1,1\],"interpolation":"tetrahedral"\}/);
   assert.match(text, new RegExp(sourceHash));
   assert.match(text, new RegExp(baseHash));
 

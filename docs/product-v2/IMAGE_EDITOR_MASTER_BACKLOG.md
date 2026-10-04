@@ -157,8 +157,17 @@ chromatic patch supplies one reviewed target hue; bounded tolerance, feather,
 hue, saturation and lightness controls affect only that circular hue interval.
 Neutral or conflicting patches fail visibly, sampling alone changes no pixels,
 and the measured patch plus ordered recipe are recorded in v7 colour provenance.
-LUTs, colour matching and protected brand/product/skin colour remain future
-increments.
+Reviewed local 3D IRIDAS `.cube` LUTs are also implemented as the final colour
+operation. The strict UTF-8 parser accepts only complete 3D grids from 2³ through
+65³ within a 16 MiB file budget, supports declared input domains and rejects 1D,
+shaper, malformed, incomplete and excess data instead of guessing. The customer
+reviews the file name, title, grid, domain, interpolation and exact SHA-256 before
+applying a bounded intensity. Red-fastest tetrahedral interpolation runs in
+display-referred sRGB; dimensions, alpha and fully transparent hidden RGB remain
+unchanged, while out-of-range output is clipped and counted. Preview and download
+use the same source-bound bytes, and the reviewed LUT identity plus ordered recipe
+are recorded in v8 colour provenance. Colour matching and protected brand/product/
+skin colour remain future increments.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

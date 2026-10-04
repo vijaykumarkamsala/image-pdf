@@ -164,6 +164,21 @@ function pointColorPng(width: number, height: number): Buffer {
   ]);
 }
 
+const swapRedBlueCube = `# Rights-cleared synthetic 3D LUT
+TITLE "Synthetic red blue swap"
+DOMAIN_MIN 0 0 0
+DOMAIN_MAX 1 1 1
+LUT_3D_SIZE 2
+0 0 0
+0 0 1
+0 1 0
+0 1 1
+1 0 0
+1 0 1
+1 1 0
+1 1 1
+`;
+
 function clippingHistogramPng(width: number, height: number): Buffer {
   const scanlines = Buffer.alloc((width * 4 + 1) * height);
   for (let y = 0; y < height; y += 1) {
@@ -1276,7 +1291,7 @@ test("neutral-point white balance samples the verified base and requires explici
   const downloaded = Buffer.concat(chunks);
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v7");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":{"sourceX"');
   expect(downloaded.toString("utf8")).toContain('"red":180,"green":170,"blue":160');
   expect(downloaded.toString("utf8")).toContain('"temperature":-54,"tint":0');
@@ -1348,7 +1363,7 @@ test("point colour samples the verified base and applies one bounded source-boun
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewDigest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v7");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
   expect(downloaded.toString("utf8")).toContain('"point_color_sample":{"sourceX":24,"sourceY":20');
   expect(downloaded.toString("utf8")).toContain('"red":16,"green":112,"blue":228,"hue":213');
   expect(downloaded.toString("utf8")).toContain('"pointColor":{"enabled":true,"targetHue":213,"tolerance":16,"feather":20,"hue":45,"saturation":30,"lightness":-8}');
@@ -1357,6 +1372,127 @@ test("point colour samples the verified base and applies one bounded source-boun
   await expect(page.getByTestId("point-color-sample")).toHaveCount(0);
   await expect(page.getByLabel("Point-colour hue", { exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+});
+
+test("reviewed 3D LUT applies last with tetrahedral interpolation and binds preview to download", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  const lutBytes = Buffer.from(swapRedBlueCube, "utf8");
+  const lutSha256 = createHash("sha256").update(lutBytes).digest("hex");
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.addInitScript(() => {
+    const registry = new Map<string, Blob>();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    testWindow.__ipwTestObjectUrlBlobs = registry;
+    const createObjectUrl = URL.createObjectURL.bind(URL);
+    const revokeObjectUrl = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (object: Blob | MediaSource) => {
+      const url = createObjectUrl(object);
+      if (object instanceof Blob) registry.set(url, object);
+      return url;
+    };
+    URL.revokeObjectURL = (url: string) => {
+      registry.delete(url);
+      revokeObjectUrl(url);
+    };
+  });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "lut-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  await page.getByLabel("Choose 3D LUT file").setInputFiles({
+    name: "swap-red-blue.cube",
+    mimeType: "text/plain",
+    buffer: lutBytes,
+  });
+  await expect(page.getByText("3D LUT validated locally. Review its identity and intensity, then apply colour.")).toBeVisible();
+  const review = page.getByTestId("cube-lut-review");
+  await expect(review).toContainText("Reviewed 3D LUT ready");
+  await expect(review).toContainText("swap-red-blue.cube");
+  await expect(review).toContainText("Synthetic red blue swap");
+  await expect(review).toContainText("2 × 2 × 2");
+  await expect(review).toContainText("0, 0, 0 to 1, 1, 1");
+  await expect(review).toContainText("Tetrahedral");
+  await expect(review).toContainText(`${lutSha256.slice(0, 12)}…`);
+  await expect(page.getByLabel("Enable imported LUT", { exact: false })).toBeChecked();
+  await page.getByLabel("3D LUT intensity", { exact: true }).fill("50");
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-cube-lut").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+    const decode = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        pixels: context.getImageData(0, 0, canvas.width, canvas.height).data,
+      };
+    };
+    const resultUrl = (node as HTMLImageElement).src;
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(resultUrl);
+    if (!previewBlob) throw new Error("The exact colour preview Blob was not retained by the test harness");
+    const [source, result, bytes] = await Promise.all([
+      decode(sourceUrl),
+      decode(resultUrl),
+      previewBlob.arrayBuffer(),
+    ]);
+    let changedPixels = 0;
+    for (let index = 0; index < source.pixels.length; index += 4) {
+      if (source.pixels[index] !== result.pixels[index]
+        || source.pixels[index + 1] !== result.pixels[index + 1]
+        || source.pixels[index + 2] !== result.pixels[index + 2]) changedPixels += 1;
+      if (source.pixels[index + 3] !== result.pixels[index + 3]) throw new Error("3D LUT changed alpha");
+    }
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { width: result.width, height: result.height, changedPixels, digest };
+  }, immutableSourceUrl!);
+  expect(previewEvidence).toMatchObject({ width: 48, height: 40 });
+  expect(previewEvidence.changedPixels).toBeGreaterThan(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("lut-source-colour-adjusted-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  if (!stream.closed) {
+    const closed = new Promise<void>((resolve, reject) => {
+      stream.once("close", resolve);
+      stream.once("error", reject);
+    });
+    stream.destroy();
+    await closed;
+  }
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain('"reviewed_3d_lut_tetrahedral"');
+  expect(downloaded.toString("utf8")).toContain(`"cubeLut":{"enabled":true,"intensity":50,"sha256":"${lutSha256}","title":"Synthetic red blue swap","size":2,"domainMin":[0,0,0],"domainMax":[1,1,1],"interpolation":"tetrahedral"}`);
+
+  await page.getByLabel("3D LUT intensity", { exact: true }).fill("60");
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+  await page.getByRole("button", { name: "Remove LUT" }).click();
+  await expect(page.getByTestId("cube-lut-review")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });
 
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
@@ -1478,7 +1614,7 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v7");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v8");
   expect(downloaded.toString("utf8")).toContain('"white_balance_sample":null');
   expect(downloaded.toString("utf8")).toContain('"point_color_sample":null');
   expect(downloaded.toString("utf8")).toContain('"base_kind":"tone"');

@@ -12,6 +12,7 @@ import {
   type ImageColorRecipe,
   type ImageColorStatistics,
 } from "./imageColor";
+import type { ImageCubeLutDefinition } from "./imageCubeLut";
 import { pngOutputSha256, tagColorPng, type PngColorMetadata } from "./pngMetadata";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -20,7 +21,7 @@ type Request =
   | { id: number; type: "load"; source: Blob }
   | { id: number; type: "sample-white-balance"; x: number; y: number }
   | { id: number; type: "sample-point-color"; x: number; y: number }
-  | { id: number; type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics"> };
+  | { id: number; type: "render"; recipe: ImageColorRecipe; metadata: Omit<PngColorMetadata, "recipe" | "statistics">; cubeLut: ImageCubeLutDefinition | null };
 
 let bitmap: ImageBitmap | null = null;
 const MAX_CANVAS_EDGE = 16_384;
@@ -102,6 +103,7 @@ async function render(
   id: number,
   recipe: ImageColorRecipe,
   metadata: Omit<PngColorMetadata, "recipe" | "statistics">,
+  cubeLut: ImageCubeLutDefinition | null,
 ) {
   if (!bitmap) throw new Error("The image must be prepared before applying colour adjustments.");
   const safe = sanitizeColorRecipe(recipe);
@@ -125,7 +127,7 @@ async function render(
   for (let y = 0; y < bitmap.height; y += rowsPerTile) {
     const height = Math.min(rowsPerTile, bitmap.height - y);
     const imageData = context.getImageData(0, y, bitmap.width, height);
-    addStatistics(statistics, applyColorToRgba(imageData.data, safe));
+    addStatistics(statistics, applyColorToRgba(imageData.data, safe, cubeLut));
     context.putImageData(imageData, 0, y);
   }
   if (statistics.changedPixels === 0) {
@@ -155,7 +157,7 @@ self.onmessage = (event: MessageEvent<Request>) => {
       ? sampleWhiteBalance(message.id, message.x, message.y)
       : message.type === "sample-point-color"
         ? samplePointColor(message.id, message.x, message.y)
-        : render(message.id, message.recipe, message.metadata))
+        : render(message.id, message.recipe, message.metadata, message.cubeLut))
     .catch((error) => fail(message.id, error));
 };
 
