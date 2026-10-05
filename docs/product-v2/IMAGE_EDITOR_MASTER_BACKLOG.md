@@ -185,6 +185,15 @@ blend-back protects source pixels similar in hue, saturation and lightness; mult
 anchors use a maximum/union mask and cannot exceed 100%. The feature does not infer
 people, skin, brands, products or object boundaries. Source coordinates, measured
 colour, purpose, controls and exact base hash are recorded in v10 provenance.
+Preview-only colour-vision simulation is also implemented for full-severity
+protanopia, deuteranopia and tritanopia review using the published
+Machado-Oliveira-Fernandes RGB matrices. A dedicated browser worker renders
+the exact current Result image at unchanged dimensions and fails visibly when
+the local resource budget cannot be met. The simulation never changes an edit
+recipe, derivative, provenance or download bytes, and returning to Standard
+colour restores the exact verified Result. The UI identifies this as an
+approximate display-referred sRGB design aid rather than a diagnosis, contrast
+conformance check, device proof or substitute for testing with people.
 
 - White balance, temperature, tint, saturation and vibrance.
 - HSL, selective colour, point colour and colour balance.

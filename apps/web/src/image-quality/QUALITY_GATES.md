@@ -86,6 +86,24 @@ source binding, unrelated-colour change, preview/download byte identity, stale-
 download invalidation and accessibility. Precise object or region protection is
 not claimed and remains gated on Select/Mask work.
 
+## Colour-vision preview evidence
+
+Colour-vision simulation is a preview-only transform of the exact current Result
+image. The browser worker applies the published full-severity
+Machado-Oliveira-Fernandes protanopia, deuteranopia and tritanopia RGB matrices
+without changing dimensions or alpha. Fully transparent pixels are excluded
+from the matrix operation.
+The preview is deterministic, pixel-budgeted and visibly rejects an unavailable
+resource rather than substituting a smaller image.
+
+The simulated PNG is never an editable derivative or download candidate. Mode
+selection does not mutate a recipe, provenance, dirty state or the verified
+download Blob. Focused unit and browser evidence must prove distinct deterministic
+modes, exact dimensions, Standard-colour restoration, accessible controls and
+download-byte isolation. Product language must continue to state that this is an
+approximate display-referred sRGB design aid, not diagnosis, WCAG contrast
+validation, calibrated device proof or a substitute for testing with people.
+
 ## Explicit face-detail follow-up (not released)
 
 The owner approved a separate, opt-in face reconstruction workflow. It must not

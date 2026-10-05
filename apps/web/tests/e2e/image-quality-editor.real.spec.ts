@@ -1909,6 +1909,72 @@ test("colour applies after tone and binds preview and download to the exact veri
   expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(toneEvidence.url);
 });
 
+test("colour-vision modes change only the result preview and never the downloadable derivative", async ({ page }) => {
+  const sourceBytes = pointColorPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "colour-vision-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  await page.getByLabel("Temperature", { exact: true }).fill("25");
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+
+  const appliedEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const url = (node as HTMLImageElement).src;
+    const registry = (window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> }).__ipwTestObjectUrlBlobs;
+    const blob = registry?.get(url);
+    if (!blob) throw new Error("The colour derivative Blob was not retained by the test harness");
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { url, digest, width: new DataView(bytes.buffer).getUint32(16), height: new DataView(bytes.buffer).getUint32(20) };
+  });
+  expect(appliedEvidence.width).toBe(48);
+  expect(appliedEvidence.height).toBe(40);
+
+  const modeDigests: string[] = [];
+  for (const mode of ["Protanopia", "Deuteranopia", "Tritanopia"] as const) {
+    await page.getByRole("button", { name: mode, exact: true }).click();
+    await expect(page.getByText(new RegExp(`${mode} preview is active`))).toBeVisible();
+    await expect(page.getByTestId("comparison-enhanced")).toContainText(`${mode} preview · Result only`);
+    const evidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+      const url = (node as HTMLImageElement).src;
+      const registry = (window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> }).__ipwTestObjectUrlBlobs;
+      const blob = registry?.get(url);
+      if (!blob) throw new Error("The simulated preview Blob was not retained by the test harness");
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+      return { digest, width: new DataView(bytes.buffer).getUint32(16), height: new DataView(bytes.buffer).getUint32(20) };
+    });
+    expect(evidence.width).toBe(48);
+    expect(evidence.height).toBe(40);
+    expect(evidence.digest).not.toBe(appliedEvidence.digest);
+    modeDigests.push(evidence.digest);
+  }
+  expect(new Set(modeDigests).size).toBe(3);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const downloaded = Buffer.concat(chunks);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(appliedEvidence.digest);
+  expect(createHash("sha256").update(downloaded).digest("hex")).not.toBe(modeDigests.at(-1));
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v10");
+
+  const accessibility = await new AxeBuilder({ page }).include(".quality-color-vision").analyze();
+  expect(accessibility.violations).toEqual([]);
+  await page.getByRole("button", { name: "Standard colour", exact: true }).click();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", appliedEvidence.url);
+});
+
 test("perspective worker samples the moved source corner instead of only recording metadata", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(64, 64);
   await page.goto("/image-quality?engine=deterministic");

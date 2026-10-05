@@ -63,6 +63,11 @@ import {
   MAX_PROTECTED_COLOR_ANCHORS,
   type ImageProtectedColorKind,
 } from "./imageProtectedColor";
+import {
+  IMAGE_COLOR_VISION_LABELS,
+  IMAGE_COLOR_VISION_MODES,
+  type ImageColorVisionSelection,
+} from "./imageColorVision";
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
 import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
@@ -413,11 +418,16 @@ interface ColorToolPanelProps {
   colorMatchAnalysing: boolean;
   cubeLut: ImportedImageCubeLut | null;
   cubeLutImporting: boolean;
+  colorVisionMode: ImageColorVisionSelection;
+  colorVisionBusy: boolean;
+  colorVisionError: string | null;
+  colorVisionSourceLabel: string | null;
   busy: boolean;
   canSampleWhiteBalance: boolean;
   canSamplePointColor: boolean;
   canSampleProtectedColor: boolean;
   canAnalyzeColorMatch: boolean;
+  canPreviewColorVision: boolean;
   canApply: boolean;
   canDownload: boolean;
   onRecipe: (recipe: ImageColorRecipe) => void;
@@ -435,6 +445,7 @@ interface ColorToolPanelProps {
   onClearColorMatch: () => void;
   onImportCubeLut: (file: File) => void;
   onClearCubeLut: () => void;
+  onColorVisionMode: (mode: ImageColorVisionSelection) => void;
   onApply: () => void;
   onReset: () => void;
   onDownload: () => void;
@@ -1167,6 +1178,30 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
         </label>
       </div>}
       <p>This bounded local path accepts reviewed 3D IRIDAS .cube files up to a 65³ grid and applies them after creative colour transforms in display-referred sRGB. Reviewed protected-colour blend-back is the final safety constraint. One-dimensional, shaper and malformed LUTs fail visibly rather than being guessed. Out-of-gamut output is clipped and counted.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-color-vision">
+      <legend>Colour-vision preview</legend>
+      <div className="quality-control-group" role="group" aria-label="Colour-vision preview mode">
+        <Button
+          size="compact"
+          aria-pressed={props.colorVisionMode === "standard"}
+          disabled={props.colorVisionBusy}
+          onClick={() => props.onColorVisionMode("standard")}
+        >{IMAGE_COLOR_VISION_LABELS.standard}</Button>
+        {IMAGE_COLOR_VISION_MODES.map((mode) => <Button
+          key={mode}
+          size="compact"
+          aria-pressed={props.colorVisionMode === mode}
+          disabled={props.colorVisionBusy || !props.canPreviewColorVision}
+          onClick={() => props.onColorVisionMode(mode)}
+        >{IMAGE_COLOR_VISION_LABELS[mode]}</Button>)}
+      </div>
+      {props.colorVisionBusy && <p role="status">Rendering the selected colour-vision preview locally…</p>}
+      {props.colorVisionError && <p role="alert">{props.colorVisionError}</p>}
+      {props.colorVisionMode !== "standard" && !props.colorVisionBusy && !props.colorVisionError && <p role="status">
+        {IMAGE_COLOR_VISION_LABELS[props.colorVisionMode]} preview is active for {props.colorVisionSourceLabel ?? "the current verified image"}.
+      </p>}
+      <p>This is an approximate, display-referred sRGB simulation for design review. It changes only the Result preview; recipes, provenance and downloaded bytes stay unchanged. It is not a diagnosis, contrast conformance test, device proof or substitute for testing with people.</p>
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>

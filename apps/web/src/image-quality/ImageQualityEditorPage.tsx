@@ -67,6 +67,15 @@ import {
 } from "./imageColor";
 import { WorkerImageColorEngine, type ImageColorResult } from "./WorkerImageColorEngine";
 import {
+  IMAGE_COLOR_VISION_LABELS,
+  type ImageColorVisionMode,
+  type ImageColorVisionSelection,
+} from "./imageColorVision";
+import {
+  WorkerImageColorVisionEngine,
+  type ImageColorVisionResult,
+} from "./WorkerImageColorVisionEngine";
+import {
   cubeLutRecipe,
   definitionMatchesCubeLutRecipe,
   MAX_CUBE_LUT_BYTES,
@@ -135,6 +144,13 @@ interface ColorDerivative extends ImageColorResult {
   url: string;
   baseOutputSha256: string;
   baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced" | "tone";
+}
+
+interface ColorVisionPreview extends ImageColorVisionResult {
+  url: string;
+  baseOutputSha256: string;
+  baseLabel: string;
+  mode: ImageColorVisionMode;
 }
 
 interface WhiteBalanceReview extends ImageWhiteBalanceSuggestion {
@@ -424,6 +440,10 @@ export function ImageQualityEditorPage() {
   const [colorBusy, setColorBusy] = useState(false);
   const [colorError, setColorError] = useState<string | null>(null);
   const [colorMessage, setColorMessage] = useState<string | null>(null);
+  const [colorVisionMode, setColorVisionMode] = useState<ImageColorVisionSelection>("standard");
+  const [colorVisionResult, setColorVisionResult] = useState<ColorVisionPreview | null>(null);
+  const [colorVisionBusy, setColorVisionBusy] = useState(false);
+  const [colorVisionError, setColorVisionError] = useState<string | null>(null);
   const [whiteBalanceReview, setWhiteBalanceReview] = useState<WhiteBalanceReview | null>(null);
   const [whiteBalancePicking, setWhiteBalancePicking] = useState(false);
   const [whiteBalanceAnalysing, setWhiteBalanceAnalysing] = useState(false);
@@ -443,11 +463,13 @@ export function ImageQualityEditorPage() {
   const enhancedGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
   const toneEngine = useRef<WorkerImageToneEngine | null>(null);
   const colorEngine = useRef<WorkerImageColorEngine | null>(null);
+  const colorVisionEngine = useRef<WorkerImageColorVisionEngine | null>(null);
   const selection = useRef(0);
   const operation = useRef(0);
   const geometryOperation = useRef(0);
   const toneOperation = useRef(0);
   const colorOperation = useRef(0);
+  const colorVisionOperation = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const sourceObjectUrl = useRef<string | null>(null);
   const resultObjectUrl = useRef<string | null>(null);
@@ -456,6 +478,7 @@ export function ImageQualityEditorPage() {
   const geometryEditedObjectUrl = useRef<string | null>(null);
   const toneObjectUrl = useRef<string | null>(null);
   const colorObjectUrl = useRef<string | null>(null);
+  const colorVisionObjectUrl = useRef<string | null>(null);
   const deterministicPreference = useRef(false);
 
   // Reuse the already-created result Blob. Pan/zoom must not copy a large pixel buffer.
@@ -489,18 +512,33 @@ export function ImageQualityEditorPage() {
     geometryOperation.current += 1;
     toneOperation.current += 1;
     colorOperation.current += 1;
+    colorVisionOperation.current += 1;
     engine.current?.dispose();
     originalGeometryEngine.current?.dispose();
     enhancedGeometryEngine.current?.dispose();
     toneEngine.current?.dispose();
     colorEngine.current?.dispose();
+    colorVisionEngine.current?.dispose();
     if (sourceObjectUrl.current) URL.revokeObjectURL(sourceObjectUrl.current);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     if (geometryOriginalObjectUrl.current) URL.revokeObjectURL(geometryOriginalObjectUrl.current);
     if (geometryEditedObjectUrl.current) URL.revokeObjectURL(geometryEditedObjectUrl.current);
     if (toneObjectUrl.current) URL.revokeObjectURL(toneObjectUrl.current);
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
+    if (colorVisionObjectUrl.current) URL.revokeObjectURL(colorVisionObjectUrl.current);
   }, []);
+
+  const clearColorVisionPreview = (resetMode = true) => {
+    colorVisionOperation.current += 1;
+    colorVisionEngine.current?.dispose();
+    colorVisionEngine.current = null;
+    if (colorVisionObjectUrl.current) URL.revokeObjectURL(colorVisionObjectUrl.current);
+    colorVisionObjectUrl.current = null;
+    setColorVisionResult(null);
+    setColorVisionBusy(false);
+    setColorVisionError(null);
+    if (resetMode) setColorVisionMode("standard");
+  };
 
   const clearWhiteBalanceReview = () => {
     setWhiteBalanceReview(null);
@@ -527,6 +565,7 @@ export function ImageQualityEditorPage() {
   };
 
   const clearColorDerivative = () => {
+    clearColorVisionPreview();
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
     colorObjectUrl.current = null;
     setColorResult(null);
@@ -626,6 +665,7 @@ export function ImageQualityEditorPage() {
     setColorBusy(false);
     setColorError(null);
     setColorMessage(null);
+    clearColorVisionPreview();
     setCubeLut(null);
     setCubeLutImporting(false);
     clearWhiteBalanceReview();
@@ -1620,6 +1660,54 @@ export function ImageQualityEditorPage() {
     dispatch({ type: "zoom-changed", zoom: "fit" });
   };
 
+  const previewColorVision = async (selection: ImageColorVisionSelection) => {
+    if (selection === "standard") {
+      clearColorVisionPreview();
+      return;
+    }
+    const input = histogramInput;
+    if (!input) {
+      clearColorVisionPreview(false);
+      setColorVisionMode(selection);
+      setColorVisionError("A verified current preview is required before simulating colour vision.");
+      return;
+    }
+
+    clearColorVisionPreview(false);
+    setColorVisionMode(selection);
+    const currentOperation = ++colorVisionOperation.current;
+    const next = new WorkerImageColorVisionEngine();
+    colorVisionEngine.current = next;
+    setColorVisionBusy(true);
+    setColorVisionError(null);
+    try {
+      const result = await next.render(input.blob, selection, input.width, input.height);
+      if (colorVisionOperation.current !== currentOperation) return;
+      assertPngDimensions(new Uint8Array(result.bytes), input.width, input.height);
+      const url = URL.createObjectURL(new Blob([result.bytes], { type: "image/png" }));
+      if (colorVisionObjectUrl.current) URL.revokeObjectURL(colorVisionObjectUrl.current);
+      colorVisionObjectUrl.current = url;
+      setColorVisionResult({
+        ...result,
+        url,
+        baseOutputSha256: input.sha256,
+        baseLabel: input.label,
+        mode: selection,
+      });
+      dispatch({ type: "zoom-changed", zoom: "fit" });
+    } catch (error) {
+      if (colorVisionOperation.current !== currentOperation) return;
+      setColorVisionError(error instanceof Error ? error.message : "The colour-vision preview could not be rendered.");
+      setColorVisionResult(null);
+    } finally {
+      if (colorVisionOperation.current === currentOperation) {
+        setColorVisionBusy(false);
+        next.dispose();
+        if (colorVisionEngine.current === next) colorVisionEngine.current = null;
+      }
+    }
+  };
+
   const resetGeometryState = (invalidateTone: boolean) => {
     if (!state.source?.width || !state.source.height) return;
     geometryOperation.current += 1;
@@ -1787,9 +1875,6 @@ export function ImageQualityEditorPage() {
     : protectedColorPicking || protectedColorAnalysing
       ? "Protected-colour sampling base"
       : "Point-colour sampling base";
-  const enhancedUrl = colorDisplayReady && !colorSamplingBase
-    ? colorResult!.url
-    : toneDisplayReady ? toneResult!.url : baseResultUrl;
   const histogramGeometryDerivative = geometryDisplayReady
     ? (state.result ? geometryEdited : geometryOriginal)
     : null;
@@ -1861,6 +1946,21 @@ export function ImageQualityEditorPage() {
                 label: "Immutable original preview",
               }
             : null;
+  const colorVisionDisplayReady = Boolean(
+    colorVisionMode !== "standard"
+    && colorVisionResult
+    && histogramInput
+    && colorVisionResult.mode === colorVisionMode
+    && colorVisionResult.baseOutputSha256 === histogramInput.sha256
+    && colorVisionResult.width === histogramInput.width
+    && colorVisionResult.height === histogramInput.height,
+  );
+  const enhancedUrl = colorVisionDisplayReady && !colorSamplingBase
+    ? colorVisionResult!.url
+    : colorDisplayReady && !colorSamplingBase
+      ? colorResult!.url
+      : toneDisplayReady ? toneResult!.url : baseResultUrl;
+  const colorVisionLabel = colorVisionMode === "standard" ? null : IMAGE_COLOR_VISION_LABELS[colorVisionMode];
   const displaySourceDimensions = geometryDisplayReady && appliedGeometry
     ? geometryOutputDimensions(appliedGeometry)
     : { width: state.source.width ?? 1, height: state.source.height ?? 1 };
@@ -2034,6 +2134,7 @@ export function ImageQualityEditorPage() {
               canApply={toneCanApply}
               canDownload={toneDisplayReady && !colorDisplayReady}
               onRecipe={(recipe) => {
+                clearColorVisionPreview();
                 setToneRecipe(sanitizeToneRecipe(recipe));
                 setToneError(null);
                 setToneMessage(null);
@@ -2062,14 +2163,20 @@ export function ImageQualityEditorPage() {
                 colorMatchAnalysing={colorMatchAnalysing}
                 cubeLut={cubeLut}
                 cubeLutImporting={cubeLutImporting}
+                colorVisionMode={colorVisionMode}
+                colorVisionBusy={colorVisionBusy}
+                colorVisionError={colorVisionError}
+                colorVisionSourceLabel={colorVisionResult?.baseLabel ?? histogramInput?.label ?? null}
                 busy={colorBusy}
                 canSampleWhiteBalance={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canSamplePointColor={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canSampleProtectedColor={colorBaseAvailable && colorRecipe.protectedColors.length < MAX_PROTECTED_COLOR_ANCHORS && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
                 canAnalyzeColorMatch={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canPreviewColorVision={Boolean(histogramInput) && !processing && !processorRestarting && !geometryBusy && !toneBusy && !colorBusy}
                 canApply={colorCanApply}
                 canDownload={colorDisplayReady}
                 onRecipe={(recipe) => {
+                  clearColorVisionPreview();
                   const safe = sanitizeColorRecipe(recipe);
                   setColorRecipe(safe);
                   if (!whiteBalanceReview
@@ -2097,6 +2204,7 @@ export function ImageQualityEditorPage() {
                 onClearColorMatch={clearColorMatch}
                 onImportCubeLut={(file) => void importCubeLut(file)}
                 onClearCubeLut={clearCubeLut}
+                onColorVisionMode={(mode) => void previewColorVision(mode)}
                 onApply={() => void applyColor()}
                 onReset={resetColor}
                 onDownload={download}
@@ -2195,6 +2303,8 @@ export function ImageQualityEditorPage() {
                   onPan={(x, y) => dispatch({ type: "pan-changed", x, y })}
                   label={colorSamplingBase
                     ? colorSamplingBaseLabel
+                    : colorVisionDisplayReady && colorVisionLabel
+                    ? `${colorVisionLabel} preview · Result only`
                     : colorDisplayReady
                     ? state.result ? `Colour-adjusted enhanced · ${state.result.strength}%` : "Colour-adjusted original"
                     : toneDisplayReady
@@ -2215,7 +2325,9 @@ export function ImageQualityEditorPage() {
                   zoom={state.zoom}
                   pan={state.pan}
                   onPan={(x, y) => dispatch({ type: "pan-changed", x, y })}
-                  label="Original · Result"
+                  label={colorVisionDisplayReady && colorVisionLabel
+                    ? `Original · ${colorVisionLabel} preview`
+                    : "Original · Result"}
                   overlay={{ slider: state.slider }}
                   whiteBalanceSampler={whiteBalanceSampler}
                   pointColorSampler={pointColorSampler}
