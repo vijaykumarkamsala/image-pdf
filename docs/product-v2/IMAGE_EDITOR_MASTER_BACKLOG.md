@@ -319,6 +319,18 @@ Studio; structured diagrams and connectors remain a separate experience.
 
 ## IE-16 — Export and delivery
 
+**Implemented locally, pending product-owner image testing:** a bounded browser
+export baseline prepares PNG, JPEG or WebP from the latest verified local
+derivative. PNG retains the exact verified derivative bytes; JPEG and WebP use
+an explicit 40–100 quality control and disclose 8-bit sRGB browser encoding.
+JPEG rejects transparent pixels unless the customer explicitly selects a white
+or black matte, while WebP is withheld if the browser encoder cannot preserve
+alpha. The worker and final download boundary both verify actual format and
+exact dimensions, SHA-256 evidence is shown, and filenames disclose dimensions,
+lossy quality and extension. TIFF, subsampling/bit-depth controls, PPI, ICC and
+metadata policy choices, multi-profile packages, watermarks and durable export
+jobs remain pending.
+
 - PNG, JPEG, WebP and TIFF; evaluate AVIF and JPEG XL later.
 - Transparency, lossless/lossy quality, chroma subsampling and bit depth.
 - Exact pixel dimensions, physical size and PPI/DPI validation.

@@ -1975,6 +1975,100 @@ test("colour-vision modes change only the result preview and never the downloada
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", appliedEvidence.url);
 });
 
+test("export prepares PNG, rejects implicit JPEG flattening and preserves WebP alpha", async ({ page }) => {
+  const sourceBytes = flatCurvePng(48, true);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "transparent export source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  await page.getByLabel("Temperature", { exact: true }).fill("15");
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Export image" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("48 × 48 px", { exact: true })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Prepare export" }).click();
+  await expect(dialog.getByText("Export verified and ready")).toBeVisible();
+  let downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download verified file" }).click();
+  let download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("transparent-export-source-export-48x48.png");
+  let stream = await download.createReadStream();
+  let chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  let downloaded = Buffer.concat(chunks);
+  expect(downloaded.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(48);
+
+  await dialog.getByRole("radio", { name: /JPEG/ }).check();
+  await dialog.getByRole("button", { name: "Prepare export" }).click();
+  await expect(dialog.getByText(/contains transparent pixels.*white or black JPEG background/i)).toBeVisible();
+  await dialog.getByLabel("Transparent pixels").selectOption("white");
+  await dialog.getByRole("button", { name: "Prepare export" }).click();
+  await expect(dialog.getByText("Export verified and ready")).toBeVisible();
+  downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download verified file" }).click();
+  download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("transparent-export-source-export-48x48-q92.jpg");
+  stream = await download.createReadStream();
+  chunks = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  downloaded = Buffer.concat(chunks);
+  expect(downloaded.subarray(0, 2).toString("hex")).toBe("ffd8");
+  const jpegEvidence = await page.evaluate(async ({ bytes }) => {
+    const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: "image/jpeg" }));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) throw new Error("JPEG verification canvas unavailable");
+    context.drawImage(bitmap, 0, 0);
+    const corner = Array.from(context.getImageData(0, 0, 1, 1).data);
+    const evidence = { width: bitmap.width, height: bitmap.height, corner };
+    bitmap.close();
+    return evidence;
+  }, { bytes: Array.from(downloaded) });
+  expect(jpegEvidence).toEqual({ width: 48, height: 48, corner: expect.arrayContaining([255]) });
+  expect(jpegEvidence.corner[3]).toBe(255);
+
+  await dialog.getByRole("radio", { name: /WEBP/ }).check();
+  await dialog.getByLabel("Export quality", { exact: true }).fill("73");
+  await dialog.getByRole("button", { name: "Prepare export" }).click();
+  await expect(dialog.getByText("Export verified and ready")).toBeVisible();
+  downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download verified file" }).click();
+  download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("transparent-export-source-export-48x48-q73.webp");
+  stream = await download.createReadStream();
+  chunks = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  downloaded = Buffer.concat(chunks);
+  expect(downloaded.subarray(0, 4).toString("ascii")).toBe("RIFF");
+  expect(downloaded.subarray(8, 12).toString("ascii")).toBe("WEBP");
+  const webpEvidence = await page.evaluate(async ({ bytes }) => {
+    const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: "image/webp" }));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) throw new Error("WebP verification canvas unavailable");
+    context.drawImage(bitmap, 0, 0);
+    const alpha = context.getImageData(0, 0, 1, 1).data[3];
+    const evidence = { width: bitmap.width, height: bitmap.height, alpha };
+    bitmap.close();
+    return evidence;
+  }, { bytes: Array.from(downloaded) });
+  expect(webpEvidence).toEqual({ width: 48, height: 48, alpha: 0 });
+
+  const accessibility = await new AxeBuilder({ page }).include(".quality-export-dialog").analyze();
+  expect(accessibility.violations).toEqual([]);
+});
+
 test("perspective worker samples the moved source corner instead of only recording metadata", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(64, 64);
   await page.goto("/image-quality?engine=deterministic");

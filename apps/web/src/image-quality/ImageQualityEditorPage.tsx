@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -11,13 +12,14 @@ import {
 import { useNavigate } from "react-router-dom";
 import {
   Columns2,
+  Download as DownloadIcon,
   Image as ImageIcon,
   SlidersHorizontal,
   Sparkles,
   Upload,
 } from "lucide-react";
 
-import { Button, Dropzone, InlineNotice } from "../design-system";
+import { Button, Dialog, Dropzone, InlineNotice, SelectField } from "../design-system";
 import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
 import type { ImageQualityEngine } from "./ImageQualityEngine";
 import {
@@ -75,6 +77,17 @@ import {
   WorkerImageColorVisionEngine,
   type ImageColorVisionResult,
 } from "./WorkerImageColorVisionEngine";
+import {
+  assertImageExportInspection,
+  imageExportFilename,
+  sanitizeImageExportSettings,
+  type ImageExportFormat,
+  type ImageExportJpegMatte,
+  type ImageExportSettings,
+} from "./imageExport";
+import { inspectImageFile } from "./imageFileInspection";
+import { sha256Bytes } from "./sha256";
+import { WorkerImageExportEngine, type ImageExportResult } from "./WorkerImageExportEngine";
 import {
   cubeLutRecipe,
   definitionMatchesCubeLutRecipe,
@@ -151,6 +164,13 @@ interface ColorVisionPreview extends ImageColorVisionResult {
   baseOutputSha256: string;
   baseLabel: string;
   mode: ImageColorVisionMode;
+}
+
+interface PreparedImageExport extends ImageExportResult {
+  sourceSha256: string;
+  sourceLabel: string;
+  settings: ImageExportSettings;
+  filename: string;
 }
 
 interface WhiteBalanceReview extends ImageWhiteBalanceSuggestion {
@@ -444,6 +464,13 @@ export function ImageQualityEditorPage() {
   const [colorVisionResult, setColorVisionResult] = useState<ColorVisionPreview | null>(null);
   const [colorVisionBusy, setColorVisionBusy] = useState(false);
   const [colorVisionError, setColorVisionError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ImageExportFormat>("png");
+  const [exportQuality, setExportQuality] = useState(92);
+  const [exportJpegMatte, setExportJpegMatte] = useState<ImageExportJpegMatte>("reject");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [preparedExport, setPreparedExport] = useState<PreparedImageExport | null>(null);
   const [whiteBalanceReview, setWhiteBalanceReview] = useState<WhiteBalanceReview | null>(null);
   const [whiteBalancePicking, setWhiteBalancePicking] = useState(false);
   const [whiteBalanceAnalysing, setWhiteBalanceAnalysing] = useState(false);
@@ -464,12 +491,14 @@ export function ImageQualityEditorPage() {
   const toneEngine = useRef<WorkerImageToneEngine | null>(null);
   const colorEngine = useRef<WorkerImageColorEngine | null>(null);
   const colorVisionEngine = useRef<WorkerImageColorVisionEngine | null>(null);
+  const exportEngine = useRef<WorkerImageExportEngine | null>(null);
   const selection = useRef(0);
   const operation = useRef(0);
   const geometryOperation = useRef(0);
   const toneOperation = useRef(0);
   const colorOperation = useRef(0);
   const colorVisionOperation = useRef(0);
+  const exportOperation = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const sourceObjectUrl = useRef<string | null>(null);
   const resultObjectUrl = useRef<string | null>(null);
@@ -513,12 +542,14 @@ export function ImageQualityEditorPage() {
     toneOperation.current += 1;
     colorOperation.current += 1;
     colorVisionOperation.current += 1;
+    exportOperation.current += 1;
     engine.current?.dispose();
     originalGeometryEngine.current?.dispose();
     enhancedGeometryEngine.current?.dispose();
     toneEngine.current?.dispose();
     colorEngine.current?.dispose();
     colorVisionEngine.current?.dispose();
+    exportEngine.current?.dispose();
     if (sourceObjectUrl.current) URL.revokeObjectURL(sourceObjectUrl.current);
     if (resultObjectUrl.current) URL.revokeObjectURL(resultObjectUrl.current);
     if (geometryOriginalObjectUrl.current) URL.revokeObjectURL(geometryOriginalObjectUrl.current);
@@ -526,6 +557,16 @@ export function ImageQualityEditorPage() {
     if (toneObjectUrl.current) URL.revokeObjectURL(toneObjectUrl.current);
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
     if (colorVisionObjectUrl.current) URL.revokeObjectURL(colorVisionObjectUrl.current);
+  }, []);
+
+  const closeExport = useCallback(() => {
+    exportOperation.current += 1;
+    exportEngine.current?.dispose();
+    exportEngine.current = null;
+    setExportBusy(false);
+    setPreparedExport(null);
+    setExportError(null);
+    setExportOpen(false);
   }, []);
 
   const clearColorVisionPreview = (resetMode = true) => {
@@ -1988,6 +2029,132 @@ export function ImageQualityEditorPage() {
     || (!colorIsDirty && (toneDisplayReady
       || (!toneIsDirty && (downloadableGeometry || (state.result && !resultIsStale && !appliedGeometry))))),
   );
+  const exportSource = colorDisplayReady && colorResult
+    ? {
+        blob: new Blob([colorResult.bytes], { type: "image/png" }),
+        sha256: colorResult.outputSha256,
+        width: colorResult.width,
+        height: colorResult.height,
+        label: "verified colour-adjusted derivative",
+      }
+    : toneDisplayReady && toneResult
+      ? {
+          blob: new Blob([toneResult.bytes], { type: "image/png" }),
+          sha256: toneResult.outputSha256,
+          width: toneResult.width,
+          height: toneResult.height,
+          label: "verified light-and-tone derivative",
+        }
+      : downloadableGeometry
+        ? {
+            blob: new Blob([downloadableGeometry.bytes], { type: "image/png" }),
+            sha256: downloadableGeometry.outputSha256,
+            width: downloadableGeometry.width,
+            height: downloadableGeometry.height,
+            label: "verified geometry derivative",
+          }
+        : state.result && !resultIsStale && !appliedGeometry && resultBlob.current
+          ? {
+              blob: resultBlob.current,
+              sha256: state.result.outputSha256,
+              width: state.result.width,
+              height: state.result.height,
+              label: "verified enhanced derivative",
+            }
+          : null;
+  const exportSettings = sanitizeImageExportSettings({
+    format: exportFormat,
+    quality: exportQuality,
+    jpegMatte: exportJpegMatte,
+  });
+  const canExport = Boolean(canDownload && exportSource && !processing && !geometryBusy && !toneBusy && !colorBusy);
+  const preparedExportReady = Boolean(
+    preparedExport && exportSource
+    && preparedExport.sourceSha256 === exportSource.sha256
+    && preparedExport.settings.format === exportSettings.format
+    && preparedExport.settings.quality === exportSettings.quality
+    && preparedExport.settings.jpegMatte === exportSettings.jpegMatte,
+  );
+
+  const changeExportFormat = (format: ImageExportFormat) => {
+    setExportFormat(format);
+    setPreparedExport(null);
+    setExportError(null);
+  };
+
+  const prepareExport = async () => {
+    if (!exportSource || !canExport) {
+      setExportError("Apply the current image edits before preparing an export.");
+      return;
+    }
+    const currentOperation = ++exportOperation.current;
+    exportEngine.current?.dispose();
+    const next = new WorkerImageExportEngine();
+    exportEngine.current = next;
+    setExportBusy(true);
+    setExportError(null);
+    setPreparedExport(null);
+    try {
+      const result = await next.render(
+        exportSource.blob,
+        exportSource.sha256,
+        exportSettings,
+        exportSource.width,
+        exportSource.height,
+      );
+      if (exportOperation.current !== currentOperation) return;
+      setPreparedExport({
+        ...result,
+        sourceSha256: exportSource.sha256,
+        sourceLabel: exportSource.label,
+        settings: exportSettings,
+        filename: imageExportFilename(
+          state.source?.name ?? "image",
+          exportSource.width,
+          exportSource.height,
+          exportSettings,
+        ),
+      });
+    } catch (error) {
+      if (exportOperation.current !== currentOperation) return;
+      setExportError(error instanceof Error ? error.message : "The image export could not be prepared.");
+    } finally {
+      if (exportOperation.current === currentOperation) {
+        setExportBusy(false);
+        next.dispose();
+        if (exportEngine.current === next) exportEngine.current = null;
+      }
+    }
+  };
+
+  const downloadPreparedExport = async () => {
+    if (!preparedExportReady || !preparedExport) {
+      setExportError("Prepare this export again before downloading it.");
+      return;
+    }
+    try {
+      const raw = new Uint8Array(preparedExport.bytes);
+      const blob = new Blob([raw], { type: preparedExport.mediaType });
+      const inspection = await inspectImageFile(blob);
+      assertImageExportInspection(
+        inspection,
+        preparedExport.settings.format,
+        preparedExport.width,
+        preparedExport.height,
+      );
+      if (sha256Bytes(raw) !== preparedExport.outputSha256) {
+        throw new Error("The prepared export bytes changed before download. Prepare the export again.");
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = preparedExport.filename;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "The final export bytes could not be verified.");
+    }
+  };
   const currentDownloadLabel = colorDisplayReady
     ? "Download colour-adjusted image"
     : toneDisplayReady
@@ -2095,9 +2262,103 @@ export function ImageQualityEditorPage() {
             if (files.length) void selectFile(files);
           }}
         />
+        <Button
+          size="compact"
+          disabled={!canExport}
+          title={canDownload && !exportSource ? "This remote result must be available locally before format export." : undefined}
+          onClick={() => {
+            setExportError(null);
+            setExportOpen(true);
+          }}
+        ><DownloadIcon aria-hidden="true" />Export</Button>
         <Button size="compact" disabled={processing || processorRestarting || geometryBusy || toneBusy || colorBusy} onClick={() => fileInput.current?.click()}><Upload aria-hidden="true" />Change image</Button>
       </div>
     </header>
+
+    <Dialog open={exportOpen} title="Export image" onClose={closeExport}>
+      <div className="quality-export-dialog">
+        <p>Prepare a delivery copy from the {exportSource?.label ?? "latest verified derivative"}. The editor verifies the encoded format and exact pixel dimensions again at download.</p>
+
+        <fieldset className="quality-export-formats">
+          <legend>File format</legend>
+          {(["png", "jpeg", "webp"] as const).map((format) => <label key={format}>
+            <input
+              type="radio"
+              name="image-export-format"
+              value={format}
+              checked={exportFormat === format}
+              disabled={exportBusy}
+              onChange={() => changeExportFormat(format)}
+            />
+            <span>{format === "jpeg" ? "JPEG" : format.toUpperCase()}</span>
+            <small>{format === "png" ? "Lossless · transparency" : format === "jpeg" ? "Smallest · opaque" : "Lossy · transparency"}</small>
+          </label>)}
+        </fieldset>
+
+        {exportFormat !== "png" && <label className="quality-export-quality">
+          <span>Quality <output>{exportQuality}%</output></span>
+          <input
+            type="range"
+            aria-label="Export quality"
+            min="40"
+            max="100"
+            step="1"
+            value={exportQuality}
+            disabled={exportBusy}
+            onChange={(event) => {
+              setExportQuality(Number(event.target.value));
+              setPreparedExport(null);
+              setExportError(null);
+            }}
+          />
+        </label>}
+
+        {exportFormat === "jpeg" && <SelectField
+          label="Transparent pixels"
+          hint="JPEG cannot preserve transparency. The default rejects transparent input instead of silently flattening it."
+          value={exportJpegMatte}
+          disabled={exportBusy}
+          onChange={(event) => {
+            setExportJpegMatte(event.target.value as ImageExportJpegMatte);
+            setPreparedExport(null);
+            setExportError(null);
+          }}
+        >
+          <option value="reject">Reject if transparency exists</option>
+          <option value="white">Flatten on white</option>
+          <option value="black">Flatten on black</option>
+        </SelectField>}
+
+        <div className="quality-export-disclosure">
+          <strong>{exportSource ? `${exportSource.width} × ${exportSource.height} px` : "No local derivative"}</strong>
+          <span>{exportFormat === "png"
+            ? "The verified PNG bytes, embedded edit provenance and alpha channel are retained."
+            : "Browser encoding produces an 8-bit sRGB delivery copy and removes source metadata. The verified editor derivative remains unchanged."}</span>
+        </div>
+
+        {exportError && <InlineNotice tone="error" title="Export not prepared"><p>{exportError}</p></InlineNotice>}
+        {preparedExportReady && preparedExport && <InlineNotice tone="success" title="Export verified and ready">
+          <dl className="quality-export-evidence">
+            <div><dt>File</dt><dd>{preparedExport.filename}</dd></div>
+            <div><dt>Source</dt><dd>{preparedExport.sourceLabel} · <code>{preparedExport.sourceSha256}</code></dd></div>
+            <div><dt>Verified bytes</dt><dd>{preparedExport.width} × {preparedExport.height} px · {Math.max(1, Math.round(preparedExport.byteSize / 1024))} KB</dd></div>
+            <div><dt>SHA-256</dt><dd><code>{preparedExport.outputSha256}</code></dd></div>
+            <div><dt>Transparency</dt><dd>{preparedExport.transparencyFlattened
+              ? `Flattened on ${preparedExport.settings.jpegMatte}`
+              : preparedExport.transparentPixels ? "Preserved" : "No transparent pixels detected"}</dd></div>
+          </dl>
+        </InlineNotice>}
+
+        <div className="quality-export-actions">
+          <Button disabled={!canExport || exportBusy} onClick={() => void prepareExport()}>
+            {exportBusy ? "Preparing…" : preparedExportReady ? "Prepare again" : "Prepare export"}
+          </Button>
+          <Button tone="primary" disabled={!preparedExportReady || exportBusy} onClick={() => void downloadPreparedExport()}>
+            <DownloadIcon aria-hidden="true" />Download verified file
+          </Button>
+        </div>
+      </div>
+    </Dialog>
 
     <section className="quality-workspace">
       <ImageEditorToolRail activeTool={activeTool} onChange={(tool) => {
