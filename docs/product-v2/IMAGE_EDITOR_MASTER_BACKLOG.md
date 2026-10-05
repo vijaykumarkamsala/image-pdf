@@ -298,6 +298,15 @@ it is not workspace-synced or shared. Loading a saved recipe still requires a
 separate Apply action; exported provenance records expanded settings rather than
 the private local preset name.
 
+A second bounded built-in collection provides four versioned non-generative
+colour looks: restrained vibrance, cool balance, muted tonal grading and a
+channel-mixed monochrome treatment. Selecting one loads a complete sanitized
+recipe without changing pixels; the existing Apply colour action remains
+mandatory and expanded settings continue through v10 colour provenance. These
+looks contain no source samples, reference match, LUT, protection anchor or
+external data. Preset replacement is disabled while such source-bound settings
+are active so reviewed evidence cannot be discarded by one click.
+
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
 - Depth blur, bokeh, selective colour, colour splash and double exposure.
@@ -306,7 +315,7 @@ the private local preset name.
 - Randomized but repeatable preset variants.
 
 **Still pending:** authenticated workspace-synced/shared presets, server-side
-migration and update notices, colour and multi-stage looks,
+migration and update notices, additional and multi-stage colour looks,
 film/grain/vignette/effect tools, and randomized repeatable variants.
 
 ## IE-13 — Multi-image processing

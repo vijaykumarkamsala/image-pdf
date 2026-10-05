@@ -71,6 +71,12 @@ import {
   type ImageSelectiveHslAdjustment,
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
+import {
+  IMAGE_COLOR_PRESETS,
+  IMAGE_COLOR_PRESET_VERSION,
+  imageColorPreset,
+  matchingImageColorPreset,
+} from "./imageColorPresets";
 import type { ImportedImageCubeLut } from "./imageCubeLut";
 import {
   analysisMatchesColorMatchRecipe,
@@ -731,6 +737,11 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
   const [protectedColorKind, setProtectedColorKind] = useState<ImageProtectedColorKind>("brand");
   const neutral = isNeutralColor(props.recipe);
+  const activeColorPreset = matchingImageColorPreset(props.recipe);
+  const hasSourceBoundColorSettings = props.recipe.pointColor.enabled
+    || Boolean(props.recipe.colorMatch)
+    || Boolean(props.recipe.cubeLut)
+    || props.recipe.protectedColors.length > 0;
   const suggestionLoaded = props.whiteBalanceSuggestionUsed;
   const selectedAdjustment = props.recipe.selectiveHsl[selectedRange];
   const selectedRangeNeutral = Object.values(selectedAdjustment).every((value) => value === 0);
@@ -752,6 +763,27 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
     ));
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
+    <fieldset className="quality-tone-presets quality-color-presets">
+      <legend>Built-in colour looks</legend>
+      <div className="quality-tone-preset-status">
+        <span>{activeColorPreset ? activeColorPreset.label : neutral ? "Neutral colour" : "Custom colour"}</span>
+        <small>Built-in collection v{IMAGE_COLOR_PRESET_VERSION}</small>
+      </div>
+      <div className="quality-tone-preset-grid">
+        {IMAGE_COLOR_PRESETS.map((preset) => <button
+          key={preset.id}
+          type="button"
+          aria-pressed={activeColorPreset?.id === preset.id}
+          disabled={props.busy || hasSourceBoundColorSettings}
+          onClick={() => props.onRecipe(imageColorPreset(preset.id).recipe)}
+        >
+          <span><strong>{preset.label}</strong><small>{preset.intent === "corrective" ? "Corrective" : "Creative"}</small></span>
+          <span>{preset.description}</span>
+        </button>)}
+      </div>
+      <p>A look loads a complete, versioned deterministic colour recipe. Review the controls, then choose Apply colour; selection alone never changes pixels.</p>
+      {hasSourceBoundColorSettings && <p className="quality-color-preset-warning" role="status">Remove active point-colour, reference-match, LUT and protected-colour settings before replacing the recipe with a built-in look.</p>}
+    </fieldset>
     <fieldset className="quality-auto-tone quality-white-balance">
       <legend>Neutral-point white balance</legend>
       <Button

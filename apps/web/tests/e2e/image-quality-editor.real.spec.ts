@@ -1919,6 +1919,82 @@ test("reviewed 3D LUT is the final creative transform and binds preview to downl
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });
 
+test("built-in colour looks load deterministic recipes without changing pixels before apply", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "colour-preset.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Colour controls" });
+  await expect(panel.getByText("Built-in collection v1.0.0")).toBeVisible();
+  const preset = panel.getByRole("button", { name: /Natural vibrance/ });
+  const accessibility = await new AxeBuilder({ page }).include(".quality-color-presets").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await preset.click();
+  await expect(preset).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.getByLabel("Temperature", { exact: true })).toHaveValue("4");
+  await expect(panel.getByLabel("Tint", { exact: true })).toHaveValue("1");
+  await expect(panel.getByLabel("Saturation", { exact: true })).toHaveValue("2");
+  await expect(panel.getByLabel("Vibrance", { exact: true })).toHaveValue("12");
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(unchangedPreviewUrl);
+
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+  await expect(preset).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Apply colour" })).toBeDisabled();
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(image.src);
+    if (!previewBlob) throw new Error("Missing active colour-preset preview blob");
+    const bytes = await previewBlob.arrayBuffer();
+    const digest = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      (value) => value.toString(16).padStart(2, "0"),
+    ).join("");
+    return { width: image.naturalWidth, height: image.naturalHeight, digest };
+  });
+  expect(previewEvidence).toMatchObject({ width: 48, height: 40 });
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("colour-preset-colour-adjusted-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v10");
+  expect(downloaded.toString("utf8")).toContain('"temperature":4');
+  expect(downloaded.toString("utf8")).toContain('"tint":1');
+  expect(downloaded.toString("utf8")).toContain('"saturation":2');
+  expect(downloaded.toString("utf8")).toContain('"vibrance":12');
+  expect(downloaded.toString("utf8")).toContain('"colorMatch":null');
+  expect(downloaded.toString("utf8")).toContain('"cubeLut":null');
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  await panel.getByLabel("Saturation", { exact: true }).fill("3");
+  await expect(preset).toHaveAttribute("aria-pressed", "false");
+  await expect(panel.getByText("Custom colour", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+});
+
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(48, 40);
   await retainObjectUrlBlobs(page);
