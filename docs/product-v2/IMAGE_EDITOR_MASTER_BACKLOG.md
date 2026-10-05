@@ -283,12 +283,25 @@ Studio; structured diagrams and connectors remain a separate experience.
 
 ## IE-12 — Creative tools
 
+**Implemented locally, pending product-owner image testing:** a bounded first
+preset slice provides four versioned built-in light-and-tone recipes. Selecting
+a preset only loads its complete sanitized deterministic settings into the
+existing controls; pixels remain unchanged until the customer explicitly
+chooses **Apply adjustments**. Exact expanded recipe values continue through the
+existing preview/download provenance path, and any manual value change is
+identified as custom settings. This slice does not add generative processing or
+silently alter the immutable original.
+
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
 - Depth blur, bokeh, selective colour, colour splash and double exposure.
 - Tilt-shift, motion effects, posterization, halftone and pixel-art treatments.
 - Cartoon/illustration conversion, vintage effects and campaign variants.
 - Randomized but repeatable preset variants.
+
+**Still pending:** user-created/workspace-synced presets, preset migration or
+update notices, colour and multi-stage looks, film/grain/vignette/effect tools,
+and randomized repeatable variants.
 
 ## IE-13 — Multi-image processing
 

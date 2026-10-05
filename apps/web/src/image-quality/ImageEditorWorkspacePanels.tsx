@@ -38,6 +38,12 @@ import {
   type ImageToneStatistics,
 } from "./imageTone";
 import {
+  IMAGE_TONE_PRESETS,
+  IMAGE_TONE_PRESET_VERSION,
+  imageTonePreset,
+  matchingImageTonePreset,
+} from "./imageTonePresets";
+import {
   IMAGE_COLOR_GRADING_RANGES,
   IMAGE_SELECTIVE_COLOR_RANGES,
   isNeutralColor,
@@ -197,8 +203,32 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
     }
   };
   const neutral = isNeutralTone(props.recipe);
+  const activePreset = matchingImageTonePreset(props.recipe);
   return <aside className="quality-tool-panel quality-controls" aria-label="Light and tone controls">
     <div className="quality-panel-heading"><SunMedium aria-hidden="true" /><div><h2>Light &amp; tone</h2><p>Deterministic correction from the latest verified base.</p></div></div>
+    <fieldset className="quality-tone-presets">
+      <legend>Built-in presets</legend>
+      <div className="quality-tone-preset-status">
+        <span>{activePreset ? activePreset.label : neutral ? "Neutral settings" : "Custom settings"}</span>
+        <small>Built-in collection v{IMAGE_TONE_PRESET_VERSION}</small>
+      </div>
+      <div className="quality-tone-preset-grid">
+        {IMAGE_TONE_PRESETS.map((preset) => <button
+          key={preset.id}
+          type="button"
+          aria-pressed={activePreset?.id === preset.id}
+          disabled={props.busy}
+          onClick={() => {
+            setRecommendationUsed(false);
+            props.onRecipe(imageTonePreset(preset.id).recipe);
+          }}
+        >
+          <span><strong>{preset.label}</strong><small>{preset.intent === "corrective" ? "Corrective" : "Creative"}</small></span>
+          <span>{preset.description}</span>
+        </button>)}
+      </div>
+      <p>A preset loads a complete, versioned deterministic recipe into the controls. Review the values, then choose Apply adjustments; selecting a preset alone never changes pixels.</p>
+    </fieldset>
     <fieldset className="quality-auto-tone">
       <legend>Automatic tonal correction</legend>
       <Button

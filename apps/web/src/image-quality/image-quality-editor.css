@@ -838,6 +838,101 @@
   gap: var(--space-4);
 }
 
+.quality-tone-presets {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+}
+
+.quality-tone-presets legend {
+  padding: 0 4px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.quality-tone-preset-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.quality-tone-preset-status span {
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.quality-tone-preset-status small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.quality-tone-preset-grid {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.quality-tone-preset-grid button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quality-tone-preset-grid button:hover,
+.quality-tone-preset-grid button[aria-pressed="true"] {
+  border-color: var(--color-brand);
+  background: var(--color-brand-subtle);
+}
+
+.quality-tone-preset-grid button:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.quality-tone-preset-grid button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.quality-tone-preset-grid button > span:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.quality-tone-preset-grid button strong {
+  font-size: var(--text-xs);
+}
+
+.quality-tone-preset-grid button small,
+.quality-tone-preset-grid button > span:last-child,
+.quality-tone-presets > p {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.quality-tone-preset-grid button small {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quality-tone-presets > p {
+  margin: 0;
+}
+
 .quality-auto-tone {
   display: grid;
   gap: var(--space-3);

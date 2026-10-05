@@ -1153,6 +1153,81 @@ test("crop perspective rotate flip resize and download use one source-bound reci
   await expect(page.getByRole("button", { name: "Download edited image" })).toBeDisabled();
 });
 
+test("built-in tone presets load versioned recipes without changing pixels before apply", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(64, 48);
+  await retainObjectUrlBlobs(page);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "tone-preset.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await expect(page.getByText(/Original ready\. Enhance quality uses disclosed Restore processing/)).toBeVisible();
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Light and tone controls" });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("Built-in collection v1.0.0")).toBeVisible();
+  const preset = panel.getByRole("button", { name: /Gentle detail/ });
+  const accessibility = await new AxeBuilder({ page }).include(".quality-tone-presets").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await preset.click();
+  await expect(preset).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.getByLabel("Local contrast", { exact: true })).toHaveValue("10");
+  await expect(panel.getByLabel("Clarity", { exact: true })).toHaveValue("8");
+  await expect(panel.getByLabel("Texture", { exact: true })).toHaveValue("6");
+  await expect(panel.getByLabel("Contrast", { exact: true })).toHaveValue("4");
+  await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(unchangedPreviewUrl);
+
+  await page.getByRole("button", { name: "Apply adjustments" }).click();
+  await expect(page.getByText(/Light-and-tone derivative ready/)).toBeVisible();
+  await expect(preset).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Apply adjustments" })).toBeDisabled();
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const resultUrl = (node as HTMLImageElement).src;
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(resultUrl);
+    if (!previewBlob) throw new Error("Missing active preset preview blob");
+    const bytes = await previewBlob.arrayBuffer();
+    const digest = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      (value) => value.toString(16).padStart(2, "0"),
+    ).join("");
+    return { digest, byteLength: bytes.byteLength };
+  });
+  expect(previewEvidence.byteLength).toBeGreaterThan(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("tone-preset-adjusted-64x48.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(64);
+  expect(downloaded.readUInt32BE(20)).toBe(48);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain('"localContrast":10');
+  expect(downloaded.toString("utf8")).toContain('"clarity":8');
+  expect(downloaded.toString("utf8")).toContain('"texture":6');
+  expect(downloaded.toString("utf8")).toContain('"contrast":4');
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  await panel.getByLabel("Clarity", { exact: true }).fill("9");
+  await expect(preset).toHaveAttribute("aria-pressed", "false");
+  await expect(panel.getByText("Custom settings", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
+});
+
 test("light and tone applies from the verified base and preview matches downloaded PNG bytes", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(64, 48);
   await page.goto("/image-quality?engine=deterministic");
