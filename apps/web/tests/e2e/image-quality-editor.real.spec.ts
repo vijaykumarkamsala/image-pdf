@@ -1995,6 +1995,131 @@ test("built-in colour looks load deterministic recipes without changing pixels b
   await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
 });
 
+test("customer colour presets persist portable recipes locally and require explicit apply", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "custom-colour.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Colour controls" });
+  await panel.getByLabel("Temperature", { exact: true }).fill("13");
+  await panel.getByLabel("Vibrance", { exact: true }).fill("17");
+  await panel.getByLabel("Colour preset name", { exact: true }).fill("  Warm   detail  ");
+  await panel.getByRole("button", { name: "Save current colour recipe" }).click();
+  await expect(panel.getByText('Saved "Warm detail" in this browser profile.')).toBeVisible();
+  const savedPreset = panel.locator(".quality-custom-preset-apply").filter({ hasText: "Warm detail" });
+  await expect(savedPreset).toBeVisible();
+  expect(await page.evaluate(() => {
+    const envelope = JSON.parse(localStorage.getItem("ipw-image-color-presets:v1") ?? "null");
+    return {
+      version: envelope?.version,
+      count: envelope?.presets?.length,
+      name: envelope?.presets?.[0]?.name,
+      recipeVersion: envelope?.presets?.[0]?.recipeVersion,
+      temperature: envelope?.presets?.[0]?.recipe?.temperature,
+      vibrance: envelope?.presets?.[0]?.recipe?.vibrance,
+      pointColor: envelope?.presets?.[0]?.recipe?.pointColor,
+      colorMatch: envelope?.presets?.[0]?.recipe?.colorMatch,
+      cubeLut: envelope?.presets?.[0]?.recipe?.cubeLut,
+      protectedColors: envelope?.presets?.[0]?.recipe?.protectedColors,
+    };
+  })).toEqual({
+    version: 1,
+    count: 1,
+    name: "Warm detail",
+    recipeVersion: 10,
+    temperature: 13,
+    vibrance: 17,
+    pointColor: {
+      enabled: false,
+      targetHue: 0,
+      tolerance: 18,
+      feather: 18,
+      hue: 0,
+      saturation: 0,
+      lightness: 0,
+    },
+    colorMatch: null,
+    cubeLut: null,
+    protectedColors: [],
+  });
+
+  await panel.getByRole("button", { name: "Rename Warm detail" }).click();
+  await panel.getByLabel("Rename Warm detail").fill("Warm finish");
+  await panel.getByRole("button", { name: "Save name" }).click();
+  await expect(panel.getByText('Renamed colour preset to "Warm finish".')).toBeVisible();
+
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "custom-colour.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  await page.getByRole("button", { name: "Colour", exact: true }).click();
+  const reloadedPanel = page.getByRole("complementary", { name: "Colour controls" });
+  const persistedPreset = reloadedPanel.locator(".quality-custom-preset-apply").filter({ hasText: "Warm finish" });
+  await expect(persistedPreset).toBeVisible();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-custom-color-presets").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await persistedPreset.click();
+  await expect(persistedPreset).toHaveAttribute("aria-pressed", "true");
+  await expect(reloadedPanel.getByLabel("Temperature", { exact: true })).toHaveValue("13");
+  await expect(reloadedPanel.getByLabel("Vibrance", { exact: true })).toHaveValue("17");
+  await expect(reloadedPanel.getByText('Loaded "Warm finish". Choose Apply colour to change pixels.')).toBeVisible();
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(unchangedPreviewUrl);
+  await expect(page.getByRole("button", { name: "Download colour-adjusted image" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Apply colour" }).click();
+  await expect(page.getByText(/Colour derivative ready/)).toBeVisible();
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(image.src);
+    if (!previewBlob) throw new Error("Missing active custom-colour preview blob");
+    const bytes = await previewBlob.arrayBuffer();
+    const digest = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      (value) => value.toString(16).padStart(2, "0"),
+    ).join("");
+    return { width: image.naturalWidth, height: image.naturalHeight, digest };
+  });
+  expect(previewEvidence).toMatchObject({ width: 48, height: 40 });
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download colour-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("custom-colour-colour-adjusted-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.color.provenance.v10");
+  expect(downloaded.toString("utf8")).toContain('"temperature":13');
+  expect(downloaded.toString("utf8")).toContain('"vibrance":17');
+  expect(downloaded.toString("utf8")).not.toContain("Warm finish");
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  await reloadedPanel.getByRole("button", { name: "Delete Warm finish" }).click();
+  await expect(reloadedPanel.getByRole("button", { name: "Confirm delete Warm finish" })).toBeVisible();
+  await reloadedPanel.getByRole("button", { name: "Confirm delete Warm finish" }).click();
+  await expect(persistedPreset).toHaveCount(0);
+  await expect(reloadedPanel.getByText('Deleted "Warm finish" from this browser profile.')).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("ipw-image-color-presets:v1") ?? "null")?.presets?.length)).toBe(0);
+});
+
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(48, 40);
   await retainObjectUrlBlobs(page);

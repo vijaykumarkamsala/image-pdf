@@ -60,6 +60,8 @@ import {
   IMAGE_SELECTIVE_COLOR_RANGES,
   isNeutralColor,
   MAX_BROWSER_COLOR_PIXELS,
+  sameColorRecipe,
+  sanitizeColorRecipe,
   type ImageBlackAndWhiteRecipe,
   type ImageColorGrade,
   type ImageColorGradingRange,
@@ -77,6 +79,19 @@ import {
   imageColorPreset,
   matchingImageColorPreset,
 } from "./imageColorPresets";
+import {
+  addImageColorCustomPreset,
+  hasSourceBoundImageColorSettings,
+  IMAGE_COLOR_CUSTOM_PRESET_STORAGE_KEY,
+  isPortableImageColorRecipe,
+  MAX_IMAGE_COLOR_CUSTOM_PRESETS,
+  MAX_IMAGE_COLOR_CUSTOM_PRESET_NAME_LENGTH,
+  persistImageColorCustomPresets,
+  readImageColorCustomPresets,
+  removeImageColorCustomPreset,
+  renameImageColorCustomPreset,
+  type ImageColorCustomPreset,
+} from "./imageColorCustomPresets";
 import type { ImportedImageCubeLut } from "./imageCubeLut";
 import {
   analysisMatchesColorMatchRecipe,
@@ -736,12 +751,33 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
   const [selectedRange, setSelectedRange] = useState<ImageSelectiveColorRange>("red");
   const [selectedGrade, setSelectedGrade] = useState<ImageColorGradingRange>("shadows");
   const [protectedColorKind, setProtectedColorKind] = useState<ImageProtectedColorKind>("brand");
+  const [customColorPresets, setCustomColorPresets] = useState<ImageColorCustomPreset[]>([]);
+  const [customColorPresetName, setCustomColorPresetName] = useState("");
+  const [customColorPresetMessage, setCustomColorPresetMessage] = useState<string | null>(null);
+  const [customColorPresetError, setCustomColorPresetError] = useState<string | null>(null);
+  const [renamingColorPresetId, setRenamingColorPresetId] = useState<string | null>(null);
+  const [renamingColorPresetName, setRenamingColorPresetName] = useState("");
+  const [deletingColorPresetId, setDeletingColorPresetId] = useState<string | null>(null);
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        setCustomColorPresets(readImageColorCustomPresets(localStorage));
+      } catch {
+        setCustomColorPresetError("Saved colour presets are unavailable in this browser profile.");
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === IMAGE_COLOR_CUSTOM_PRESET_STORAGE_KEY) refresh();
+    };
+    refresh();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   const neutral = isNeutralColor(props.recipe);
   const activeColorPreset = matchingImageColorPreset(props.recipe);
-  const hasSourceBoundColorSettings = props.recipe.pointColor.enabled
-    || Boolean(props.recipe.colorMatch)
-    || Boolean(props.recipe.cubeLut)
-    || props.recipe.protectedColors.length > 0;
+  const activeCustomColorPreset = customColorPresets.find((preset) => sameColorRecipe(preset.recipe, props.recipe)) ?? null;
+  const hasSourceBoundColorSettings = hasSourceBoundImageColorSettings(props.recipe);
+  const portableColorRecipe = isPortableImageColorRecipe(props.recipe);
   const suggestionLoaded = props.whiteBalanceSuggestionUsed;
   const selectedAdjustment = props.recipe.selectiveHsl[selectedRange];
   const selectedRangeNeutral = Object.values(selectedAdjustment).every((value) => value === 0);
@@ -761,6 +797,36 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
       props.recipe.colorMatch,
       props.colorMatchReview.baseOutputSha256,
     ));
+  const commitCustomColorPresets = (next: ImageColorCustomPreset[], message: string) => {
+    try {
+      persistImageColorCustomPresets(localStorage, next);
+      setCustomColorPresets(next);
+      setCustomColorPresetError(null);
+      setCustomColorPresetMessage(message);
+      return true;
+    } catch {
+      setCustomColorPresetMessage(null);
+      setCustomColorPresetError("The browser could not save this colour preset. Existing presets were left unchanged.");
+      return false;
+    }
+  };
+  const saveCustomColorPreset = () => {
+    try {
+      const next = addImageColorCustomPreset(
+        customColorPresets,
+        customColorPresetName,
+        props.recipe,
+        `colour-${crypto.randomUUID()}`,
+      );
+      const saved = next[next.length - 1]!;
+      if (commitCustomColorPresets(next, `Saved "${saved.name}" in this browser profile.`)) {
+        setCustomColorPresetName("");
+      }
+    } catch (error) {
+      setCustomColorPresetMessage(null);
+      setCustomColorPresetError(error instanceof Error ? error.message : "The colour preset could not be saved.");
+    }
+  };
   return <aside className="quality-tool-panel quality-controls" aria-label="Colour controls">
     <div className="quality-panel-heading"><Palette aria-hidden="true" /><div><h2>Colour</h2><p>Bounded global and selective correction after light and tone.</p></div></div>
     <fieldset className="quality-tone-presets quality-color-presets">
@@ -783,6 +849,117 @@ export function ColorToolPanel(props: ColorToolPanelProps) {
       </div>
       <p>A look loads a complete, versioned deterministic colour recipe. Review the controls, then choose Apply colour; selection alone never changes pixels.</p>
       {hasSourceBoundColorSettings && <p className="quality-color-preset-warning" role="status">Remove active point-colour, reference-match, LUT and protected-colour settings before replacing the recipe with a built-in look.</p>}
+    </fieldset>
+    <fieldset className="quality-custom-presets quality-custom-color-presets">
+      <legend>My colour presets</legend>
+      <p>Saved names and portable colour settings stay only in this browser profile. They are not synced, shared or embedded as preset names in exported files.</p>
+      <form className="quality-custom-preset-create" onSubmit={(event) => {
+        event.preventDefault();
+        saveCustomColorPreset();
+      }}>
+        <label>
+          <span>Colour preset name</span>
+          <input
+            type="text"
+            maxLength={MAX_IMAGE_COLOR_CUSTOM_PRESET_NAME_LENGTH}
+            value={customColorPresetName}
+            disabled={props.busy || customColorPresets.length >= MAX_IMAGE_COLOR_CUSTOM_PRESETS}
+            onChange={(event) => {
+              setCustomColorPresetName(event.target.value);
+              setCustomColorPresetError(null);
+              setCustomColorPresetMessage(null);
+            }}
+          />
+        </label>
+        <Button
+          type="submit"
+          size="compact"
+          disabled={props.busy || !customColorPresetName.trim() || neutral || Boolean(activeColorPreset)
+            || Boolean(activeCustomColorPreset) || !portableColorRecipe
+            || customColorPresets.length >= MAX_IMAGE_COLOR_CUSTOM_PRESETS}
+        >Save current colour recipe</Button>
+      </form>
+      {neutral && <small>Change at least one portable colour setting before saving.</small>}
+      {activeColorPreset && <small>"{activeColorPreset.label}" is already available in the built-in collection.</small>}
+      {!activeColorPreset && activeCustomColorPreset && <small>This recipe is already saved as "{activeCustomColorPreset.name}".</small>}
+      {hasSourceBoundColorSettings && <small className="quality-color-preset-warning" role="status">Source-bound point colour, reference matching, LUTs and protected-colour anchors cannot be saved in a reusable preset. Clear them first.</small>}
+      {!hasSourceBoundColorSettings && !portableColorRecipe && !neutral && <small className="quality-color-preset-warning" role="status">Resolve invalid colour controls before saving this recipe.</small>}
+      <small>{customColorPresets.length} of {MAX_IMAGE_COLOR_CUSTOM_PRESETS} local colour presets used.</small>
+      {customColorPresetMessage && <p className="quality-custom-preset-message" role="status">{customColorPresetMessage}</p>}
+      {customColorPresetError && <p className="quality-custom-preset-error" role="alert">{customColorPresetError}</p>}
+      {customColorPresets.length === 0
+        ? <p className="quality-custom-preset-empty">No saved colour presets in this browser profile.</p>
+        : <ul className="quality-custom-preset-list" aria-label="Saved colour presets">
+          {customColorPresets.map((preset) => <li key={preset.id}>
+            {renamingColorPresetId === preset.id
+              ? <form className="quality-custom-preset-rename" onSubmit={(event) => {
+                event.preventDefault();
+                try {
+                  const next = renameImageColorCustomPreset(customColorPresets, preset.id, renamingColorPresetName);
+                  const renamed = next.find((item) => item.id === preset.id)!;
+                  if (commitCustomColorPresets(next, `Renamed colour preset to "${renamed.name}".`)) {
+                    setRenamingColorPresetId(null);
+                    setRenamingColorPresetName("");
+                  }
+                } catch (error) {
+                  setCustomColorPresetMessage(null);
+                  setCustomColorPresetError(error instanceof Error ? error.message : "The colour preset could not be renamed.");
+                }
+              }}>
+                <label><span>Rename {preset.name}</span><input
+                  type="text"
+                  maxLength={MAX_IMAGE_COLOR_CUSTOM_PRESET_NAME_LENGTH}
+                  value={renamingColorPresetName}
+                  autoFocus
+                  onChange={(event) => setRenamingColorPresetName(event.target.value)}
+                /></label>
+                <div><Button type="submit" size="compact" disabled={!renamingColorPresetName.trim()}>Save name</Button><Button type="button" size="compact" onClick={() => {
+                  setRenamingColorPresetId(null);
+                  setRenamingColorPresetName("");
+                }}>Cancel rename</Button></div>
+              </form>
+              : <>
+                <button
+                  type="button"
+                  className="quality-custom-preset-apply"
+                  aria-pressed={activeCustomColorPreset?.id === preset.id && !activeColorPreset}
+                  disabled={props.busy || hasSourceBoundColorSettings}
+                  onClick={() => {
+                    setCustomColorPresetError(null);
+                    setCustomColorPresetMessage(`Loaded "${preset.name}". Choose Apply colour to change pixels.`);
+                    props.onRecipe(sanitizeColorRecipe(preset.recipe));
+                  }}
+                ><strong>{preset.name}</strong><span>Apply saved colour recipe</span></button>
+                <div className="quality-custom-preset-actions">
+                  <Button type="button" size="compact" disabled={props.busy} onClick={() => {
+                    setRenamingColorPresetId(preset.id);
+                    setRenamingColorPresetName(preset.name);
+                    setDeletingColorPresetId(null);
+                    setCustomColorPresetError(null);
+                    setCustomColorPresetMessage(null);
+                  }}>Rename {preset.name}</Button>
+                  {deletingColorPresetId === preset.id
+                    ? <><Button type="button" size="compact" tone="danger" onClick={() => {
+                      try {
+                        const next = removeImageColorCustomPreset(customColorPresets, preset.id);
+                        if (commitCustomColorPresets(next, `Deleted "${preset.name}" from this browser profile.`)) {
+                          setDeletingColorPresetId(null);
+                        }
+                      } catch (error) {
+                        setCustomColorPresetMessage(null);
+                        setCustomColorPresetError(error instanceof Error ? error.message : "The colour preset could not be deleted.");
+                      }
+                    }}>Confirm delete {preset.name}</Button><Button type="button" size="compact" onClick={() => setDeletingColorPresetId(null)}>Cancel delete</Button></>
+                    : <Button type="button" size="compact" tone="danger" disabled={props.busy} onClick={() => {
+                      setDeletingColorPresetId(preset.id);
+                      setRenamingColorPresetId(null);
+                      setCustomColorPresetError(null);
+                      setCustomColorPresetMessage(null);
+                    }}>Delete {preset.name}</Button>}
+                </div>
+              </>}
+          </li>)}
+        </ul>}
     </fieldset>
     <fieldset className="quality-auto-tone quality-white-balance">
       <legend>Neutral-point white balance</legend>

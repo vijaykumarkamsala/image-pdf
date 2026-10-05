@@ -307,6 +307,14 @@ looks contain no source samples, reference match, LUT, protection anchor or
 external data. Preset replacement is disabled while such source-bound settings
 are active so reviewed evidence cannot be discarded by one click.
 
+Customers can also save, reload, rename and explicitly delete up to 24 custom
+colour recipes in the current browser profile. The versioned local schema
+accepts only complete, sanitized portable recipes and rejects corrupt,
+duplicate, obsolete or out-of-range records. Source-bound point-colour samples,
+reference matches, LUTs and protected-colour anchors cannot be saved or silently
+removed. Loading remains separate from Apply colour, while exported provenance
+contains the expanded v10 settings and never the private local preset name.
+
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
 - Depth blur, bokeh, selective colour, colour splash and double exposure.

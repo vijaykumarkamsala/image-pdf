@@ -933,7 +933,8 @@
   margin: 0;
 }
 
-.quality-tone-presets > .quality-color-preset-warning {
+.quality-tone-presets > .quality-color-preset-warning,
+.quality-custom-presets > .quality-color-preset-warning {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--color-warning);
