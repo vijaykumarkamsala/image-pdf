@@ -1228,6 +1228,89 @@ test("built-in tone presets load versioned recipes without changing pixels befor
   await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
 });
 
+test("customer tone presets persist locally and require explicit apply", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(64, 48);
+  await retainObjectUrlBlobs(page);
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "custom-tone.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Light and tone controls" });
+  await panel.getByLabel("Clarity", { exact: true }).fill("17");
+  await panel.getByLabel("Texture", { exact: true }).fill("9");
+  await panel.getByLabel("Preset name", { exact: true }).fill("  Fine   detail  ");
+  await panel.getByRole("button", { name: "Save current recipe" }).click();
+  await expect(panel.getByText("Saved “Fine detail” in this browser profile.")).toBeVisible();
+  const savedPreset = panel.locator(".quality-custom-preset-apply").filter({ hasText: "Fine detail" });
+  await expect(savedPreset).toBeVisible();
+  expect(await page.evaluate(() => {
+    const envelope = JSON.parse(localStorage.getItem("ipw-image-tone-presets:v1") ?? "null");
+    return {
+      version: envelope?.version,
+      count: envelope?.presets?.length,
+      name: envelope?.presets?.[0]?.name,
+      recipeVersion: envelope?.presets?.[0]?.recipeVersion,
+      clarity: envelope?.presets?.[0]?.recipe?.clarity,
+      texture: envelope?.presets?.[0]?.recipe?.texture,
+    };
+  })).toEqual({ version: 1, count: 1, name: "Fine detail", recipeVersion: 8, clarity: 17, texture: 9 });
+
+  await panel.getByRole("button", { name: "Rename Fine detail" }).click();
+  await panel.getByLabel("Rename Fine detail").fill("Texture lift");
+  await panel.getByRole("button", { name: "Save name" }).click();
+  await expect(panel.getByText("Renamed preset to “Texture lift”.")).toBeVisible();
+
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "custom-tone.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  const reloadedPanel = page.getByRole("complementary", { name: "Light and tone controls" });
+  const persistedPreset = reloadedPanel.locator(".quality-custom-preset-apply").filter({ hasText: "Texture lift" });
+  await expect(persistedPreset).toBeVisible();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-custom-presets").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await persistedPreset.click();
+  await expect(persistedPreset).toHaveAttribute("aria-pressed", "true");
+  await expect(reloadedPanel.getByLabel("Clarity", { exact: true })).toHaveValue("17");
+  await expect(reloadedPanel.getByLabel("Texture", { exact: true })).toHaveValue("9");
+  await expect(reloadedPanel.getByText("Loaded “Texture lift”. Choose Apply adjustments to change pixels.")).toBeVisible();
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(unchangedPreviewUrl);
+  await expect(page.getByRole("button", { name: "Download adjusted image" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Apply adjustments" }).click();
+  await expect(page.getByText(/Light-and-tone derivative ready/)).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("custom-tone-adjusted-64x48.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.tone.provenance.v8");
+  expect(downloaded.toString("utf8")).toContain('"clarity":17');
+  expect(downloaded.toString("utf8")).toContain('"texture":9');
+  expect(downloaded.toString("utf8")).not.toContain("Texture lift");
+
+  await reloadedPanel.getByRole("button", { name: "Delete Texture lift" }).click();
+  await expect(reloadedPanel.getByRole("button", { name: "Confirm delete Texture lift" })).toBeVisible();
+  await reloadedPanel.getByRole("button", { name: "Confirm delete Texture lift" }).click();
+  await expect(persistedPreset).toHaveCount(0);
+  await expect(reloadedPanel.getByText("Deleted “Texture lift” from this browser profile.")).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("ipw-image-tone-presets:v1") ?? "null")?.presets?.length)).toBe(0);
+});
+
 test("light and tone applies from the verified base and preview matches downloaded PNG bytes", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(64, 48);
   await page.goto("/image-quality?engine=deterministic");

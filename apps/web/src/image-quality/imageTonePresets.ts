@@ -3,7 +3,7 @@ import {
   sameToneRecipe,
   sanitizeToneRecipe,
   type ImageToneRecipe,
-} from "./imageTone";
+} from "./imageTone.ts";
 
 export const IMAGE_TONE_PRESET_VERSION = "1.0.0";
 

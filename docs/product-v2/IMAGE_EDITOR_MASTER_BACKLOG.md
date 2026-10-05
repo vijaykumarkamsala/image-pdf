@@ -290,7 +290,13 @@ existing controls; pixels remain unchanged until the customer explicitly
 chooses **Apply adjustments**. Exact expanded recipe values continue through the
 existing preview/download provenance path, and any manual value change is
 identified as custom settings. This slice does not add generative processing or
-silently alter the immutable original.
+silently alter the immutable original. Customers can also save, reload, rename,
+apply and explicitly delete up to 24 custom tone recipes in the current browser
+profile. The local collection uses a strict versioned schema and recipe version,
+rejects corrupt, duplicate or out-of-range entries, and clearly discloses that
+it is not workspace-synced or shared. Loading a saved recipe still requires a
+separate Apply action; exported provenance records expanded settings rather than
+the private local preset name.
 
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
@@ -299,9 +305,9 @@ silently alter the immutable original.
 - Cartoon/illustration conversion, vintage effects and campaign variants.
 - Randomized but repeatable preset variants.
 
-**Still pending:** user-created/workspace-synced presets, preset migration or
-update notices, colour and multi-stage looks, film/grain/vignette/effect tools,
-and randomized repeatable variants.
+**Still pending:** authenticated workspace-synced/shared presets, server-side
+migration and update notices, colour and multi-stage looks,
+film/grain/vignette/effect tools, and randomized repeatable variants.
 
 ## IE-13 — Multi-image processing
 

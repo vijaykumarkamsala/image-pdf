@@ -933,6 +933,146 @@
   margin: 0;
 }
 
+.quality-custom-presets {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+}
+
+.quality-custom-presets legend {
+  padding: 0 4px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.quality-custom-presets > p,
+.quality-custom-presets > small,
+.quality-custom-preset-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.quality-custom-preset-create,
+.quality-custom-preset-rename {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.quality-custom-preset-create label,
+.quality-custom-preset-rename label {
+  display: grid;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.quality-custom-preset-create input,
+.quality-custom-preset-rename input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+}
+
+.quality-custom-preset-create input:focus-visible,
+.quality-custom-preset-rename input:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.quality-custom-preset-create > .ds-button {
+  justify-content: center;
+  width: 100%;
+}
+
+.quality-custom-presets .quality-custom-preset-message {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.quality-custom-presets .quality-custom-preset-error {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.quality-custom-preset-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quality-custom-preset-list > li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.quality-custom-preset-apply {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quality-custom-preset-apply:hover,
+.quality-custom-preset-apply[aria-pressed="true"] {
+  border-color: var(--color-brand);
+  background: var(--color-brand-subtle);
+}
+
+.quality-custom-preset-apply:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.quality-custom-preset-apply:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.quality-custom-preset-apply strong {
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+}
+
+.quality-custom-preset-apply span {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.quality-custom-preset-actions,
+.quality-custom-preset-rename > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
 .quality-auto-tone {
   display: grid;
   gap: var(--space-3);

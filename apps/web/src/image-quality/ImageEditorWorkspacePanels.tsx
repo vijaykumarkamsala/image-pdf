@@ -32,6 +32,7 @@ import {
   isNeutralTone,
   MAX_BROWSER_TONE_PIXELS,
   recommendToneCorrection,
+  sameToneRecipe,
   sanitizeToneRecipe,
   type ImageToneRecommendation,
   type ImageToneRecipe,
@@ -43,6 +44,17 @@ import {
   imageTonePreset,
   matchingImageTonePreset,
 } from "./imageTonePresets";
+import {
+  addImageToneCustomPreset,
+  IMAGE_TONE_CUSTOM_PRESET_STORAGE_KEY,
+  MAX_IMAGE_TONE_CUSTOM_PRESETS,
+  MAX_IMAGE_TONE_CUSTOM_PRESET_NAME_LENGTH,
+  persistImageToneCustomPresets,
+  readImageToneCustomPresets,
+  removeImageToneCustomPreset,
+  renameImageToneCustomPreset,
+  type ImageToneCustomPreset,
+} from "./imageToneCustomPresets";
 import {
   IMAGE_COLOR_GRADING_RANGES,
   IMAGE_SELECTIVE_COLOR_RANGES,
@@ -158,6 +170,13 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
   const [recommendationBusy, setRecommendationBusy] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [recommendationUsed, setRecommendationUsed] = useState(false);
+  const [customPresets, setCustomPresets] = useState<ImageToneCustomPreset[]>([]);
+  const [customPresetName, setCustomPresetName] = useState("");
+  const [customPresetMessage, setCustomPresetMessage] = useState<string | null>(null);
+  const [customPresetError, setCustomPresetError] = useState<string | null>(null);
+  const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
+  const [renamingPresetName, setRenamingPresetName] = useState("");
+  const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null);
   const recommendationEngine = useRef<WorkerImageHistogramEngine | null>(null);
   const recommendationOperation = useRef(0);
   const recommendationKey = props.recommendationInput
@@ -175,6 +194,21 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
   useEffect(() => () => {
     recommendationOperation.current += 1;
     recommendationEngine.current?.dispose();
+  }, []);
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        setCustomPresets(readImageToneCustomPresets(localStorage));
+      } catch {
+        setCustomPresetError("Saved presets are unavailable in this browser profile.");
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === IMAGE_TONE_CUSTOM_PRESET_STORAGE_KEY) refresh();
+    };
+    refresh();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
   const analyseTone = async () => {
     const input = props.recommendationInput;
@@ -204,6 +238,35 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
   };
   const neutral = isNeutralTone(props.recipe);
   const activePreset = matchingImageTonePreset(props.recipe);
+  const activeCustomPreset = customPresets.find((preset) => sameToneRecipe(preset.recipe, props.recipe)) ?? null;
+  const commitCustomPresets = (next: ImageToneCustomPreset[], message: string) => {
+    try {
+      persistImageToneCustomPresets(localStorage, next);
+      setCustomPresets(next);
+      setCustomPresetError(null);
+      setCustomPresetMessage(message);
+      return true;
+    } catch {
+      setCustomPresetMessage(null);
+      setCustomPresetError("The browser could not save this preset. Existing presets were left unchanged.");
+      return false;
+    }
+  };
+  const saveCustomPreset = () => {
+    try {
+      const next = addImageToneCustomPreset(
+        customPresets,
+        customPresetName,
+        props.recipe,
+        `tone-${crypto.randomUUID()}`,
+      );
+      const saved = next[next.length - 1]!;
+      if (commitCustomPresets(next, `Saved “${saved.name}” in this browser profile.`)) setCustomPresetName("");
+    } catch (error) {
+      setCustomPresetMessage(null);
+      setCustomPresetError(error instanceof Error ? error.message : "The preset could not be saved.");
+    }
+  };
   return <aside className="quality-tool-panel quality-controls" aria-label="Light and tone controls">
     <div className="quality-panel-heading"><SunMedium aria-hidden="true" /><div><h2>Light &amp; tone</h2><p>Deterministic correction from the latest verified base.</p></div></div>
     <fieldset className="quality-tone-presets">
@@ -228,6 +291,115 @@ export function ToneToolPanel(props: ToneToolPanelProps) {
         </button>)}
       </div>
       <p>A preset loads a complete, versioned deterministic recipe into the controls. Review the values, then choose Apply adjustments; selecting a preset alone never changes pixels.</p>
+    </fieldset>
+    <fieldset className="quality-custom-presets">
+      <legend>My presets</legend>
+      <p>Saved names and tone settings stay only in this browser profile. They are not synced, shared or embedded as preset names in exported files.</p>
+      <form className="quality-custom-preset-create" onSubmit={(event) => {
+        event.preventDefault();
+        saveCustomPreset();
+      }}>
+        <label>
+          <span>Preset name</span>
+          <input
+            type="text"
+            maxLength={MAX_IMAGE_TONE_CUSTOM_PRESET_NAME_LENGTH}
+            value={customPresetName}
+            disabled={props.busy || customPresets.length >= MAX_IMAGE_TONE_CUSTOM_PRESETS}
+            onChange={(event) => {
+              setCustomPresetName(event.target.value);
+              setCustomPresetError(null);
+              setCustomPresetMessage(null);
+            }}
+          />
+        </label>
+        <Button
+          type="submit"
+          size="compact"
+          disabled={props.busy || !customPresetName.trim() || neutral || Boolean(activePreset) || Boolean(activeCustomPreset)
+            || customPresets.length >= MAX_IMAGE_TONE_CUSTOM_PRESETS}
+        >Save current recipe</Button>
+      </form>
+      {neutral && <small>Change at least one tone setting before saving.</small>}
+      {activePreset && <small>“{activePreset.label}” is already available in the built-in collection.</small>}
+      {!activePreset && activeCustomPreset && <small>This recipe is already saved as “{activeCustomPreset.name}”.</small>}
+      <small>{customPresets.length} of {MAX_IMAGE_TONE_CUSTOM_PRESETS} local presets used.</small>
+      {customPresetMessage && <p className="quality-custom-preset-message" role="status">{customPresetMessage}</p>}
+      {customPresetError && <p className="quality-custom-preset-error" role="alert">{customPresetError}</p>}
+      {customPresets.length === 0
+        ? <p className="quality-custom-preset-empty">No saved presets in this browser profile.</p>
+        : <ul className="quality-custom-preset-list" aria-label="Saved tone presets">
+          {customPresets.map((preset) => <li key={preset.id}>
+            {renamingPresetId === preset.id
+              ? <form className="quality-custom-preset-rename" onSubmit={(event) => {
+                event.preventDefault();
+                try {
+                  const next = renameImageToneCustomPreset(customPresets, preset.id, renamingPresetName);
+                  const renamed = next.find((item) => item.id === preset.id)!;
+                  if (commitCustomPresets(next, `Renamed preset to “${renamed.name}”.`)) {
+                    setRenamingPresetId(null);
+                    setRenamingPresetName("");
+                  }
+                } catch (error) {
+                  setCustomPresetMessage(null);
+                  setCustomPresetError(error instanceof Error ? error.message : "The preset could not be renamed.");
+                }
+              }}>
+                <label><span>Rename {preset.name}</span><input
+                  type="text"
+                  maxLength={MAX_IMAGE_TONE_CUSTOM_PRESET_NAME_LENGTH}
+                  value={renamingPresetName}
+                  autoFocus
+                  onChange={(event) => setRenamingPresetName(event.target.value)}
+                /></label>
+                <div><Button type="submit" size="compact" disabled={!renamingPresetName.trim()}>Save name</Button><Button type="button" size="compact" onClick={() => {
+                  setRenamingPresetId(null);
+                  setRenamingPresetName("");
+                }}>Cancel rename</Button></div>
+              </form>
+              : <>
+                <button
+                  type="button"
+                  className="quality-custom-preset-apply"
+                  aria-pressed={activeCustomPreset?.id === preset.id && !activePreset}
+                  disabled={props.busy}
+                  onClick={() => {
+                    setRecommendationUsed(false);
+                    setCustomPresetError(null);
+                    setCustomPresetMessage(`Loaded “${preset.name}”. Choose Apply adjustments to change pixels.`);
+                    props.onRecipe({ ...preset.recipe });
+                  }}
+                ><strong>{preset.name}</strong><span>Apply saved recipe</span></button>
+                <div className="quality-custom-preset-actions">
+                  <Button type="button" size="compact" disabled={props.busy} onClick={() => {
+                    setRenamingPresetId(preset.id);
+                    setRenamingPresetName(preset.name);
+                    setDeletingPresetId(null);
+                    setCustomPresetError(null);
+                    setCustomPresetMessage(null);
+                  }}>Rename {preset.name}</Button>
+                  {deletingPresetId === preset.id
+                    ? <><Button type="button" size="compact" tone="danger" onClick={() => {
+                      try {
+                        const next = removeImageToneCustomPreset(customPresets, preset.id);
+                        if (commitCustomPresets(next, `Deleted “${preset.name}” from this browser profile.`)) {
+                          setDeletingPresetId(null);
+                        }
+                      } catch (error) {
+                        setCustomPresetMessage(null);
+                        setCustomPresetError(error instanceof Error ? error.message : "The preset could not be deleted.");
+                      }
+                    }}>Confirm delete {preset.name}</Button><Button type="button" size="compact" onClick={() => setDeletingPresetId(null)}>Cancel delete</Button></>
+                    : <Button type="button" size="compact" tone="danger" disabled={props.busy} onClick={() => {
+                      setDeletingPresetId(preset.id);
+                      setRenamingPresetId(null);
+                      setCustomPresetError(null);
+                      setCustomPresetMessage(null);
+                    }}>Delete {preset.name}</Button>}
+                </div>
+              </>}
+          </li>)}
+        </ul>}
     </fieldset>
     <fieldset className="quality-auto-tone">
       <legend>Automatic tonal correction</legend>
