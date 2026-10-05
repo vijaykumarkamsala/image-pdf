@@ -10,6 +10,12 @@ import {
   type ImagePointColorSample,
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor.ts";
+import {
+  isNeutralEffects,
+  isSanitizedEffectsRecipe,
+  type ImageEffectsRecipe,
+  type ImageEffectsStatistics,
+} from "./imageEffects.ts";
 
 export interface PngOutputMetadata {
   sourceSha256: string;
@@ -72,6 +78,19 @@ export interface PngColorMetadata {
   pointColorSample: ImagePointColorSample | null;
   recipe: ImageColorRecipe;
   statistics: ImageColorStatistics;
+  outputWidth: number;
+  outputHeight: number;
+}
+
+export interface PngEffectMetadata {
+  sourceSha256: string;
+  baseOutputSha256: string;
+  baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced" | "tone" | "colour";
+  baseRoute: string;
+  baseStrength: number | null;
+  baseScale: number;
+  recipe: ImageEffectsRecipe;
+  statistics: ImageEffectsStatistics;
   outputWidth: number;
   outputHeight: number;
 }
@@ -254,6 +273,34 @@ function colorProvenance(metadata: PngColorMetadata) {
     output_height: metadata.outputHeight,
   });
   const keyword = encoder.encode("ImageColorProvenance");
+  const text = encoder.encode(value);
+  const data = new Uint8Array(keyword.byteLength + 5 + text.byteLength);
+  data.set(keyword, 0);
+  data.set(text, keyword.byteLength + 5);
+  return data;
+}
+
+function effectProvenance(metadata: PngEffectMetadata) {
+  const value = JSON.stringify({
+    schema: "ipw.image-edit.effects.provenance.v1",
+    source_sha256: metadata.sourceSha256,
+    base_output_sha256: metadata.baseOutputSha256,
+    base_kind: metadata.baseKind,
+    base_route: metadata.baseRoute,
+    base_strength: metadata.baseStrength,
+    base_scale: metadata.baseScale,
+    operation_order: ["source_coordinate_vignette"],
+    recipe: metadata.recipe,
+    statistics: {
+      processed_pixels: metadata.statistics.processedPixels,
+      changed_pixels: metadata.statistics.changedPixels,
+      darkened_pixels: metadata.statistics.darkenedPixels,
+      lightened_pixels: metadata.statistics.lightenedPixels,
+    },
+    output_width: metadata.outputWidth,
+    output_height: metadata.outputHeight,
+  });
+  const keyword = encoder.encode("ImageEffectProvenance");
   const text = encoder.encode(value);
   const data = new Uint8Array(keyword.byteLength + 5 + text.byteLength);
   data.set(keyword, 0);
@@ -528,6 +575,81 @@ export function tagColorPng(bytes: Uint8Array, metadata: PngColorMetadata): Uint
       : "";
     if (!["sRGB", "gAMA", "iCCP", "cICP", "pHYs"].includes(type)
       && !(type === "iTXt" && ["ImageQualityProvenance", "ImageEditProvenance", "ImageToneProvenance", "ImageColorProvenance"].includes(keyword))) {
+      parts.push(bytes.subarray(inputOffset, end));
+    }
+    inputOffset = end;
+    if (type === "IEND") {
+      foundEnd = true;
+      break;
+    }
+  }
+  if (!foundEnd || inputOffset !== bytes.byteLength) throw new Error("The processed PNG is incomplete.");
+  const output = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0));
+  let outputOffset = 0;
+  for (const part of parts) {
+    output.set(part, outputOffset);
+    outputOffset += part.byteLength;
+  }
+  return output;
+}
+
+export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Uint8Array {
+  assertPngDimensions(bytes, metadata.outputWidth, metadata.outputHeight);
+  const hash = /^[a-f0-9]{64}$/;
+  const pixelCount = metadata.outputWidth * metadata.outputHeight;
+  const statistics = [
+    metadata.statistics.processedPixels,
+    metadata.statistics.changedPixels,
+    metadata.statistics.darkenedPixels,
+    metadata.statistics.lightenedPixels,
+  ];
+  const baseKinds: PngEffectMetadata["baseKind"][] = [
+    "original",
+    "enhanced",
+    "geometry-original",
+    "geometry-enhanced",
+    "tone",
+    "colour",
+  ];
+  if (!hash.test(metadata.sourceSha256) || !hash.test(metadata.baseOutputSha256)
+    || !baseKinds.includes(metadata.baseKind) || !metadata.baseRoute.trim()
+    || (metadata.baseStrength !== null && (!Number.isFinite(metadata.baseStrength)
+      || metadata.baseStrength < 0 || metadata.baseStrength > 100))
+    || !isSanitizedEffectsRecipe(metadata.recipe) || isNeutralEffects(metadata.recipe)
+    || !Number.isSafeInteger(metadata.baseScale) || metadata.baseScale < 1
+    || !statistics.every(Number.isSafeInteger) || statistics.some((value) => value < 0 || value > pixelCount)
+    || metadata.statistics.changedPixels < 1
+    || metadata.statistics.changedPixels > metadata.statistics.processedPixels
+    || metadata.statistics.darkenedPixels + metadata.statistics.lightenedPixels !== metadata.statistics.changedPixels
+    || (metadata.recipe.vignette.amount < 0 && metadata.statistics.lightenedPixels !== 0)
+    || (metadata.recipe.vignette.amount > 0 && metadata.statistics.darkenedPixels !== 0)) {
+    throw new Error("Effects provenance requires a valid bounded source-derived recipe.");
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const additions = [
+    chunk("sRGB", new Uint8Array([0])),
+    chunk("gAMA", uint32(45_455)),
+    chunk("iTXt", effectProvenance(metadata)),
+  ];
+  const parts = [bytes.subarray(0, 33), ...additions];
+  let inputOffset = 33;
+  let foundEnd = false;
+  while (inputOffset + 12 <= bytes.byteLength) {
+    const length = view.getUint32(inputOffset, false);
+    const end = inputOffset + 12 + length;
+    if (!Number.isSafeInteger(end) || end > bytes.byteLength) throw new Error("The processed PNG chunk structure is invalid.");
+    const type = String.fromCharCode(...bytes.subarray(inputOffset + 4, inputOffset + 8));
+    const keyword = type === "iTXt"
+      ? new TextDecoder().decode(bytes.subarray(inputOffset + 8, Math.min(end - 4, inputOffset + 96))).split("\0", 1)[0]
+      : "";
+    if (!["sRGB", "gAMA", "iCCP", "cICP", "pHYs"].includes(type)
+      && !(type === "iTXt" && [
+        "ImageQualityProvenance",
+        "ImageEditProvenance",
+        "ImageToneProvenance",
+        "ImageColorProvenance",
+        "ImageEffectProvenance",
+      ].includes(keyword))) {
       parts.push(bytes.subarray(inputOffset, end));
     }
     inputOffset = end;

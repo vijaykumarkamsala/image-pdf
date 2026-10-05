@@ -1,4 +1,5 @@
 import {
+  Aperture,
   Crop,
   Download,
   FlipHorizontal2,
@@ -110,8 +111,14 @@ import {
 import { ImageHistogramPanel, type ImageHistogramInput } from "./ImageHistogramPanel";
 import { ToneCurveControl } from "./ToneCurveControl";
 import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
+import {
+  isNeutralEffects,
+  MAX_BROWSER_EFFECT_PIXELS,
+  type ImageEffectsRecipe,
+  type ImageEffectsStatistics,
+} from "./imageEffects";
 
-export type ImageEditorTool = "enhance" | "adjust" | "color" | "geometry";
+export type ImageEditorTool = "enhance" | "adjust" | "color" | "effects" | "geometry";
 
 function strengthLabel(strength: number) {
   if (strength === 0) return "Neutral";
@@ -137,10 +144,99 @@ export function ImageEditorToolRail({
     <button type="button" aria-current={activeTool === "color" ? "page" : undefined} onClick={() => onChange("color")}>
       <Palette aria-hidden="true" /><span>Colour</span>
     </button>
+    <button type="button" aria-current={activeTool === "effects" ? "page" : undefined} onClick={() => onChange("effects")}>
+      <Aperture aria-hidden="true" /><span>Effects</span>
+    </button>
     <button type="button" aria-current={activeTool === "geometry" ? "page" : undefined} onClick={() => onChange("geometry")}>
       <Crop aria-hidden="true" /><span>Crop</span>
     </button>
   </nav>;
+}
+
+interface EffectsToolPanelProps {
+  recipe: ImageEffectsRecipe;
+  statistics: ImageEffectsStatistics | null;
+  busy: boolean;
+  canApply: boolean;
+  canDownload: boolean;
+  onRecipe: (recipe: ImageEffectsRecipe) => void;
+  onApply: () => void;
+  onReset: () => void;
+  onDownload: () => void;
+}
+
+function vignetteAmountLabel(amount: number) {
+  if (amount === 0) return "Neutral";
+  return amount < 0 ? `Dark ${Math.abs(amount)}` : `Light ${amount}`;
+}
+
+export function EffectsToolPanel(props: EffectsToolPanelProps) {
+  return <aside className="quality-tool-panel quality-controls" aria-label="Effects controls">
+    <div className="quality-panel-heading"><Aperture aria-hidden="true" /><div><h2>Effects</h2><p>Bounded creative finishing after colour.</p></div></div>
+    <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Vignette</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Amount</strong><output>{vignetteAmountLabel(props.recipe.vignette.amount)}</output></span>
+        <input
+          aria-label="Vignette amount"
+          type="range"
+          min="-100"
+          max="100"
+          step="1"
+          value={props.recipe.vignette.amount}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            vignette: { ...props.recipe.vignette, amount: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Midpoint</strong><output>{props.recipe.vignette.midpoint}%</output></span>
+        <input
+          aria-label="Vignette midpoint"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.vignette.midpoint}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            vignette: { ...props.recipe.vignette, midpoint: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Feather</strong><output>{props.recipe.vignette.feather}%</output></span>
+        <input
+          aria-label="Vignette feather"
+          type="range"
+          min="1"
+          max="100"
+          step="1"
+          value={props.recipe.vignette.feather}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            vignette: { ...props.recipe.vignette, feather: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Negative amounts darken the perimeter; positive amounts lighten it. The source-coordinate ellipse leaves the centre unchanged and never invents detail.</p>
+    </fieldset>
+    {props.statistics && <dl className="quality-adjustment-statistics">
+      <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
+      <div><dt>Darkened pixels</dt><dd>{props.statistics.darkenedPixels.toLocaleString()}</dd></div>
+      <div><dt>Lightened pixels</dt><dd>{props.statistics.lightenedPixels.toLocaleString()}</dd></div>
+    </dl>}
+    <div className="quality-actions">
+      <Button tone="primary" disabled={!props.canApply} onClick={props.onApply}><Aperture aria-hidden="true" />{props.busy ? "Applying…" : "Apply effects"}</Button>
+      <Button disabled={props.busy || isNeutralEffects(props.recipe)} onClick={props.onReset}><RotateCcw aria-hidden="true" />Reset effects</Button>
+      <Button disabled={!props.canDownload || props.busy} onClick={props.onDownload}><Download aria-hidden="true" />Download effects-adjusted image</Button>
+    </div>
+    <p className="quality-view-note">Processing is browser-local and deterministic up to {MAX_BROWSER_EFFECT_PIXELS.toLocaleString()} pixels. Preview and download share the same verified PNG bytes.</p>
+  </aside>;
 }
 
 interface ToneToolPanelProps {
@@ -1848,6 +1944,7 @@ export function ImageEditorInspector({
   geometryDisplayReady,
   toneStatus,
   colorStatus,
+  effectsStatus,
   histogramInput,
 }: {
   dimensionsReady: boolean;
@@ -1859,6 +1956,7 @@ export function ImageEditorInspector({
   geometryDisplayReady: boolean;
   toneStatus: "Applied" | "Unapplied changes" | "None";
   colorStatus: "Applied" | "Unapplied changes" | "None";
+  effectsStatus: "Applied" | "Unapplied changes" | "None";
   histogramInput: ImageHistogramInput | null;
 }) {
   return <aside className="quality-inspector" aria-label="Image properties" tabIndex={0}>
@@ -1868,6 +1966,7 @@ export function ImageEditorInspector({
       <div><dt>Output</dt><dd>{outputDimensions}</dd></div>
       <div><dt>Light &amp; tone</dt><dd>{toneStatus}</dd></div>
       <div><dt>Colour</dt><dd>{colorStatus}</dd></div>
+      <div><dt>Effects</dt><dd>{effectsStatus}</dd></div>
     </dl>
     {recipe && dimensionsReady && <dl className="quality-geometry-properties">
       <div><dt>Crop</dt><dd>{recipe.crop.width} × {recipe.crop.height} px</dd></div>
@@ -1881,6 +1980,6 @@ export function ImageEditorInspector({
       <div><dt>Recipe</dt><dd>{geometryIsDirty ? "Unapplied changes" : geometryDisplayReady ? "Applied" : "None"}</dd></div>
     </dl>}
     <ImageHistogramPanel input={histogramInput} />
-    <p className="quality-inspector-note">Original bytes are immutable. Enhancement, geometry, tone and colour remain separate, traceable derivative stages.</p>
+    <p className="quality-inspector-note">Original bytes are immutable. Enhancement, geometry, tone, colour and effects remain separate, traceable derivative stages.</p>
   </aside>;
 }

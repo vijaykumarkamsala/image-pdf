@@ -24,6 +24,7 @@ import { IMAGE_QUALITY_INPUT_TYPES } from "./ImageQualityEngine";
 import type { ImageQualityEngine } from "./ImageQualityEngine";
 import {
   ColorToolPanel,
+  EffectsToolPanel,
   EnhancementToolPanel,
   GeometryToolPanel,
   ImageEditorInspector,
@@ -68,6 +69,14 @@ import {
   type ImageWhiteBalanceSuggestion,
 } from "./imageColor";
 import { WorkerImageColorEngine, type ImageColorResult } from "./WorkerImageColorEngine";
+import {
+  createNeutralEffectsRecipe,
+  isNeutralEffects,
+  sameEffectsRecipe,
+  sanitizeEffectsRecipe,
+  type ImageEffectsRecipe,
+} from "./imageEffects";
+import { WorkerImageEffectsEngine, type ImageEffectsResult } from "./WorkerImageEffectsEngine";
 import {
   IMAGE_COLOR_VISION_LABELS,
   type ImageColorVisionMode,
@@ -142,6 +151,11 @@ function colorAdjustedDownloadName(filename: string, width: number, height: numb
   return `${stem || "image"}-colour-adjusted-${width}x${height}.png`;
 }
 
+function effectsAdjustedDownloadName(filename: string, width: number, height: number) {
+  const stem = filename.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${stem || "image"}-effects-${width}x${height}.png`;
+}
+
 interface GeometryDerivative extends ImageGeometryResult {
   url: string;
   baseKind: "original" | "enhanced";
@@ -157,6 +171,12 @@ interface ColorDerivative extends ImageColorResult {
   url: string;
   baseOutputSha256: string;
   baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced" | "tone";
+}
+
+interface EffectDerivative extends ImageEffectsResult {
+  url: string;
+  baseOutputSha256: string;
+  baseKind: "original" | "enhanced" | "geometry-original" | "geometry-enhanced" | "tone" | "colour";
 }
 
 interface ColorVisionPreview extends ImageColorVisionResult {
@@ -204,6 +224,18 @@ interface ColorBaseInput {
   blob: Blob;
   outputSha256: string;
   kind: ColorDerivative["baseKind"];
+  route: string;
+  strength: number | null;
+  scale: number;
+  width: number;
+  height: number;
+  label: string;
+}
+
+interface EffectBaseInput {
+  blob: Blob;
+  outputSha256: string;
+  kind: EffectDerivative["baseKind"];
   route: string;
   strength: number | null;
   scale: number;
@@ -460,6 +492,12 @@ export function ImageQualityEditorPage() {
   const [colorBusy, setColorBusy] = useState(false);
   const [colorError, setColorError] = useState<string | null>(null);
   const [colorMessage, setColorMessage] = useState<string | null>(null);
+  const [effectsRecipe, setEffectsRecipe] = useState<ImageEffectsRecipe>(createNeutralEffectsRecipe);
+  const [appliedEffects, setAppliedEffects] = useState<ImageEffectsRecipe | null>(null);
+  const [effectsResult, setEffectsResult] = useState<EffectDerivative | null>(null);
+  const [effectsBusy, setEffectsBusy] = useState(false);
+  const [effectsError, setEffectsError] = useState<string | null>(null);
+  const [effectsMessage, setEffectsMessage] = useState<string | null>(null);
   const [colorVisionMode, setColorVisionMode] = useState<ImageColorVisionSelection>("standard");
   const [colorVisionResult, setColorVisionResult] = useState<ColorVisionPreview | null>(null);
   const [colorVisionBusy, setColorVisionBusy] = useState(false);
@@ -490,6 +528,7 @@ export function ImageQualityEditorPage() {
   const enhancedGeometryEngine = useRef<WorkerImageGeometryEngine | null>(null);
   const toneEngine = useRef<WorkerImageToneEngine | null>(null);
   const colorEngine = useRef<WorkerImageColorEngine | null>(null);
+  const effectsEngine = useRef<WorkerImageEffectsEngine | null>(null);
   const colorVisionEngine = useRef<WorkerImageColorVisionEngine | null>(null);
   const exportEngine = useRef<WorkerImageExportEngine | null>(null);
   const selection = useRef(0);
@@ -497,6 +536,7 @@ export function ImageQualityEditorPage() {
   const geometryOperation = useRef(0);
   const toneOperation = useRef(0);
   const colorOperation = useRef(0);
+  const effectsOperation = useRef(0);
   const colorVisionOperation = useRef(0);
   const exportOperation = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -507,6 +547,7 @@ export function ImageQualityEditorPage() {
   const geometryEditedObjectUrl = useRef<string | null>(null);
   const toneObjectUrl = useRef<string | null>(null);
   const colorObjectUrl = useRef<string | null>(null);
+  const effectsObjectUrl = useRef<string | null>(null);
   const colorVisionObjectUrl = useRef<string | null>(null);
   const deterministicPreference = useRef(false);
 
@@ -541,6 +582,7 @@ export function ImageQualityEditorPage() {
     geometryOperation.current += 1;
     toneOperation.current += 1;
     colorOperation.current += 1;
+    effectsOperation.current += 1;
     colorVisionOperation.current += 1;
     exportOperation.current += 1;
     engine.current?.dispose();
@@ -548,6 +590,7 @@ export function ImageQualityEditorPage() {
     enhancedGeometryEngine.current?.dispose();
     toneEngine.current?.dispose();
     colorEngine.current?.dispose();
+    effectsEngine.current?.dispose();
     colorVisionEngine.current?.dispose();
     exportEngine.current?.dispose();
     if (sourceObjectUrl.current) URL.revokeObjectURL(sourceObjectUrl.current);
@@ -556,6 +599,7 @@ export function ImageQualityEditorPage() {
     if (geometryEditedObjectUrl.current) URL.revokeObjectURL(geometryEditedObjectUrl.current);
     if (toneObjectUrl.current) URL.revokeObjectURL(toneObjectUrl.current);
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
+    if (effectsObjectUrl.current) URL.revokeObjectURL(effectsObjectUrl.current);
     if (colorVisionObjectUrl.current) URL.revokeObjectURL(colorVisionObjectUrl.current);
   }, []);
 
@@ -605,12 +649,35 @@ export function ImageQualityEditorPage() {
     setColorMatchAnalysing(false);
   };
 
+  const clearEffectsDerivative = () => {
+    clearColorVisionPreview();
+    if (effectsObjectUrl.current) URL.revokeObjectURL(effectsObjectUrl.current);
+    effectsObjectUrl.current = null;
+    setEffectsResult(null);
+    setAppliedEffects(null);
+  };
+
+  const disposeEffectsEngine = () => {
+    effectsEngine.current?.dispose();
+    effectsEngine.current = null;
+  };
+
+  const invalidateEffectsDerivative = (message: string) => {
+    effectsOperation.current += 1;
+    disposeEffectsEngine();
+    setEffectsBusy(false);
+    setEffectsError(null);
+    clearEffectsDerivative();
+    setEffectsMessage(isNeutralEffects(effectsRecipe) ? null : message);
+  };
+
   const clearColorDerivative = () => {
     clearColorVisionPreview();
     if (colorObjectUrl.current) URL.revokeObjectURL(colorObjectUrl.current);
     colorObjectUrl.current = null;
     setColorResult(null);
     setAppliedColor(null);
+    invalidateEffectsDerivative("Colour changed. Apply the effects recipe again to update the final derivative.");
   };
 
   const disposeColorEngine = () => {
@@ -706,6 +773,10 @@ export function ImageQualityEditorPage() {
     setColorBusy(false);
     setColorError(null);
     setColorMessage(null);
+    setEffectsRecipe(createNeutralEffectsRecipe());
+    setEffectsBusy(false);
+    setEffectsError(null);
+    setEffectsMessage(null);
     clearColorVisionPreview();
     setCubeLut(null);
     setCubeLutImporting(false);
@@ -715,6 +786,8 @@ export function ImageQualityEditorPage() {
     clearColorMatchReview();
     clearColorDerivative();
     disposeColorEngine();
+    clearEffectsDerivative();
+    disposeEffectsEngine();
     clearToneDerivative();
     disposeToneEngine();
     clearGeometryDerivatives();
@@ -724,6 +797,7 @@ export function ImageQualityEditorPage() {
     geometryOperation.current += 1;
     toneOperation.current += 1;
     colorOperation.current += 1;
+    effectsOperation.current += 1;
     const currentSelection = selection.current;
     const preferDeterministic = new URLSearchParams(globalThis.location.search).get("engine") === "deterministic";
     deterministicPreference.current = preferDeterministic;
@@ -764,7 +838,7 @@ export function ImageQualityEditorPage() {
   };
 
   const enhance = async () => {
-    if (!state.source || !engine.current || state.status === "processing" || geometryBusy || toneBusy || colorBusy) return;
+    if (!state.source || !engine.current || state.status === "processing" || geometryBusy || toneBusy || colorBusy || effectsBusy) return;
     dispatch({ type: "processing-started" });
     const currentOperation = ++operation.current;
     try {
@@ -839,7 +913,7 @@ export function ImageQualityEditorPage() {
 
   const applyGeometry = async () => {
     const source = state.source;
-    if (!source?.facts || !source.width || !source.height || !geometryRecipe || geometryBusy || toneBusy || colorBusy || processing) return;
+    if (!source?.facts || !source.width || !source.height || !geometryRecipe || geometryBusy || toneBusy || colorBusy || effectsBusy || processing) return;
     const safe = sanitizeGeometryRecipe(geometryRecipe, source.width, source.height, Math.min(32, source.width, source.height));
     if (isIdentityGeometry(safe, source.width, source.height)) return;
     if (state.result && (state.result.strength !== state.strength || state.result.scale !== state.outputScale)) {
@@ -957,7 +1031,7 @@ export function ImageQualityEditorPage() {
   const applyTone = async () => {
     const source = state.source;
     const safe = sanitizeToneRecipe(toneRecipe);
-    if (!source?.facts || !source.width || !source.height || toneBusy || colorBusy || processing || geometryBusy) return;
+    if (!source?.facts || !source.width || !source.height || toneBusy || colorBusy || effectsBusy || processing || geometryBusy) return;
     if (isNeutralTone(safe)) return;
     const enhancementIsStale = Boolean(state.result && (
       state.result.strength !== state.strength || state.result.scale !== state.outputScale
@@ -1157,7 +1231,7 @@ export function ImageQualityEditorPage() {
   };
 
   const sampleWhiteBalance = async (normalizedX: number, normalizedY: number) => {
-    if (!whiteBalancePicking || colorBusy) return;
+    if (!whiteBalancePicking || colorBusy || effectsBusy) return;
     const base = resolveColorBase();
     if (!base) {
       setWhiteBalancePicking(false);
@@ -1250,7 +1324,7 @@ export function ImageQualityEditorPage() {
   };
 
   const samplePointColor = async (normalizedX: number, normalizedY: number) => {
-    if (!pointColorPicking || colorBusy) return;
+    if (!pointColorPicking || colorBusy || effectsBusy) return;
     const base = resolveColorBase();
     if (!base) {
       setPointColorPicking(false);
@@ -1334,7 +1408,7 @@ export function ImageQualityEditorPage() {
   };
 
   const sampleProtectedColor = async (normalizedX: number, normalizedY: number) => {
-    if (!protectedColorPicking || colorBusy) return;
+    if (!protectedColorPicking || colorBusy || effectsBusy) return;
     const base = resolveColorBase();
     if (!base) {
       setProtectedColorPicking(false);
@@ -1426,7 +1500,7 @@ export function ImageQualityEditorPage() {
       setColorMessage(null);
       return;
     }
-    if (colorBusy) return;
+    if (colorBusy || effectsBusy) return;
     const base = resolveColorBase();
     if (!base) {
       setColorError("The latest verified pre-colour image is unavailable. Apply or reset earlier-stage changes before matching colour.");
@@ -1554,7 +1628,7 @@ export function ImageQualityEditorPage() {
   const applyColor = async () => {
     const source = state.source;
     const safe = sanitizeColorRecipe(colorRecipe);
-    if (!source?.facts || !source.width || !source.height || colorBusy || cubeLutImporting || toneBusy || processing || geometryBusy) return;
+    if (!source?.facts || !source.width || !source.height || colorBusy || effectsBusy || cubeLutImporting || toneBusy || processing || geometryBusy) return;
     if (isNeutralColor(safe)) return;
     if (resultIsStale) {
       setColorError("Enhancement settings changed. Enhance again or reset the enhancement before applying colour.");
@@ -1670,6 +1744,7 @@ export function ImageQualityEditorPage() {
       setAppliedColor(safe);
       setColorResult({ ...result, url, baseOutputSha256: base.outputSha256, baseKind: base.kind });
       setColorMessage("Colour derivative ready. Preview and download use the same verified PNG bytes.");
+      invalidateEffectsDerivative("Colour changed. Apply the effects recipe again to update the final derivative.");
       dispatch({ type: "zoom-changed", zoom: "fit" });
     } catch (error) {
       if (colorOperation.current !== currentColorOperation) return;
@@ -1698,6 +1773,162 @@ export function ImageQualityEditorPage() {
     clearProtectedColorReview();
     clearColorMatchReview();
     clearColorDerivative();
+    dispatch({ type: "zoom-changed", zoom: "fit" });
+  };
+
+  const resolveEffectsBase = (): EffectBaseInput | null => {
+    const source = state.source;
+    if (!source?.facts || !source.width || !source.height
+      || resultIsStale || geometryIsDirty || toneIsDirty || colorIsDirty) return null;
+    if (colorDisplayReady && colorResult) {
+      return {
+        blob: new Blob([colorResult.bytes], { type: "image/png" }),
+        outputSha256: colorResult.outputSha256,
+        kind: "colour",
+        route: `colour:${colorResult.baseKind}`,
+        strength: state.result?.strength ?? null,
+        scale: state.result?.scale ?? 1,
+        width: colorResult.width,
+        height: colorResult.height,
+        label: "verified colour derivative",
+      };
+    }
+    if (toneDisplayReady && toneResult) {
+      return {
+        blob: new Blob([toneResult.bytes], { type: "image/png" }),
+        outputSha256: toneResult.outputSha256,
+        kind: "tone",
+        route: `tone:${toneResult.baseKind}`,
+        strength: state.result?.strength ?? null,
+        scale: state.result?.scale ?? 1,
+        width: toneResult.width,
+        height: toneResult.height,
+        label: "verified light-and-tone derivative",
+      };
+    }
+    if (geometryDisplayReady) {
+      const derivative = state.result ? geometryEdited! : geometryOriginal!;
+      return {
+        blob: new Blob([derivative.bytes], { type: "image/png" }),
+        outputSha256: derivative.outputSha256,
+        kind: state.result ? "geometry-enhanced" : "geometry-original",
+        route: state.result ? `geometry:${state.result.route}` : "geometry:immutable-original",
+        strength: state.result?.strength ?? null,
+        scale: state.result?.scale ?? 1,
+        width: derivative.width,
+        height: derivative.height,
+        label: state.result ? "verified geometry-adjusted enhancement" : "verified geometry-adjusted original",
+      };
+    }
+    if (state.result) {
+      if (!resultBlob.current) return null;
+      return {
+        blob: resultBlob.current,
+        outputSha256: state.result.outputSha256,
+        kind: "enhanced",
+        route: state.result.route,
+        strength: state.result.strength,
+        scale: state.result.scale,
+        width: state.result.width,
+        height: state.result.height,
+        label: "verified enhancement",
+      };
+    }
+    return {
+      blob: source.file,
+      outputSha256: source.facts.sourceSha256,
+      kind: "original",
+      route: "immutable-original",
+      strength: null,
+      scale: 1,
+      width: source.width,
+      height: source.height,
+      label: "immutable original",
+    };
+  };
+
+  const applyEffects = async () => {
+    const source = state.source;
+    const safe = sanitizeEffectsRecipe(effectsRecipe);
+    if (!source?.facts || !source.width || !source.height || effectsBusy || colorBusy
+      || cubeLutImporting || toneBusy || processing || geometryBusy) return;
+    if (isNeutralEffects(safe)) return;
+    if (resultIsStale) {
+      setEffectsError("Enhancement settings changed. Enhance again or reset the enhancement before applying effects.");
+      return;
+    }
+    if (geometryIsDirty) {
+      setEffectsError("Geometry settings changed. Apply or reset geometry before applying effects.");
+      return;
+    }
+    if (toneHasChanges && !toneDisplayReady) {
+      setEffectsError("Light-and-tone settings changed. Apply or reset them before applying effects.");
+      return;
+    }
+    if (colorHasChanges && !colorDisplayReady) {
+      setEffectsError("Colour settings changed. Apply or reset them before applying effects.");
+      return;
+    }
+    const base = resolveEffectsBase();
+    if (!base) {
+      setEffectsError("The latest verified pre-effects image is unavailable. Apply or reset earlier-stage changes before applying effects.");
+      return;
+    }
+
+    const currentEffectsOperation = ++effectsOperation.current;
+    disposeEffectsEngine();
+    const next = new WorkerImageEffectsEngine();
+    effectsEngine.current = next;
+    setEffectsBusy(true);
+    setEffectsError(null);
+    setEffectsMessage("Rendering deterministic vignette from the latest verified derivative…");
+    try {
+      const loaded = await next.load(base.blob);
+      if (loaded.width !== base.width || loaded.height !== base.height) {
+        throw new Error(`The effects decoder returned ${loaded.width} × ${loaded.height} px instead of ${base.width} × ${base.height} px.`);
+      }
+      const result = await next.render(safe, {
+        sourceSha256: source.facts.sourceSha256,
+        baseOutputSha256: base.outputSha256,
+        baseKind: base.kind,
+        baseRoute: base.route,
+        baseStrength: base.strength,
+        baseScale: base.scale,
+        outputWidth: base.width,
+        outputHeight: base.height,
+      });
+      if (effectsOperation.current !== currentEffectsOperation) return;
+      assertPngDimensions(new Uint8Array(result.bytes), base.width, base.height);
+      const url = URL.createObjectURL(new Blob([result.bytes], { type: "image/png" }));
+      if (effectsObjectUrl.current) URL.revokeObjectURL(effectsObjectUrl.current);
+      effectsObjectUrl.current = url;
+      setEffectsRecipe(safe);
+      setAppliedEffects(safe);
+      setEffectsResult({ ...result, url, baseOutputSha256: base.outputSha256, baseKind: base.kind });
+      setEffectsMessage("Effects derivative ready. Preview and download use the same verified PNG bytes.");
+      clearColorVisionPreview();
+      dispatch({ type: "zoom-changed", zoom: "fit" });
+    } catch (error) {
+      if (effectsOperation.current !== currentEffectsOperation) return;
+      setEffectsError(error instanceof Error ? error.message : "The effects adjustment could not be rendered.");
+      setEffectsMessage(null);
+    } finally {
+      if (effectsOperation.current === currentEffectsOperation) {
+        setEffectsBusy(false);
+        next.dispose();
+        if (effectsEngine.current === next) effectsEngine.current = null;
+      }
+    }
+  };
+
+  const resetEffects = () => {
+    effectsOperation.current += 1;
+    disposeEffectsEngine();
+    setEffectsBusy(false);
+    setEffectsError(null);
+    setEffectsMessage(null);
+    setEffectsRecipe(createNeutralEffectsRecipe());
+    clearEffectsDerivative();
     dispatch({ type: "zoom-changed", zoom: "fit" });
   };
 
@@ -1770,6 +2001,7 @@ export function ImageQualityEditorPage() {
 
   const reset = () => {
     resetColor();
+    resetEffects();
     resetToneState(false);
     resetGeometryState(false);
     enhancedGeometryEngine.current?.dispose();
@@ -1786,7 +2018,20 @@ export function ImageQualityEditorPage() {
     const enhancementIsStale = Boolean(state.result && (
       state.result.strength !== state.strength || state.result.scale !== state.outputScale
     ));
-    if (enhancementIsStale || toneIsDirty || colorIsDirty) return;
+    if (enhancementIsStale || toneIsDirty || colorIsDirty || effectsIsDirty) return;
+    if (effectsDisplayReady && effectsResult) {
+      try {
+        assertPngDimensions(new Uint8Array(effectsResult.bytes), effectsResult.width, effectsResult.height);
+      } catch (error) {
+        setEffectsError(error instanceof Error ? error.message : "The effects PNG dimensions could not be verified.");
+        return;
+      }
+      const anchor = document.createElement("a");
+      anchor.href = effectsResult.url;
+      anchor.download = effectsAdjustedDownloadName(state.source.name, effectsResult.width, effectsResult.height);
+      anchor.click();
+      return;
+    }
     if (colorDisplayReady && colorResult) {
       try {
         assertPngDimensions(new Uint8Array(colorResult.bytes), colorResult.width, colorResult.height);
@@ -1872,7 +2117,7 @@ export function ImageQualityEditorPage() {
   const sourceWidth = state.source.width ?? 1;
   const sourceHeight = state.source.height ?? 1;
   const processing = state.status === "processing";
-  const canEnhance = dimensionsReady && !processing && !processorRestarting && !geometryBusy && !toneBusy && !colorBusy;
+  const canEnhance = dimensionsReady && !processing && !processorRestarting && !geometryBusy && !toneBusy && !colorBusy && !effectsBusy;
   const resultIsStale = Boolean(state.result && (
     state.result.strength !== state.strength || state.result.scale !== state.outputScale
   ));
@@ -1907,6 +2152,14 @@ export function ImageQualityEditorPage() {
     && !resultIsStale && !geometryIsDirty && !toneIsDirty,
   );
   const colorIsDirty = colorHasChanges && !colorDisplayReady;
+  const preEffectsOutputSha256 = colorDisplayReady ? colorResult!.outputSha256 : preColorOutputSha256;
+  const effectsHasChanges = !isNeutralEffects(effectsRecipe);
+  const effectsDisplayReady = Boolean(
+    effectsResult && appliedEffects && sameEffectsRecipe(appliedEffects, effectsRecipe)
+    && effectsResult.baseOutputSha256 === preEffectsOutputSha256
+    && !resultIsStale && !geometryIsDirty && !toneIsDirty && !colorIsDirty,
+  );
+  const effectsIsDirty = effectsHasChanges && !effectsDisplayReady;
   const displayOriginalUrl = baseOriginalUrl;
   const colorSamplingBase = activeTool === "color"
     && (whiteBalancePicking || whiteBalanceAnalysing || pointColorPicking || pointColorAnalysing
@@ -1946,7 +2199,15 @@ export function ImageQualityEditorPage() {
               label: "immutable original",
             }
           : null;
-  const histogramInput: ImageHistogramInput | null = colorDisplayReady && colorResult
+  const histogramInput: ImageHistogramInput | null = effectsDisplayReady && effectsResult
+    ? {
+        blob: new Blob([effectsResult.bytes], { type: "image/png" }),
+        sha256: effectsResult.outputSha256,
+        width: effectsResult.width,
+        height: effectsResult.height,
+        label: "Effects-adjusted preview",
+      }
+    : colorDisplayReady && colorResult
     ? {
         blob: new Blob([colorResult.bytes], { type: "image/png" }),
         sha256: colorResult.outputSha256,
@@ -1998,6 +2259,8 @@ export function ImageQualityEditorPage() {
   );
   const enhancedUrl = colorVisionDisplayReady && !colorSamplingBase
     ? colorVisionResult!.url
+    : effectsDisplayReady && !colorSamplingBase
+      ? effectsResult!.url
     : colorDisplayReady && !colorSamplingBase
       ? colorResult!.url
       : toneDisplayReady ? toneResult!.url : baseResultUrl;
@@ -2011,7 +2274,9 @@ export function ImageQualityEditorPage() {
   const pendingGeometryDimensions = activeTool === "geometry" && geometryRecipe
     ? geometryOutputDimensions(geometryRecipe, state.result?.scale ?? 1)
     : null;
-  const outputDimensions = colorDisplayReady
+  const outputDimensions = effectsDisplayReady
+    ? `${effectsResult!.width} × ${effectsResult!.height} px`
+    : colorDisplayReady
     ? `${colorResult!.width} × ${colorResult!.height} px`
     : toneDisplayReady
     ? `${toneResult!.width} × ${toneResult!.height} px`
@@ -2025,11 +2290,20 @@ export function ImageQualityEditorPage() {
           ? `${state.source.width! * state.outputScale} × ${state.source.height! * state.outputScale} px selected`
           : "Not created yet";
   const canDownload = Boolean(
-    colorDisplayReady
-    || (!colorIsDirty && (toneDisplayReady
-      || (!toneIsDirty && (downloadableGeometry || (state.result && !resultIsStale && !appliedGeometry))))),
+    effectsDisplayReady
+    || (!effectsIsDirty && (colorDisplayReady
+      || (!colorIsDirty && (toneDisplayReady
+        || (!toneIsDirty && (downloadableGeometry || (state.result && !resultIsStale && !appliedGeometry))))))),
   );
-  const exportSource = colorDisplayReady && colorResult
+  const exportSource = effectsDisplayReady && effectsResult
+    ? {
+        blob: new Blob([effectsResult.bytes], { type: "image/png" }),
+        sha256: effectsResult.outputSha256,
+        width: effectsResult.width,
+        height: effectsResult.height,
+        label: "verified effects derivative",
+      }
+    : colorDisplayReady && colorResult
     ? {
         blob: new Blob([colorResult.bytes], { type: "image/png" }),
         sha256: colorResult.outputSha256,
@@ -2067,7 +2341,7 @@ export function ImageQualityEditorPage() {
     quality: exportQuality,
     jpegMatte: exportJpegMatte,
   });
-  const canExport = Boolean(canDownload && exportSource && !processing && !geometryBusy && !toneBusy && !colorBusy);
+  const canExport = Boolean(canDownload && exportSource && !processing && !geometryBusy && !toneBusy && !colorBusy && !effectsBusy);
   const preparedExportReady = Boolean(
     preparedExport && exportSource
     && preparedExport.sourceSha256 === exportSource.sha256
@@ -2155,7 +2429,9 @@ export function ImageQualityEditorPage() {
       setExportError(error instanceof Error ? error.message : "The final export bytes could not be verified.");
     }
   };
-  const currentDownloadLabel = colorDisplayReady
+  const currentDownloadLabel = effectsDisplayReady
+    ? "Download effects-adjusted image"
+    : colorDisplayReady
     ? "Download colour-adjusted image"
     : toneDisplayReady
     ? "Download adjusted image"
@@ -2163,11 +2439,11 @@ export function ImageQualityEditorPage() {
       ? "Download edited image"
       : "Download enhanced image";
   const toneCanApply = Boolean(
-    dimensionsReady && toneHasChanges && !toneBusy && !colorBusy && !processing && !processorRestarting && !geometryBusy
+    dimensionsReady && toneHasChanges && !toneBusy && !colorBusy && !effectsBusy && !processing && !processorRestarting && !geometryBusy
     && !resultIsStale && !geometryIsDirty && !toneDisplayReady,
   );
   const colorCanApply = Boolean(
-    dimensionsReady && colorHasChanges && !colorBusy && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy
+    dimensionsReady && colorHasChanges && !colorBusy && !effectsBusy && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy
     && !resultIsStale && !geometryIsDirty && !toneIsDirty && !colorDisplayReady
     && (!(colorRecipe.pointColor.enabled
       && (colorRecipe.pointColor.hue !== 0 || colorRecipe.pointColor.saturation !== 0 || colorRecipe.pointColor.lightness !== 0))
@@ -2179,6 +2455,11 @@ export function ImageQualityEditorPage() {
       && (colorRecipe.colorMatch.luminance > 0 || colorRecipe.colorMatch.colorIntensity > 0))
       || analysisMatchesColorMatchRecipe(colorMatchReview, colorRecipe.colorMatch, preColorOutputSha256))
     && colorRecipe.protectedColors.every((anchor) => anchor.sourceBaseSha256 === preColorOutputSha256),
+  );
+  const effectsCanApply = Boolean(
+    dimensionsReady && effectsHasChanges && !effectsBusy && !colorBusy && !cubeLutImporting
+    && !toneBusy && !processing && !processorRestarting && !geometryBusy
+    && !resultIsStale && !geometryIsDirty && !toneIsDirty && !colorIsDirty && !effectsDisplayReady,
   );
   const colorBaseAvailable = Boolean(
     dimensionsReady && !resultIsStale && !geometryIsDirty && !toneIsDirty
@@ -2216,7 +2497,7 @@ export function ImageQualityEditorPage() {
     : undefined;
   const geometryCanApply = Boolean(
     dimensionsReady && geometryRecipe && !isIdentityGeometry(geometryRecipe, state.source.width!, state.source.height!)
-    && !geometryBusy && !toneBusy && !colorBusy && !processing && !processorRestarting && !resultIsStale
+    && !geometryBusy && !toneBusy && !colorBusy && !effectsBusy && !processing && !processorRestarting && !resultIsStale
     && (geometryIsDirty || !geometryDisplayReady),
   );
   const geometryEditing = activeTool === "geometry" && Boolean(geometryRecipe)
@@ -2240,7 +2521,7 @@ export function ImageQualityEditorPage() {
           ? "Original ready. Enhance quality uses disclosed Restore processing for photos and illustrations, and protected deterministic processing for graphics."
           : null;
 
-  return <main className="quality-page quality-editor" data-testid="image-quality-editor" aria-busy={processing || geometryBusy || toneBusy || colorBusy}>
+  return <main className="quality-page quality-editor" data-testid="image-quality-editor" aria-busy={processing || geometryBusy || toneBusy || colorBusy || effectsBusy}>
     <header className="quality-header">
       <div>
         <span className="quality-kicker"><ImageIcon aria-hidden="true" />Image Quality Editor</span>
@@ -2271,7 +2552,7 @@ export function ImageQualityEditorPage() {
             setExportOpen(true);
           }}
         ><DownloadIcon aria-hidden="true" />Export</Button>
-        <Button size="compact" disabled={processing || processorRestarting || geometryBusy || toneBusy || colorBusy} onClick={() => fileInput.current?.click()}><Upload aria-hidden="true" />Change image</Button>
+        <Button size="compact" disabled={processing || processorRestarting || geometryBusy || toneBusy || colorBusy || effectsBusy} onClick={() => fileInput.current?.click()}><Upload aria-hidden="true" />Change image</Button>
       </div>
     </header>
 
@@ -2393,7 +2674,7 @@ export function ImageQualityEditorPage() {
               recommendationInput={toneRecommendationInput}
               busy={toneBusy}
               canApply={toneCanApply}
-              canDownload={toneDisplayReady && !colorDisplayReady}
+              canDownload={toneDisplayReady && !colorDisplayReady && !effectsDisplayReady}
               onRecipe={(recipe) => {
                 clearColorVisionPreview();
                 setToneRecipe(sanitizeToneRecipe(recipe));
@@ -2429,17 +2710,18 @@ export function ImageQualityEditorPage() {
                 colorVisionError={colorVisionError}
                 colorVisionSourceLabel={colorVisionResult?.baseLabel ?? histogramInput?.label ?? null}
                 busy={colorBusy}
-                canSampleWhiteBalance={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
-                canSamplePointColor={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
-                canSampleProtectedColor={colorBaseAvailable && colorRecipe.protectedColors.length < MAX_PROTECTED_COLOR_ANCHORS && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
-                canAnalyzeColorMatch={colorBaseAvailable && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
-                canPreviewColorVision={Boolean(histogramInput) && !processing && !processorRestarting && !geometryBusy && !toneBusy && !colorBusy}
+                canSampleWhiteBalance={colorBaseAvailable && !effectsBusy && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canSamplePointColor={colorBaseAvailable && !effectsBusy && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canSampleProtectedColor={colorBaseAvailable && !effectsBusy && colorRecipe.protectedColors.length < MAX_PROTECTED_COLOR_ANCHORS && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canAnalyzeColorMatch={colorBaseAvailable && !effectsBusy && !cubeLutImporting && !toneBusy && !processing && !processorRestarting && !geometryBusy}
+                canPreviewColorVision={Boolean(histogramInput) && !processing && !processorRestarting && !geometryBusy && !toneBusy && !colorBusy && !effectsBusy}
                 canApply={colorCanApply}
-                canDownload={colorDisplayReady}
+                canDownload={colorDisplayReady && !effectsDisplayReady}
                 onRecipe={(recipe) => {
                   clearColorVisionPreview();
                   const safe = sanitizeColorRecipe(recipe);
                   setColorRecipe(safe);
+                  invalidateEffectsDerivative("Colour changed. Apply the effects recipe again to update the final derivative.");
                   if (!whiteBalanceReview
                     || safe.temperature !== whiteBalanceReview.temperature
                     || safe.tint !== whiteBalanceReview.tint) {
@@ -2470,6 +2752,23 @@ export function ImageQualityEditorPage() {
                 onReset={resetColor}
                 onDownload={download}
               />
+            : activeTool === "effects"
+              ? <EffectsToolPanel
+                  recipe={effectsRecipe}
+                  statistics={effectsDisplayReady ? effectsResult!.statistics : null}
+                  busy={effectsBusy}
+                  canApply={effectsCanApply}
+                  canDownload={effectsDisplayReady}
+                  onRecipe={(recipe) => {
+                    clearColorVisionPreview();
+                    setEffectsRecipe(sanitizeEffectsRecipe(recipe));
+                    setEffectsError(null);
+                    setEffectsMessage(null);
+                  }}
+                  onApply={() => void applyEffects()}
+                  onReset={resetEffects}
+                  onDownload={download}
+                />
             : <GeometryToolPanel
             recipe={geometryRecipe}
             aspect={cropAspect}
@@ -2480,8 +2779,10 @@ export function ImageQualityEditorPage() {
             dimensionsReady={dimensionsReady}
             busy={geometryBusy}
             canApply={geometryCanApply}
-            canDownload={Boolean(colorDisplayReady || toneDisplayReady || downloadableGeometry)}
-            downloadLabel={colorDisplayReady
+            canDownload={Boolean(effectsDisplayReady || colorDisplayReady || toneDisplayReady || downloadableGeometry)}
+            downloadLabel={effectsDisplayReady
+              ? "Download effects-adjusted image"
+              : colorDisplayReady
               ? "Download colour-adjusted image"
               : toneDisplayReady ? "Download adjusted image" : "Download edited image"}
             onRecipe={setGeometryRecipe}
@@ -2505,6 +2806,8 @@ export function ImageQualityEditorPage() {
           {toneError && <InlineNotice tone="error" title="Light adjustment did not complete"><p>{toneError}</p><p>The verified base image is still unchanged.</p></InlineNotice>}
           {colorMessage && <InlineNotice tone={colorDisplayReady ? "success" : "info"} title={colorMessage} />}
           {colorError && <InlineNotice tone="error" title="Colour adjustment did not complete"><p>{colorError}</p><p>The verified base image is still unchanged.</p></InlineNotice>}
+          {effectsMessage && <InlineNotice tone={effectsDisplayReady ? "success" : "info"} title={effectsMessage} />}
+          {effectsError && <InlineNotice tone="error" title="Effects adjustment did not complete"><p>{effectsError}</p><p>The verified base image is still unchanged.</p></InlineNotice>}
           {state.result && <details className="quality-provenance">
             <summary>Result details and provenance</summary>
             <dl>
@@ -2519,11 +2822,11 @@ export function ImageQualityEditorPage() {
             {state.result.warnings.map((warning) => <p key={warning}>{warning}</p>)}
           </details>}
           {dimensionsReady && (nativeFaceContext && state.result
-            ? <NativeFaceDetailPanel key={`native-${faceDetailRevision}`} disabled={processing || processorRestarting || resultIsStale || geometryBusy || toneBusy || colorBusy}
+            ? <NativeFaceDetailPanel key={`native-${faceDetailRevision}`} disabled={processing || processorRestarting || resultIsStale || geometryBusy || toneBusy || colorBusy || effectsBusy}
               context={nativeFaceContext} filename={state.source.name} viewer={{ originalUrl: state.source.url,
                 baseUrl: state.result.url, sourceWidth: state.source.width!, sourceHeight: state.source.height!,
                 outputWidth: state.result.width, outputHeight: state.result.height }} />
-            : <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting || resultIsStale || geometryBusy || toneBusy || colorBusy}
+            : <FaceDetailPanel key={faceDetailRevision} disabled={processing || processorRestarting || resultIsStale || geometryBusy || toneBusy || colorBusy || effectsBusy}
               filename={state.source.name} input={faceReviewInput} />)}
         </section>
 
@@ -2536,7 +2839,7 @@ export function ImageQualityEditorPage() {
               crop={geometryRecipe.crop}
               perspective={geometryRecipe.perspective}
               aspect={cropAspect}
-              disabled={geometryBusy || toneBusy || colorBusy}
+              disabled={geometryBusy || toneBusy || colorBusy || effectsBusy}
               onChange={(crop) => setGeometryRecipe({ ...geometryRecipe, crop })}
               onPerspectiveChange={(perspective) => setGeometryRecipe({ ...geometryRecipe, perspective })}
             />
@@ -2566,6 +2869,8 @@ export function ImageQualityEditorPage() {
                     ? colorSamplingBaseLabel
                     : colorVisionDisplayReady && colorVisionLabel
                     ? `${colorVisionLabel} preview · Result only`
+                    : effectsDisplayReady
+                    ? state.result ? `Effects-adjusted enhanced · ${state.result.strength}%` : "Effects-adjusted original"
                     : colorDisplayReady
                     ? state.result ? `Colour-adjusted enhanced · ${state.result.strength}%` : "Colour-adjusted original"
                     : toneDisplayReady
@@ -2620,6 +2925,7 @@ export function ImageQualityEditorPage() {
         geometryDisplayReady={geometryDisplayReady}
         toneStatus={toneDisplayReady ? "Applied" : toneIsDirty ? "Unapplied changes" : "None"}
         colorStatus={colorDisplayReady ? "Applied" : colorIsDirty ? "Unapplied changes" : "None"}
+        effectsStatus={effectsDisplayReady ? "Applied" : effectsIsDirty ? "Unapplied changes" : "None"}
         histogramInput={histogramInput}
       />
     </section>

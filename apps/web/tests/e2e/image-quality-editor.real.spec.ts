@@ -2120,6 +2120,98 @@ test("customer colour presets persist portable recipes locally and require expli
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("ipw-image-color-presets:v1") ?? "null")?.presets?.length)).toBe(0);
 });
 
+test("vignette is an explicit deterministic stage with exact preview and download bytes", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "vignette-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Effects controls" });
+  await panel.getByLabel("Vignette amount", { exact: true }).fill("-60");
+  await panel.getByLabel("Vignette midpoint", { exact: true }).fill("40");
+  await panel.getByLabel("Vignette feather", { exact: true }).fill("65");
+  await expect(panel.getByText("Dark 60", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Apply effects" })).toBeEnabled();
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+  expect(await page.getByTestId("enhanced-image").getAttribute("src")).toBe(unchangedPreviewUrl);
+
+  await panel.getByRole("button", { name: "Apply effects" }).click();
+  await expect(page.getByText(/Effects derivative ready/)).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Apply effects" })).toBeDisabled();
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+    const decode = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0);
+      return {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        pixels: context.getImageData(0, 0, canvas.width, canvas.height).data,
+      };
+    };
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const registry = (window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> }).__ipwTestObjectUrlBlobs;
+    const blob = registry?.get(image.src);
+    if (!blob) throw new Error("Missing exact effects preview Blob");
+    const [source, result, bytes] = await Promise.all([decode(sourceUrl), decode(image.src), blob.arrayBuffer()]);
+    const cornerChanged = source.pixels[0] !== result.pixels[0]
+      || source.pixels[1] !== result.pixels[1]
+      || source.pixels[2] !== result.pixels[2];
+    const centreOffset = ((Math.floor(result.height / 2) * result.width) + Math.floor(result.width / 2)) * 4;
+    const centreUnchanged = [0, 1, 2, 3].every((channel) => (
+      source.pixels[centreOffset + channel] === result.pixels[centreOffset + channel]
+    ));
+    const digest = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      (value) => value.toString(16).padStart(2, "0"),
+    ).join("");
+    return { width: result.width, height: result.height, cornerChanged, centreUnchanged, digest };
+  }, immutableSourceUrl!);
+  expect(previewEvidence).toMatchObject({
+    width: 48,
+    height: 40,
+    cornerChanged: true,
+    centreUnchanged: true,
+  });
+
+  const accessibility = await new AxeBuilder({ page }).include('[aria-label="Effects controls"]').analyze();
+  expect(accessibility.violations).toEqual([]);
+  const downloadPromise = page.waitForEvent("download");
+  await panel.getByRole("button", { name: "Download effects-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("vignette-source-effects-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.effects.provenance.v1");
+  expect(downloaded.toString("utf8")).toContain('"vignette":{"amount":-60,"midpoint":40,"feather":65}');
+  expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
+
+  await panel.getByLabel("Vignette amount", { exact: true }).fill("-70");
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
+});
+
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(48, 40);
   await retainObjectUrlBlobs(page);
