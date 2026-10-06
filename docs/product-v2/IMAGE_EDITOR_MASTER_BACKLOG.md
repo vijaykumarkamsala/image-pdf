@@ -338,6 +338,13 @@ match versus manually customized settings. Pixels remain unchanged until the
 customer separately chooses Apply effects, while exported provenance contains
 the expanded recipe values and never the display label.
 
+Customers can also save, reload, rename and explicitly delete up to 24 custom
+Effects recipes in the current browser profile. The strict versioned local
+schema accepts only complete sanitized v3 recipes and rejects corrupt,
+duplicate, obsolete, out-of-range or unknown settings. Saved names are not
+synced or shared; loading remains separate from Apply effects, and exported
+provenance contains the expanded recipe rather than the private local name.
+
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
 - Depth blur, bokeh, selective colour, colour splash and double exposure.

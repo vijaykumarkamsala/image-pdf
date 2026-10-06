@@ -2499,6 +2499,108 @@ test("built-in effect looks load complete reviewable recipes without silently ap
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });
 
+test("customer effects presets persist complete recipes locally and require explicit apply", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "custom-effects.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Effects controls" });
+  await panel.getByLabel("Highlight bloom amount", { exact: true }).fill("19");
+  await panel.getByLabel("Highlight bloom radius", { exact: true }).fill("6");
+  await panel.getByLabel("Highlight bloom threshold", { exact: true }).fill("78");
+  await panel.getByLabel("Film grain amount", { exact: true }).fill("13");
+  await panel.getByLabel("Film grain size", { exact: true }).fill("3");
+  await panel.getByLabel("Vignette amount", { exact: true }).fill("-21");
+  await panel.getByLabel("Vignette midpoint", { exact: true }).fill("57");
+  await panel.getByLabel("Vignette feather", { exact: true }).fill("73");
+  await panel.getByLabel("Effects preset name", { exact: true }).fill("  Quiet   finish  ");
+  await panel.getByRole("button", { name: "Save current effects" }).click();
+  await expect(panel.getByText("Saved “Quiet finish” in this browser profile.")).toBeVisible();
+  const savedPreset = panel.locator(".quality-custom-preset-apply").filter({ hasText: "Quiet finish" });
+  await expect(savedPreset).toBeVisible();
+  expect(await page.evaluate(() => {
+    const envelope = JSON.parse(localStorage.getItem("ipw-image-effect-presets:v1") ?? "null");
+    return {
+      version: envelope?.version,
+      count: envelope?.presets?.length,
+      name: envelope?.presets?.[0]?.name,
+      recipeVersion: envelope?.presets?.[0]?.recipeVersion,
+      bloom: envelope?.presets?.[0]?.recipe?.bloom,
+      grain: envelope?.presets?.[0]?.recipe?.grain,
+      vignette: envelope?.presets?.[0]?.recipe?.vignette,
+    };
+  })).toEqual({
+    version: 1,
+    count: 1,
+    name: "Quiet finish",
+    recipeVersion: 3,
+    bloom: { amount: 19, radius: 6, threshold: 78 },
+    grain: { amount: 13, size: 3 },
+    vignette: { amount: -21, midpoint: 57, feather: 73 },
+  });
+
+  await panel.getByRole("button", { name: "Rename Quiet finish" }).click();
+  await panel.getByLabel("Rename Quiet finish").fill("Portfolio finish");
+  await panel.getByRole("button", { name: "Save name" }).click();
+  await expect(panel.getByText("Renamed preset to “Portfolio finish”.")).toBeVisible();
+
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "custom-effects.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  const reloadedPanel = page.getByRole("complementary", { name: "Effects controls" });
+  const persistedPreset = reloadedPanel.locator(".quality-custom-preset-apply").filter({ hasText: "Portfolio finish" });
+  await expect(persistedPreset).toBeVisible();
+  const accessibility = await new AxeBuilder({ page }).include(".quality-custom-effect-presets").analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await persistedPreset.click();
+  await expect(persistedPreset).toHaveAttribute("aria-pressed", "true");
+  await expect(reloadedPanel.getByLabel("Highlight bloom amount", { exact: true })).toHaveValue("19");
+  await expect(reloadedPanel.getByLabel("Film grain amount", { exact: true })).toHaveValue("13");
+  await expect(reloadedPanel.getByLabel("Vignette amount", { exact: true })).toHaveValue("-21");
+  await expect(reloadedPanel.getByText("Loaded “Portfolio finish”. Choose Apply effects to change pixels.")).toBeVisible();
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", immutableSourceUrl!);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", unchangedPreviewUrl!);
+  await expect(reloadedPanel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+
+  await reloadedPanel.getByRole("button", { name: "Apply effects" }).click();
+  await expect(page.getByText(/Effects derivative ready/)).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await reloadedPanel.getByRole("button", { name: "Download effects-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("custom-effects-effects-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  const provenance = downloaded.toString("utf8");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain('"bloom":{"amount":19,"radius":6,"threshold":78}');
+  expect(provenance).toContain('"grain":{"amount":13,"size":3}');
+  expect(provenance).toContain('"vignette":{"amount":-21,"midpoint":57,"feather":73}');
+  expect(provenance).not.toContain("Portfolio finish");
+
+  await reloadedPanel.getByRole("button", { name: "Delete Portfolio finish" }).click();
+  await expect(reloadedPanel.getByRole("button", { name: "Confirm delete Portfolio finish" })).toBeVisible();
+  await reloadedPanel.getByRole("button", { name: "Confirm delete Portfolio finish" }).click();
+  await expect(persistedPreset).toHaveCount(0);
+  await expect(reloadedPanel.getByText("Deleted “Portfolio finish” from this browser profile.")).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("ipw-image-effect-presets:v1") ?? "null")?.presets?.length)).toBe(0);
+});
+
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(48, 40);
   await retainObjectUrlBlobs(page);

@@ -114,6 +114,8 @@ import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
 import {
   isNeutralEffects,
   MAX_BROWSER_EFFECT_PIXELS,
+  sameEffectsRecipe,
+  sanitizeEffectsRecipe,
   type ImageEffectsRecipe,
   type ImageEffectsStatistics,
 } from "./imageEffects";
@@ -123,6 +125,17 @@ import {
   imageEffectPreset,
   matchingImageEffectPreset,
 } from "./imageEffectPresets";
+import {
+  addImageEffectCustomPreset,
+  IMAGE_EFFECT_CUSTOM_PRESET_STORAGE_KEY,
+  MAX_IMAGE_EFFECT_CUSTOM_PRESETS,
+  MAX_IMAGE_EFFECT_CUSTOM_PRESET_NAME_LENGTH,
+  persistImageEffectCustomPresets,
+  readImageEffectCustomPresets,
+  removeImageEffectCustomPreset,
+  renameImageEffectCustomPreset,
+  type ImageEffectCustomPreset,
+} from "./imageEffectCustomPresets";
 
 export type ImageEditorTool = "enhance" | "adjust" | "color" | "effects" | "geometry";
 
@@ -177,8 +190,59 @@ function vignetteAmountLabel(amount: number) {
 }
 
 export function EffectsToolPanel(props: EffectsToolPanelProps) {
+  const [customPresets, setCustomPresets] = useState<ImageEffectCustomPreset[]>([]);
+  const [customPresetName, setCustomPresetName] = useState("");
+  const [customPresetMessage, setCustomPresetMessage] = useState<string | null>(null);
+  const [customPresetError, setCustomPresetError] = useState<string | null>(null);
+  const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
+  const [renamingPresetName, setRenamingPresetName] = useState("");
+  const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null);
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        setCustomPresets(readImageEffectCustomPresets(localStorage));
+      } catch {
+        setCustomPresetError("Saved presets are unavailable in this browser profile.");
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === IMAGE_EFFECT_CUSTOM_PRESET_STORAGE_KEY) refresh();
+    };
+    refresh();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   const neutral = isNeutralEffects(props.recipe);
   const activePreset = matchingImageEffectPreset(props.recipe);
+  const activeCustomPreset = customPresets.find((preset) => sameEffectsRecipe(preset.recipe, props.recipe)) ?? null;
+  const commitCustomPresets = (next: ImageEffectCustomPreset[], message: string) => {
+    try {
+      persistImageEffectCustomPresets(localStorage, next);
+      setCustomPresets(next);
+      setCustomPresetError(null);
+      setCustomPresetMessage(message);
+      return true;
+    } catch {
+      setCustomPresetMessage(null);
+      setCustomPresetError("The browser could not save this preset. Existing presets were left unchanged.");
+      return false;
+    }
+  };
+  const saveCustomPreset = () => {
+    try {
+      const next = addImageEffectCustomPreset(
+        customPresets,
+        customPresetName,
+        props.recipe,
+        `effect-${crypto.randomUUID()}`,
+      );
+      const saved = next[next.length - 1]!;
+      if (commitCustomPresets(next, `Saved “${saved.name}” in this browser profile.`)) setCustomPresetName("");
+    } catch (error) {
+      setCustomPresetMessage(null);
+      setCustomPresetError(error instanceof Error ? error.message : "The effects preset could not be saved.");
+    }
+  };
   return <aside className="quality-tool-panel quality-controls" aria-label="Effects controls">
     <div className="quality-panel-heading"><Aperture aria-hidden="true" /><div><h2>Effects</h2><p>Bounded creative finishing after colour.</p></div></div>
     <fieldset className="quality-tone-presets">
@@ -200,6 +264,114 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
         </button>)}
       </div>
       <p>A look loads one complete, versioned deterministic effects recipe. Review its controls, then choose Apply effects; selecting a look alone never changes pixels.</p>
+    </fieldset>
+    <fieldset className="quality-custom-presets quality-custom-effect-presets">
+      <legend>My effects presets</legend>
+      <p>Saved names and complete Effects settings stay only in this browser profile. They are not synced, shared or embedded as preset names in exported files.</p>
+      <form className="quality-custom-preset-create" onSubmit={(event) => {
+        event.preventDefault();
+        saveCustomPreset();
+      }}>
+        <label>
+          <span>Effects preset name</span>
+          <input
+            type="text"
+            maxLength={MAX_IMAGE_EFFECT_CUSTOM_PRESET_NAME_LENGTH}
+            value={customPresetName}
+            disabled={props.busy || customPresets.length >= MAX_IMAGE_EFFECT_CUSTOM_PRESETS}
+            onChange={(event) => {
+              setCustomPresetName(event.target.value);
+              setCustomPresetError(null);
+              setCustomPresetMessage(null);
+            }}
+          />
+        </label>
+        <Button
+          type="submit"
+          size="compact"
+          disabled={props.busy || !customPresetName.trim() || neutral || Boolean(activePreset)
+            || Boolean(activeCustomPreset) || customPresets.length >= MAX_IMAGE_EFFECT_CUSTOM_PRESETS}
+        >Save current effects</Button>
+      </form>
+      {neutral && <small>Change at least one Effects setting before saving.</small>}
+      {activePreset && <small>“{activePreset.label}” is already available in the built-in collection.</small>}
+      {!activePreset && activeCustomPreset && <small>This recipe is already saved as “{activeCustomPreset.name}”.</small>}
+      <small>{customPresets.length} of {MAX_IMAGE_EFFECT_CUSTOM_PRESETS} local presets used.</small>
+      {customPresetMessage && <p className="quality-custom-preset-message" role="status">{customPresetMessage}</p>}
+      {customPresetError && <p className="quality-custom-preset-error" role="alert">{customPresetError}</p>}
+      {customPresets.length === 0
+        ? <p className="quality-custom-preset-empty">No saved Effects presets in this browser profile.</p>
+        : <ul className="quality-custom-preset-list" aria-label="Saved effects presets">
+          {customPresets.map((preset) => <li key={preset.id}>
+            {renamingPresetId === preset.id
+              ? <form className="quality-custom-preset-rename" onSubmit={(event) => {
+                event.preventDefault();
+                try {
+                  const next = renameImageEffectCustomPreset(customPresets, preset.id, renamingPresetName);
+                  const renamed = next.find((item) => item.id === preset.id)!;
+                  if (commitCustomPresets(next, `Renamed preset to “${renamed.name}”.`)) {
+                    setRenamingPresetId(null);
+                    setRenamingPresetName("");
+                  }
+                } catch (error) {
+                  setCustomPresetMessage(null);
+                  setCustomPresetError(error instanceof Error ? error.message : "The effects preset could not be renamed.");
+                }
+              }}>
+                <label><span>Rename {preset.name}</span><input
+                  type="text"
+                  maxLength={MAX_IMAGE_EFFECT_CUSTOM_PRESET_NAME_LENGTH}
+                  value={renamingPresetName}
+                  autoFocus
+                  onChange={(event) => setRenamingPresetName(event.target.value)}
+                /></label>
+                <div><Button type="submit" size="compact" disabled={!renamingPresetName.trim()}>Save name</Button><Button type="button" size="compact" onClick={() => {
+                  setRenamingPresetId(null);
+                  setRenamingPresetName("");
+                }}>Cancel rename</Button></div>
+              </form>
+              : <>
+                <button
+                  type="button"
+                  className="quality-custom-preset-apply"
+                  aria-pressed={activeCustomPreset?.id === preset.id && !activePreset}
+                  disabled={props.busy}
+                  onClick={() => {
+                    setCustomPresetError(null);
+                    setCustomPresetMessage(`Loaded “${preset.name}”. Choose Apply effects to change pixels.`);
+                    props.onRecipe(sanitizeEffectsRecipe(preset.recipe));
+                  }}
+                ><strong>{preset.name}</strong><span>Load saved effects</span></button>
+                <div className="quality-custom-preset-actions">
+                  <Button type="button" size="compact" disabled={props.busy} onClick={() => {
+                    setRenamingPresetId(preset.id);
+                    setRenamingPresetName(preset.name);
+                    setDeletingPresetId(null);
+                    setCustomPresetError(null);
+                    setCustomPresetMessage(null);
+                  }}>Rename {preset.name}</Button>
+                  {deletingPresetId === preset.id
+                    ? <><Button type="button" size="compact" tone="danger" onClick={() => {
+                      try {
+                        const next = removeImageEffectCustomPreset(customPresets, preset.id);
+                        if (commitCustomPresets(next, `Deleted “${preset.name}” from this browser profile.`)) {
+                          setDeletingPresetId(null);
+                        }
+                      } catch (error) {
+                        setCustomPresetMessage(null);
+                        setCustomPresetError(error instanceof Error ? error.message : "The effects preset could not be deleted.");
+                      }
+                    }}>Confirm delete {preset.name}</Button><Button type="button" size="compact" onClick={() => setDeletingPresetId(null)}>Cancel delete</Button></>
+                    : <Button type="button" size="compact" tone="danger" disabled={props.busy} onClick={() => {
+                      setDeletingPresetId(preset.id);
+                      setRenamingPresetId(null);
+                      setCustomPresetError(null);
+                      setCustomPresetMessage(null);
+                    }}>Delete {preset.name}</Button>}
+                </div>
+              </>}
+          </li>)}
+        </ul>}
     </fieldset>
     <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Highlight bloom</legend>
