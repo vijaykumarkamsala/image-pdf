@@ -174,6 +174,58 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
   return <aside className="quality-tool-panel quality-controls" aria-label="Effects controls">
     <div className="quality-panel-heading"><Aperture aria-hidden="true" /><div><h2>Effects</h2><p>Bounded creative finishing after colour.</p></div></div>
     <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Highlight bloom</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Amount</strong><output>{props.recipe.bloom.amount === 0 ? "Neutral" : `${props.recipe.bloom.amount}%`}</output></span>
+        <input
+          aria-label="Highlight bloom amount"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.bloom.amount}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            bloom: { ...props.recipe.bloom, amount: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Radius</strong><output>{props.recipe.bloom.radius} px</output></span>
+        <input
+          aria-label="Highlight bloom radius"
+          type="range"
+          min="1"
+          max="32"
+          step="1"
+          value={props.recipe.bloom.radius}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            bloom: { ...props.recipe.bloom, radius: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Threshold</strong><output>{props.recipe.bloom.threshold}% brightness</output></span>
+        <input
+          aria-label="Highlight bloom threshold"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.bloom.threshold}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            bloom: { ...props.recipe.bloom, threshold: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Spreads measured source highlights within visible pixels only. It preserves alpha, prevents new clipped whites and does not invent a light source.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Film grain</legend>
       <label className="quality-adjustment-control">
         <span><strong>Amount</strong><output>{props.recipe.grain.amount === 0 ? "Neutral" : `${props.recipe.grain.amount}%`}</output></span>
@@ -263,6 +315,7 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
+      <div><dt>Bloom pixels</dt><dd>{props.statistics.bloomChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Grain pixels</dt><dd>{props.statistics.grainChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Vignette pixels</dt><dd>{props.statistics.vignetteChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Darkened pixels</dt><dd>{props.statistics.darkenedPixels.toLocaleString()}</dd></div>

@@ -2203,7 +2203,8 @@ test("vignette is an explicit deterministic stage with exact preview and downloa
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.effects.provenance.v2");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(downloaded.toString("utf8")).toContain('"bloom":{"amount":0,"radius":8,"threshold":70}');
   expect(downloaded.toString("utf8")).toContain('"grain":{"amount":0,"size":2}');
   expect(downloaded.toString("utf8")).toContain('"vignette":{"amount":-60,"midpoint":40,"feather":65}');
   expect(await page.getByTestId("original-image").getAttribute("src")).toBe(immutableSourceUrl);
@@ -2295,8 +2296,9 @@ test("film grain is an explicit deterministic stage with exact preview and downl
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(firstPreview.digest);
   const provenance = downloaded.toString("utf8");
-  expect(provenance).toContain("ipw.image-edit.effects.provenance.v2");
-  expect(provenance).toContain('"operation_order":["source_coordinate_film_grain","source_coordinate_vignette"]');
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain('"operation_order":["source_neighbourhood_highlight_bloom","source_coordinate_film_grain","source_coordinate_vignette"]');
+  expect(provenance).toContain('"bloom":{"amount":0,"radius":8,"threshold":70}');
   expect(provenance).toContain('"grain":{"amount":55,"size":3}');
   expect(provenance).toContain('"vignette":{"amount":0,"midpoint":50,"feather":50}');
   await expect(page.getByTestId("original-image")).toHaveAttribute("src", immutableSourceUrl!);
@@ -2308,6 +2310,126 @@ test("film grain is an explicit deterministic stage with exact preview and downl
   expect(repeatedPreview.digest).toBe(firstPreview.digest);
 
   await panel.getByLabel("Film grain amount", { exact: true }).fill("65");
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
+});
+
+test("highlight bloom is source-derived, deterministic and exact across preview and download", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "bloom-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Effects controls" });
+  await panel.getByLabel("Highlight bloom amount", { exact: true }).fill("75");
+  await panel.getByLabel("Highlight bloom radius", { exact: true }).fill("5");
+  await panel.getByLabel("Highlight bloom threshold", { exact: true }).fill("45");
+  await expect(panel.getByText("75%", { exact: true })).toBeVisible();
+  await expect(panel.getByText("5 px", { exact: true })).toBeVisible();
+  await expect(panel.getByText("45% brightness", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Apply effects" })).toBeEnabled();
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", immutableSourceUrl!);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", unchangedPreviewUrl!);
+
+  const renderAndInspect = async () => {
+    await panel.getByRole("button", { name: "Apply effects" }).click();
+    await expect(page.getByText(/Effects derivative ready/)).toBeVisible();
+    return page.getByTestId("enhanced-image").evaluate(async (node, sourceUrl) => {
+      const decode = async (url: string) => {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true })!;
+        context.drawImage(image, 0, 0);
+        return {
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+          pixels: context.getImageData(0, 0, canvas.width, canvas.height).data,
+        };
+      };
+      const image = node as HTMLImageElement;
+      await image.decode();
+      const registry = (window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> }).__ipwTestObjectUrlBlobs;
+      const blob = registry?.get(image.src);
+      if (!blob) throw new Error("Missing exact bloom preview Blob");
+      const [source, result, bytes] = await Promise.all([decode(sourceUrl), decode(image.src), blob.arrayBuffer()]);
+      let changedPixels = 0;
+      let brightenedPixels = 0;
+      let newClippedChannels = 0;
+      for (let offset = 0; offset < result.pixels.length; offset += 4) {
+        let changed = false;
+        let brightened = false;
+        for (let channel = 0; channel < 3; channel += 1) {
+          if (source.pixels[offset + channel] !== result.pixels[offset + channel]) changed = true;
+          if (result.pixels[offset + channel] > source.pixels[offset + channel]) brightened = true;
+          if (source.pixels[offset + channel] < 255 && result.pixels[offset + channel] === 255) {
+            newClippedChannels += 1;
+          }
+        }
+        if (changed) changedPixels += 1;
+        if (brightened) brightenedPixels += 1;
+      }
+      const digest = Array.from(
+        new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+        (value) => value.toString(16).padStart(2, "0"),
+      ).join("");
+      return {
+        width: result.width,
+        height: result.height,
+        changedPixels,
+        brightenedPixels,
+        newClippedChannels,
+        digest,
+      };
+    }, immutableSourceUrl!);
+  };
+
+  const firstPreview = await renderAndInspect();
+  expect(firstPreview).toMatchObject({ width: 48, height: 40, newClippedChannels: 0 });
+  expect(firstPreview.changedPixels).toBeGreaterThan(0);
+  expect(firstPreview.brightenedPixels).toBeGreaterThan(0);
+  const accessibility = await new AxeBuilder({ page }).include('[aria-label="Effects controls"]').analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  const downloadPromise = page.waitForEvent("download");
+  await panel.getByRole("button", { name: "Download effects-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("bloom-source-effects-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(firstPreview.digest);
+  const provenance = downloaded.toString("utf8");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain('"operation_order":["source_neighbourhood_highlight_bloom","source_coordinate_film_grain","source_coordinate_vignette"]');
+  expect(provenance).toContain('"bloom":{"amount":75,"radius":5,"threshold":45}');
+  expect(provenance).toContain('"grain":{"amount":0,"size":2}');
+  expect(provenance).toContain('"vignette":{"amount":0,"midpoint":50,"feather":50}');
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", immutableSourceUrl!);
+
+  await panel.getByRole("button", { name: "Reset effects" }).click();
+  await panel.getByLabel("Highlight bloom amount", { exact: true }).fill("75");
+  await panel.getByLabel("Highlight bloom radius", { exact: true }).fill("5");
+  await panel.getByLabel("Highlight bloom threshold", { exact: true }).fill("45");
+  const repeatedPreview = await renderAndInspect();
+  expect(repeatedPreview.digest).toBe(firstPreview.digest);
+
+  await panel.getByLabel("Highlight bloom threshold", { exact: true }).fill("55");
   await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });

@@ -316,16 +316,20 @@ removed. Loading remains separate from Apply colour, while exported provenance
 contains the expanded v10 settings and never the private local preset name.
 
 **Implemented locally, pending product-owner image testing:** the Effects stage
-now provides deterministic film grain followed by a source-coordinate vignette
-after Colour. Grain amount and size derive a repeatable monochrome pattern from
-the verified base hash and immutable source coordinates, with bounded RGB
-headroom to avoid hue shifts and new clipping. Vignette amount, midpoint and
-feather are bounded; the protected centre remains unchanged, alpha is
-preserved, and dark/light perimeter changes use a smooth linear-light blend.
-Selecting settings does not change pixels. Apply creates an exact-dimension
-derivative bound to the latest verified base, with ordered v2 effects
-recipe/statistics provenance and byte-identical preview/download data. Browser
-resource limits fail visibly instead of returning an uneffected substitute.
+now provides deterministic highlight bloom, film grain and a source-coordinate
+vignette after Colour. Bloom spreads only measured highlights from an immutable
+source neighbourhood using bounded Amount, Radius and Threshold controls. Halo
+rows keep worker tiles seam-free, fully transparent pixels are excluded, alpha
+is preserved, and previously unclipped channels cannot become clipped white. Grain
+amount and size derive a repeatable monochrome pattern from the verified base
+hash and immutable source coordinates, with bounded RGB headroom to avoid hue
+shifts and new clipping. Vignette amount, midpoint and feather are bounded; the
+protected centre remains unchanged, alpha is preserved, and dark/light
+perimeter changes use a smooth linear-light blend. Selecting settings does not
+change pixels. Apply creates an exact-dimension derivative bound to the latest
+verified base, with ordered v3 effects recipe/statistics provenance and
+byte-identical preview/download data. Browser resource limits fail visibly
+instead of returning an uneffected substitute.
 
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.

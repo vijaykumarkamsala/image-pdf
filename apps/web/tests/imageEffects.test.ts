@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyBloomToRgba,
   applyEffectsToRgba,
   assertBrowserEffectsBudget,
   createNeutralEffectsRecipe,
@@ -36,15 +37,22 @@ test("effects recipes are bounded, neutral and comparable", () => {
   const neutral = createNeutralEffectsRecipe();
   assert.equal(isNeutralEffects(neutral), true);
   const safe = sanitizeEffectsRecipe({
+    bloom: { amount: 200, radius: 100, threshold: -20 },
     grain: { amount: 200, size: 20 },
     vignette: { amount: -200.4, midpoint: 120, feather: Number.NaN },
   });
   assert.deepEqual(safe, {
+    bloom: { amount: 100, radius: 32, threshold: 0 },
     grain: { amount: 100, size: 8 },
     vignette: { amount: -100, midpoint: 100, feather: 50 },
   });
-  assert.equal(sameEffectsRecipe(safe, { grain: { ...safe.grain }, vignette: { ...safe.vignette } }), true);
   assert.equal(sameEffectsRecipe(safe, {
+    bloom: { ...safe.bloom },
+    grain: { ...safe.grain },
+    vignette: { ...safe.vignette },
+  }), true);
+  assert.equal(sameEffectsRecipe(safe, {
+    bloom: { ...safe.bloom },
     grain: { ...safe.grain },
     vignette: { ...safe.vignette, feather: 49 },
   }), false);
@@ -58,7 +66,11 @@ test("vignette deterministically changes the perimeter while preserving the cent
   const source = solid(width, height);
   const dark = source.slice();
   const darkAgain = source.slice();
-  const recipe = { grain: { amount: 0, size: 2 }, vignette: { amount: -80, midpoint: 35, feather: 55 } };
+  const recipe = {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
+    grain: { amount: 0, size: 2 },
+    vignette: { amount: -80, midpoint: 35, feather: 55 },
+  };
   const statistics = applyEffectsToRgba(dark, recipe, width, height);
   applyEffectsToRgba(darkAgain, recipe, width, height);
   assert.deepEqual(dark, darkAgain);
@@ -71,6 +83,7 @@ test("vignette deterministically changes the perimeter while preserving the cent
 
   const light = source.slice();
   const lightStatistics = applyEffectsToRgba(light, {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: 80, midpoint: 35, feather: 55 },
   }, width, height);
@@ -84,7 +97,11 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
   const height = 6;
   const source = solid(width, height, 96);
   source.set([17, 29, 43, 0], 0);
-  const recipe = { grain: { amount: 0, size: 2 }, vignette: { amount: -67, midpoint: 20, feather: 72 } };
+  const recipe = {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
+    grain: { amount: 0, size: 2 },
+    vignette: { amount: -67, midpoint: 20, feather: 72 },
+  };
   const full = source.slice();
   applyEffectsToRgba(full, recipe, width, height);
 
@@ -102,6 +119,7 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
   assert.deepEqual(applyEffectsToRgba(neutral, createNeutralEffectsRecipe(), width, height), {
     processedPixels: 0,
     changedPixels: 0,
+    bloomChangedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
@@ -110,13 +128,83 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
   assert.deepEqual(neutral, source);
 });
 
+test("highlight bloom is progressive, source-derived, alpha-safe and tile-stable", () => {
+  const width = 11;
+  const height = 10;
+  const source = solid(width, height, 28);
+  for (let y = 4; y <= 5; y += 1) {
+    for (let x = 5; x <= 6; x += 1) source.set([248, 224, 180, 255], (y * width + x) * 4);
+  }
+  source.set([17, 29, 43, 0], 0);
+  const recipe = { amount: 60, radius: 3, threshold: 60 };
+  const bloom = applyBloomToRgba(source, width, height, 0, height, recipe);
+  const repeated = applyBloomToRgba(source, width, height, 0, height, recipe);
+  assert.deepEqual(bloom, repeated);
+  assert.ok(bloom.changedPixels > 0);
+  const nearOffset = (4 * width + 4) * 4;
+  assert.ok(bloom.pixels[nearOffset] > source[nearOffset]);
+  assert.deepEqual(Array.from(bloom.pixels.subarray(0, 4)), [17, 29, 43, 0]);
+  for (let offset = 0; offset < bloom.pixels.length; offset += 4) {
+    assert.equal(bloom.pixels[offset + 3], source[offset + 3]);
+    if (source[offset] < 255) assert.ok(bloom.pixels[offset] < 255);
+    if (source[offset + 1] < 255) assert.ok(bloom.pixels[offset + 1] < 255);
+    if (source[offset + 2] < 255) assert.ok(bloom.pixels[offset + 2] < 255);
+  }
+
+  const stronger = applyBloomToRgba(source, width, height, 0, height, {
+    amount: 100,
+    radius: 3,
+    threshold: 60,
+  });
+  const difference = (pixels: Uint8ClampedArray) => pixels.reduce((total, value, index) => (
+    index % 4 === 3 ? total : total + Math.abs(value - source[index])
+  ), 0);
+  assert.ok(difference(stronger.pixels) > difference(bloom.pixels));
+  const broader = applyBloomToRgba(source, width, height, 0, height, {
+    amount: 60,
+    radius: 5,
+    threshold: 60,
+  });
+  assert.notDeepEqual(broader.pixels, bloom.pixels);
+  const excluded = applyBloomToRgba(source, width, height, 0, height, {
+    amount: 100,
+    radius: 3,
+    threshold: 100,
+  });
+  assert.equal(excluded.changedPixels, 0);
+  assert.deepEqual(excluded.pixels, source);
+
+  const split = 4;
+  const firstBottom = Math.min(height, split + recipe.radius);
+  const firstTile = source.slice(0, firstBottom * width * 4);
+  const firstCore = applyBloomToRgba(firstTile, width, firstBottom, 0, split, recipe).pixels;
+  const secondTop = Math.max(0, split - recipe.radius);
+  const secondTile = source.slice(secondTop * width * 4);
+  const secondCore = applyBloomToRgba(
+    secondTile,
+    width,
+    height - secondTop,
+    split - secondTop,
+    height - split,
+    recipe,
+  ).pixels;
+  const tiled = new Uint8ClampedArray(source.length);
+  tiled.set(firstCore);
+  tiled.set(secondCore, firstCore.length);
+  assert.deepEqual(tiled, bloom.pixels);
+});
+
 test("film grain is deterministic, progressive, hue-preserving and tile-stable", () => {
   const width = 9;
   const height = 8;
   const source = new Uint8ClampedArray(width * height * 4);
   for (let offset = 0; offset < source.length; offset += 4) source.set([72, 102, 132, 255], offset);
   source.set([17, 29, 43, 0], 0);
-  const recipe = { grain: { amount: 50, size: 3 }, vignette: { amount: 0, midpoint: 50, feather: 50 } };
+  const recipe = {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
+    grain: { amount: 50, size: 3 },
+    vignette: { amount: 0, midpoint: 50, feather: 50 },
+  };
   const first = source.slice();
   const repeated = source.slice();
   const statistics = applyEffectsToRgba(first, recipe, width, height, 0, 0x1234abcd);
@@ -134,6 +222,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
 
   const stronger = source.slice();
   applyEffectsToRgba(stronger, {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
     grain: { amount: 100, size: 3 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   }, width, height, 0, 0x1234abcd);
@@ -147,6 +236,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   assert.notDeepEqual(otherSeed, first);
   const otherSize = source.slice();
   applyEffectsToRgba(otherSize, {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
     grain: { amount: 50, size: 6 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   }, width, height, 0, 0x1234abcd);
@@ -172,10 +262,15 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
     baseRoute: "colour:tone",
     baseStrength: 50,
     baseScale: 2,
-    recipe: { grain: { amount: 35, size: 3 }, vignette: { amount: -35, midpoint: 52, feather: 61 } },
+    recipe: {
+      bloom: { amount: 55, radius: 12, threshold: 68 },
+      grain: { amount: 35, size: 3 },
+      vignette: { amount: -35, midpoint: 52, feather: 61 },
+    },
     statistics: {
       processedPixels: 3072,
       changedPixels: 1400,
+      bloomChangedPixels: 600,
       grainChangedPixels: 900,
       vignetteChangedPixels: 1200,
       darkenedPixels: 1200,
@@ -186,8 +281,8 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.effects\.provenance\.v2/);
-  assert.match(text, /"operation_order":\["source_coordinate_film_grain","source_coordinate_vignette"\]/);
+  assert.match(text, /ipw\.image-edit\.effects\.provenance\.v3/);
+  assert.match(text, /"operation_order":\["source_neighbourhood_highlight_bloom","source_coordinate_film_grain","source_coordinate_vignette"\]/);
   assert.match(text, /"base_kind":"colour"/);
   assert.match(text, /"amount":-35/);
   assert.match(text, /"midpoint":52/);
@@ -202,10 +297,15 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
     baseRoute: "colour:tone",
     baseStrength: 50,
     baseScale: 2,
-    recipe: { grain: { amount: 35, size: 3 }, vignette: { amount: -35, midpoint: 52, feather: 61 } },
+    recipe: {
+      bloom: { amount: 55, radius: 12, threshold: 68 },
+      grain: { amount: 35, size: 3 },
+      vignette: { amount: -35, midpoint: 52, feather: 61 },
+    },
     statistics: {
       processedPixels: 3072,
       changedPixels: 1400,
+      bloomChangedPixels: 600,
       grainChangedPixels: 900,
       vignetteChangedPixels: 1200,
       darkenedPixels: 1199,

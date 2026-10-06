@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import {
+  applyBloomToRgba,
   applyEffectsToRgba,
   assertBrowserEffectsBudget,
   isNeutralEffects,
@@ -42,6 +43,7 @@ async function load(id: number, source: Blob) {
 function addStatistics(target: ImageEffectsStatistics, next: ImageEffectsStatistics) {
   target.processedPixels += next.processedPixels;
   target.changedPixels += next.changedPixels;
+  target.bloomChangedPixels += next.bloomChangedPixels;
   target.grainChangedPixels += next.grainChangedPixels;
   target.vignetteChangedPixels += next.vignetteChangedPixels;
   target.darkenedPixels += next.darkenedPixels;
@@ -52,6 +54,29 @@ function grainSeedFromSha256(value: string) {
   return Number.parseInt(value.slice(0, 8), 16) >>> 0;
 }
 
+function compareCoreStatistics(
+  sourceTile: Uint8ClampedArray,
+  width: number,
+  coreTop: number,
+  output: Uint8ClampedArray,
+) {
+  let processedPixels = 0;
+  let changedPixels = 0;
+  const coreHeight = output.byteLength / 4 / width;
+  for (let y = 0; y < coreHeight; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sourceOffset = ((coreTop + y) * width + x) * 4;
+      const outputOffset = (y * width + x) * 4;
+      if (sourceTile[sourceOffset + 3] === 0) continue;
+      processedPixels += 1;
+      if (sourceTile[sourceOffset] !== output[outputOffset]
+        || sourceTile[sourceOffset + 1] !== output[outputOffset + 1]
+        || sourceTile[sourceOffset + 2] !== output[outputOffset + 2]) changedPixels += 1;
+    }
+  }
+  return { processedPixels, changedPixels };
+}
+
 async function render(
   id: number,
   recipe: ImageEffectsRecipe,
@@ -59,7 +84,7 @@ async function render(
 ) {
   if (!bitmap) throw new Error("The image must be prepared before applying effects.");
   const safe = sanitizeEffectsRecipe(recipe);
-  if (isNeutralEffects(safe)) throw new Error("Choose a non-neutral grain or vignette amount before applying effects.");
+  if (isNeutralEffects(safe)) throw new Error("Choose a non-neutral bloom, grain or vignette amount before applying effects.");
   if (bitmap.width > MAX_CANVAS_EDGE || bitmap.height > MAX_CANVAS_EDGE) {
     throw new Error(
       `This effect requires ${bitmap.width} × ${bitmap.height} px, beyond this browser's ${MAX_CANVAS_EDGE}px canvas edge. No smaller result was substituted.`,
@@ -78,17 +103,61 @@ async function render(
   const statistics: ImageEffectsStatistics = {
     processedPixels: 0,
     changedPixels: 0,
+    bloomChangedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
     lightenedPixels: 0,
   };
   const grainSeed = grainSeedFromSha256(metadata.baseOutputSha256);
-  for (let y = 0; y < bitmap.height; y += rowsPerTile) {
-    const height = Math.min(rowsPerTile, bitmap.height - y);
-    const imageData = context.getImageData(0, y, bitmap.width, height);
-    addStatistics(statistics, applyEffectsToRgba(imageData.data, safe, bitmap.width, bitmap.height, y, grainSeed));
-    context.putImageData(imageData, 0, y);
+  if (safe.bloom.amount === 0) {
+    for (let y = 0; y < bitmap.height; y += rowsPerTile) {
+      const height = Math.min(rowsPerTile, bitmap.height - y);
+      const imageData = context.getImageData(0, y, bitmap.width, height);
+      addStatistics(statistics, applyEffectsToRgba(imageData.data, safe, bitmap.width, bitmap.height, y, grainSeed));
+      context.putImageData(imageData, 0, y);
+    }
+  } else {
+    const localRecipe: ImageEffectsRecipe = { ...safe, bloom: { ...safe.bloom, amount: 0 } };
+    for (let y = 0; y < bitmap.height; y += rowsPerTile) {
+      const height = Math.min(rowsPerTile, bitmap.height - y);
+      const tileTop = Math.max(0, y - safe.bloom.radius);
+      const tileBottom = Math.min(bitmap.height, y + height + safe.bloom.radius);
+      const tileHeight = tileBottom - tileTop;
+      const tileCanvas = new OffscreenCanvas(bitmap.width, tileHeight);
+      const tileContext = tileCanvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });
+      if (!tileContext) throw new Error("Your browser could not allocate the highlight-bloom tile renderer.");
+      tileContext.drawImage(bitmap, 0, tileTop, bitmap.width, tileHeight, 0, 0, bitmap.width, tileHeight);
+      const sourceTile = tileContext.getImageData(0, 0, bitmap.width, tileHeight).data;
+      const coreTop = y - tileTop;
+      const bloom = applyBloomToRgba(
+        sourceTile,
+        bitmap.width,
+        tileHeight,
+        coreTop,
+        height,
+        safe.bloom,
+      );
+      const localStatistics = applyEffectsToRgba(
+        bloom.pixels,
+        localRecipe,
+        bitmap.width,
+        bitmap.height,
+        y,
+        grainSeed,
+      );
+      const finalStatistics = compareCoreStatistics(sourceTile, bitmap.width, coreTop, bloom.pixels);
+      statistics.processedPixels += finalStatistics.processedPixels;
+      statistics.changedPixels += finalStatistics.changedPixels;
+      statistics.bloomChangedPixels += bloom.changedPixels;
+      statistics.grainChangedPixels += localStatistics.grainChangedPixels;
+      statistics.vignetteChangedPixels += localStatistics.vignetteChangedPixels;
+      statistics.darkenedPixels += localStatistics.darkenedPixels;
+      statistics.lightenedPixels += localStatistics.lightenedPixels;
+      const outputImageData = new ImageData(bitmap.width, height);
+      outputImageData.data.set(bloom.pixels);
+      context.putImageData(outputImageData, 0, y);
+    }
   }
   if (statistics.changedPixels === 0) {
     throw new Error("These effect settings did not change any visible pixels. No duplicate derivative was created.");

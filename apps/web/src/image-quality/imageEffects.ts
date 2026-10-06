@@ -1,3 +1,12 @@
+export interface ImageBloomRecipe {
+  /** Bounded strength of source-derived highlight spread. */
+  amount: number;
+  /** Source-coordinate neighbourhood radius in pixels. */
+  radius: number;
+  /** Minimum source luminance eligible to contribute, as a percentage. */
+  threshold: number;
+}
+
 export interface ImageFilmGrainRecipe {
   /** Bounded monochrome luminance grain strength. */
   amount: number;
@@ -15,6 +24,7 @@ export interface ImageVignetteRecipe {
 }
 
 export interface ImageEffectsRecipe {
+  bloom: ImageBloomRecipe;
   grain: ImageFilmGrainRecipe;
   vignette: ImageVignetteRecipe;
 }
@@ -22,6 +32,7 @@ export interface ImageEffectsRecipe {
 export interface ImageEffectsStatistics {
   processedPixels: number;
   changedPixels: number;
+  bloomChangedPixels: number;
   grainChangedPixels: number;
   vignetteChangedPixels: number;
   darkenedPixels: number;
@@ -38,6 +49,7 @@ function bounded(value: number, minimum: number, maximum: number, fallback: numb
 
 export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
   return {
+    bloom: { amount: 0, radius: 8, threshold: 70 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   };
@@ -45,6 +57,11 @@ export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
 
 export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsRecipe {
   return {
+    bloom: {
+      amount: Math.round(bounded(recipe.bloom?.amount, 0, 100, 0)),
+      radius: Math.round(bounded(recipe.bloom?.radius, 1, 32, 8)),
+      threshold: Math.round(bounded(recipe.bloom?.threshold, 0, 100, 70)),
+    },
     grain: {
       amount: Math.round(bounded(recipe.grain?.amount, 0, 100, 0)),
       size: Math.round(bounded(recipe.grain?.size, 1, 8, 2)),
@@ -59,7 +76,10 @@ export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsR
 
 export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
-  return recipe.grain?.amount === safe.grain.amount
+  return recipe.bloom?.amount === safe.bloom.amount
+    && recipe.bloom?.radius === safe.bloom.radius
+    && recipe.bloom?.threshold === safe.bloom.threshold
+    && recipe.grain?.amount === safe.grain.amount
     && recipe.grain?.size === safe.grain.size
     && recipe.vignette?.amount === safe.vignette.amount
     && recipe.vignette?.midpoint === safe.vignette.midpoint
@@ -68,14 +88,17 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
 
 export function isNeutralEffects(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
-  return safe.grain.amount === 0 && safe.vignette.amount === 0;
+  return safe.bloom.amount === 0 && safe.grain.amount === 0 && safe.vignette.amount === 0;
 }
 
 export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageEffectsRecipe | null): boolean {
   if (!left || !right) return left === right;
   const safeLeft = sanitizeEffectsRecipe(left);
   const safeRight = sanitizeEffectsRecipe(right);
-  return safeLeft.grain.amount === safeRight.grain.amount
+  return safeLeft.bloom.amount === safeRight.bloom.amount
+    && safeLeft.bloom.radius === safeRight.bloom.radius
+    && safeLeft.bloom.threshold === safeRight.bloom.threshold
+    && safeLeft.grain.amount === safeRight.grain.amount
     && safeLeft.grain.size === safeRight.grain.size
     && safeLeft.vignette.amount === safeRight.vignette.amount
     && safeLeft.vignette.midpoint === safeRight.vignette.midpoint
@@ -136,6 +159,107 @@ function interpolatedGrainNoise(x: number, y: number, size: number, seed: number
   return Math.max(-1, Math.min(1, (topValue * (1 - blendY) + bottomValue * blendY) * 1.35));
 }
 
+export interface ImageBloomResult {
+  pixels: Uint8ClampedArray;
+  processedPixels: number;
+  changedPixels: number;
+}
+
+/**
+ * Spreads only measured bright source pixels into visible core pixels. Callers
+ * provide radius-sized halo rows so independently rendered tiles match exactly.
+ */
+export function applyBloomToRgba(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  coreTop: number,
+  coreHeight: number,
+  recipe: ImageBloomRecipe,
+): ImageBloomResult {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1
+    || pixels.byteLength !== width * height * 4
+    || !Number.isSafeInteger(coreTop) || !Number.isSafeInteger(coreHeight)
+    || coreTop < 0 || coreHeight < 1 || coreTop + coreHeight > height) {
+    throw new Error("Highlight bloom requires complete RGBA core and halo dimensions.");
+  }
+  const amount = Math.round(bounded(recipe.amount, 0, 100, 0));
+  const radius = Math.round(bounded(recipe.radius, 1, 32, 8));
+  const threshold = Math.round(bounded(recipe.threshold, 0, 100, 70));
+  const output = new Uint8ClampedArray(width * coreHeight * 4);
+  const stride = width + 1;
+  const entries = stride * (height + 1);
+  const redIntegral = new Float64Array(entries);
+  const greenIntegral = new Float64Array(entries);
+  const blueIntegral = new Float64Array(entries);
+  const thresholdByte = threshold / 100 * 255;
+  for (let y = 0; y < height; y += 1) {
+    let rowRed = 0;
+    let rowGreen = 0;
+    let rowBlue = 0;
+    for (let x = 0; x < width; x += 1) {
+      const sourceOffset = (y * width + x) * 4;
+      const alpha = pixels[sourceOffset + 3] / 255;
+      if (alpha > 0 && thresholdByte < 255) {
+        const luminance = pixels[sourceOffset] * 0.2126
+          + pixels[sourceOffset + 1] * 0.7152
+          + pixels[sourceOffset + 2] * 0.0722;
+        const eligibility = smoothstep(thresholdByte, 255, luminance) * alpha;
+        rowRed += Math.round(pixels[sourceOffset] * eligibility);
+        rowGreen += Math.round(pixels[sourceOffset + 1] * eligibility);
+        rowBlue += Math.round(pixels[sourceOffset + 2] * eligibility);
+      }
+      const integralOffset = (y + 1) * stride + x + 1;
+      redIntegral[integralOffset] = redIntegral[integralOffset - stride] + rowRed;
+      greenIntegral[integralOffset] = greenIntegral[integralOffset - stride] + rowGreen;
+      blueIntegral[integralOffset] = blueIntegral[integralOffset - stride] + rowBlue;
+    }
+  }
+  const area = (integral: Float64Array, left: number, top: number, right: number, bottom: number) => (
+    integral[(bottom + 1) * stride + right + 1]
+      - integral[top * stride + right + 1]
+      - integral[(bottom + 1) * stride + left]
+      + integral[top * stride + left]
+  );
+  let processedPixels = 0;
+  let changedPixels = 0;
+  const maximumMix = amount / 100 * 0.9;
+  for (let outputY = 0; outputY < coreHeight; outputY += 1) {
+    const sourceY = coreTop + outputY;
+    const top = Math.max(0, sourceY - radius);
+    const bottom = Math.min(height - 1, sourceY + radius);
+    for (let x = 0; x < width; x += 1) {
+      const sourceOffset = (sourceY * width + x) * 4;
+      const outputOffset = (outputY * width + x) * 4;
+      output[outputOffset] = pixels[sourceOffset];
+      output[outputOffset + 1] = pixels[sourceOffset + 1];
+      output[outputOffset + 2] = pixels[sourceOffset + 2];
+      output[outputOffset + 3] = pixels[sourceOffset + 3];
+      if (pixels[sourceOffset + 3] === 0) continue;
+      processedPixels += 1;
+      if (maximumMix === 0) continue;
+      const left = Math.max(0, x - radius);
+      const right = Math.min(width - 1, x + radius);
+      const samples = (right - left + 1) * (bottom - top + 1);
+      const glow = [
+        area(redIntegral, left, top, right, bottom),
+        area(greenIntegral, left, top, right, bottom),
+        area(blueIntegral, left, top, right, bottom),
+      ];
+      for (let channel = 0; channel < 3; channel += 1) {
+        const source = pixels[sourceOffset + channel];
+        const spread = glow[channel] / samples / 255;
+        const adjusted = Math.round(source + (255 - source) * spread * maximumMix);
+        output[outputOffset + channel] = Math.min(source < 255 ? 254 : 255, adjusted);
+      }
+      if (output[outputOffset] !== pixels[sourceOffset]
+        || output[outputOffset + 1] !== pixels[sourceOffset + 1]
+        || output[outputOffset + 2] !== pixels[sourceOffset + 2]) changedPixels += 1;
+    }
+  }
+  return { pixels: output, processedPixels, changedPixels };
+}
+
 export function applyEffectsToRgba(
   rgba: Uint8ClampedArray,
   recipe: ImageEffectsRecipe,
@@ -159,12 +283,13 @@ export function applyEffectsToRgba(
   const statistics: ImageEffectsStatistics = {
     processedPixels: 0,
     changedPixels: 0,
+    bloomChangedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
     lightenedPixels: 0,
   };
-  if (isNeutralEffects(safe)) return statistics;
+  if (safe.grain.amount === 0 && safe.vignette.amount === 0) return statistics;
 
   const vignetteAmount = safe.vignette.amount;
   const start = safe.vignette.midpoint / 100;
