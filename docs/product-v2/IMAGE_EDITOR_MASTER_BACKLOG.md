@@ -331,6 +331,13 @@ verified base, with ordered v3 effects recipe/statistics provenance and
 byte-identical preview/download data. Browser resource limits fail visibly
 instead of returning an uneffected substitute.
 
+A third versioned built-in collection provides four non-generative Effects
+looks: Soft Bloom, Fine Grain, Cinematic Frame and Analog Finish. Selecting a
+look loads one complete sanitized v3 Effects recipe and identifies an exact
+match versus manually customized settings. Pixels remain unchanged until the
+customer separately chooses Apply effects, while exported provenance contains
+the expanded recipe values and never the display label.
+
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
 - Depth blur, bokeh, selective colour, colour splash and double exposure.

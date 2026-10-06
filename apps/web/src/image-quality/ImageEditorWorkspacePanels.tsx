@@ -117,6 +117,12 @@ import {
   type ImageEffectsRecipe,
   type ImageEffectsStatistics,
 } from "./imageEffects";
+import {
+  IMAGE_EFFECT_PRESETS,
+  IMAGE_EFFECT_PRESET_VERSION,
+  imageEffectPreset,
+  matchingImageEffectPreset,
+} from "./imageEffectPresets";
 
 export type ImageEditorTool = "enhance" | "adjust" | "color" | "effects" | "geometry";
 
@@ -171,8 +177,30 @@ function vignetteAmountLabel(amount: number) {
 }
 
 export function EffectsToolPanel(props: EffectsToolPanelProps) {
+  const neutral = isNeutralEffects(props.recipe);
+  const activePreset = matchingImageEffectPreset(props.recipe);
   return <aside className="quality-tool-panel quality-controls" aria-label="Effects controls">
     <div className="quality-panel-heading"><Aperture aria-hidden="true" /><div><h2>Effects</h2><p>Bounded creative finishing after colour.</p></div></div>
+    <fieldset className="quality-tone-presets">
+      <legend>Built-in looks</legend>
+      <div className="quality-tone-preset-status">
+        <span>{activePreset ? activePreset.label : neutral ? "Neutral settings" : "Custom settings"}</span>
+        <small>Built-in collection v{IMAGE_EFFECT_PRESET_VERSION}</small>
+      </div>
+      <div className="quality-tone-preset-grid">
+        {IMAGE_EFFECT_PRESETS.map((preset) => <button
+          key={preset.id}
+          type="button"
+          aria-pressed={activePreset?.id === preset.id}
+          disabled={props.busy}
+          onClick={() => props.onRecipe(imageEffectPreset(preset.id).recipe)}
+        >
+          <span><strong>{preset.label}</strong><small>{preset.focus}</small></span>
+          <span>{preset.description}</span>
+        </button>)}
+      </div>
+      <p>A look loads one complete, versioned deterministic effects recipe. Review its controls, then choose Apply effects; selecting a look alone never changes pixels.</p>
+    </fieldset>
     <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Highlight bloom</legend>
       <label className="quality-adjustment-control">

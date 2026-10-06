@@ -2434,6 +2434,71 @@ test("highlight bloom is source-derived, deterministic and exact across preview 
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });
 
+test("built-in effect looks load complete reviewable recipes without silently applying pixels", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "effect-look-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Effects controls" });
+  await expect(panel.getByText("Neutral settings", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Built-in collection v1.0.0", { exact: true })).toBeVisible();
+
+  const analog = panel.getByRole("button", { name: /Analog finish/ });
+  await analog.click();
+  await expect(analog).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.locator(".quality-tone-preset-status > span")).toHaveText("Analog finish");
+  await expect(panel.getByLabel("Highlight bloom amount", { exact: true })).toHaveValue("16");
+  await expect(panel.getByLabel("Highlight bloom radius", { exact: true })).toHaveValue("7");
+  await expect(panel.getByLabel("Highlight bloom threshold", { exact: true })).toHaveValue("76");
+  await expect(panel.getByLabel("Film grain amount", { exact: true })).toHaveValue("18");
+  await expect(panel.getByLabel("Film grain size", { exact: true })).toHaveValue("2");
+  await expect(panel.getByLabel("Vignette amount", { exact: true })).toHaveValue("-18");
+  await expect(panel.getByLabel("Vignette midpoint", { exact: true })).toHaveValue("54");
+  await expect(panel.getByLabel("Vignette feather", { exact: true })).toHaveValue("76");
+  await expect(panel.getByRole("button", { name: "Apply effects" })).toBeEnabled();
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", immutableSourceUrl!);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", unchangedPreviewUrl!);
+
+  await panel.getByRole("button", { name: "Apply effects" }).click();
+  await expect(page.getByText(/Effects derivative ready/)).toBeVisible();
+  await expect(page.getByTestId("enhanced-image")).not.toHaveAttribute("src", unchangedPreviewUrl!);
+  const accessibility = await new AxeBuilder({ page }).include('[aria-label="Effects controls"]').analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  const downloadPromise = page.waitForEvent("download");
+  await panel.getByRole("button", { name: "Download effects-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("effect-look-source-effects-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  const provenance = downloaded.toString("utf8");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain('"bloom":{"amount":16,"radius":7,"threshold":76}');
+  expect(provenance).toContain('"grain":{"amount":18,"size":2}');
+  expect(provenance).toContain('"vignette":{"amount":-18,"midpoint":54,"feather":76}');
+  expect(provenance).not.toContain("Analog finish");
+
+  await panel.getByLabel("Film grain amount", { exact: true }).fill("19");
+  await expect(panel.getByText("Custom settings", { exact: true })).toBeVisible();
+  await expect(analog).toHaveAttribute("aria-pressed", "false");
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
+});
+
 test("colour applies after tone and binds preview and download to the exact verified base", async ({ page }) => {
   const sourceBytes = progressiveStrengthPng(48, 40);
   await retainObjectUrlBlobs(page);
