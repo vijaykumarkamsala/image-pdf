@@ -174,6 +174,42 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
   return <aside className="quality-tool-panel quality-controls" aria-label="Effects controls">
     <div className="quality-panel-heading"><Aperture aria-hidden="true" /><div><h2>Effects</h2><p>Bounded creative finishing after colour.</p></div></div>
     <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Film grain</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Amount</strong><output>{props.recipe.grain.amount === 0 ? "Neutral" : `${props.recipe.grain.amount}%`}</output></span>
+        <input
+          aria-label="Film grain amount"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.grain.amount}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            grain: { ...props.recipe.grain, amount: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Size</strong><output>{props.recipe.grain.size} px</output></span>
+        <input
+          aria-label="Film grain size"
+          type="range"
+          min="1"
+          max="8"
+          step="1"
+          value={props.recipe.grain.size}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            grain: { ...props.recipe.grain, size: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Deterministic monochrome grain is anchored to source coordinates and the verified base hash. It preserves hue, bounds highlights and shadows, and does not invent scene detail.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Vignette</legend>
       <label className="quality-adjustment-control">
         <span><strong>Amount</strong><output>{vignetteAmountLabel(props.recipe.vignette.amount)}</output></span>
@@ -227,6 +263,8 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
     </fieldset>
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
+      <div><dt>Grain pixels</dt><dd>{props.statistics.grainChangedPixels.toLocaleString()}</dd></div>
+      <div><dt>Vignette pixels</dt><dd>{props.statistics.vignetteChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Darkened pixels</dt><dd>{props.statistics.darkenedPixels.toLocaleString()}</dd></div>
       <div><dt>Lightened pixels</dt><dd>{props.statistics.lightenedPixels.toLocaleString()}</dd></div>
     </dl>}

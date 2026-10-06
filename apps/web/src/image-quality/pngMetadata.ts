@@ -282,18 +282,20 @@ function colorProvenance(metadata: PngColorMetadata) {
 
 function effectProvenance(metadata: PngEffectMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.effects.provenance.v1",
+    schema: "ipw.image-edit.effects.provenance.v2",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
-    operation_order: ["source_coordinate_vignette"],
+    operation_order: ["source_coordinate_film_grain", "source_coordinate_vignette"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,
       changed_pixels: metadata.statistics.changedPixels,
+      grain_changed_pixels: metadata.statistics.grainChangedPixels,
+      vignette_changed_pixels: metadata.statistics.vignetteChangedPixels,
       darkened_pixels: metadata.statistics.darkenedPixels,
       lightened_pixels: metadata.statistics.lightenedPixels,
     },
@@ -600,6 +602,8 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
   const statistics = [
     metadata.statistics.processedPixels,
     metadata.statistics.changedPixels,
+    metadata.statistics.grainChangedPixels,
+    metadata.statistics.vignetteChangedPixels,
     metadata.statistics.darkenedPixels,
     metadata.statistics.lightenedPixels,
   ];
@@ -620,7 +624,12 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
     || !statistics.every(Number.isSafeInteger) || statistics.some((value) => value < 0 || value > pixelCount)
     || metadata.statistics.changedPixels < 1
     || metadata.statistics.changedPixels > metadata.statistics.processedPixels
-    || metadata.statistics.darkenedPixels + metadata.statistics.lightenedPixels !== metadata.statistics.changedPixels
+    || metadata.statistics.grainChangedPixels > metadata.statistics.processedPixels
+    || metadata.statistics.vignetteChangedPixels > metadata.statistics.processedPixels
+    || metadata.statistics.darkenedPixels + metadata.statistics.lightenedPixels !== metadata.statistics.vignetteChangedPixels
+    || (metadata.recipe.grain.amount === 0 && metadata.statistics.grainChangedPixels !== 0)
+    || (metadata.recipe.vignette.amount === 0 && (metadata.statistics.vignetteChangedPixels !== 0
+      || metadata.statistics.darkenedPixels !== 0 || metadata.statistics.lightenedPixels !== 0))
     || (metadata.recipe.vignette.amount < 0 && metadata.statistics.lightenedPixels !== 0)
     || (metadata.recipe.vignette.amount > 0 && metadata.statistics.darkenedPixels !== 0)) {
     throw new Error("Effects provenance requires a valid bounded source-derived recipe.");

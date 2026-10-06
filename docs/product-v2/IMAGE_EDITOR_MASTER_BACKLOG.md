@@ -316,13 +316,16 @@ removed. Loading remains separate from Apply colour, while exported provenance
 contains the expanded v10 settings and never the private local preset name.
 
 **Implemented locally, pending product-owner image testing:** the Effects stage
-now provides a deterministic source-coordinate vignette after Colour. Amount,
-midpoint and feather are bounded; the protected centre remains unchanged,
-alpha is preserved, and dark/light perimeter changes use a
-smooth linear-light blend. Selecting settings does not change pixels. Apply
-creates an exact-dimension derivative bound to the latest verified base, with
-v1 effects provenance and byte-identical preview/download data. Browser resource
-limits fail visibly instead of returning an uneffected substitute.
+now provides deterministic film grain followed by a source-coordinate vignette
+after Colour. Grain amount and size derive a repeatable monochrome pattern from
+the verified base hash and immutable source coordinates, with bounded RGB
+headroom to avoid hue shifts and new clipping. Vignette amount, midpoint and
+feather are bounded; the protected centre remains unchanged, alpha is
+preserved, and dark/light perimeter changes use a smooth linear-light blend.
+Selecting settings does not change pixels. Apply creates an exact-dimension
+derivative bound to the latest verified base, with ordered v2 effects
+recipe/statistics provenance and byte-identical preview/download data. Browser
+resource limits fail visibly instead of returning an uneffected substitute.
 
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
@@ -332,8 +335,8 @@ limits fail visibly instead of returning an uneffected substitute.
 - Randomized but repeatable preset variants.
 
 **Still pending:** authenticated workspace-synced/shared presets, server-side
-migration and update notices, additional and multi-stage colour looks,
-film/grain and other effect tools, and randomized repeatable variants.
+migration and update notices, additional and multi-stage colour looks, other
+effect tools, and randomized repeatable variants.
 
 ## IE-13 — Multi-image processing
 

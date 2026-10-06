@@ -1881,7 +1881,7 @@ export function ImageQualityEditorPage() {
     effectsEngine.current = next;
     setEffectsBusy(true);
     setEffectsError(null);
-    setEffectsMessage("Rendering deterministic vignette from the latest verified derivative…");
+    setEffectsMessage("Rendering deterministic effects from the latest verified derivative…");
     try {
       const loaded = await next.load(base.blob);
       if (loaded.width !== base.width || loaded.height !== base.height) {
