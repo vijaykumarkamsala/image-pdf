@@ -28,6 +28,13 @@ export interface ImageHalftoneRecipe {
   angle: number;
 }
 
+export interface ImagePixelArtRecipe {
+  /** Blend from source pixels into alpha-aware block averages. */
+  amount: number;
+  /** Source-coordinate square block size in pixels. */
+  size: number;
+}
+
 export interface ImageVignetteRecipe {
   /** Negative values darken the perimeter; positive values lighten it. */
   amount: number;
@@ -41,6 +48,7 @@ export interface ImageEffectsRecipe {
   bloom: ImageBloomRecipe;
   posterize: ImagePosterizeRecipe;
   halftone: ImageHalftoneRecipe;
+  pixelArt: ImagePixelArtRecipe;
   grain: ImageFilmGrainRecipe;
   vignette: ImageVignetteRecipe;
 }
@@ -51,6 +59,7 @@ export interface ImageEffectsStatistics {
   bloomChangedPixels: number;
   posterizedPixels: number;
   halftonedPixels: number;
+  pixelatedPixels: number;
   grainChangedPixels: number;
   vignetteChangedPixels: number;
   darkenedPixels: number;
@@ -70,6 +79,7 @@ export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
+    pixelArt: { amount: 0, size: 8 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   };
@@ -89,6 +99,10 @@ export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsR
       amount: Math.round(bounded(recipe.halftone?.amount, 0, 100, 0)),
       size: Math.round(bounded(recipe.halftone?.size, 3, 32, 8)),
       angle: Math.round(bounded(recipe.halftone?.angle, -90, 90, 45)),
+    },
+    pixelArt: {
+      amount: Math.round(bounded(recipe.pixelArt?.amount, 0, 100, 0)),
+      size: Math.round(bounded(recipe.pixelArt?.size, 2, 32, 8)),
     },
     grain: {
       amount: Math.round(bounded(recipe.grain?.amount, 0, 100, 0)),
@@ -111,6 +125,8 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
     && recipe.halftone?.amount === safe.halftone.amount
     && recipe.halftone?.size === safe.halftone.size
     && recipe.halftone?.angle === safe.halftone.angle
+    && recipe.pixelArt?.amount === safe.pixelArt.amount
+    && recipe.pixelArt?.size === safe.pixelArt.size
     && recipe.grain?.amount === safe.grain.amount
     && recipe.grain?.size === safe.grain.size
     && recipe.vignette?.amount === safe.vignette.amount
@@ -121,7 +137,8 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
 export function isNeutralEffects(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
   return safe.bloom.amount === 0 && safe.posterize.levels === 256
-    && safe.halftone.amount === 0 && safe.grain.amount === 0 && safe.vignette.amount === 0;
+    && safe.halftone.amount === 0 && safe.pixelArt.amount === 0
+    && safe.grain.amount === 0 && safe.vignette.amount === 0;
 }
 
 export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageEffectsRecipe | null): boolean {
@@ -135,6 +152,8 @@ export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageE
     && safeLeft.halftone.amount === safeRight.halftone.amount
     && safeLeft.halftone.size === safeRight.halftone.size
     && safeLeft.halftone.angle === safeRight.halftone.angle
+    && safeLeft.pixelArt.amount === safeRight.pixelArt.amount
+    && safeLeft.pixelArt.size === safeRight.pixelArt.size
     && safeLeft.grain.amount === safeRight.grain.amount
     && safeLeft.grain.size === safeRight.grain.size
     && safeLeft.vignette.amount === safeRight.vignette.amount
@@ -200,6 +219,87 @@ export interface ImageBloomResult {
   pixels: Uint8ClampedArray;
   processedPixels: number;
   changedPixels: number;
+}
+
+export interface ImagePixelArtResult {
+  processedPixels: number;
+  changedPixels: number;
+}
+
+/**
+ * Blends each visible pixel toward the alpha-weighted average of its immutable
+ * source-coordinate block. Tiles must begin and end on block boundaries (apart
+ * from the final image edge), which keeps independently rendered tiles exact.
+ */
+export function applyPixelArtToRgba(
+  pixels: Uint8ClampedArray,
+  width: number,
+  imageHeight: number,
+  rowOffset: number,
+  recipe: ImagePixelArtRecipe,
+): ImagePixelArtResult {
+  const amount = Math.round(bounded(recipe.amount, 0, 100, 0));
+  const size = Math.round(bounded(recipe.size, 2, 32, 8));
+  const tilePixels = pixels.byteLength / 4;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(imageHeight)
+    || !Number.isSafeInteger(rowOffset) || width < 1 || imageHeight < 1 || rowOffset < 0
+    || !Number.isSafeInteger(tilePixels) || tilePixels % width !== 0) {
+    throw new Error("Pixel art requires valid source-coordinate RGBA tile dimensions.");
+  }
+  const tileHeight = tilePixels / width;
+  if (tileHeight < 1 || rowOffset + tileHeight > imageHeight) {
+    throw new Error("Pixel art received a tile outside the source image.");
+  }
+  if (amount === 0) return { processedPixels: 0, changedPixels: 0 };
+  if (rowOffset % size !== 0
+    || (tileHeight % size !== 0 && rowOffset + tileHeight !== imageHeight)) {
+    throw new Error("Pixel-art tiles must align to complete source-coordinate blocks.");
+  }
+
+  const mix = amount / 100;
+  let processedPixels = 0;
+  let changedPixels = 0;
+  for (let blockY = 0; blockY < tileHeight; blockY += size) {
+    const blockHeight = Math.min(size, tileHeight - blockY);
+    for (let blockX = 0; blockX < width; blockX += size) {
+      const blockWidth = Math.min(size, width - blockX);
+      let alphaWeight = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      for (let y = 0; y < blockHeight; y += 1) {
+        for (let x = 0; x < blockWidth; x += 1) {
+          const offset = ((blockY + y) * width + blockX + x) * 4;
+          const alpha = pixels[offset + 3] / 255;
+          if (alpha === 0) continue;
+          alphaWeight += alpha;
+          red += pixels[offset] * alpha;
+          green += pixels[offset + 1] * alpha;
+          blue += pixels[offset + 2] * alpha;
+        }
+      }
+      if (alphaWeight === 0) continue;
+      const averageRed = red / alphaWeight;
+      const averageGreen = green / alphaWeight;
+      const averageBlue = blue / alphaWeight;
+      for (let y = 0; y < blockHeight; y += 1) {
+        for (let x = 0; x < blockWidth; x += 1) {
+          const offset = ((blockY + y) * width + blockX + x) * 4;
+          if (pixels[offset + 3] === 0) continue;
+          processedPixels += 1;
+          const beforeRed = pixels[offset];
+          const beforeGreen = pixels[offset + 1];
+          const beforeBlue = pixels[offset + 2];
+          pixels[offset] = Math.round(beforeRed * (1 - mix) + averageRed * mix);
+          pixels[offset + 1] = Math.round(beforeGreen * (1 - mix) + averageGreen * mix);
+          pixels[offset + 2] = Math.round(beforeBlue * (1 - mix) + averageBlue * mix);
+          if (beforeRed !== pixels[offset] || beforeGreen !== pixels[offset + 1]
+            || beforeBlue !== pixels[offset + 2]) changedPixels += 1;
+        }
+      }
+    }
+  }
+  return { processedPixels, changedPixels };
 }
 
 /**
@@ -323,6 +423,7 @@ export function applyEffectsToRgba(
     bloomChangedPixels: 0,
     posterizedPixels: 0,
     halftonedPixels: 0,
+    pixelatedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
