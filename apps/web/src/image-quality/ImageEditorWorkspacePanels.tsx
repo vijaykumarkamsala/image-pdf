@@ -426,6 +426,28 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
       <p>Spreads measured source highlights within visible pixels only. It preserves alpha, prevents new clipped whites and does not invent a light source.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Posterization</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Colour levels</strong><output>{props.recipe.posterize.levels === 256
+          ? "Neutral (256)"
+          : `${props.recipe.posterize.levels} per channel`}</output></span>
+        <input
+          aria-label="Posterization colour levels"
+          type="range"
+          min="2"
+          max="256"
+          step="1"
+          value={props.recipe.posterize.levels}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            posterize: { levels: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Reduces each visible RGB channel to evenly spaced values. Lower levels create stronger colour bands; 256 levels is neutral. Alpha and fully transparent hidden colour stay unchanged.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Film grain</legend>
       <label className="quality-adjustment-control">
         <span><strong>Amount</strong><output>{props.recipe.grain.amount === 0 ? "Neutral" : `${props.recipe.grain.amount}%`}</output></span>
@@ -516,6 +538,7 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>Bloom pixels</dt><dd>{props.statistics.bloomChangedPixels.toLocaleString()}</dd></div>
+      <div><dt>Posterized pixels</dt><dd>{props.statistics.posterizedPixels.toLocaleString()}</dd></div>
       <div><dt>Grain pixels</dt><dd>{props.statistics.grainChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Vignette pixels</dt><dd>{props.statistics.vignetteChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Darkened pixels</dt><dd>{props.statistics.darkenedPixels.toLocaleString()}</dd></div>

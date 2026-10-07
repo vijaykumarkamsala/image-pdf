@@ -14,6 +14,11 @@ export interface ImageFilmGrainRecipe {
   size: number;
 }
 
+export interface ImagePosterizeRecipe {
+  /** Number of evenly spaced values retained in each visible RGB channel. */
+  levels: number;
+}
+
 export interface ImageVignetteRecipe {
   /** Negative values darken the perimeter; positive values lighten it. */
   amount: number;
@@ -25,6 +30,7 @@ export interface ImageVignetteRecipe {
 
 export interface ImageEffectsRecipe {
   bloom: ImageBloomRecipe;
+  posterize: ImagePosterizeRecipe;
   grain: ImageFilmGrainRecipe;
   vignette: ImageVignetteRecipe;
 }
@@ -33,6 +39,7 @@ export interface ImageEffectsStatistics {
   processedPixels: number;
   changedPixels: number;
   bloomChangedPixels: number;
+  posterizedPixels: number;
   grainChangedPixels: number;
   vignetteChangedPixels: number;
   darkenedPixels: number;
@@ -50,6 +57,7 @@ function bounded(value: number, minimum: number, maximum: number, fallback: numb
 export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
   return {
     bloom: { amount: 0, radius: 8, threshold: 70 },
+    posterize: { levels: 256 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   };
@@ -61,6 +69,9 @@ export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsR
       amount: Math.round(bounded(recipe.bloom?.amount, 0, 100, 0)),
       radius: Math.round(bounded(recipe.bloom?.radius, 1, 32, 8)),
       threshold: Math.round(bounded(recipe.bloom?.threshold, 0, 100, 70)),
+    },
+    posterize: {
+      levels: Math.round(bounded(recipe.posterize?.levels, 2, 256, 256)),
     },
     grain: {
       amount: Math.round(bounded(recipe.grain?.amount, 0, 100, 0)),
@@ -79,6 +90,7 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
   return recipe.bloom?.amount === safe.bloom.amount
     && recipe.bloom?.radius === safe.bloom.radius
     && recipe.bloom?.threshold === safe.bloom.threshold
+    && recipe.posterize?.levels === safe.posterize.levels
     && recipe.grain?.amount === safe.grain.amount
     && recipe.grain?.size === safe.grain.size
     && recipe.vignette?.amount === safe.vignette.amount
@@ -88,7 +100,8 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
 
 export function isNeutralEffects(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
-  return safe.bloom.amount === 0 && safe.grain.amount === 0 && safe.vignette.amount === 0;
+  return safe.bloom.amount === 0 && safe.posterize.levels === 256
+    && safe.grain.amount === 0 && safe.vignette.amount === 0;
 }
 
 export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageEffectsRecipe | null): boolean {
@@ -98,6 +111,7 @@ export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageE
   return safeLeft.bloom.amount === safeRight.bloom.amount
     && safeLeft.bloom.radius === safeRight.bloom.radius
     && safeLeft.bloom.threshold === safeRight.bloom.threshold
+    && safeLeft.posterize.levels === safeRight.posterize.levels
     && safeLeft.grain.amount === safeRight.grain.amount
     && safeLeft.grain.size === safeRight.grain.size
     && safeLeft.vignette.amount === safeRight.vignette.amount
@@ -284,13 +298,15 @@ export function applyEffectsToRgba(
     processedPixels: 0,
     changedPixels: 0,
     bloomChangedPixels: 0,
+    posterizedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
     lightenedPixels: 0,
   };
-  if (safe.grain.amount === 0 && safe.vignette.amount === 0) return statistics;
+  if (safe.posterize.levels === 256 && safe.grain.amount === 0 && safe.vignette.amount === 0) return statistics;
 
+  const posterizeSteps = safe.posterize.levels - 1;
   const vignetteAmount = safe.vignette.amount;
   const start = safe.vignette.midpoint / 100;
   const end = start + Math.max(0.01, safe.vignette.feather / 100) * (SQRT_TWO - start);
@@ -310,6 +326,18 @@ export function applyEffectsToRgba(
       const beforeRed = rgba[offset];
       const beforeGreen = rgba[offset + 1];
       const beforeBlue = rgba[offset + 2];
+
+      if (safe.posterize.levels < 256) {
+        const prePosterizeRed = rgba[offset];
+        const prePosterizeGreen = rgba[offset + 1];
+        const prePosterizeBlue = rgba[offset + 2];
+        for (let channel = 0; channel < 3; channel += 1) {
+          const level = Math.round(rgba[offset + channel] / 255 * posterizeSteps);
+          rgba[offset + channel] = Math.round(level / posterizeSteps * 255);
+        }
+        if (prePosterizeRed !== rgba[offset] || prePosterizeGreen !== rgba[offset + 1]
+          || prePosterizeBlue !== rgba[offset + 2]) statistics.posterizedPixels += 1;
+      }
 
       if (maximumGrainDelta > 0) {
         const luminance = rgba[offset] * 0.2126 + rgba[offset + 1] * 0.7152 + rgba[offset + 2] * 0.0722;

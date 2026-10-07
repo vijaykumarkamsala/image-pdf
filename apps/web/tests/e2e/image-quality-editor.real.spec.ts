@@ -2203,7 +2203,7 @@ test("vignette is an explicit deterministic stage with exact preview and downloa
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
-  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(downloaded.toString("utf8")).toContain("ipw.image-edit.effects.provenance.v4");
   expect(downloaded.toString("utf8")).toContain('"bloom":{"amount":0,"radius":8,"threshold":70}');
   expect(downloaded.toString("utf8")).toContain('"grain":{"amount":0,"size":2}');
   expect(downloaded.toString("utf8")).toContain('"vignette":{"amount":-60,"midpoint":40,"feather":65}');
@@ -2296,7 +2296,7 @@ test("film grain is an explicit deterministic stage with exact preview and downl
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(firstPreview.digest);
   const provenance = downloaded.toString("utf8");
-  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v4");
   expect(provenance).toContain('"operation_order":["source_neighbourhood_highlight_bloom","source_coordinate_film_grain","source_coordinate_vignette"]');
   expect(provenance).toContain('"bloom":{"amount":0,"radius":8,"threshold":70}');
   expect(provenance).toContain('"grain":{"amount":55,"size":3}');
@@ -2415,7 +2415,7 @@ test("highlight bloom is source-derived, deterministic and exact across preview 
   expect(downloaded.readUInt32BE(20)).toBe(40);
   expect(createHash("sha256").update(downloaded).digest("hex")).toBe(firstPreview.digest);
   const provenance = downloaded.toString("utf8");
-  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v4");
   expect(provenance).toContain('"operation_order":["source_neighbourhood_highlight_bloom","source_coordinate_film_grain","source_coordinate_vignette"]');
   expect(provenance).toContain('"bloom":{"amount":75,"radius":5,"threshold":45}');
   expect(provenance).toContain('"grain":{"amount":0,"size":2}');
@@ -2486,7 +2486,7 @@ test("built-in effect looks load complete reviewable recipes without silently ap
   expect(downloaded.readUInt32BE(16)).toBe(48);
   expect(downloaded.readUInt32BE(20)).toBe(40);
   const provenance = downloaded.toString("utf8");
-  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v4");
   expect(provenance).toContain('"bloom":{"amount":16,"radius":7,"threshold":76}');
   expect(provenance).toContain('"grain":{"amount":18,"size":2}');
   expect(provenance).toContain('"vignette":{"amount":-18,"midpoint":54,"feather":76}');
@@ -2496,6 +2496,73 @@ test("built-in effect looks load complete reviewable recipes without silently ap
   await expect(panel.getByText("Custom settings", { exact: true })).toBeVisible();
   await expect(analog).toHaveAttribute("aria-pressed", "false");
   await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
+});
+
+test("posterization is explicit, source-bound and exact across preview and download", async ({ page }) => {
+  const sourceBytes = progressiveStrengthPng(48, 40);
+  await retainObjectUrlBlobs(page);
+  await page.setViewportSize({ width: 1760, height: 980 });
+  await page.goto("/image-quality?engine=deterministic");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "posterize-source.png",
+    mimeType: "image/png",
+    buffer: sourceBytes,
+  });
+  const immutableSourceUrl = await page.getByTestId("original-image").getAttribute("src");
+  const unchangedPreviewUrl = await page.getByTestId("enhanced-image").getAttribute("src");
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Effects controls" });
+  const levels = panel.getByLabel("Posterization colour levels", { exact: true });
+  await expect(levels).toHaveValue("256");
+  await expect(panel.getByText("Neutral (256)", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Apply effects" })).toBeDisabled();
+
+  await levels.fill("8");
+  await expect(panel.getByText("8 per channel", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Apply effects" })).toBeEnabled();
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("original-image")).toHaveAttribute("src", immutableSourceUrl!);
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", unchangedPreviewUrl!);
+
+  await panel.getByRole("button", { name: "Apply effects" }).click();
+  await expect(page.getByText(/Effects derivative ready/)).toBeVisible();
+  const posterizedPixels = Number((await panel.locator(".quality-adjustment-statistics > div").filter({ hasText: "Posterized pixels" }).locator("dd").textContent())?.replaceAll(",", ""));
+  expect(posterizedPixels).toBeGreaterThan(0);
+  const previewEvidence = await page.getByTestId("enhanced-image").evaluate(async (node) => {
+    const image = node as HTMLImageElement;
+    await image.decode();
+    const testWindow = window as typeof window & { __ipwTestObjectUrlBlobs?: Map<string, Blob> };
+    const previewBlob = testWindow.__ipwTestObjectUrlBlobs?.get(image.src);
+    if (!previewBlob) throw new Error("The exact Effects preview Blob was not retained by the test harness");
+    const bytes = await previewBlob.arrayBuffer();
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (value) => value.toString(16).padStart(2, "0")).join("");
+    return { digest };
+  });
+
+  const downloadPromise = page.waitForEvent("download");
+  await panel.getByRole("button", { name: "Download effects-adjusted image" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("posterize-source-effects-48x40.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  stream.destroy();
+  const downloaded = Buffer.concat(chunks);
+  expect(downloaded.readUInt32BE(16)).toBe(48);
+  expect(downloaded.readUInt32BE(20)).toBe(40);
+  expect(createHash("sha256").update(downloaded).digest("hex")).toBe(previewEvidence.digest);
+  const provenance = downloaded.toString("utf8");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v4");
+  expect(provenance).toContain('"operation_order":["source_neighbourhood_highlight_bloom","per_channel_posterization","source_coordinate_film_grain","source_coordinate_vignette"]');
+  expect(provenance).toContain('"posterize":{"levels":8}');
+  expect(provenance).toMatch(/"posterized_pixels":[1-9][0-9]*/);
+
+  await levels.fill("7");
+  await expect(panel.getByRole("button", { name: "Download effects-adjusted image" })).toBeDisabled();
+  await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
+  await panel.getByRole("button", { name: "Reset effects" }).click();
+  await expect(levels).toHaveValue("256");
   await expect(page.getByTestId("enhanced-image")).toHaveAttribute("src", immutableSourceUrl!);
 });
 
@@ -2532,6 +2599,7 @@ test("customer effects presets persist complete recipes locally and require expl
       name: envelope?.presets?.[0]?.name,
       recipeVersion: envelope?.presets?.[0]?.recipeVersion,
       bloom: envelope?.presets?.[0]?.recipe?.bloom,
+      posterize: envelope?.presets?.[0]?.recipe?.posterize,
       grain: envelope?.presets?.[0]?.recipe?.grain,
       vignette: envelope?.presets?.[0]?.recipe?.vignette,
     };
@@ -2539,8 +2607,9 @@ test("customer effects presets persist complete recipes locally and require expl
     version: 1,
     count: 1,
     name: "Quiet finish",
-    recipeVersion: 3,
+    recipeVersion: 4,
     bloom: { amount: 19, radius: 6, threshold: 78 },
+    posterize: { levels: 256 },
     grain: { amount: 13, size: 3 },
     vignette: { amount: -21, midpoint: 57, feather: 73 },
   });
@@ -2587,7 +2656,7 @@ test("customer effects presets persist complete recipes locally and require expl
   stream.destroy();
   const downloaded = Buffer.concat(chunks);
   const provenance = downloaded.toString("utf8");
-  expect(provenance).toContain("ipw.image-edit.effects.provenance.v3");
+  expect(provenance).toContain("ipw.image-edit.effects.provenance.v4");
   expect(provenance).toContain('"bloom":{"amount":19,"radius":6,"threshold":78}');
   expect(provenance).toContain('"grain":{"amount":13,"size":3}');
   expect(provenance).toContain('"vignette":{"amount":-21,"midpoint":57,"feather":73}');

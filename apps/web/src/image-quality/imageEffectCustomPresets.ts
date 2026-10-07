@@ -6,7 +6,7 @@ import {
 } from "./imageEffects.ts";
 
 export const IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION = 1;
-export const IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION = 3;
+export const IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION = 4;
 export const IMAGE_EFFECT_CUSTOM_PRESET_STORAGE_KEY = `ipw-image-effect-presets:v${IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION}`;
 export const MAX_IMAGE_EFFECT_CUSTOM_PRESETS = 24;
 export const MAX_IMAGE_EFFECT_CUSTOM_PRESET_NAME_LENGTH = 48;
@@ -29,6 +29,7 @@ type PresetStorageWriter = Pick<Storage, "setItem">;
 
 const CUSTOM_PRESET_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+const LEGACY_IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION = 3;
 
 function hasExactKeys(value: object, expected: readonly string[]): boolean {
   const keys = Object.keys(value);
@@ -48,10 +49,13 @@ export function normalizeImageEffectCustomPresetName(value: string): string {
 }
 
 export function isPortableImageEffectsRecipe(value: unknown): value is ImageEffectsRecipe {
-  if (!value || typeof value !== "object" || !hasExactKeys(value, ["bloom", "grain", "vignette"])) return false;
+  if (!value || typeof value !== "object"
+    || !hasExactKeys(value, ["bloom", "posterize", "grain", "vignette"])) return false;
   const recipe = value as ImageEffectsRecipe;
   if (!recipe.bloom || typeof recipe.bloom !== "object"
     || !hasExactKeys(recipe.bloom, ["amount", "radius", "threshold"])
+    || !recipe.posterize || typeof recipe.posterize !== "object"
+    || !hasExactKeys(recipe.posterize, ["levels"])
     || !recipe.grain || typeof recipe.grain !== "object"
     || !hasExactKeys(recipe.grain, ["amount", "size"])
     || !recipe.vignette || typeof recipe.vignette !== "object"
@@ -59,10 +63,32 @@ export function isPortableImageEffectsRecipe(value: unknown): value is ImageEffe
   return isSanitizedEffectsRecipe(recipe);
 }
 
+function migrateLegacyRecipe(value: unknown): ImageEffectsRecipe | null {
+  if (!value || typeof value !== "object" || !hasExactKeys(value, ["bloom", "grain", "vignette"])) return null;
+  const recipe = value as Omit<ImageEffectsRecipe, "posterize">;
+  if (!recipe.bloom || typeof recipe.bloom !== "object"
+    || !hasExactKeys(recipe.bloom, ["amount", "radius", "threshold"])
+    || !recipe.grain || typeof recipe.grain !== "object"
+    || !hasExactKeys(recipe.grain, ["amount", "size"])
+    || !recipe.vignette || typeof recipe.vignette !== "object"
+    || !hasExactKeys(recipe.vignette, ["amount", "midpoint", "feather"])) return null;
+  const migrated = sanitizeEffectsRecipe({ ...recipe, posterize: { levels: 256 } });
+  return recipe.bloom.amount === migrated.bloom.amount
+    && recipe.bloom.radius === migrated.bloom.radius
+    && recipe.bloom.threshold === migrated.bloom.threshold
+    && recipe.grain.amount === migrated.grain.amount
+    && recipe.grain.size === migrated.grain.size
+    && recipe.vignette.amount === migrated.vignette.amount
+    && recipe.vignette.midpoint === migrated.vignette.midpoint
+    && recipe.vignette.feather === migrated.vignette.feather
+    ? migrated
+    : null;
+}
+
 function validPreset(value: unknown): value is ImageEffectCustomPreset {
   if (!value || typeof value !== "object"
     || !hasExactKeys(value, ["id", "name", "recipeVersion", "recipe"])) return false;
-  const candidate = value as Partial<ImageEffectCustomPreset>;
+  const candidate = value as { id?: unknown; name?: unknown; recipeVersion?: unknown; recipe?: unknown };
   if (typeof candidate.id !== "string" || !CUSTOM_PRESET_ID.test(candidate.id)) return false;
   if (candidate.recipeVersion !== IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION) return false;
   if (typeof candidate.name !== "string" || !isPortableImageEffectsRecipe(candidate.recipe)) return false;
@@ -71,6 +97,28 @@ function validPreset(value: unknown): value is ImageEffectCustomPreset {
   } catch {
     return false;
   }
+}
+
+function migrateLegacyPreset(value: unknown): ImageEffectCustomPreset | null {
+  if (!value || typeof value !== "object"
+    || !hasExactKeys(value, ["id", "name", "recipeVersion", "recipe"])) return null;
+  const candidate = value as { id?: unknown; name?: unknown; recipeVersion?: unknown; recipe?: unknown };
+  if (typeof candidate.id !== "string" || !CUSTOM_PRESET_ID.test(candidate.id)
+    || candidate.recipeVersion !== LEGACY_IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION
+    || typeof candidate.name !== "string") return null;
+  const recipe = migrateLegacyRecipe(candidate.recipe);
+  if (!recipe) return null;
+  try {
+    if (normalizeImageEffectCustomPresetName(candidate.name) !== candidate.name) return null;
+  } catch {
+    return null;
+  }
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
+    recipe,
+  };
 }
 
 function cloneRecipe(recipe: ImageEffectsRecipe): ImageEffectsRecipe {
@@ -89,13 +137,14 @@ export function parseImageEffectCustomPresets(raw: string | null): ImageEffectCu
     const ids = new Set<string>();
     const names = new Set<string>();
     for (const value of envelope.presets) {
-      if (!validPreset(value)) continue;
-      const foldedName = value.name.toLocaleLowerCase("en-US");
-      if (ids.has(value.id) || names.has(foldedName)
-        || accepted.some((preset) => sameEffectsRecipe(preset.recipe, value.recipe))) continue;
-      ids.add(value.id);
+      const preset = validPreset(value) ? value : migrateLegacyPreset(value);
+      if (!preset) continue;
+      const foldedName = preset.name.toLocaleLowerCase("en-US");
+      if (ids.has(preset.id) || names.has(foldedName)
+        || accepted.some((acceptedPreset) => sameEffectsRecipe(acceptedPreset.recipe, preset.recipe))) continue;
+      ids.add(preset.id);
       names.add(foldedName);
-      accepted.push({ ...value, recipe: cloneRecipe(value.recipe) });
+      accepted.push({ ...preset, recipe: cloneRecipe(preset.recipe) });
       if (accepted.length === MAX_IMAGE_EFFECT_CUSTOM_PRESETS) break;
     }
     return accepted;

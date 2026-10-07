@@ -50,7 +50,7 @@ test("custom effects presets persist as a versioned bounded recipe collection", 
   assert.notEqual(reloaded.recipe.vignette, presets[0]!.recipe.vignette);
 });
 
-test("custom effects preset parsing rejects obsolete, malformed and duplicate entries", () => {
+test("custom effects preset parsing migrates safe v3 recipes and rejects malformed or duplicate entries", () => {
   const valid = addImageEffectCustomPreset([], "Quiet finish", customRecipe(), "preset-valid")[0]!;
   const unsafe = {
     ...valid,
@@ -86,6 +86,17 @@ test("custom effects preset parsing rejects obsolete, malformed and duplicate en
   assert.deepEqual(parseImageEffectCustomPresets(JSON.stringify({ version: 0, presets: [valid] })), []);
   assert.deepEqual(parseImageEffectCustomPresets("{broken"), []);
   assert.deepEqual(parseImageEffectCustomPresets("x".repeat(MAX_IMAGE_EFFECT_CUSTOM_PRESET_STORAGE_CHARACTERS + 1)), []);
+
+  const { posterize: _posterize, ...legacyRecipe } = valid.recipe;
+  const migrated = parseImageEffectCustomPresets(JSON.stringify({
+    version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
+    presets: [{ ...valid, recipeVersion: 3, recipe: legacyRecipe }],
+  }));
+  assert.deepEqual(migrated, [{
+    ...valid,
+    recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
+    recipe: { ...legacyRecipe, posterize: { levels: 256 } },
+  }]);
 });
 
 test("custom effects presets reject ambiguous names and duplicate recipes", () => {

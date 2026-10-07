@@ -282,19 +282,20 @@ function colorProvenance(metadata: PngColorMetadata) {
 
 function effectProvenance(metadata: PngEffectMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.effects.provenance.v3",
+    schema: "ipw.image-edit.effects.provenance.v4",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
-    operation_order: ["source_neighbourhood_highlight_bloom", "source_coordinate_film_grain", "source_coordinate_vignette"],
+    operation_order: ["source_neighbourhood_highlight_bloom", "per_channel_posterization", "source_coordinate_film_grain", "source_coordinate_vignette"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,
       changed_pixels: metadata.statistics.changedPixels,
       bloom_changed_pixels: metadata.statistics.bloomChangedPixels,
+      posterized_pixels: metadata.statistics.posterizedPixels,
       grain_changed_pixels: metadata.statistics.grainChangedPixels,
       vignette_changed_pixels: metadata.statistics.vignetteChangedPixels,
       darkened_pixels: metadata.statistics.darkenedPixels,
@@ -604,6 +605,7 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
     metadata.statistics.processedPixels,
     metadata.statistics.changedPixels,
     metadata.statistics.bloomChangedPixels,
+    metadata.statistics.posterizedPixels,
     metadata.statistics.grainChangedPixels,
     metadata.statistics.vignetteChangedPixels,
     metadata.statistics.darkenedPixels,
@@ -627,10 +629,12 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
     || metadata.statistics.changedPixels < 1
     || metadata.statistics.changedPixels > metadata.statistics.processedPixels
     || metadata.statistics.bloomChangedPixels > metadata.statistics.processedPixels
+    || metadata.statistics.posterizedPixels > metadata.statistics.processedPixels
     || metadata.statistics.grainChangedPixels > metadata.statistics.processedPixels
     || metadata.statistics.vignetteChangedPixels > metadata.statistics.processedPixels
     || metadata.statistics.darkenedPixels + metadata.statistics.lightenedPixels !== metadata.statistics.vignetteChangedPixels
     || (metadata.recipe.bloom.amount === 0 && metadata.statistics.bloomChangedPixels !== 0)
+    || (metadata.recipe.posterize.levels === 256 && metadata.statistics.posterizedPixels !== 0)
     || (metadata.recipe.grain.amount === 0 && metadata.statistics.grainChangedPixels !== 0)
     || (metadata.recipe.vignette.amount === 0 && (metadata.statistics.vignetteChangedPixels !== 0
       || metadata.statistics.darkenedPixels !== 0 || metadata.statistics.lightenedPixels !== 0))

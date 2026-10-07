@@ -44,6 +44,7 @@ function addStatistics(target: ImageEffectsStatistics, next: ImageEffectsStatist
   target.processedPixels += next.processedPixels;
   target.changedPixels += next.changedPixels;
   target.bloomChangedPixels += next.bloomChangedPixels;
+  target.posterizedPixels += next.posterizedPixels;
   target.grainChangedPixels += next.grainChangedPixels;
   target.vignetteChangedPixels += next.vignetteChangedPixels;
   target.darkenedPixels += next.darkenedPixels;
@@ -84,7 +85,7 @@ async function render(
 ) {
   if (!bitmap) throw new Error("The image must be prepared before applying effects.");
   const safe = sanitizeEffectsRecipe(recipe);
-  if (isNeutralEffects(safe)) throw new Error("Choose a non-neutral bloom, grain or vignette amount before applying effects.");
+  if (isNeutralEffects(safe)) throw new Error("Choose non-neutral bloom, posterization, grain or vignette settings before applying effects.");
   if (bitmap.width > MAX_CANVAS_EDGE || bitmap.height > MAX_CANVAS_EDGE) {
     throw new Error(
       `This effect requires ${bitmap.width} × ${bitmap.height} px, beyond this browser's ${MAX_CANVAS_EDGE}px canvas edge. No smaller result was substituted.`,
@@ -104,6 +105,7 @@ async function render(
     processedPixels: 0,
     changedPixels: 0,
     bloomChangedPixels: 0,
+    posterizedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
@@ -150,6 +152,7 @@ async function render(
       statistics.processedPixels += finalStatistics.processedPixels;
       statistics.changedPixels += finalStatistics.changedPixels;
       statistics.bloomChangedPixels += bloom.changedPixels;
+      statistics.posterizedPixels += localStatistics.posterizedPixels;
       statistics.grainChangedPixels += localStatistics.grainChangedPixels;
       statistics.vignetteChangedPixels += localStatistics.vignetteChangedPixels;
       statistics.darkenedPixels += localStatistics.darkenedPixels;
