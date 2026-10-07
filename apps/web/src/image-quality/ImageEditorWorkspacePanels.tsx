@@ -448,6 +448,58 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
       <p>Reduces each visible RGB channel to evenly spaced values. Lower levels create stronger colour bands; 256 levels is neutral. Alpha and fully transparent hidden colour stay unchanged.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Halftone dots</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Amount</strong><output>{props.recipe.halftone.amount === 0 ? "Neutral" : `${props.recipe.halftone.amount}%`}</output></span>
+        <input
+          aria-label="Halftone amount"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.halftone.amount}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            halftone: { ...props.recipe.halftone, amount: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Cell size</strong><output>{props.recipe.halftone.size} px</output></span>
+        <input
+          aria-label="Halftone cell size"
+          type="range"
+          min="3"
+          max="32"
+          step="1"
+          value={props.recipe.halftone.size}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            halftone: { ...props.recipe.halftone, size: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Angle</strong><output>{props.recipe.halftone.angle}°</output></span>
+        <input
+          aria-label="Halftone angle"
+          type="range"
+          min="-90"
+          max="90"
+          step="1"
+          value={props.recipe.halftone.angle}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            halftone: { ...props.recipe.halftone, angle: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Blends visible colour into a deterministic monochrome dot screen anchored to source coordinates. Amount 0 is neutral; alpha and fully transparent hidden colour stay unchanged.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Film grain</legend>
       <label className="quality-adjustment-control">
         <span><strong>Amount</strong><output>{props.recipe.grain.amount === 0 ? "Neutral" : `${props.recipe.grain.amount}%`}</output></span>
@@ -539,6 +591,7 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>Bloom pixels</dt><dd>{props.statistics.bloomChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Posterized pixels</dt><dd>{props.statistics.posterizedPixels.toLocaleString()}</dd></div>
+      <div><dt>Halftone pixels</dt><dd>{props.statistics.halftonedPixels.toLocaleString()}</dd></div>
       <div><dt>Grain pixels</dt><dd>{props.statistics.grainChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Vignette pixels</dt><dd>{props.statistics.vignetteChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Darkened pixels</dt><dd>{props.statistics.darkenedPixels.toLocaleString()}</dd></div>

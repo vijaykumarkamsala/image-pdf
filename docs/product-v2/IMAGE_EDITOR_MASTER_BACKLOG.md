@@ -316,36 +316,42 @@ removed. Loading remains separate from Apply colour, while exported provenance
 contains the expanded v10 settings and never the private local preset name.
 
 **Implemented locally, pending product-owner image testing:** the Effects stage
-now provides deterministic highlight bloom, per-channel posterization, film
-grain and a source-coordinate vignette after Colour. Bloom spreads only measured
+now provides deterministic highlight bloom, per-channel posterization, a
+source-coordinate monochrome halftone screen, film grain and a source-coordinate
+vignette after Colour. Bloom spreads only measured
 highlights from an immutable source neighbourhood using bounded Amount, Radius
 and Threshold controls. Halo rows keep worker tiles seam-free, fully transparent
 pixels are excluded, alpha is preserved, and previously unclipped channels cannot
 become clipped white. Posterization maps visible RGB channels to an explicit choice
 of 2–256 evenly spaced values, with 256 as the byte-neutral setting; alpha and fully
-transparent hidden RGB remain unchanged. Grain
+transparent hidden RGB remain unchanged. Halftone blends visible colour into a
+bounded monochrome dot screen with explicit Amount, Cell size and Angle controls.
+The dot grid is anchored to immutable source coordinates so worker tiles cannot
+shift its phase; Amount 0 is byte-neutral, alpha is preserved and fully transparent
+hidden RGB remains unchanged. Grain
 amount and size derive a repeatable monochrome pattern from the verified base
 hash and immutable source coordinates, with bounded RGB headroom to avoid hue
 shifts and new clipping. Vignette amount, midpoint and feather are bounded; the
 protected centre remains unchanged, alpha is preserved, and dark/light
 perimeter changes use a smooth linear-light blend. Selecting settings does not
 change pixels. Apply creates an exact-dimension derivative bound to the latest
-verified base, with ordered v4 effects recipe/statistics provenance and
+verified base, with ordered v5 effects recipe/statistics provenance and
 byte-identical preview/download data. Browser resource limits fail visibly
 instead of returning an uneffected substitute.
 
 A third versioned built-in collection provides four non-generative Effects
 looks: Soft Bloom, Fine Grain, Cinematic Frame and Analog Finish. Selecting a
-look loads one complete sanitized v4 Effects recipe and identifies an exact
+look loads one complete sanitized v5 Effects recipe and identifies an exact
 match versus manually customized settings. Pixels remain unchanged until the
 customer separately chooses Apply effects, while exported provenance contains
 the expanded recipe values and never the display label.
 
 Customers can also save, reload, rename and explicitly delete up to 24 custom
 Effects recipes in the current browser profile. The strict versioned local
-schema accepts only complete sanitized v4 recipes and rejects corrupt,
+schema accepts only complete sanitized v5 recipes and rejects corrupt,
 duplicate, unsupported, out-of-range or unknown settings. Previously saved v3
-recipes are narrowly migrated with neutral posterization instead of being lost.
+recipes are narrowly migrated with neutral posterization and halftone; v4 recipes
+are migrated with neutral halftone instead of being lost.
 Saved names are not synced or shared; loading remains separate from Apply
 effects, and exported provenance contains the expanded recipe rather than the
 private local name.

@@ -46,11 +46,12 @@ test("custom effects presets persist as a versioned bounded recipe collection", 
   const reloaded = readImageEffectCustomPresets(storage)[0]!;
   assert.notEqual(reloaded.recipe, presets[0]!.recipe);
   assert.notEqual(reloaded.recipe.bloom, presets[0]!.recipe.bloom);
+  assert.notEqual(reloaded.recipe.halftone, presets[0]!.recipe.halftone);
   assert.notEqual(reloaded.recipe.grain, presets[0]!.recipe.grain);
   assert.notEqual(reloaded.recipe.vignette, presets[0]!.recipe.vignette);
 });
 
-test("custom effects preset parsing migrates safe v3 recipes and rejects malformed or duplicate entries", () => {
+test("custom effects preset parsing migrates safe v3 and v4 recipes and rejects malformed or duplicate entries", () => {
   const valid = addImageEffectCustomPreset([], "Quiet finish", customRecipe(), "preset-valid")[0]!;
   const unsafe = {
     ...valid,
@@ -87,15 +88,30 @@ test("custom effects preset parsing migrates safe v3 recipes and rejects malform
   assert.deepEqual(parseImageEffectCustomPresets("{broken"), []);
   assert.deepEqual(parseImageEffectCustomPresets("x".repeat(MAX_IMAGE_EFFECT_CUSTOM_PRESET_STORAGE_CHARACTERS + 1)), []);
 
-  const { posterize: _posterize, ...legacyRecipe } = valid.recipe;
-  const migrated = parseImageEffectCustomPresets(JSON.stringify({
+  const { posterize: _posterize, halftone: _halftone, ...legacyV3Recipe } = valid.recipe;
+  const migratedV3 = parseImageEffectCustomPresets(JSON.stringify({
     version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
-    presets: [{ ...valid, recipeVersion: 3, recipe: legacyRecipe }],
+    presets: [{ ...valid, recipeVersion: 3, recipe: legacyV3Recipe }],
   }));
-  assert.deepEqual(migrated, [{
+  assert.deepEqual(migratedV3, [{
     ...valid,
     recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
-    recipe: { ...legacyRecipe, posterize: { levels: 256 } },
+    recipe: {
+      ...legacyV3Recipe,
+      posterize: { levels: 256 },
+      halftone: { amount: 0, size: 8, angle: 45 },
+    },
+  }]);
+
+  const { halftone: _legacyHalftone, ...legacyV4Recipe } = valid.recipe;
+  const migratedV4 = parseImageEffectCustomPresets(JSON.stringify({
+    version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
+    presets: [{ ...valid, recipeVersion: 4, recipe: legacyV4Recipe }],
+  }));
+  assert.deepEqual(migratedV4, [{
+    ...valid,
+    recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
+    recipe: { ...legacyV4Recipe, halftone: { amount: 0, size: 8, angle: 45 } },
   }]);
 });
 

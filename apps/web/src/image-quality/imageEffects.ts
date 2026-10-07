@@ -19,6 +19,15 @@ export interface ImagePosterizeRecipe {
   levels: number;
 }
 
+export interface ImageHalftoneRecipe {
+  /** Blend from the source colour into a monochrome dot screen. */
+  amount: number;
+  /** Source-coordinate square cell size in pixels. */
+  size: number;
+  /** Clockwise screen rotation in degrees. */
+  angle: number;
+}
+
 export interface ImageVignetteRecipe {
   /** Negative values darken the perimeter; positive values lighten it. */
   amount: number;
@@ -31,6 +40,7 @@ export interface ImageVignetteRecipe {
 export interface ImageEffectsRecipe {
   bloom: ImageBloomRecipe;
   posterize: ImagePosterizeRecipe;
+  halftone: ImageHalftoneRecipe;
   grain: ImageFilmGrainRecipe;
   vignette: ImageVignetteRecipe;
 }
@@ -40,6 +50,7 @@ export interface ImageEffectsStatistics {
   changedPixels: number;
   bloomChangedPixels: number;
   posterizedPixels: number;
+  halftonedPixels: number;
   grainChangedPixels: number;
   vignetteChangedPixels: number;
   darkenedPixels: number;
@@ -58,6 +69,7 @@ export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
   return {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   };
@@ -72,6 +84,11 @@ export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsR
     },
     posterize: {
       levels: Math.round(bounded(recipe.posterize?.levels, 2, 256, 256)),
+    },
+    halftone: {
+      amount: Math.round(bounded(recipe.halftone?.amount, 0, 100, 0)),
+      size: Math.round(bounded(recipe.halftone?.size, 3, 32, 8)),
+      angle: Math.round(bounded(recipe.halftone?.angle, -90, 90, 45)),
     },
     grain: {
       amount: Math.round(bounded(recipe.grain?.amount, 0, 100, 0)),
@@ -91,6 +108,9 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
     && recipe.bloom?.radius === safe.bloom.radius
     && recipe.bloom?.threshold === safe.bloom.threshold
     && recipe.posterize?.levels === safe.posterize.levels
+    && recipe.halftone?.amount === safe.halftone.amount
+    && recipe.halftone?.size === safe.halftone.size
+    && recipe.halftone?.angle === safe.halftone.angle
     && recipe.grain?.amount === safe.grain.amount
     && recipe.grain?.size === safe.grain.size
     && recipe.vignette?.amount === safe.vignette.amount
@@ -101,7 +121,7 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
 export function isNeutralEffects(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
   return safe.bloom.amount === 0 && safe.posterize.levels === 256
-    && safe.grain.amount === 0 && safe.vignette.amount === 0;
+    && safe.halftone.amount === 0 && safe.grain.amount === 0 && safe.vignette.amount === 0;
 }
 
 export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageEffectsRecipe | null): boolean {
@@ -112,6 +132,9 @@ export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageE
     && safeLeft.bloom.radius === safeRight.bloom.radius
     && safeLeft.bloom.threshold === safeRight.bloom.threshold
     && safeLeft.posterize.levels === safeRight.posterize.levels
+    && safeLeft.halftone.amount === safeRight.halftone.amount
+    && safeLeft.halftone.size === safeRight.halftone.size
+    && safeLeft.halftone.angle === safeRight.halftone.angle
     && safeLeft.grain.amount === safeRight.grain.amount
     && safeLeft.grain.size === safeRight.grain.size
     && safeLeft.vignette.amount === safeRight.vignette.amount
@@ -299,14 +322,21 @@ export function applyEffectsToRgba(
     changedPixels: 0,
     bloomChangedPixels: 0,
     posterizedPixels: 0,
+    halftonedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
     lightenedPixels: 0,
   };
-  if (safe.posterize.levels === 256 && safe.grain.amount === 0 && safe.vignette.amount === 0) return statistics;
+  if (safe.posterize.levels === 256 && safe.halftone.amount === 0
+    && safe.grain.amount === 0 && safe.vignette.amount === 0) return statistics;
 
   const posterizeSteps = safe.posterize.levels - 1;
+  const halftoneMix = safe.halftone.amount / 100;
+  const halftoneRadians = safe.halftone.angle * Math.PI / 180;
+  const halftoneCosine = Math.cos(halftoneRadians);
+  const halftoneSine = Math.sin(halftoneRadians);
+  const halftoneAntialias = 0.75 / safe.halftone.size;
   const vignetteAmount = safe.vignette.amount;
   const start = safe.vignette.midpoint / 100;
   const end = start + Math.max(0.01, safe.vignette.feather / 100) * (SQRT_TWO - start);
@@ -337,6 +367,35 @@ export function applyEffectsToRgba(
         }
         if (prePosterizeRed !== rgba[offset] || prePosterizeGreen !== rgba[offset + 1]
           || prePosterizeBlue !== rgba[offset + 2]) statistics.posterizedPixels += 1;
+      }
+
+      if (halftoneMix > 0) {
+        const preHalftoneRed = rgba[offset];
+        const preHalftoneGreen = rgba[offset + 1];
+        const preHalftoneBlue = rgba[offset + 2];
+        const luminance = (preHalftoneRed * 0.2126 + preHalftoneGreen * 0.7152
+          + preHalftoneBlue * 0.0722) / 255;
+        const centredX = x + 0.5 - halfWidth;
+        const centredY = sourceY + 0.5 - halfHeight;
+        const rotatedX = centredX * halftoneCosine - centredY * halftoneSine;
+        const rotatedY = centredX * halftoneSine + centredY * halftoneCosine;
+        const wrappedX = ((rotatedX % safe.halftone.size) + safe.halftone.size) % safe.halftone.size;
+        const wrappedY = ((rotatedY % safe.halftone.size) + safe.halftone.size) % safe.halftone.size;
+        const cellX = wrappedX / safe.halftone.size - 0.5;
+        const cellY = wrappedY / safe.halftone.size - 0.5;
+        const distance = Math.sqrt(cellX * cellX + cellY * cellY);
+        const radius = Math.SQRT1_2 * Math.sqrt(Math.max(0, 1 - luminance));
+        const screenValue = Math.round(smoothstep(
+          radius - halftoneAntialias,
+          radius + halftoneAntialias,
+          distance,
+        ) * 255);
+        for (let channel = 0; channel < 3; channel += 1) {
+          rgba[offset + channel] = Math.round(rgba[offset + channel] * (1 - halftoneMix)
+            + screenValue * halftoneMix);
+        }
+        if (preHalftoneRed !== rgba[offset] || preHalftoneGreen !== rgba[offset + 1]
+          || preHalftoneBlue !== rgba[offset + 2]) statistics.halftonedPixels += 1;
       }
 
       if (maximumGrainDelta > 0) {

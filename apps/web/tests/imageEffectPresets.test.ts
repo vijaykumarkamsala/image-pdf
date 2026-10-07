@@ -53,6 +53,7 @@ test("effect look lookup returns an isolated recipe and detects exact matches on
   const second = imageEffectPreset("analog-finish");
   assert.notEqual(first.recipe, second.recipe);
   assert.notEqual(first.recipe.bloom, second.recipe.bloom);
+  assert.notEqual(first.recipe.halftone, second.recipe.halftone);
   assert.notEqual(first.recipe.grain, second.recipe.grain);
   assert.notEqual(first.recipe.vignette, second.recipe.vignette);
   assert.equal(matchingImageEffectPreset(first.recipe)?.id, "analog-finish");

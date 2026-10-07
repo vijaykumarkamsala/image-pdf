@@ -39,26 +39,30 @@ test("effects recipes are bounded, neutral and comparable", () => {
   const safe = sanitizeEffectsRecipe({
     bloom: { amount: 200, radius: 100, threshold: -20 },
     posterize: { levels: -50 },
+    halftone: { amount: 250, size: 100, angle: -200 },
     grain: { amount: 200, size: 20 },
     vignette: { amount: -200.4, midpoint: 120, feather: Number.NaN },
   });
   assert.deepEqual(safe, {
     bloom: { amount: 100, radius: 32, threshold: 0 },
     posterize: { levels: 2 },
+    halftone: { amount: 100, size: 32, angle: -90 },
     grain: { amount: 100, size: 8 },
     vignette: { amount: -100, midpoint: 100, feather: 50 },
   });
   assert.equal(sameEffectsRecipe(safe, {
     bloom: { ...safe.bloom },
     posterize: { ...safe.posterize },
+    halftone: { ...safe.halftone },
     grain: { ...safe.grain },
     vignette: { ...safe.vignette },
   }), true);
   assert.equal(sameEffectsRecipe(safe, {
     bloom: { ...safe.bloom },
     posterize: { ...safe.posterize },
+    halftone: { ...safe.halftone, angle: -89 },
     grain: { ...safe.grain },
-    vignette: { ...safe.vignette, feather: 49 },
+    vignette: { ...safe.vignette },
   }), false);
   assert.equal(assertBrowserEffectsBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserEffectsBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
@@ -73,6 +77,7 @@ test("vignette deterministically changes the perimeter while preserving the cent
   const recipe = {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: -80, midpoint: 35, feather: 55 },
   };
@@ -90,6 +95,7 @@ test("vignette deterministically changes the perimeter while preserving the cent
   const lightStatistics = applyEffectsToRgba(light, {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: 80, midpoint: 35, feather: 55 },
   }, width, height);
@@ -106,6 +112,7 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
   const recipe = {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 0, size: 2 },
     vignette: { amount: -67, midpoint: 20, feather: 72 },
   };
@@ -128,6 +135,7 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
     changedPixels: 0,
     bloomChangedPixels: 0,
     posterizedPixels: 0,
+    halftonedPixels: 0,
     grainChangedPixels: 0,
     vignetteChangedPixels: 0,
     darkenedPixels: 0,
@@ -175,6 +183,58 @@ test("posterization is deterministic, level-bounded and preserves alpha and hidd
   for (let x = 1; x < width; x += 1) finerRedValues.add(finer[x * 4]);
   assert.equal(finerRedValues.size, 16);
   assert.notDeepEqual(finer, first);
+});
+
+test("halftone is deterministic, progressive, source-coordinate stable and alpha-safe", () => {
+  const width = 19;
+  const height = 14;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = Math.round((x + y) / (width + height - 2) * 210) + 20;
+      source.set([value, Math.min(255, value + 18), Math.max(0, value - 12), 255], (y * width + x) * 4);
+    }
+  }
+  source.set([17, 29, 43, 0], 0);
+  const recipe = createNeutralEffectsRecipe();
+  recipe.halftone = { amount: 60, size: 6, angle: 22 };
+  const first = source.slice();
+  const repeated = source.slice();
+  const statistics = applyEffectsToRgba(first, recipe, width, height);
+  applyEffectsToRgba(repeated, recipe, width, height);
+  assert.deepEqual(first, repeated);
+  assert.ok(statistics.halftonedPixels > 0);
+  assert.equal(statistics.changedPixels, statistics.halftonedPixels);
+  assert.equal(statistics.posterizedPixels, 0);
+  assert.equal(statistics.grainChangedPixels, 0);
+  assert.equal(statistics.vignetteChangedPixels, 0);
+  assert.deepEqual(Array.from(first.subarray(0, 4)), [17, 29, 43, 0]);
+  for (let offset = 3; offset < first.length; offset += 4) assert.equal(first[offset], source[offset]);
+
+  const strongerRecipe = createNeutralEffectsRecipe();
+  strongerRecipe.halftone = { ...recipe.halftone, amount: 100 };
+  const stronger = source.slice();
+  applyEffectsToRgba(stronger, strongerRecipe, width, height);
+  const difference = (pixels: Uint8ClampedArray) => pixels.reduce((total, value, index) => (
+    index % 4 === 3 ? total : total + Math.abs(value - source[index])
+  ), 0);
+  assert.ok(difference(stronger) > difference(first));
+
+  const rotatedRecipe = createNeutralEffectsRecipe();
+  rotatedRecipe.halftone = { amount: 60, size: 9, angle: -35 };
+  const rotated = source.slice();
+  applyEffectsToRgba(rotated, rotatedRecipe, width, height);
+  assert.notDeepEqual(rotated, first);
+
+  const split = 5;
+  const tiled = source.slice();
+  const firstTile = tiled.slice(0, width * split * 4);
+  const secondTile = tiled.slice(width * split * 4);
+  applyEffectsToRgba(firstTile, recipe, width, height, 0);
+  applyEffectsToRgba(secondTile, recipe, width, height, split);
+  tiled.set(firstTile);
+  tiled.set(secondTile, firstTile.length);
+  assert.deepEqual(tiled, first);
 });
 
 test("highlight bloom is progressive, source-derived, alpha-safe and tile-stable", () => {
@@ -252,6 +312,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   const recipe = {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 50, size: 3 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   };
@@ -274,6 +335,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   applyEffectsToRgba(stronger, {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 100, size: 3 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   }, width, height, 0, 0x1234abcd);
@@ -289,6 +351,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   applyEffectsToRgba(otherSize, {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     posterize: { levels: 256 },
+    halftone: { amount: 0, size: 8, angle: 45 },
     grain: { amount: 50, size: 6 },
     vignette: { amount: 0, midpoint: 50, feather: 50 },
   }, width, height, 0, 0x1234abcd);
@@ -317,6 +380,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
     recipe: {
       bloom: { amount: 55, radius: 12, threshold: 68 },
       posterize: { levels: 8 },
+      halftone: { amount: 45, size: 9, angle: 30 },
       grain: { amount: 35, size: 3 },
       vignette: { amount: -35, midpoint: 52, feather: 61 },
     },
@@ -325,6 +389,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
       changedPixels: 1400,
       bloomChangedPixels: 600,
       posterizedPixels: 1200,
+      halftonedPixels: 1100,
       grainChangedPixels: 900,
       vignetteChangedPixels: 1200,
       darkenedPixels: 1200,
@@ -335,8 +400,8 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.effects\.provenance\.v4/);
-  assert.match(text, /"operation_order":\["source_neighbourhood_highlight_bloom","per_channel_posterization","source_coordinate_film_grain","source_coordinate_vignette"\]/);
+  assert.match(text, /ipw\.image-edit\.effects\.provenance\.v5/);
+  assert.match(text, /"operation_order":\["source_neighbourhood_highlight_bloom","per_channel_posterization","source_coordinate_monochrome_halftone","source_coordinate_film_grain","source_coordinate_vignette"\]/);
   assert.match(text, /"base_kind":"colour"/);
   assert.match(text, /"amount":-35/);
   assert.match(text, /"midpoint":52/);
@@ -354,6 +419,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
     recipe: {
       bloom: { amount: 55, radius: 12, threshold: 68 },
       posterize: { levels: 8 },
+      halftone: { amount: 45, size: 9, angle: 30 },
       grain: { amount: 35, size: 3 },
       vignette: { amount: -35, midpoint: 52, feather: 61 },
     },
@@ -362,6 +428,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
       changedPixels: 1400,
       bloomChangedPixels: 600,
       posterizedPixels: 1200,
+      halftonedPixels: 1100,
       grainChangedPixels: 900,
       vignetteChangedPixels: 1200,
       darkenedPixels: 1199,
