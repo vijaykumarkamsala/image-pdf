@@ -282,20 +282,21 @@ function colorProvenance(metadata: PngColorMetadata) {
 
 function effectProvenance(metadata: PngEffectMetadata) {
   const value = JSON.stringify({
-    schema: "ipw.image-edit.effects.provenance.v7",
+    schema: "ipw.image-edit.effects.provenance.v8",
     source_sha256: metadata.sourceSha256,
     base_output_sha256: metadata.baseOutputSha256,
     base_kind: metadata.baseKind,
     base_route: metadata.baseRoute,
     base_strength: metadata.baseStrength,
     base_scale: metadata.baseScale,
-    operation_order: ["source_neighbourhood_highlight_bloom", "source_neighbourhood_tilt_shift_focus_band", "source_coordinate_pixel_art_blocks", "per_channel_posterization", "source_coordinate_monochrome_halftone", "source_coordinate_film_grain", "source_coordinate_vignette"],
+    operation_order: ["source_neighbourhood_highlight_bloom", "source_neighbourhood_tilt_shift_focus_band", "source_coordinate_directional_motion_blur", "source_coordinate_pixel_art_blocks", "per_channel_posterization", "source_coordinate_monochrome_halftone", "source_coordinate_film_grain", "source_coordinate_vignette"],
     recipe: metadata.recipe,
     statistics: {
       processed_pixels: metadata.statistics.processedPixels,
       changed_pixels: metadata.statistics.changedPixels,
       bloom_changed_pixels: metadata.statistics.bloomChangedPixels,
       tilt_shift_changed_pixels: metadata.statistics.tiltShiftChangedPixels,
+      motion_blur_changed_pixels: metadata.statistics.motionBlurChangedPixels,
       posterized_pixels: metadata.statistics.posterizedPixels,
       halftoned_pixels: metadata.statistics.halftonedPixels,
       pixelated_pixels: metadata.statistics.pixelatedPixels,
@@ -609,6 +610,7 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
     metadata.statistics.changedPixels,
     metadata.statistics.bloomChangedPixels,
     metadata.statistics.tiltShiftChangedPixels,
+    metadata.statistics.motionBlurChangedPixels,
     metadata.statistics.posterizedPixels,
     metadata.statistics.halftonedPixels,
     metadata.statistics.pixelatedPixels,
@@ -636,6 +638,7 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
     || metadata.statistics.changedPixels > metadata.statistics.processedPixels
     || metadata.statistics.bloomChangedPixels > metadata.statistics.processedPixels
     || metadata.statistics.tiltShiftChangedPixels > metadata.statistics.processedPixels
+    || metadata.statistics.motionBlurChangedPixels > metadata.statistics.processedPixels
     || metadata.statistics.posterizedPixels > metadata.statistics.processedPixels
     || metadata.statistics.halftonedPixels > metadata.statistics.processedPixels
     || metadata.statistics.pixelatedPixels > metadata.statistics.processedPixels
@@ -644,6 +647,7 @@ export function tagEffectPng(bytes: Uint8Array, metadata: PngEffectMetadata): Ui
     || metadata.statistics.darkenedPixels + metadata.statistics.lightenedPixels !== metadata.statistics.vignetteChangedPixels
     || (metadata.recipe.bloom.amount === 0 && metadata.statistics.bloomChangedPixels !== 0)
     || (metadata.recipe.tiltShift.amount === 0 && metadata.statistics.tiltShiftChangedPixels !== 0)
+    || (metadata.recipe.motionBlur.amount === 0 && metadata.statistics.motionBlurChangedPixels !== 0)
     || (metadata.recipe.posterize.levels === 256 && metadata.statistics.posterizedPixels !== 0)
     || (metadata.recipe.halftone.amount === 0 && metadata.statistics.halftonedPixels !== 0)
     || (metadata.recipe.pixelArt.amount === 0 && metadata.statistics.pixelatedPixels !== 0)

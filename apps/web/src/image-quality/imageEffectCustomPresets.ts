@@ -6,7 +6,7 @@ import {
 } from "./imageEffects.ts";
 
 export const IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION = 1;
-export const IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION = 7;
+export const IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION = 8;
 export const IMAGE_EFFECT_CUSTOM_PRESET_STORAGE_KEY = `ipw-image-effect-presets:v${IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION}`;
 export const MAX_IMAGE_EFFECT_CUSTOM_PRESETS = 24;
 export const MAX_IMAGE_EFFECT_CUSTOM_PRESET_NAME_LENGTH = 48;
@@ -29,7 +29,7 @@ type PresetStorageWriter = Pick<Storage, "setItem">;
 
 const CUSTOM_PRESET_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
-const LEGACY_IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSIONS = [3, 4, 5, 6] as const;
+const LEGACY_IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSIONS = [3, 4, 5, 6, 7] as const;
 
 function hasExactKeys(value: object, expected: readonly string[]): boolean {
   const keys = Object.keys(value);
@@ -50,12 +50,14 @@ export function normalizeImageEffectCustomPresetName(value: string): string {
 
 export function isPortableImageEffectsRecipe(value: unknown): value is ImageEffectsRecipe {
   if (!value || typeof value !== "object"
-    || !hasExactKeys(value, ["bloom", "tiltShift", "posterize", "halftone", "pixelArt", "grain", "vignette"])) return false;
+    || !hasExactKeys(value, ["bloom", "tiltShift", "motionBlur", "posterize", "halftone", "pixelArt", "grain", "vignette"])) return false;
   const recipe = value as ImageEffectsRecipe;
   if (!recipe.bloom || typeof recipe.bloom !== "object"
     || !hasExactKeys(recipe.bloom, ["amount", "radius", "threshold"])
     || !recipe.tiltShift || typeof recipe.tiltShift !== "object"
     || !hasExactKeys(recipe.tiltShift, ["amount", "radius", "position", "width", "feather"])
+    || !recipe.motionBlur || typeof recipe.motionBlur !== "object"
+    || !hasExactKeys(recipe.motionBlur, ["amount", "distance", "angle"])
     || !recipe.posterize || typeof recipe.posterize !== "object"
     || !hasExactKeys(recipe.posterize, ["levels"])
     || !recipe.halftone || typeof recipe.halftone !== "object"
@@ -69,7 +71,7 @@ export function isPortableImageEffectsRecipe(value: unknown): value is ImageEffe
   return isSanitizedEffectsRecipe(recipe);
 }
 
-function migrateLegacyRecipe(value: unknown, version: 3 | 4 | 5 | 6): ImageEffectsRecipe | null {
+function migrateLegacyRecipe(value: unknown, version: 3 | 4 | 5 | 6 | 7): ImageEffectsRecipe | null {
   if (!value || typeof value !== "object") return null;
   const expectedKeys = version === 3
     ? ["bloom", "grain", "vignette"]
@@ -77,16 +79,21 @@ function migrateLegacyRecipe(value: unknown, version: 3 | 4 | 5 | 6): ImageEffec
       ? ["bloom", "posterize", "grain", "vignette"]
       : version === 5
         ? ["bloom", "posterize", "halftone", "grain", "vignette"]
-        : ["bloom", "posterize", "halftone", "pixelArt", "grain", "vignette"];
+        : version === 6
+          ? ["bloom", "posterize", "halftone", "pixelArt", "grain", "vignette"]
+          : ["bloom", "tiltShift", "posterize", "halftone", "pixelArt", "grain", "vignette"];
   if (!hasExactKeys(value, expectedKeys)) return null;
-  const recipe = value as Omit<ImageEffectsRecipe, "tiltShift" | "halftone" | "pixelArt" | "posterize">
+  const recipe = value as Omit<ImageEffectsRecipe, "tiltShift" | "motionBlur" | "halftone" | "pixelArt" | "posterize">
     & {
+      tiltShift?: ImageEffectsRecipe["tiltShift"];
       posterize?: ImageEffectsRecipe["posterize"];
       halftone?: ImageEffectsRecipe["halftone"];
       pixelArt?: ImageEffectsRecipe["pixelArt"];
     };
   if (!recipe.bloom || typeof recipe.bloom !== "object"
     || !hasExactKeys(recipe.bloom, ["amount", "radius", "threshold"])
+    || (version >= 7 && (!recipe.tiltShift || typeof recipe.tiltShift !== "object"
+      || !hasExactKeys(recipe.tiltShift, ["amount", "radius", "position", "width", "feather"])))
     || (version >= 4 && (!recipe.posterize || typeof recipe.posterize !== "object"
       || !hasExactKeys(recipe.posterize, ["levels"])))
     || (version >= 5 && (!recipe.halftone || typeof recipe.halftone !== "object"
@@ -102,11 +109,19 @@ function migrateLegacyRecipe(value: unknown, version: 3 | 4 | 5 | 6): ImageEffec
     posterize: version === 3 ? { levels: 256 } : recipe.posterize!,
     halftone: version >= 5 ? recipe.halftone! : { amount: 0, size: 8, angle: 45 },
     pixelArt: version >= 6 ? recipe.pixelArt! : { amount: 0, size: 8 },
-    tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    tiltShift: version >= 7
+      ? recipe.tiltShift!
+      : { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
   });
   return recipe.bloom.amount === migrated.bloom.amount
     && recipe.bloom.radius === migrated.bloom.radius
     && recipe.bloom.threshold === migrated.bloom.threshold
+    && (version < 7 || (recipe.tiltShift?.amount === migrated.tiltShift.amount
+      && recipe.tiltShift.radius === migrated.tiltShift.radius
+      && recipe.tiltShift.position === migrated.tiltShift.position
+      && recipe.tiltShift.width === migrated.tiltShift.width
+      && recipe.tiltShift.feather === migrated.tiltShift.feather))
     && (version === 3 || recipe.posterize?.levels === migrated.posterize.levels)
     && (version < 5 || (recipe.halftone?.amount === migrated.halftone.amount
       && recipe.halftone.size === migrated.halftone.size
@@ -141,9 +156,9 @@ function migrateLegacyPreset(value: unknown): ImageEffectCustomPreset | null {
     || !hasExactKeys(value, ["id", "name", "recipeVersion", "recipe"])) return null;
   const candidate = value as { id?: unknown; name?: unknown; recipeVersion?: unknown; recipe?: unknown };
   if (typeof candidate.id !== "string" || !CUSTOM_PRESET_ID.test(candidate.id)
-    || !LEGACY_IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSIONS.includes(candidate.recipeVersion as 3 | 4 | 5 | 6)
+    || !LEGACY_IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSIONS.includes(candidate.recipeVersion as 3 | 4 | 5 | 6 | 7)
     || typeof candidate.name !== "string") return null;
-  const recipe = migrateLegacyRecipe(candidate.recipe, candidate.recipeVersion as 3 | 4 | 5 | 6);
+  const recipe = migrateLegacyRecipe(candidate.recipe, candidate.recipeVersion as 3 | 4 | 5 | 6 | 7);
   if (!recipe) return null;
   try {
     if (normalizeImageEffectCustomPresetName(candidate.name) !== candidate.name) return null;

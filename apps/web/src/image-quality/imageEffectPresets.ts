@@ -5,7 +5,7 @@ import {
   type ImageEffectsRecipe,
 } from "./imageEffects.ts";
 
-export const IMAGE_EFFECT_PRESET_VERSION = "1.3.0";
+export const IMAGE_EFFECT_PRESET_VERSION = "1.4.0";
 
 export const IMAGE_EFFECT_PRESET_IDS = [
   "soft-bloom",

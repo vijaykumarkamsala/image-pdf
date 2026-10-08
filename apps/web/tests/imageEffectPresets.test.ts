@@ -54,6 +54,7 @@ test("effect look lookup returns an isolated recipe and detects exact matches on
   assert.notEqual(first.recipe, second.recipe);
   assert.notEqual(first.recipe.bloom, second.recipe.bloom);
   assert.notEqual(first.recipe.tiltShift, second.recipe.tiltShift);
+  assert.notEqual(first.recipe.motionBlur, second.recipe.motionBlur);
   assert.notEqual(first.recipe.halftone, second.recipe.halftone);
   assert.notEqual(first.recipe.pixelArt, second.recipe.pixelArt);
   assert.notEqual(first.recipe.grain, second.recipe.grain);

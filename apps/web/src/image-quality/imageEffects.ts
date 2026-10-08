@@ -48,6 +48,15 @@ export interface ImageTiltShiftRecipe {
   feather: number;
 }
 
+export interface ImageMotionBlurRecipe {
+  /** Blend from the current stage into a source-derived directional blur. */
+  amount: number;
+  /** Maximum source-coordinate travel in pixels. */
+  distance: number;
+  /** Clockwise direction of travel in degrees. */
+  angle: number;
+}
+
 export interface ImageVignetteRecipe {
   /** Negative values darken the perimeter; positive values lighten it. */
   amount: number;
@@ -60,6 +69,7 @@ export interface ImageVignetteRecipe {
 export interface ImageEffectsRecipe {
   bloom: ImageBloomRecipe;
   tiltShift: ImageTiltShiftRecipe;
+  motionBlur: ImageMotionBlurRecipe;
   posterize: ImagePosterizeRecipe;
   halftone: ImageHalftoneRecipe;
   pixelArt: ImagePixelArtRecipe;
@@ -72,6 +82,7 @@ export interface ImageEffectsStatistics {
   changedPixels: number;
   bloomChangedPixels: number;
   tiltShiftChangedPixels: number;
+  motionBlurChangedPixels: number;
   posterizedPixels: number;
   halftonedPixels: number;
   pixelatedPixels: number;
@@ -82,6 +93,7 @@ export interface ImageEffectsStatistics {
 }
 
 export const MAX_BROWSER_EFFECT_PIXELS = 67_108_864;
+export const MAX_BROWSER_MOTION_BLUR_PIXELS = 16_777_216;
 
 const SQRT_TWO = Math.SQRT2;
 
@@ -93,6 +105,7 @@ export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
   return {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -114,6 +127,11 @@ export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsR
       position: Math.round(bounded(recipe.tiltShift?.position, 0, 100, 50)),
       width: Math.round(bounded(recipe.tiltShift?.width, 5, 80, 30)),
       feather: Math.round(bounded(recipe.tiltShift?.feather, 1, 100, 50)),
+    },
+    motionBlur: {
+      amount: Math.round(bounded(recipe.motionBlur?.amount, 0, 100, 0)),
+      distance: Math.round(bounded(recipe.motionBlur?.distance, 1, 32, 12)),
+      angle: Math.round(bounded(recipe.motionBlur?.angle, -180, 180, 0)),
     },
     posterize: {
       levels: Math.round(bounded(recipe.posterize?.levels, 2, 256, 256)),
@@ -149,6 +167,9 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
     && recipe.tiltShift?.position === safe.tiltShift.position
     && recipe.tiltShift?.width === safe.tiltShift.width
     && recipe.tiltShift?.feather === safe.tiltShift.feather
+    && recipe.motionBlur?.amount === safe.motionBlur.amount
+    && recipe.motionBlur?.distance === safe.motionBlur.distance
+    && recipe.motionBlur?.angle === safe.motionBlur.angle
     && recipe.posterize?.levels === safe.posterize.levels
     && recipe.halftone?.amount === safe.halftone.amount
     && recipe.halftone?.size === safe.halftone.size
@@ -164,7 +185,8 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
 
 export function isNeutralEffects(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
-  return safe.bloom.amount === 0 && safe.tiltShift.amount === 0 && safe.posterize.levels === 256
+  return safe.bloom.amount === 0 && safe.tiltShift.amount === 0 && safe.motionBlur.amount === 0
+    && safe.posterize.levels === 256
     && safe.halftone.amount === 0 && safe.pixelArt.amount === 0
     && safe.grain.amount === 0 && safe.vignette.amount === 0;
 }
@@ -181,6 +203,9 @@ export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageE
     && safeLeft.tiltShift.position === safeRight.tiltShift.position
     && safeLeft.tiltShift.width === safeRight.tiltShift.width
     && safeLeft.tiltShift.feather === safeRight.tiltShift.feather
+    && safeLeft.motionBlur.amount === safeRight.motionBlur.amount
+    && safeLeft.motionBlur.distance === safeRight.motionBlur.distance
+    && safeLeft.motionBlur.angle === safeRight.motionBlur.angle
     && safeLeft.posterize.levels === safeRight.posterize.levels
     && safeLeft.halftone.amount === safeRight.halftone.amount
     && safeLeft.halftone.size === safeRight.halftone.size
@@ -203,6 +228,21 @@ export function assertBrowserEffectsBudget(width: number, height: number): numbe
     throw new Error(
       `Effects require ${pixels.toLocaleString("en-US")} working pixels, beyond this browser's `
       + `${MAX_BROWSER_EFFECT_PIXELS.toLocaleString("en-US")}-pixel safety budget. No unchanged substitute was created.`,
+    );
+  }
+  return pixels;
+}
+
+export function assertBrowserMotionBlurBudget(width: number, height: number): number {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
+    throw new Error("Directional motion blur requires positive integer image dimensions.");
+  }
+  const pixels = width * height;
+  if (!Number.isSafeInteger(pixels) || pixels > MAX_BROWSER_MOTION_BLUR_PIXELS) {
+    throw new Error(
+      `Directional motion blur requires ${pixels.toLocaleString("en-US")} working pixels, beyond this browser's `
+      + `${MAX_BROWSER_MOTION_BLUR_PIXELS.toLocaleString("en-US")}-pixel safety budget. `
+      + "No smaller or unchanged substitute was created.",
     );
   }
   return pixels;
@@ -260,6 +300,11 @@ export interface ImagePixelArtResult {
 }
 
 export interface ImageTiltShiftResult {
+  processedPixels: number;
+  changedPixels: number;
+}
+
+export interface ImageMotionBlurResult {
   processedPixels: number;
   changedPixels: number;
 }
@@ -370,6 +415,112 @@ export function applyTiltShiftToRgba(
         + area(greenIntegral, left, top, right, bottom) / alphaWeight * mix);
       target[targetOffset + 2] = Math.round(beforeBlue * (1 - mix)
         + area(blueIntegral, left, top, right, bottom) / alphaWeight * mix);
+      if (beforeRed !== target[targetOffset] || beforeGreen !== target[targetOffset + 1]
+        || beforeBlue !== target[targetOffset + 2]) changedPixels += 1;
+    }
+  }
+  return { processedPixels, changedPixels };
+}
+
+/**
+ * Blends five alpha-weighted bilinear samples from the immutable source along
+ * a centred direction line over the current effect stage. The source tile must
+ * include a distance-plus-one halo at every non-image boundary so worker tiles
+ * remain byte-exact regardless of the selected angle.
+ */
+export function applyMotionBlurToRgba(
+  source: Uint8ClampedArray,
+  target: Uint8ClampedArray,
+  width: number,
+  coreTop: number,
+  coreHeight: number,
+  imageHeight: number,
+  rowOffset: number,
+  recipe: ImageMotionBlurRecipe,
+): ImageMotionBlurResult {
+  const amount = Math.round(bounded(recipe.amount, 0, 100, 0));
+  const distance = Math.round(bounded(recipe.distance, 1, 32, 12));
+  const angle = Math.round(bounded(recipe.angle, -180, 180, 0));
+  const sourcePixels = source.byteLength / 4;
+  const sourceHeight = sourcePixels / width;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(imageHeight)
+    || !Number.isSafeInteger(coreTop) || !Number.isSafeInteger(coreHeight)
+    || !Number.isSafeInteger(rowOffset) || width < 1 || imageHeight < 1
+    || coreTop < 0 || coreHeight < 1 || rowOffset < 0
+    || !Number.isSafeInteger(sourcePixels) || !Number.isSafeInteger(sourceHeight)
+    || sourcePixels % width !== 0 || coreTop + coreHeight > sourceHeight
+    || rowOffset + coreHeight > imageHeight
+    || target.byteLength !== width * coreHeight * 4) {
+    throw new Error("Directional motion blur requires valid source halo and target RGBA dimensions.");
+  }
+  const sourceTop = rowOffset - coreTop;
+  const sourceBottom = sourceTop + sourceHeight;
+  if (sourceTop < 0 || sourceBottom > imageHeight) {
+    throw new Error("Directional motion blur received a source tile outside the image.");
+  }
+  if (amount === 0) return { processedPixels: 0, changedPixels: 0 };
+  const halo = distance + 1;
+  if ((sourceTop > 0 && coreTop < halo)
+    || (sourceBottom < imageHeight && sourceHeight - coreTop - coreHeight < halo)) {
+    throw new Error("Directional motion blur requires a complete immutable-source distance halo.");
+  }
+
+  const radians = angle * Math.PI / 180;
+  const travelX = Math.cos(radians) * distance;
+  const travelY = Math.sin(radians) * distance;
+  const sampleFactors = [-1, -0.5, 0, 0.5, 1] as const;
+  const mix = amount / 100;
+  let processedPixels = 0;
+  let changedPixels = 0;
+  for (let outputY = 0; outputY < coreHeight; outputY += 1) {
+    const globalY = rowOffset + outputY;
+    for (let x = 0; x < width; x += 1) {
+      const targetOffset = (outputY * width + x) * 4;
+      if (target[targetOffset + 3] === 0) continue;
+      processedPixels += 1;
+      let alphaWeight = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      for (const factor of sampleFactors) {
+        const sampleX = Math.min(width - 1, Math.max(0, x + factor * travelX));
+        const sampleY = Math.min(imageHeight - 1, Math.max(0, globalY + factor * travelY));
+        const localY = sampleY - sourceTop;
+        const left = Math.floor(sampleX);
+        const right = Math.min(width - 1, left + 1);
+        const top = Math.floor(localY);
+        const bottom = Math.min(sourceHeight - 1, top + 1);
+        const fractionX = sampleX - left;
+        const fractionY = localY - top;
+        const topLeftWeight = (1 - fractionX) * (1 - fractionY);
+        const topRightWeight = fractionX * (1 - fractionY);
+        const bottomLeftWeight = (1 - fractionX) * fractionY;
+        const bottomRightWeight = fractionX * fractionY;
+        const topLeftOffset = (top * width + left) * 4;
+        const topRightOffset = (top * width + right) * 4;
+        const bottomLeftOffset = (bottom * width + left) * 4;
+        const bottomRightOffset = (bottom * width + right) * 4;
+        const topLeftAlpha = topLeftWeight * source[topLeftOffset + 3] / 255;
+        const topRightAlpha = topRightWeight * source[topRightOffset + 3] / 255;
+        const bottomLeftAlpha = bottomLeftWeight * source[bottomLeftOffset + 3] / 255;
+        const bottomRightAlpha = bottomRightWeight * source[bottomRightOffset + 3] / 255;
+        alphaWeight += topLeftAlpha + topRightAlpha + bottomLeftAlpha + bottomRightAlpha;
+        red += source[topLeftOffset] * topLeftAlpha + source[topRightOffset] * topRightAlpha
+          + source[bottomLeftOffset] * bottomLeftAlpha + source[bottomRightOffset] * bottomRightAlpha;
+        green += source[topLeftOffset + 1] * topLeftAlpha + source[topRightOffset + 1] * topRightAlpha
+          + source[bottomLeftOffset + 1] * bottomLeftAlpha
+          + source[bottomRightOffset + 1] * bottomRightAlpha;
+        blue += source[topLeftOffset + 2] * topLeftAlpha + source[topRightOffset + 2] * topRightAlpha
+          + source[bottomLeftOffset + 2] * bottomLeftAlpha
+          + source[bottomRightOffset + 2] * bottomRightAlpha;
+      }
+      if (alphaWeight === 0) continue;
+      const beforeRed = target[targetOffset];
+      const beforeGreen = target[targetOffset + 1];
+      const beforeBlue = target[targetOffset + 2];
+      target[targetOffset] = Math.round(beforeRed * (1 - mix) + red / alphaWeight * mix);
+      target[targetOffset + 1] = Math.round(beforeGreen * (1 - mix) + green / alphaWeight * mix);
+      target[targetOffset + 2] = Math.round(beforeBlue * (1 - mix) + blue / alphaWeight * mix);
       if (beforeRed !== target[targetOffset] || beforeGreen !== target[targetOffset + 1]
         || beforeBlue !== target[targetOffset + 2]) changedPixels += 1;
     }
@@ -573,6 +724,7 @@ export function applyEffectsToRgba(
     changedPixels: 0,
     bloomChangedPixels: 0,
     tiltShiftChangedPixels: 0,
+    motionBlurChangedPixels: 0,
     posterizedPixels: 0,
     halftonedPixels: 0,
     pixelatedPixels: 0,

@@ -114,6 +114,7 @@ import { WorkerImageHistogramEngine } from "./WorkerImageHistogramEngine";
 import {
   isNeutralEffects,
   MAX_BROWSER_EFFECT_PIXELS,
+  MAX_BROWSER_MOTION_BLUR_PIXELS,
   sameEffectsRecipe,
   sanitizeEffectsRecipe,
   type ImageEffectsRecipe,
@@ -510,6 +511,58 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
       <p>Blurs outside one horizontal focus band using the immutable verified source. It preserves alpha and does not infer depth, subjects, lenses or bokeh.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Directional motion blur</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Amount</strong><output>{props.recipe.motionBlur.amount === 0 ? "Neutral" : `${props.recipe.motionBlur.amount}%`}</output></span>
+        <input
+          aria-label="Directional motion blur amount"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.motionBlur.amount}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            motionBlur: { ...props.recipe.motionBlur, amount: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Distance</strong><output>{props.recipe.motionBlur.distance} px</output></span>
+        <input
+          aria-label="Directional motion blur distance"
+          type="range"
+          min="1"
+          max="32"
+          step="1"
+          value={props.recipe.motionBlur.distance}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            motionBlur: { ...props.recipe.motionBlur, distance: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Angle</strong><output>{props.recipe.motionBlur.angle}°</output></span>
+        <input
+          aria-label="Directional motion blur angle"
+          type="range"
+          min="-180"
+          max="180"
+          step="1"
+          value={props.recipe.motionBlur.angle}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            motionBlur: { ...props.recipe.motionBlur, angle: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Blends five alpha-aware samples from the immutable verified source along the selected direction. It does not infer motion, subjects or missing detail. This costly effect fails visibly above {MAX_BROWSER_MOTION_BLUR_PIXELS.toLocaleString()} pixels instead of silently substituting another result.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Posterization</legend>
       <label className="quality-adjustment-control">
         <span><strong>Colour levels</strong><output>{props.recipe.posterize.levels === 256
@@ -711,6 +764,7 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>Bloom pixels</dt><dd>{props.statistics.bloomChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Tilt-shift pixels</dt><dd>{props.statistics.tiltShiftChangedPixels.toLocaleString()}</dd></div>
+      <div><dt>Motion-blur pixels</dt><dd>{props.statistics.motionBlurChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Posterized pixels</dt><dd>{props.statistics.posterizedPixels.toLocaleString()}</dd></div>
       <div><dt>Halftone pixels</dt><dd>{props.statistics.halftonedPixels.toLocaleString()}</dd></div>
       <div><dt>Pixel-art pixels</dt><dd>{props.statistics.pixelatedPixels.toLocaleString()}</dd></div>

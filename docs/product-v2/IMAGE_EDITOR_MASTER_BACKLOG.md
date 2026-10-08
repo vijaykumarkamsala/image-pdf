@@ -317,14 +317,18 @@ contains the expanded v10 settings and never the private local preset name.
 
 **Implemented locally, pending product-owner image testing:** the Effects stage
 now provides deterministic highlight bloom, a linear tilt-shift focus band,
-per-channel posterization, a source-coordinate monochrome halftone screen, a
-pixel-art block treatment, film grain and a source-coordinate vignette after
-Colour. Bloom spreads only measured highlights from an immutable source
-neighbourhood using bounded Amount, Radius and Threshold controls. Tilt-shift
+directional motion blur, per-channel posterization, a source-coordinate
+monochrome halftone screen, a pixel-art block treatment, film grain and a
+source-coordinate vignette after Colour. Bloom spreads only measured highlights
+from an immutable source neighbourhood using bounded Amount, Radius and
+Threshold controls. Tilt-shift
 blends an alpha-weighted immutable-source box blur outside an explicit horizontal
 focus band with bounded Amount, Radius, Position, Band width and Feather controls.
-Both neighbourhood stages request complete source halos so worker tiles remain
-seam-free. Tilt-shift does not infer depth, subjects, lenses or bokeh. Fully
+Directional motion blur blends five alpha-weighted bilinear samples from the
+immutable source along bounded Amount, Distance and Angle controls. All three
+neighbourhood stages request complete source halos so worker tiles remain
+seam-free. Tilt-shift does not infer depth, subjects, lenses or bokeh, and
+motion blur does not infer scene motion, subjects or missing detail. Fully
 transparent pixels are excluded, alpha is preserved, and bloom cannot turn a
 previously unclipped channel into clipped white. Posterization maps visible RGB
 channels to an explicit choice
@@ -344,25 +348,28 @@ shifts and new clipping. Vignette amount, midpoint and feather are bounded; the
 protected centre remains unchanged, alpha is preserved, and dark/light
 perimeter changes use a smooth linear-light blend. Selecting settings does not
 change pixels. Apply creates an exact-dimension derivative bound to the latest
-verified base, with ordered v7 effects recipe/statistics provenance and
+verified base, with ordered v8 effects recipe/statistics provenance and
 byte-identical preview/download data. Browser resource limits fail visibly
-instead of returning an uneffected substitute.
+instead of returning an uneffected substitute. The general Effects stage is
+bounded to 67,108,864 working pixels; the more expensive directional motion
+blur stage has a separate 16,777,216-pixel browser limit.
 
-A third versioned built-in collection provides four non-generative Effects
+A versioned v1.4.0 built-in collection provides four non-generative Effects
 looks: Soft Bloom, Fine Grain, Cinematic Frame and Analog Finish. Selecting a
-look loads one complete sanitized v7 Effects recipe and identifies an exact
+look loads one complete sanitized v8 Effects recipe and identifies an exact
 match versus manually customized settings. Pixels remain unchanged until the
 customer separately chooses Apply effects, while exported provenance contains
 the expanded recipe values and never the display label.
 
 Customers can also save, reload, rename and explicitly delete up to 24 custom
 Effects recipes in the current browser profile. The strict versioned local
-schema accepts only complete sanitized v7 recipes and rejects corrupt,
+schema accepts only complete sanitized v8 recipes and rejects corrupt,
 duplicate, unsupported, out-of-range or unknown settings. Previously saved v3
-recipes are narrowly migrated with neutral posterization, halftone, pixel art
-and tilt-shift; v4 recipes receive neutral halftone, pixel art and tilt-shift;
-v5 recipes receive neutral pixel art and tilt-shift; and v6 recipes receive
-neutral tilt-shift instead of being lost.
+recipes are narrowly migrated with neutral posterization, halftone, pixel art,
+tilt-shift and motion blur; v4 recipes receive neutral halftone, pixel art,
+tilt-shift and motion blur; v5 recipes receive neutral pixel art, tilt-shift
+and motion blur; v6 recipes receive neutral tilt-shift and motion blur; and v7
+recipes receive neutral motion blur instead of being lost.
 Saved names are not synced or shared; loading remains separate from Apply
 effects, and exported provenance contains the expanded recipe rather than the
 private local name.
@@ -370,7 +377,7 @@ private local name.
 - Built-in and user-created presets.
 - Film looks, controlled grain, vignette, glow and bloom.
 - Depth blur, bokeh, selective colour, colour splash and double exposure.
-- Tilt-shift, motion effects, posterization, halftone and pixel-art treatments.
+- Tilt-shift, directional motion blur, posterization, halftone and pixel-art treatments.
 - Cartoon/illustration conversion, vintage effects and campaign variants.
 - Randomized but repeatable preset variants.
 

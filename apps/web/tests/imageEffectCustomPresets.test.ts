@@ -47,13 +47,14 @@ test("custom effects presets persist as a versioned bounded recipe collection", 
   assert.notEqual(reloaded.recipe, presets[0]!.recipe);
   assert.notEqual(reloaded.recipe.bloom, presets[0]!.recipe.bloom);
   assert.notEqual(reloaded.recipe.tiltShift, presets[0]!.recipe.tiltShift);
+  assert.notEqual(reloaded.recipe.motionBlur, presets[0]!.recipe.motionBlur);
   assert.notEqual(reloaded.recipe.halftone, presets[0]!.recipe.halftone);
   assert.notEqual(reloaded.recipe.pixelArt, presets[0]!.recipe.pixelArt);
   assert.notEqual(reloaded.recipe.grain, presets[0]!.recipe.grain);
   assert.notEqual(reloaded.recipe.vignette, presets[0]!.recipe.vignette);
 });
 
-test("custom effects preset parsing migrates safe v3 through v6 recipes and rejects malformed or duplicate entries", () => {
+test("custom effects preset parsing migrates safe v3 through v7 recipes and rejects malformed or duplicate entries", () => {
   const valid = addImageEffectCustomPreset([], "Quiet finish", customRecipe(), "preset-valid")[0]!;
   const unsafe = {
     ...valid,
@@ -95,6 +96,7 @@ test("custom effects preset parsing migrates safe v3 through v6 recipes and reje
     halftone: _halftone,
     pixelArt: _pixelArt,
     tiltShift: _tiltShift,
+    motionBlur: _motionBlur,
     ...legacyV3Recipe
   } = valid.recipe;
   const migratedV3 = parseImageEffectCustomPresets(JSON.stringify({
@@ -110,6 +112,7 @@ test("custom effects preset parsing migrates safe v3 through v6 recipes and reje
       halftone: { amount: 0, size: 8, angle: 45 },
       pixelArt: { amount: 0, size: 8 },
       tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+      motionBlur: { amount: 0, distance: 12, angle: 0 },
     },
   }]);
 
@@ -117,6 +120,7 @@ test("custom effects preset parsing migrates safe v3 through v6 recipes and reje
     halftone: _legacyHalftone,
     pixelArt: _legacyPixelArt,
     tiltShift: _legacyV4TiltShift,
+    motionBlur: _legacyV4MotionBlur,
     ...legacyV4Recipe
   } = valid.recipe;
   const migratedV4 = parseImageEffectCustomPresets(JSON.stringify({
@@ -131,12 +135,14 @@ test("custom effects preset parsing migrates safe v3 through v6 recipes and reje
       halftone: { amount: 0, size: 8, angle: 45 },
       pixelArt: { amount: 0, size: 8 },
       tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+      motionBlur: { amount: 0, distance: 12, angle: 0 },
     },
   }]);
 
   const {
     pixelArt: _legacyV5PixelArt,
     tiltShift: _legacyV5TiltShift,
+    motionBlur: _legacyV5MotionBlur,
     ...legacyV5Recipe
   } = valid.recipe;
   const migratedV5 = parseImageEffectCustomPresets(JSON.stringify({
@@ -150,10 +156,15 @@ test("custom effects preset parsing migrates safe v3 through v6 recipes and reje
       ...legacyV5Recipe,
       pixelArt: { amount: 0, size: 8 },
       tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+      motionBlur: { amount: 0, distance: 12, angle: 0 },
     },
   }]);
 
-  const { tiltShift: _legacyV6TiltShift, ...legacyV6Recipe } = valid.recipe;
+  const {
+    tiltShift: _legacyV6TiltShift,
+    motionBlur: _legacyV6MotionBlur,
+    ...legacyV6Recipe
+  } = valid.recipe;
   const migratedV6 = parseImageEffectCustomPresets(JSON.stringify({
     version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
     presets: [{ ...valid, recipeVersion: 6, recipe: legacyV6Recipe }],
@@ -164,6 +175,21 @@ test("custom effects preset parsing migrates safe v3 through v6 recipes and reje
     recipe: {
       ...legacyV6Recipe,
       tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+      motionBlur: { amount: 0, distance: 12, angle: 0 },
+    },
+  }]);
+
+  const { motionBlur: _legacyV7MotionBlur, ...legacyV7Recipe } = valid.recipe;
+  const migratedV7 = parseImageEffectCustomPresets(JSON.stringify({
+    version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
+    presets: [{ ...valid, recipeVersion: 7, recipe: legacyV7Recipe }],
+  }));
+  assert.deepEqual(migratedV7, [{
+    ...valid,
+    recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
+    recipe: {
+      ...legacyV7Recipe,
+      motionBlur: { amount: 0, distance: 12, angle: 0 },
     },
   }]);
 });

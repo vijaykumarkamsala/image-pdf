@@ -4,9 +4,11 @@ import test from "node:test";
 import {
   applyBloomToRgba,
   applyEffectsToRgba,
+  applyMotionBlurToRgba,
   applyPixelArtToRgba,
   applyTiltShiftToRgba,
   assertBrowserEffectsBudget,
+  assertBrowserMotionBlurBudget,
   createNeutralEffectsRecipe,
   isNeutralEffects,
   sameEffectsRecipe,
@@ -41,6 +43,7 @@ test("effects recipes are bounded, neutral and comparable", () => {
   const safe = sanitizeEffectsRecipe({
     bloom: { amount: 200, radius: 100, threshold: -20 },
     tiltShift: { amount: 250, radius: 100, position: -20, width: 100, feather: Number.NaN },
+    motionBlur: { amount: -10, distance: 100, angle: 250 },
     posterize: { levels: -50 },
     halftone: { amount: 250, size: 100, angle: -200 },
     pixelArt: { amount: -20, size: 100 },
@@ -50,6 +53,7 @@ test("effects recipes are bounded, neutral and comparable", () => {
   assert.deepEqual(safe, {
     bloom: { amount: 100, radius: 32, threshold: 0 },
     tiltShift: { amount: 100, radius: 32, position: 0, width: 80, feather: 50 },
+    motionBlur: { amount: 0, distance: 32, angle: 180 },
     posterize: { levels: 2 },
     halftone: { amount: 100, size: 32, angle: -90 },
     pixelArt: { amount: 0, size: 32 },
@@ -59,6 +63,7 @@ test("effects recipes are bounded, neutral and comparable", () => {
   assert.equal(sameEffectsRecipe(safe, {
     bloom: { ...safe.bloom },
     tiltShift: { ...safe.tiltShift },
+    motionBlur: { ...safe.motionBlur },
     posterize: { ...safe.posterize },
     halftone: { ...safe.halftone },
     pixelArt: { ...safe.pixelArt },
@@ -68,6 +73,7 @@ test("effects recipes are bounded, neutral and comparable", () => {
   assert.equal(sameEffectsRecipe(safe, {
     bloom: { ...safe.bloom },
     tiltShift: { ...safe.tiltShift },
+    motionBlur: { ...safe.motionBlur },
     posterize: { ...safe.posterize },
     halftone: { ...safe.halftone, angle: -89 },
     pixelArt: { ...safe.pixelArt },
@@ -76,6 +82,11 @@ test("effects recipes are bounded, neutral and comparable", () => {
   }), false);
   assert.equal(assertBrowserEffectsBudget(8192, 8192), 67_108_864);
   assert.throws(() => assertBrowserEffectsBudget(8193, 8192), /beyond this browser's 67,108,864-pixel safety budget/);
+  assert.equal(assertBrowserMotionBlurBudget(4096, 4096), 16_777_216);
+  assert.throws(
+    () => assertBrowserMotionBlurBudget(4097, 4096),
+    /beyond this browser's 16,777,216-pixel safety budget.*No smaller or unchanged substitute was created/,
+  );
 });
 
 test("vignette deterministically changes the perimeter while preserving the centre and alpha", () => {
@@ -87,6 +98,7 @@ test("vignette deterministically changes the perimeter while preserving the cent
   const recipe = {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -107,6 +119,7 @@ test("vignette deterministically changes the perimeter while preserving the cent
   const lightStatistics = applyEffectsToRgba(light, {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -126,6 +139,7 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
   const recipe = {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -151,6 +165,7 @@ test("vignette tiles use immutable full-image coordinates and preserve hidden RG
     changedPixels: 0,
     bloomChangedPixels: 0,
     tiltShiftChangedPixels: 0,
+    motionBlurChangedPixels: 0,
     posterizedPixels: 0,
     halftonedPixels: 0,
     pixelatedPixels: 0,
@@ -453,6 +468,83 @@ test("tilt-shift is progressive, alpha-aware, focus-protected and tile-exact", (
   );
 });
 
+test("directional motion blur is deterministic, progressive, alpha-aware and tile-exact", () => {
+  const width = 13;
+  const height = 12;
+  const source = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const red = (x * 31 + y * 7) % 256;
+      const green = (x * 11 + y * 29) % 256;
+      const blue = (x * 19 + y * 17) % 256;
+      source.set([red, green, blue, 255], (y * width + x) * 4);
+    }
+  }
+  source.set([17, 29, 43, 0], 0);
+  source[7] = 96;
+  const recipe = { amount: 55, distance: 3, angle: 45 };
+  const first = source.slice();
+  const repeated = source.slice();
+  const statistics = applyMotionBlurToRgba(source, first, width, 0, height, height, 0, recipe);
+  applyMotionBlurToRgba(source, repeated, width, 0, height, height, 0, recipe);
+  assert.deepEqual(first, repeated);
+  assert.ok(statistics.changedPixels > 0);
+  assert.equal(statistics.processedPixels, width * height - 1);
+  assert.deepEqual(Array.from(first.subarray(0, 4)), [17, 29, 43, 0]);
+  assert.equal(first[7], 96);
+  for (let offset = 3; offset < first.length; offset += 4) assert.equal(first[offset], source[offset]);
+
+  const stronger = source.slice();
+  applyMotionBlurToRgba(source, stronger, width, 0, height, height, 0, { ...recipe, amount: 100 });
+  const difference = (pixels: Uint8ClampedArray) => pixels.reduce((total, value, index) => (
+    index % 4 === 3 ? total : total + Math.abs(value - source[index])
+  ), 0);
+  assert.ok(difference(stronger) > difference(first));
+  const rotated = source.slice();
+  applyMotionBlurToRgba(source, rotated, width, 0, height, height, 0, { ...recipe, angle: -35 });
+  assert.notDeepEqual(rotated, first);
+  const longer = source.slice();
+  applyMotionBlurToRgba(source, longer, width, 0, height, height, 0, { ...recipe, distance: 5 });
+  assert.notDeepEqual(longer, first);
+
+  const split = 6;
+  const halo = recipe.distance + 1;
+  const firstBottom = split + halo;
+  const firstSource = source.slice(0, firstBottom * width * 4);
+  const firstTarget = source.slice(0, split * width * 4);
+  applyMotionBlurToRgba(firstSource, firstTarget, width, 0, split, height, 0, recipe);
+  const secondTop = split - halo;
+  const secondSource = source.slice(secondTop * width * 4);
+  const secondTarget = source.slice(split * width * 4);
+  applyMotionBlurToRgba(
+    secondSource,
+    secondTarget,
+    width,
+    split - secondTop,
+    height - split,
+    height,
+    split,
+    recipe,
+  );
+  const tiled = new Uint8ClampedArray(source.length);
+  tiled.set(firstTarget);
+  tiled.set(secondTarget, firstTarget.length);
+  assert.deepEqual(tiled, first);
+  assert.throws(
+    () => applyMotionBlurToRgba(
+      source.slice(split * width * 4),
+      source.slice(split * width * 4),
+      width,
+      0,
+      height - split,
+      height,
+      split,
+      recipe,
+    ),
+    /complete immutable-source distance halo/,
+  );
+});
+
 test("film grain is deterministic, progressive, hue-preserving and tile-stable", () => {
   const width = 9;
   const height = 8;
@@ -462,6 +554,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   const recipe = {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -487,6 +580,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   applyEffectsToRgba(stronger, {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -505,6 +599,7 @@ test("film grain is deterministic, progressive, hue-preserving and tile-stable",
   applyEffectsToRgba(otherSize, {
     bloom: { amount: 0, radius: 8, threshold: 70 },
     tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    motionBlur: { amount: 0, distance: 12, angle: 0 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -536,6 +631,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
     recipe: {
       bloom: { amount: 55, radius: 12, threshold: 68 },
       tiltShift: { amount: 65, radius: 10, position: 45, width: 24, feather: 60 },
+      motionBlur: { amount: 50, distance: 12, angle: -25 },
       posterize: { levels: 8 },
       halftone: { amount: 45, size: 9, angle: 30 },
       pixelArt: { amount: 70, size: 6 },
@@ -547,6 +643,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
       changedPixels: 1400,
       bloomChangedPixels: 600,
       tiltShiftChangedPixels: 800,
+      motionBlurChangedPixels: 700,
       posterizedPixels: 1200,
       halftonedPixels: 1100,
       pixelatedPixels: 1000,
@@ -560,8 +657,8 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
   });
   assert.deepEqual(inspectPngDimensions(tagged), { width: 64, height: 48 });
   const text = new TextDecoder().decode(tagged);
-  assert.match(text, /ipw\.image-edit\.effects\.provenance\.v7/);
-  assert.match(text, /"operation_order":\["source_neighbourhood_highlight_bloom","source_neighbourhood_tilt_shift_focus_band","source_coordinate_pixel_art_blocks","per_channel_posterization","source_coordinate_monochrome_halftone","source_coordinate_film_grain","source_coordinate_vignette"\]/);
+  assert.match(text, /ipw\.image-edit\.effects\.provenance\.v8/);
+  assert.match(text, /"operation_order":\["source_neighbourhood_highlight_bloom","source_neighbourhood_tilt_shift_focus_band","source_coordinate_directional_motion_blur","source_coordinate_pixel_art_blocks","per_channel_posterization","source_coordinate_monochrome_halftone","source_coordinate_film_grain","source_coordinate_vignette"\]/);
   assert.match(text, /"base_kind":"colour"/);
   assert.match(text, /"amount":-35/);
   assert.match(text, /"midpoint":52/);
@@ -579,6 +676,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
     recipe: {
       bloom: { amount: 55, radius: 12, threshold: 68 },
       tiltShift: { amount: 65, radius: 10, position: 45, width: 24, feather: 60 },
+      motionBlur: { amount: 50, distance: 12, angle: -25 },
       posterize: { levels: 8 },
       halftone: { amount: 45, size: 9, angle: 30 },
       pixelArt: { amount: 70, size: 6 },
@@ -590,6 +688,7 @@ test("effect PNG tagging preserves dimensions and binds ordered effects to the v
       changedPixels: 1400,
       bloomChangedPixels: 600,
       tiltShiftChangedPixels: 800,
+      motionBlurChangedPixels: 700,
       posterizedPixels: 1200,
       halftonedPixels: 1100,
       pixelatedPixels: 1000,

@@ -3,9 +3,11 @@
 import {
   applyBloomToRgba,
   applyEffectsToRgba,
+  applyMotionBlurToRgba,
   applyPixelArtToRgba,
   applyTiltShiftToRgba,
   assertBrowserEffectsBudget,
+  assertBrowserMotionBlurBudget,
   isNeutralEffects,
   sanitizeEffectsRecipe,
   type ImageEffectsRecipe,
@@ -76,13 +78,14 @@ async function render(
 ) {
   if (!bitmap) throw new Error("The image must be prepared before applying effects.");
   const safe = sanitizeEffectsRecipe(recipe);
-  if (isNeutralEffects(safe)) throw new Error("Choose non-neutral bloom, tilt-shift, posterization, halftone, pixel art, grain or vignette settings before applying effects.");
+  if (isNeutralEffects(safe)) throw new Error("Choose non-neutral bloom, tilt-shift, directional motion blur, posterization, halftone, pixel art, grain or vignette settings before applying effects.");
   if (bitmap.width > MAX_CANVAS_EDGE || bitmap.height > MAX_CANVAS_EDGE) {
     throw new Error(
       `This effect requires ${bitmap.width} × ${bitmap.height} px, beyond this browser's ${MAX_CANVAS_EDGE}px canvas edge. No smaller result was substituted.`,
     );
   }
   assertBrowserEffectsBudget(bitmap.width, bitmap.height);
+  if (safe.motionBlur.amount > 0) assertBrowserMotionBlurBudget(bitmap.width, bitmap.height);
   if (metadata.outputWidth !== bitmap.width || metadata.outputHeight !== bitmap.height) {
     throw new Error("The requested effect dimensions do not match the verified base image.");
   }
@@ -103,6 +106,7 @@ async function render(
     changedPixels: 0,
     bloomChangedPixels: 0,
     tiltShiftChangedPixels: 0,
+    motionBlurChangedPixels: 0,
     posterizedPixels: 0,
     halftonedPixels: 0,
     pixelatedPixels: 0,
@@ -116,11 +120,13 @@ async function render(
     ...safe,
     bloom: { ...safe.bloom, amount: 0 },
     tiltShift: { ...safe.tiltShift, amount: 0 },
+    motionBlur: { ...safe.motionBlur, amount: 0 },
     pixelArt: { ...safe.pixelArt, amount: 0 },
   };
   const neighbourhoodRadius = Math.max(
     safe.bloom.amount === 0 ? 0 : safe.bloom.radius,
     safe.tiltShift.amount === 0 ? 0 : safe.tiltShift.radius,
+    safe.motionBlur.amount === 0 ? 0 : safe.motionBlur.distance + 1,
   );
   for (let y = 0; y < bitmap.height; y += rowsPerTile) {
     const height = Math.min(rowsPerTile, bitmap.height - y);
@@ -168,6 +174,16 @@ async function render(
       y,
       safe.tiltShift,
     );
+    const motionBlur = applyMotionBlurToRgba(
+      sourceTile,
+      outputPixels,
+      bitmap.width,
+      coreTop,
+      height,
+      bitmap.height,
+      y,
+      safe.motionBlur,
+    );
     const pixelArt = applyPixelArtToRgba(
       outputPixels,
       bitmap.width,
@@ -188,6 +204,7 @@ async function render(
     statistics.changedPixels += finalStatistics.changedPixels;
     statistics.bloomChangedPixels += bloomChangedPixels;
     statistics.tiltShiftChangedPixels += tiltShift.changedPixels;
+    statistics.motionBlurChangedPixels += motionBlur.changedPixels;
     statistics.posterizedPixels += localStatistics.posterizedPixels;
     statistics.halftonedPixels += localStatistics.halftonedPixels;
     statistics.pixelatedPixels += pixelArt.changedPixels;
