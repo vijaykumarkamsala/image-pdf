@@ -35,6 +35,19 @@ export interface ImagePixelArtRecipe {
   size: number;
 }
 
+export interface ImageTiltShiftRecipe {
+  /** Blend from the current stage into a source-derived blur outside the focus band. */
+  amount: number;
+  /** Source-coordinate box-blur radius in pixels. */
+  radius: number;
+  /** Vertical centre of the horizontal focus band, as a percentage. */
+  position: number;
+  /** Height of the unchanged focus band, as a percentage. */
+  width: number;
+  /** Width of the transition into full blur, as a percentage. */
+  feather: number;
+}
+
 export interface ImageVignetteRecipe {
   /** Negative values darken the perimeter; positive values lighten it. */
   amount: number;
@@ -46,6 +59,7 @@ export interface ImageVignetteRecipe {
 
 export interface ImageEffectsRecipe {
   bloom: ImageBloomRecipe;
+  tiltShift: ImageTiltShiftRecipe;
   posterize: ImagePosterizeRecipe;
   halftone: ImageHalftoneRecipe;
   pixelArt: ImagePixelArtRecipe;
@@ -57,6 +71,7 @@ export interface ImageEffectsStatistics {
   processedPixels: number;
   changedPixels: number;
   bloomChangedPixels: number;
+  tiltShiftChangedPixels: number;
   posterizedPixels: number;
   halftonedPixels: number;
   pixelatedPixels: number;
@@ -77,6 +92,7 @@ function bounded(value: number, minimum: number, maximum: number, fallback: numb
 export function createNeutralEffectsRecipe(): ImageEffectsRecipe {
   return {
     bloom: { amount: 0, radius: 8, threshold: 70 },
+    tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
     posterize: { levels: 256 },
     halftone: { amount: 0, size: 8, angle: 45 },
     pixelArt: { amount: 0, size: 8 },
@@ -91,6 +107,13 @@ export function sanitizeEffectsRecipe(recipe: ImageEffectsRecipe): ImageEffectsR
       amount: Math.round(bounded(recipe.bloom?.amount, 0, 100, 0)),
       radius: Math.round(bounded(recipe.bloom?.radius, 1, 32, 8)),
       threshold: Math.round(bounded(recipe.bloom?.threshold, 0, 100, 70)),
+    },
+    tiltShift: {
+      amount: Math.round(bounded(recipe.tiltShift?.amount, 0, 100, 0)),
+      radius: Math.round(bounded(recipe.tiltShift?.radius, 1, 32, 12)),
+      position: Math.round(bounded(recipe.tiltShift?.position, 0, 100, 50)),
+      width: Math.round(bounded(recipe.tiltShift?.width, 5, 80, 30)),
+      feather: Math.round(bounded(recipe.tiltShift?.feather, 1, 100, 50)),
     },
     posterize: {
       levels: Math.round(bounded(recipe.posterize?.levels, 2, 256, 256)),
@@ -121,6 +144,11 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
   return recipe.bloom?.amount === safe.bloom.amount
     && recipe.bloom?.radius === safe.bloom.radius
     && recipe.bloom?.threshold === safe.bloom.threshold
+    && recipe.tiltShift?.amount === safe.tiltShift.amount
+    && recipe.tiltShift?.radius === safe.tiltShift.radius
+    && recipe.tiltShift?.position === safe.tiltShift.position
+    && recipe.tiltShift?.width === safe.tiltShift.width
+    && recipe.tiltShift?.feather === safe.tiltShift.feather
     && recipe.posterize?.levels === safe.posterize.levels
     && recipe.halftone?.amount === safe.halftone.amount
     && recipe.halftone?.size === safe.halftone.size
@@ -136,7 +164,7 @@ export function isSanitizedEffectsRecipe(recipe: ImageEffectsRecipe): boolean {
 
 export function isNeutralEffects(recipe: ImageEffectsRecipe): boolean {
   const safe = sanitizeEffectsRecipe(recipe);
-  return safe.bloom.amount === 0 && safe.posterize.levels === 256
+  return safe.bloom.amount === 0 && safe.tiltShift.amount === 0 && safe.posterize.levels === 256
     && safe.halftone.amount === 0 && safe.pixelArt.amount === 0
     && safe.grain.amount === 0 && safe.vignette.amount === 0;
 }
@@ -148,6 +176,11 @@ export function sameEffectsRecipe(left: ImageEffectsRecipe | null, right: ImageE
   return safeLeft.bloom.amount === safeRight.bloom.amount
     && safeLeft.bloom.radius === safeRight.bloom.radius
     && safeLeft.bloom.threshold === safeRight.bloom.threshold
+    && safeLeft.tiltShift.amount === safeRight.tiltShift.amount
+    && safeLeft.tiltShift.radius === safeRight.tiltShift.radius
+    && safeLeft.tiltShift.position === safeRight.tiltShift.position
+    && safeLeft.tiltShift.width === safeRight.tiltShift.width
+    && safeLeft.tiltShift.feather === safeRight.tiltShift.feather
     && safeLeft.posterize.levels === safeRight.posterize.levels
     && safeLeft.halftone.amount === safeRight.halftone.amount
     && safeLeft.halftone.size === safeRight.halftone.size
@@ -224,6 +257,124 @@ export interface ImageBloomResult {
 export interface ImagePixelArtResult {
   processedPixels: number;
   changedPixels: number;
+}
+
+export interface ImageTiltShiftResult {
+  processedPixels: number;
+  changedPixels: number;
+}
+
+/**
+ * Blends an alpha-weighted source-neighbourhood blur over the current effect
+ * stage outside a horizontal focus band. The source tile must include a full
+ * radius halo at every non-image boundary so independent worker tiles remain
+ * byte-exact.
+ */
+export function applyTiltShiftToRgba(
+  source: Uint8ClampedArray,
+  target: Uint8ClampedArray,
+  width: number,
+  coreTop: number,
+  coreHeight: number,
+  imageHeight: number,
+  rowOffset: number,
+  recipe: ImageTiltShiftRecipe,
+): ImageTiltShiftResult {
+  const amount = Math.round(bounded(recipe.amount, 0, 100, 0));
+  const radius = Math.round(bounded(recipe.radius, 1, 32, 12));
+  const position = Math.round(bounded(recipe.position, 0, 100, 50));
+  const focusWidth = Math.round(bounded(recipe.width, 5, 80, 30));
+  const feather = Math.round(bounded(recipe.feather, 1, 100, 50));
+  const sourcePixels = source.byteLength / 4;
+  const sourceHeight = sourcePixels / width;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(imageHeight)
+    || !Number.isSafeInteger(coreTop) || !Number.isSafeInteger(coreHeight)
+    || !Number.isSafeInteger(rowOffset) || width < 1 || imageHeight < 1
+    || coreTop < 0 || coreHeight < 1 || rowOffset < 0
+    || !Number.isSafeInteger(sourcePixels) || !Number.isSafeInteger(sourceHeight)
+    || sourcePixels % width !== 0 || coreTop + coreHeight > sourceHeight
+    || rowOffset + coreHeight > imageHeight
+    || target.byteLength !== width * coreHeight * 4) {
+    throw new Error("Tilt-shift requires valid source halo and target RGBA dimensions.");
+  }
+  const sourceTop = rowOffset - coreTop;
+  const sourceBottom = sourceTop + sourceHeight;
+  if (sourceTop < 0 || sourceBottom > imageHeight) {
+    throw new Error("Tilt-shift received a source tile outside the image.");
+  }
+  if (amount === 0) return { processedPixels: 0, changedPixels: 0 };
+  if ((sourceTop > 0 && coreTop < radius)
+    || (sourceBottom < imageHeight && sourceHeight - coreTop - coreHeight < radius)) {
+    throw new Error("Tilt-shift requires a complete immutable-source radius halo.");
+  }
+
+  const stride = width + 1;
+  const entries = stride * (sourceHeight + 1);
+  const alphaIntegral = new Float64Array(entries);
+  const redIntegral = new Float64Array(entries);
+  const greenIntegral = new Float64Array(entries);
+  const blueIntegral = new Float64Array(entries);
+  for (let y = 0; y < sourceHeight; y += 1) {
+    let rowAlpha = 0;
+    let rowRed = 0;
+    let rowGreen = 0;
+    let rowBlue = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const alpha = source[offset + 3];
+      rowAlpha += alpha;
+      rowRed += source[offset] * alpha;
+      rowGreen += source[offset + 1] * alpha;
+      rowBlue += source[offset + 2] * alpha;
+      const integralOffset = (y + 1) * stride + x + 1;
+      alphaIntegral[integralOffset] = alphaIntegral[integralOffset - stride] + rowAlpha;
+      redIntegral[integralOffset] = redIntegral[integralOffset - stride] + rowRed;
+      greenIntegral[integralOffset] = greenIntegral[integralOffset - stride] + rowGreen;
+      blueIntegral[integralOffset] = blueIntegral[integralOffset - stride] + rowBlue;
+    }
+  }
+  const area = (integral: Float64Array, left: number, top: number, right: number, bottom: number) => (
+    integral[(bottom + 1) * stride + right + 1]
+      - integral[top * stride + right + 1]
+      - integral[(bottom + 1) * stride + left]
+      + integral[top * stride + left]
+  );
+  const maximumMix = amount / 100;
+  const centre = position / 100;
+  const focusHalfWidth = focusWidth / 200;
+  const transitionEnd = focusHalfWidth + feather / 200;
+  let processedPixels = 0;
+  let changedPixels = 0;
+  for (let outputY = 0; outputY < coreHeight; outputY += 1) {
+    const sourceY = coreTop + outputY;
+    const globalY = rowOffset + outputY;
+    const distance = Math.abs((globalY + 0.5) / imageHeight - centre);
+    const mix = maximumMix * smoothstep(focusHalfWidth, transitionEnd, distance);
+    for (let x = 0; x < width; x += 1) {
+      const targetOffset = (outputY * width + x) * 4;
+      if (target[targetOffset + 3] === 0) continue;
+      processedPixels += 1;
+      if (mix === 0) continue;
+      const left = Math.max(0, x - radius);
+      const right = Math.min(width - 1, x + radius);
+      const top = Math.max(0, sourceY - radius);
+      const bottom = Math.min(sourceHeight - 1, sourceY + radius);
+      const alphaWeight = area(alphaIntegral, left, top, right, bottom);
+      if (alphaWeight === 0) continue;
+      const beforeRed = target[targetOffset];
+      const beforeGreen = target[targetOffset + 1];
+      const beforeBlue = target[targetOffset + 2];
+      target[targetOffset] = Math.round(beforeRed * (1 - mix)
+        + area(redIntegral, left, top, right, bottom) / alphaWeight * mix);
+      target[targetOffset + 1] = Math.round(beforeGreen * (1 - mix)
+        + area(greenIntegral, left, top, right, bottom) / alphaWeight * mix);
+      target[targetOffset + 2] = Math.round(beforeBlue * (1 - mix)
+        + area(blueIntegral, left, top, right, bottom) / alphaWeight * mix);
+      if (beforeRed !== target[targetOffset] || beforeGreen !== target[targetOffset + 1]
+        || beforeBlue !== target[targetOffset + 2]) changedPixels += 1;
+    }
+  }
+  return { processedPixels, changedPixels };
 }
 
 /**
@@ -421,6 +572,7 @@ export function applyEffectsToRgba(
     processedPixels: 0,
     changedPixels: 0,
     bloomChangedPixels: 0,
+    tiltShiftChangedPixels: 0,
     posterizedPixels: 0,
     halftonedPixels: 0,
     pixelatedPixels: 0,

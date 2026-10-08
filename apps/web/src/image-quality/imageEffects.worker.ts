@@ -4,6 +4,7 @@ import {
   applyBloomToRgba,
   applyEffectsToRgba,
   applyPixelArtToRgba,
+  applyTiltShiftToRgba,
   assertBrowserEffectsBudget,
   isNeutralEffects,
   sanitizeEffectsRecipe,
@@ -75,7 +76,7 @@ async function render(
 ) {
   if (!bitmap) throw new Error("The image must be prepared before applying effects.");
   const safe = sanitizeEffectsRecipe(recipe);
-  if (isNeutralEffects(safe)) throw new Error("Choose non-neutral bloom, posterization, halftone, pixel art, grain or vignette settings before applying effects.");
+  if (isNeutralEffects(safe)) throw new Error("Choose non-neutral bloom, tilt-shift, posterization, halftone, pixel art, grain or vignette settings before applying effects.");
   if (bitmap.width > MAX_CANVAS_EDGE || bitmap.height > MAX_CANVAS_EDGE) {
     throw new Error(
       `This effect requires ${bitmap.width} × ${bitmap.height} px, beyond this browser's ${MAX_CANVAS_EDGE}px canvas edge. No smaller result was substituted.`,
@@ -101,6 +102,7 @@ async function render(
     processedPixels: 0,
     changedPixels: 0,
     bloomChangedPixels: 0,
+    tiltShiftChangedPixels: 0,
     posterizedPixels: 0,
     halftonedPixels: 0,
     pixelatedPixels: 0,
@@ -113,39 +115,59 @@ async function render(
   const localRecipe: ImageEffectsRecipe = {
     ...safe,
     bloom: { ...safe.bloom, amount: 0 },
+    tiltShift: { ...safe.tiltShift, amount: 0 },
     pixelArt: { ...safe.pixelArt, amount: 0 },
   };
+  const neighbourhoodRadius = Math.max(
+    safe.bloom.amount === 0 ? 0 : safe.bloom.radius,
+    safe.tiltShift.amount === 0 ? 0 : safe.tiltShift.radius,
+  );
   for (let y = 0; y < bitmap.height; y += rowsPerTile) {
     const height = Math.min(rowsPerTile, bitmap.height - y);
     let sourceTile: Uint8ClampedArray;
     let coreTop = 0;
     let outputPixels: Uint8ClampedArray;
     let bloomChangedPixels = 0;
-    if (safe.bloom.amount === 0) {
+    if (neighbourhoodRadius === 0) {
       const imageData = context.getImageData(0, y, bitmap.width, height);
       sourceTile = imageData.data.slice();
       outputPixels = imageData.data;
     } else {
-      const tileTop = Math.max(0, y - safe.bloom.radius);
-      const tileBottom = Math.min(bitmap.height, y + height + safe.bloom.radius);
+      const tileTop = Math.max(0, y - neighbourhoodRadius);
+      const tileBottom = Math.min(bitmap.height, y + height + neighbourhoodRadius);
       const tileHeight = tileBottom - tileTop;
       const tileCanvas = new OffscreenCanvas(bitmap.width, tileHeight);
       const tileContext = tileCanvas.getContext("2d", { colorSpace: "srgb", alpha: true, willReadFrequently: true });
-      if (!tileContext) throw new Error("Your browser could not allocate the highlight-bloom tile renderer.");
+      if (!tileContext) throw new Error("Your browser could not allocate the source-neighbourhood effects renderer.");
       tileContext.drawImage(bitmap, 0, tileTop, bitmap.width, tileHeight, 0, 0, bitmap.width, tileHeight);
       sourceTile = tileContext.getImageData(0, 0, bitmap.width, tileHeight).data;
       coreTop = y - tileTop;
-      const bloom = applyBloomToRgba(
-        sourceTile,
-        bitmap.width,
-        tileHeight,
-        coreTop,
-        height,
-        safe.bloom,
-      );
-      outputPixels = bloom.pixels;
-      bloomChangedPixels = bloom.changedPixels;
+      if (safe.bloom.amount === 0) {
+        const coreStart = coreTop * bitmap.width * 4;
+        outputPixels = sourceTile.slice(coreStart, coreStart + height * bitmap.width * 4);
+      } else {
+        const bloom = applyBloomToRgba(
+          sourceTile,
+          bitmap.width,
+          tileHeight,
+          coreTop,
+          height,
+          safe.bloom,
+        );
+        outputPixels = bloom.pixels;
+        bloomChangedPixels = bloom.changedPixels;
+      }
     }
+    const tiltShift = applyTiltShiftToRgba(
+      sourceTile,
+      outputPixels,
+      bitmap.width,
+      coreTop,
+      height,
+      bitmap.height,
+      y,
+      safe.tiltShift,
+    );
     const pixelArt = applyPixelArtToRgba(
       outputPixels,
       bitmap.width,
@@ -165,6 +187,7 @@ async function render(
     statistics.processedPixels += finalStatistics.processedPixels;
     statistics.changedPixels += finalStatistics.changedPixels;
     statistics.bloomChangedPixels += bloomChangedPixels;
+    statistics.tiltShiftChangedPixels += tiltShift.changedPixels;
     statistics.posterizedPixels += localStatistics.posterizedPixels;
     statistics.halftonedPixels += localStatistics.halftonedPixels;
     statistics.pixelatedPixels += pixelArt.changedPixels;

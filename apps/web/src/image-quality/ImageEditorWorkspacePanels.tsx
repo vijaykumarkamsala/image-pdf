@@ -426,6 +426,90 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
       <p>Spreads measured source highlights within visible pixels only. It preserves alpha, prevents new clipped whites and does not invent a light source.</p>
     </fieldset>
     <fieldset className="quality-levels-control quality-vignette-control">
+      <legend>Tilt-shift focus band</legend>
+      <label className="quality-adjustment-control">
+        <span><strong>Amount</strong><output>{props.recipe.tiltShift.amount === 0 ? "Neutral" : `${props.recipe.tiltShift.amount}%`}</output></span>
+        <input
+          aria-label="Tilt-shift amount"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.tiltShift.amount}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            tiltShift: { ...props.recipe.tiltShift, amount: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Blur radius</strong><output>{props.recipe.tiltShift.radius} px</output></span>
+        <input
+          aria-label="Tilt-shift blur radius"
+          type="range"
+          min="1"
+          max="32"
+          step="1"
+          value={props.recipe.tiltShift.radius}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            tiltShift: { ...props.recipe.tiltShift, radius: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Focus position</strong><output>{props.recipe.tiltShift.position}%</output></span>
+        <input
+          aria-label="Tilt-shift focus position"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={props.recipe.tiltShift.position}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            tiltShift: { ...props.recipe.tiltShift, position: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Focus band</strong><output>{props.recipe.tiltShift.width}% height</output></span>
+        <input
+          aria-label="Tilt-shift focus band width"
+          type="range"
+          min="5"
+          max="80"
+          step="1"
+          value={props.recipe.tiltShift.width}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            tiltShift: { ...props.recipe.tiltShift, width: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <label className="quality-adjustment-control">
+        <span><strong>Feather</strong><output>{props.recipe.tiltShift.feather}%</output></span>
+        <input
+          aria-label="Tilt-shift feather"
+          type="range"
+          min="1"
+          max="100"
+          step="1"
+          value={props.recipe.tiltShift.feather}
+          disabled={props.busy}
+          onChange={(event) => props.onRecipe({
+            ...props.recipe,
+            tiltShift: { ...props.recipe.tiltShift, feather: Number(event.target.value) },
+          })}
+        />
+      </label>
+      <p>Blurs outside one horizontal focus band using the immutable verified source. It preserves alpha and does not infer depth, subjects, lenses or bokeh.</p>
+    </fieldset>
+    <fieldset className="quality-levels-control quality-vignette-control">
       <legend>Posterization</legend>
       <label className="quality-adjustment-control">
         <span><strong>Colour levels</strong><output>{props.recipe.posterize.levels === 256
@@ -626,6 +710,7 @@ export function EffectsToolPanel(props: EffectsToolPanelProps) {
     {props.statistics && <dl className="quality-adjustment-statistics">
       <div><dt>Changed pixels</dt><dd>{props.statistics.changedPixels.toLocaleString()}</dd></div>
       <div><dt>Bloom pixels</dt><dd>{props.statistics.bloomChangedPixels.toLocaleString()}</dd></div>
+      <div><dt>Tilt-shift pixels</dt><dd>{props.statistics.tiltShiftChangedPixels.toLocaleString()}</dd></div>
       <div><dt>Posterized pixels</dt><dd>{props.statistics.posterizedPixels.toLocaleString()}</dd></div>
       <div><dt>Halftone pixels</dt><dd>{props.statistics.halftonedPixels.toLocaleString()}</dd></div>
       <div><dt>Pixel-art pixels</dt><dd>{props.statistics.pixelatedPixels.toLocaleString()}</dd></div>

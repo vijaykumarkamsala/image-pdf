@@ -46,13 +46,14 @@ test("custom effects presets persist as a versioned bounded recipe collection", 
   const reloaded = readImageEffectCustomPresets(storage)[0]!;
   assert.notEqual(reloaded.recipe, presets[0]!.recipe);
   assert.notEqual(reloaded.recipe.bloom, presets[0]!.recipe.bloom);
+  assert.notEqual(reloaded.recipe.tiltShift, presets[0]!.recipe.tiltShift);
   assert.notEqual(reloaded.recipe.halftone, presets[0]!.recipe.halftone);
   assert.notEqual(reloaded.recipe.pixelArt, presets[0]!.recipe.pixelArt);
   assert.notEqual(reloaded.recipe.grain, presets[0]!.recipe.grain);
   assert.notEqual(reloaded.recipe.vignette, presets[0]!.recipe.vignette);
 });
 
-test("custom effects preset parsing migrates safe v3, v4 and v5 recipes and rejects malformed or duplicate entries", () => {
+test("custom effects preset parsing migrates safe v3 through v6 recipes and rejects malformed or duplicate entries", () => {
   const valid = addImageEffectCustomPreset([], "Quiet finish", customRecipe(), "preset-valid")[0]!;
   const unsafe = {
     ...valid,
@@ -93,6 +94,7 @@ test("custom effects preset parsing migrates safe v3, v4 and v5 recipes and reje
     posterize: _posterize,
     halftone: _halftone,
     pixelArt: _pixelArt,
+    tiltShift: _tiltShift,
     ...legacyV3Recipe
   } = valid.recipe;
   const migratedV3 = parseImageEffectCustomPresets(JSON.stringify({
@@ -107,10 +109,16 @@ test("custom effects preset parsing migrates safe v3, v4 and v5 recipes and reje
       posterize: { levels: 256 },
       halftone: { amount: 0, size: 8, angle: 45 },
       pixelArt: { amount: 0, size: 8 },
+      tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
     },
   }]);
 
-  const { halftone: _legacyHalftone, pixelArt: _legacyPixelArt, ...legacyV4Recipe } = valid.recipe;
+  const {
+    halftone: _legacyHalftone,
+    pixelArt: _legacyPixelArt,
+    tiltShift: _legacyV4TiltShift,
+    ...legacyV4Recipe
+  } = valid.recipe;
   const migratedV4 = parseImageEffectCustomPresets(JSON.stringify({
     version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
     presets: [{ ...valid, recipeVersion: 4, recipe: legacyV4Recipe }],
@@ -122,10 +130,15 @@ test("custom effects preset parsing migrates safe v3, v4 and v5 recipes and reje
       ...legacyV4Recipe,
       halftone: { amount: 0, size: 8, angle: 45 },
       pixelArt: { amount: 0, size: 8 },
+      tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
     },
   }]);
 
-  const { pixelArt: _legacyV5PixelArt, ...legacyV5Recipe } = valid.recipe;
+  const {
+    pixelArt: _legacyV5PixelArt,
+    tiltShift: _legacyV5TiltShift,
+    ...legacyV5Recipe
+  } = valid.recipe;
   const migratedV5 = parseImageEffectCustomPresets(JSON.stringify({
     version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
     presets: [{ ...valid, recipeVersion: 5, recipe: legacyV5Recipe }],
@@ -133,7 +146,25 @@ test("custom effects preset parsing migrates safe v3, v4 and v5 recipes and reje
   assert.deepEqual(migratedV5, [{
     ...valid,
     recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
-    recipe: { ...legacyV5Recipe, pixelArt: { amount: 0, size: 8 } },
+    recipe: {
+      ...legacyV5Recipe,
+      pixelArt: { amount: 0, size: 8 },
+      tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    },
+  }]);
+
+  const { tiltShift: _legacyV6TiltShift, ...legacyV6Recipe } = valid.recipe;
+  const migratedV6 = parseImageEffectCustomPresets(JSON.stringify({
+    version: IMAGE_EFFECT_CUSTOM_PRESET_SCHEMA_VERSION,
+    presets: [{ ...valid, recipeVersion: 6, recipe: legacyV6Recipe }],
+  }));
+  assert.deepEqual(migratedV6, [{
+    ...valid,
+    recipeVersion: IMAGE_EFFECT_CUSTOM_PRESET_RECIPE_VERSION,
+    recipe: {
+      ...legacyV6Recipe,
+      tiltShift: { amount: 0, radius: 12, position: 50, width: 30, feather: 50 },
+    },
   }]);
 });
 
